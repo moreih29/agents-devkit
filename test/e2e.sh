@@ -162,6 +162,14 @@ check "Gate/UserPromptSubmit (cruise)" 'cruise mode ACTIVATED' "$result"
 [ -f .lattice/state/sessions/e2e-hook/pipeline.json ] && [ -f .lattice/state/sessions/e2e-hook/sustain.json ] && green "Gate/cruise (dual state)" && PASS=$((PASS + 1)) || (red "Gate/cruise (dual state)" && FAIL=$((FAIL + 1)))
 rm -f .lattice/state/sessions/e2e-hook/pipeline.json .lattice/state/sessions/e2e-hook/sustain.json .lattice/state/sessions/e2e-hook/parallel.json
 
+# MCP: lat_state_clear("cruise") → pipeline + sustain 동시 해제
+# cruise 테스트용 상태 파일 생성
+mcp_call "lat_state_write" '{"key":"pipeline","value":{"active":true},"sessionId":"e2e-cruise"}' > /dev/null
+mcp_call "lat_state_write" '{"key":"sustain","value":{"active":true},"sessionId":"e2e-cruise"}' > /dev/null
+result=$(mcp_call "lat_state_clear" '{"key":"cruise","sessionId":"e2e-cruise"}')
+check "MCP lat_state_clear (cruise)" '"cleared":true' "$result"
+check "MCP lat_state_clear (cruise keys)" '"clearedKeys"' "$result"
+
 # Pulse: whisper tracker 초기화 (Phase 1 테스트에서 Read 카운트 누적됨)
 rm -f .lattice/state/sessions/e2e-hook/whisper-tracker.json
 

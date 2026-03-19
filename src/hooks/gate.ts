@@ -172,7 +172,15 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
 
     respond({
       continue: true,
-      additionalContext: `[LATTICE] cruise mode ACTIVATED (session: ${sid}). Pipeline + Sustain enabled. Follow the cruise skill instructions. IMPORTANT: Before finishing your response, you MUST call lat_state_clear({ key: "sustain" }) and lat_state_clear({ key: "pipeline" }) to deactivate. Do NOT attempt to stop without clearing state first.`,
+      additionalContext: `[LATTICE] cruise mode ACTIVATED (session: ${sid}). Pipeline + Sustain enabled.
+Execute these stages IN ORDER:
+1. Analyze — understand the codebase and request
+2. Plan — break into actionable steps
+3. Implement — write code (use parallel Agent calls for independent tasks)
+4. Verify — run tests, type-check
+5. Review — review your own changes for correctness
+Update pipeline state with lat_state_write as you progress through stages.
+IMPORTANT: Before finishing, call lat_state_clear({ key: "cruise" }) to deactivate all state at once. Do NOT stop without clearing state first.`,
     });
     return;
   }

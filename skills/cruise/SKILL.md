@@ -100,9 +100,9 @@ After each stage:
 
 When all stages complete or pipeline aborts:
 ```
-lat_state_clear({ key: "sustain" })
-lat_state_clear({ key: "pipeline" })
+lat_state_clear({ key: "cruise" })
 ```
+This single call clears both pipeline and sustain state at once.
 Report the full outcome: what was analyzed, planned, implemented, verified, and reviewed.
 
 ## Safety Limits
