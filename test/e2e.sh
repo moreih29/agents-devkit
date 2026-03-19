@@ -80,12 +80,15 @@ check "lat_context (sessionId)" '"sessionId"' "$result"
 echo ""
 echo "=== 훅 ==="
 
+# 훅 테스트용 클린 세션 설정 (활성 cruise/sustain 등의 간섭 방지)
+mkdir -p .lattice/state/sessions/e2e-hook
+echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
+
 # Gate: Stop (no sustain) → pass
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (no sustain)" '"continue":true' "$result"
 
 # Gate: Stop (sustain active) → block
-mkdir -p .lattice/state/sessions/e2e-hook
 echo '{"active":true,"maxIterations":10,"currentIteration":2}' > .lattice/state/sessions/e2e-hook/sustain.json
 echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
@@ -184,6 +187,32 @@ echo '{"active":true,"completedCount":1,"totalCount":3}' > .lattice/state/sessio
 result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Read"}' | node scripts/pulse.cjs 2>/dev/null)
 check "Pulse/PreToolUse (parallel)" 'PARALLEL 1/3 done' "$result"
 rm -f .lattice/state/sessions/e2e-hook/parallel.json
+
+# --- Pulse 컨텍스트 수준 테스트 ---
+echo ""
+echo "=== Pulse 컨텍스트 수준 ==="
+
+rm -f .lattice/state/sessions/e2e-hook/whisper-tracker.json
+
+# Pulse: minimal agent (scout) → guidance 메시지 생략
+echo '{"active":["scout"],"history":[]}' > .lattice/state/sessions/e2e-hook/agents.json
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | node scripts/pulse.cjs 2>/dev/null)
+check "Pulse/minimal (no guidance)" '"continue":true' "$result"
+# minimal에서는 guidance 메시지(parallel execution)가 없어야 함
+if echo "$result" | grep -q 'parallel execution'; then
+  red "Pulse/minimal (guidance leaked)" && FAIL=$((FAIL + 1))
+else
+  green "Pulse/minimal (guidance filtered)" && PASS=$((PASS + 1))
+fi
+
+rm -f .lattice/state/sessions/e2e-hook/whisper-tracker.json
+
+# Pulse: standard agent (artisan) → guidance 메시지 포함
+echo '{"active":["artisan"],"history":[]}' > .lattice/state/sessions/e2e-hook/agents.json
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | node scripts/pulse.cjs 2>/dev/null)
+check "Pulse/standard (has guidance)" 'parallel execution' "$result"
+
+rm -f .lattice/state/sessions/e2e-hook/agents.json .lattice/state/sessions/e2e-hook/whisper-tracker.json
 
 # Cleanup
 rm -rf .lattice/state/sessions/e2e-hook .lattice/state/current-session.json .lattice/memo/*e2e* 2>/dev/null

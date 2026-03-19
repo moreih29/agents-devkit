@@ -107,7 +107,7 @@ claude-lattice/
 | 모듈 | 실행 방식 | 담당 이벤트 | 역할 |
 |------|-----------|-------------|------|
 | Gate | hooks.json (별도 프로세스) | Stop, UserPromptSubmit | Sustain/Parallel/Pipeline Stop 차단, 키워드 감지 (sustain/parallel/pipeline/cruise) |
-| Pulse | hooks.json (별도 프로세스) | PreToolUse, PostToolUse | 컨텍스트 주입 (Whisper 패턴 + 활성 워크플로우 상태), Guard 내장 |
+| Pulse | hooks.json (별도 프로세스) | PreToolUse, PostToolUse | 컨텍스트 주입 (Whisper 패턴 + 활성 워크플로우 상태 + 에이전트별 수준 분기), Guard 내장 |
 | Memory | MCP 도구 (lat_* 호출 시) | 에이전트의 도구 호출 | knowledge, memo, state CRUD |
 | Tracker | hooks.json (별도 프로세스) | SubagentStart/Stop, Session | 에이전트/세션 추적 |
 | Guard | Pulse 내장 + lat_context | PreToolUse (Pulse 경유) | Context window 모니터링 |

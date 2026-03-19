@@ -28,6 +28,43 @@ function saveTracker(sid: string, tracker: WhisperTracker): void {
   writeFileSync(join(dir, 'whisper-tracker.json'), JSON.stringify(tracker));
 }
 
+// --- Agent Context Levels ---
+
+type ContextLevel = 'minimal' | 'standard' | 'full';
+
+const AGENT_CONTEXT_LEVELS: Record<string, ContextLevel> = {
+  scout: 'minimal',
+  artisan: 'standard',
+  sentinel: 'standard',
+  tinker: 'standard',
+  steward: 'full',
+  compass: 'full',
+  strategist: 'full',
+  lens: 'full',
+  analyst: 'full',
+};
+
+function getActiveContextLevel(sid: string): ContextLevel {
+  const agentsPath = join(sessionDir(sid), 'agents.json');
+  if (!existsSync(agentsPath)) return 'standard'; // 메인 세션
+  try {
+    const record = JSON.parse(readFileSync(agentsPath, 'utf-8'));
+    const active: string[] = record.active ?? [];
+    if (active.length === 0) return 'standard';
+
+    // 활성 에이전트 중 가장 높은 수준 적용
+    let highest: ContextLevel = 'minimal';
+    for (const name of active) {
+      const level = AGENT_CONTEXT_LEVELS[name] ?? 'standard';
+      if (level === 'full') return 'full';
+      if (level === 'standard') highest = 'standard';
+    }
+    return highest;
+  } catch {
+    return 'standard';
+  }
+}
+
 // --- Context Messages ---
 
 interface ContextMessage {
@@ -122,18 +159,25 @@ async function main() {
 
   const sid = getSessionId();
   const tracker = loadTracker(sid);
+  const contextLevel = getActiveContextLevel(sid);
 
   tracker.toolCallCount++;
 
-  // minimal 모드: 일정 도구 호출 이후 핵심 메시지만
-  const minimalMode = tracker.toolCallCount > ADAPTIVE_THRESHOLD;
+  // adaptive 모드: 일정 도구 호출 이후 핵심 메시지만
+  const adaptiveMinimal = tracker.toolCallCount > ADAPTIVE_THRESHOLD;
 
   const messages = buildMessages(toolName, hookEvent, sid);
   const filtered: string[] = [];
 
   for (const msg of messages) {
-    // minimal 모드에서는 safety/workflow만
-    if (minimalMode && msg.priority !== 'safety' && msg.priority !== 'workflow') continue;
+    // adaptive 모드에서는 safety/workflow만
+    if (adaptiveMinimal && msg.priority !== 'safety' && msg.priority !== 'workflow') continue;
+
+    // context level 분기:
+    // minimal → safety + workflow만
+    // standard → safety + workflow + guidance
+    // full → 전부
+    if (contextLevel === 'minimal' && msg.priority !== 'safety' && msg.priority !== 'workflow') continue;
 
     // 중복 방지: MAX_REPEAT 초과 시 건너뜀
     const count = tracker.injections[msg.key] ?? 0;

@@ -85,6 +85,35 @@ function saveTracker(sid, tracker) {
   ensureDir(dir);
   (0, import_fs3.writeFileSync)((0, import_path3.join)(dir, "whisper-tracker.json"), JSON.stringify(tracker));
 }
+var AGENT_CONTEXT_LEVELS = {
+  scout: "minimal",
+  artisan: "standard",
+  sentinel: "standard",
+  tinker: "standard",
+  steward: "full",
+  compass: "full",
+  strategist: "full",
+  lens: "full",
+  analyst: "full"
+};
+function getActiveContextLevel(sid) {
+  const agentsPath = (0, import_path3.join)(sessionDir(sid), "agents.json");
+  if (!(0, import_fs3.existsSync)(agentsPath)) return "standard";
+  try {
+    const record = JSON.parse((0, import_fs3.readFileSync)(agentsPath, "utf-8"));
+    const active = record.active ?? [];
+    if (active.length === 0) return "standard";
+    let highest = "minimal";
+    for (const name of active) {
+      const level = AGENT_CONTEXT_LEVELS[name] ?? "standard";
+      if (level === "full") return "full";
+      if (level === "standard") highest = "standard";
+    }
+    return highest;
+  } catch {
+    return "standard";
+  }
+}
 var MAX_REPEAT = 3;
 var ADAPTIVE_THRESHOLD = 60;
 function buildMessages(toolName, hookEvent, sid) {
@@ -157,12 +186,14 @@ async function main() {
   const toolName = event.tool_name ?? "";
   const sid = getSessionId();
   const tracker = loadTracker(sid);
+  const contextLevel = getActiveContextLevel(sid);
   tracker.toolCallCount++;
-  const minimalMode = tracker.toolCallCount > ADAPTIVE_THRESHOLD;
+  const adaptiveMinimal = tracker.toolCallCount > ADAPTIVE_THRESHOLD;
   const messages = buildMessages(toolName, hookEvent, sid);
   const filtered = [];
   for (const msg of messages) {
-    if (minimalMode && msg.priority !== "safety" && msg.priority !== "workflow") continue;
+    if (adaptiveMinimal && msg.priority !== "safety" && msg.priority !== "workflow") continue;
+    if (contextLevel === "minimal" && msg.priority !== "safety" && msg.priority !== "workflow") continue;
     const count = tracker.injections[msg.key] ?? 0;
     if (count >= MAX_REPEAT) continue;
     tracker.injections[msg.key] = count + 1;

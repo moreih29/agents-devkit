@@ -23,7 +23,7 @@
 
 ### Pipeline (파이프라인)
 - **기능**: 정의된 단계를 순서대로 실행
-- **키워드**: pipeline, auto, 자동으로, 순서대로
+- **키워드**: pipeline, 순서대로
 - **상태 파일**: `.lattice/state/sessions/{id}/pipeline.json`
 
 ## 복합 워크플로우 = 프리미티브 조합

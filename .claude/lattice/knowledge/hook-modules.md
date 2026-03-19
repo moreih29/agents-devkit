@@ -63,6 +63,13 @@ PreToolUse/PostToolUse에서 컨텍스트 주입. Guard 기능 내장.
 - `[PIPELINE stage: X (N/M)]` — 현재 파이프라인 단계
 - `[PARALLEL N/M done]` — 병렬 태스크 완료 현황
 
+### 에이전트별 컨텍스트 수준 분기
+Tracker의 `agents.json`에서 활성 에이전트를 조회하고, 에이전트의 context 수준에 따라 메시지 필터링:
+- `minimal` (Scout): safety + workflow만 주입, guidance 생략
+- `standard` (Artisan, Sentinel, Tinker): safety + workflow + guidance
+- `full` (Steward, Compass, Strategist, Lens, Analyst): 전부 주입
+- 복수 에이전트 활성 시 최고 수준 적용
+
 ### 우선순위
 안전(Guard) > 워크플로우(Sustain/Pipeline/Parallel 리마인더) > 가이던스(도구별 팁) > 정보(상태 알림)
 
