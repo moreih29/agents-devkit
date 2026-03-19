@@ -160,6 +160,14 @@ async function main() {
   const toolName = event.tool_name ?? '';
 
   const sid = getSessionId();
+
+  // fast path: 세션 디렉토리 없으면 워크플로우/에이전트 비활성 → 상태 I/O 생략
+  const sessDir = sessionDir(sid);
+  if (!existsSync(sessDir)) {
+    pass();
+    return;
+  }
+
   const tracker = loadTracker(sid);
   const contextLevel = getActiveContextLevel(sid);
 
