@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "lattice",
+  "description": "Agent orchestration for Claude Code — optimized context injection per role",
+  "owner": {
+    "name": "kih"
+  },
+  "plugins": [
+    {
+      "name": "claude-lattice",
+      "description": "Agent orchestration plugin for Claude Code. Injects optimized context per agent role with minimal overhead.",
+      "version": "0.1.0",
+      "author": {
+        "name": "kih"
+      },
+      "source": "./",
+      "category": "productivity",
+      "tags": [
+        "agent-orchestration",
+        "context-injection",
+        "workflow"
+      ]
+    }
+  ],
+  "version": "0.1.0"
+}

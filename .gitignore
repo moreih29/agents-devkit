@@ -1,2 +1,9 @@
 .omc/
 .lattice/
+node_modules/
+bun.lockb
+dist/
+bridge/
+scripts/*.cjs
+scripts/*.cjs.map
+*.tgz

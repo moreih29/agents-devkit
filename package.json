@@ -1,0 +1,35 @@
+{
+  "name": "claude-lattice",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Agent orchestration plugin for Claude Code — optimized context injection per role",
+  "author": "kih",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "build:types": "tsc --noEmit",
+    "check": "tsc --noEmit && npm run build",
+    "clean": "rm -rf dist bridge/mcp-server.cjs scripts/*.cjs"
+  },
+  "files": [
+    "agents",
+    "skills",
+    "hooks",
+    "scripts",
+    "bridge",
+    ".claude-plugin",
+    ".mcp.json"
+  ],
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.0"
+  }
+}
