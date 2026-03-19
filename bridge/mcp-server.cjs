@@ -21718,9 +21718,16 @@ function loadAstGrep() {
     astGrepAvailable = true;
     return true;
   } catch {
-    astGrepAvailable = false;
-    return false;
   }
+  try {
+    const projectRoot2 = findProjectRoot3();
+    astGrep = require((0, import_path7.resolve)(projectRoot2, "node_modules", "@ast-grep", "napi"));
+    astGrepAvailable = true;
+    return true;
+  } catch {
+  }
+  astGrepAvailable = false;
+  return false;
 }
 var LANG_MAP = {
   ts: "TypeScript",

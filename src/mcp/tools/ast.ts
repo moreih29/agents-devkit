@@ -9,14 +9,24 @@ let astGrepAvailable: boolean | null = null;
 
 function loadAstGrep(): boolean {
   if (astGrepAvailable !== null) return astGrepAvailable;
+
+  // 1. 플러그인 캐시의 node_modules
   try {
     astGrep = require('@ast-grep/napi');
     astGrepAvailable = true;
     return true;
-  } catch {
-    astGrepAvailable = false;
-    return false;
-  }
+  } catch { /* fallthrough */ }
+
+  // 2. 프로젝트 루트의 node_modules (dev-sync가 node_modules를 복사하지 않으므로)
+  try {
+    const projectRoot = findProjectRoot();
+    astGrep = require(resolve(projectRoot, 'node_modules', '@ast-grep', 'napi'));
+    astGrepAvailable = true;
+    return true;
+  } catch { /* fallthrough */ }
+
+  astGrepAvailable = false;
+  return false;
 }
 
 const LANG_MAP: Record<string, string> = {
