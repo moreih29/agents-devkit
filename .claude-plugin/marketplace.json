@@ -1,7 +1,5 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "lattice",
-  "description": "Agent orchestration for Claude Code — optimized context injection per role",
   "owner": {
     "name": "kih"
   },
@@ -21,6 +19,5 @@
         "workflow"
       ]
     }
-  ],
-  "version": "0.1.0"
+  ]
 }
