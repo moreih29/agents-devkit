@@ -94,7 +94,9 @@ var AGENT_CONTEXT_LEVELS = {
   compass: "full",
   strategist: "full",
   lens: "full",
-  analyst: "full"
+  analyst: "full",
+  weaver: "standard",
+  scribe: "minimal"
 };
 function getActiveContextLevel(sid) {
   const agentsPath = (0, import_path3.join)(sessionDir(sid), "agents.json");

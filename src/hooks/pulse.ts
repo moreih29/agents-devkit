@@ -42,6 +42,8 @@ const AGENT_CONTEXT_LEVELS: Record<string, ContextLevel> = {
   strategist: 'full',
   lens: 'full',
   analyst: 'full',
+  weaver: 'standard',
+  scribe: 'minimal',
 };
 
 function getActiveContextLevel(sid: string): ContextLevel {

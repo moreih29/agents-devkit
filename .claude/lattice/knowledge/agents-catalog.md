@@ -36,4 +36,5 @@
 |-------|----------|------|
 | Phase 1 (MVP) | Steward, Artisan, Scout, Compass, Sentinel | 완료 |
 | Phase 2 | + Strategist, Lens, Analyst, Tinker | 완료 |
-| Phase 3 | + 나머지 (필요성 입증 후) | 미정 |
+| Phase 3 | + Weaver, Scribe (부트스트랩 필요) | 완료 |
+| Phase 4 | + 나머지 (필요성 입증 후) | 미정 |

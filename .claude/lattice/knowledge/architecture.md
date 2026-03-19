@@ -102,6 +102,12 @@ claude-lattice/
 | Analyst | 심층 분석/리서치 | high (opus) | full |
 | Tinker | 디버거 | medium (sonnet) | standard |
 
+### Phase 3 에이전트
+| 이름 | 역할 | tier | context |
+|------|------|------|---------|
+| Weaver | 테스트 엔지니어 | medium (sonnet) | standard |
+| Scribe | 문서 작성 | low (haiku) | minimal |
+
 ## 훅 모듈 (5개)
 
 | 모듈 | 실행 방식 | 담당 이벤트 | 역할 |

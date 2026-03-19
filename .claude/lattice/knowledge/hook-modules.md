@@ -65,8 +65,8 @@ PreToolUse/PostToolUse에서 컨텍스트 주입. Guard 기능 내장.
 
 ### 에이전트별 컨텍스트 수준 분기
 Tracker의 `agents.json`에서 활성 에이전트를 조회하고, 에이전트의 context 수준에 따라 메시지 필터링:
-- `minimal` (Scout): safety + workflow만 주입, guidance 생략
-- `standard` (Artisan, Sentinel, Tinker): safety + workflow + guidance
+- `minimal` (Scout, Scribe): safety + workflow만 주입, guidance 생략
+- `standard` (Artisan, Sentinel, Tinker, Weaver): safety + workflow + guidance
 - `full` (Steward, Compass, Strategist, Lens, Analyst): 전부 주입
 - 복수 에이전트 활성 시 최고 수준 적용
 

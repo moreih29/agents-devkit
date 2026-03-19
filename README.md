@@ -24,6 +24,8 @@ claude plugin install claude-lattice@lattice
 | **Strategist** | `lattice:strategist` | 계획 수립 (READ-ONLY) | opus |
 | **Lens** | `lattice:lens` | 코드 리뷰 (READ-ONLY) | opus |
 | **Analyst** | `lattice:analyst` | 심층 분석, 리서치 (READ-ONLY) | opus |
+| **Weaver** | `lattice:weaver` | 테스트 작성, 커버리지 분석 | sonnet |
+| **Scribe** | `lattice:scribe` | 문서 작성, knowledge 업데이트 | haiku |
 
 사용 예시:
 ```

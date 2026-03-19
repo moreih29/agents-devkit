@@ -57,7 +57,7 @@ export function registerStateTools(server: McpServer): void {
 
       // cruise: pipeline + sustain 한 번에 해제
       if (key === 'cruise') {
-        const keys = ['cruise', 'pipeline', 'sustain'];
+        const keys = ['pipeline', 'sustain'];
         const cleared: string[] = [];
         for (const k of keys) {
           const p = statePath(sid, k);

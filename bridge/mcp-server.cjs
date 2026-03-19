@@ -21093,7 +21093,7 @@ function registerStateTools(server2) {
     async ({ key, sessionId }) => {
       const sid = sessionId ?? getSessionId();
       if (key === "cruise") {
-        const keys = ["cruise", "pipeline", "sustain"];
+        const keys = ["pipeline", "sustain"];
         const cleared = [];
         for (const k of keys) {
           const p = statePath(sid, k);
