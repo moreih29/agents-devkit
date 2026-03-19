@@ -74,6 +74,41 @@ function buildMessages(toolName: string, hookEvent: string, sid: string): Contex
     } catch { /* skip */ }
   }
 
+  // Workflow: Pipeline 리마인더
+  const pipelinePath = statePath(sid, 'pipeline');
+  if (existsSync(pipelinePath)) {
+    try {
+      const state = JSON.parse(readFileSync(pipelinePath, 'utf-8'));
+      if (state.active) {
+        const stageInfo = state.currentStage
+          ? `${state.currentStage} (${(state.currentStageIndex ?? 0) + 1}/${state.totalStages ?? '?'})`
+          : 'initializing';
+        messages.push({
+          key: 'workflow:pipeline_active',
+          priority: 'workflow',
+          text: `[PIPELINE stage: ${stageInfo}] Pipeline is active. Complete the current stage, then advance to the next.`,
+        });
+      }
+    } catch { /* skip */ }
+  }
+
+  // Workflow: Parallel 리마인더
+  const parallelPath = statePath(sid, 'parallel');
+  if (existsSync(parallelPath)) {
+    try {
+      const state = JSON.parse(readFileSync(parallelPath, 'utf-8'));
+      if (state.active) {
+        const completed = state.completedCount ?? 0;
+        const total = state.totalCount ?? 0;
+        messages.push({
+          key: 'workflow:parallel_active',
+          priority: 'workflow',
+          text: `[PARALLEL ${completed}/${total} done] Parallel tasks are active. Ensure all tasks complete before finishing.`,
+        });
+      }
+    } catch { /* skip */ }
+  }
+
   return messages;
 }
 

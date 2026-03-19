@@ -94,12 +94,20 @@ claude-lattice/
 | Compass | 아키텍처 설계 | high (opus) | full |
 | Sentinel | 검증/보안 | medium (sonnet) | standard |
 
+### Phase 2 에이전트
+| 이름 | 역할 | tier | context |
+|------|------|------|---------|
+| Strategist | 계획 수립 | high (opus) | full |
+| Lens | 코드 리뷰 | high (opus) | full |
+| Analyst | 심층 분석/리서치 | high (opus) | full |
+| Tinker | 디버거 | medium (sonnet) | standard |
+
 ## 훅 모듈 (5개)
 
 | 모듈 | 실행 방식 | 담당 이벤트 | 역할 |
 |------|-----------|-------------|------|
-| Gate | hooks.json (별도 프로세스) | Stop, UserPromptSubmit | Sustain 제어, 키워드 감지 |
-| Pulse | hooks.json (별도 프로세스) | PreToolUse, PostToolUse | 컨텍스트 주입 (Whisper 패턴), Guard 내장 |
+| Gate | hooks.json (별도 프로세스) | Stop, UserPromptSubmit | Sustain/Parallel/Pipeline Stop 차단, 키워드 감지 (sustain/parallel/pipeline/cruise) |
+| Pulse | hooks.json (별도 프로세스) | PreToolUse, PostToolUse | 컨텍스트 주입 (Whisper 패턴 + 활성 워크플로우 상태), Guard 내장 |
 | Memory | MCP 도구 (lat_* 호출 시) | 에이전트의 도구 호출 | knowledge, memo, state CRUD |
 | Tracker | hooks.json (별도 프로세스) | SubagentStart/Stop, Session | 에이전트/세션 추적 |
 | Guard | Pulse 내장 + lat_context | PreToolUse (Pulse 경유) | Context window 모니터링 |
@@ -111,6 +119,16 @@ claude-lattice/
 
 ### Code Intelligence (별도 패키지: claude-lattice-code-intel)
 `lat_lsp_*`, `lat_ast_search`, `lat_ast_replace`
+
+## 스킬 시스템
+
+| 스킬 | 프리미티브 | 설명 |
+|------|-----------|------|
+| Sustain | Sustain | Stop 차단, 지속 실행 |
+| Parallel | Parallel | 독립 태스크 병렬 배분 |
+| Pipeline | Pipeline | 단계별 순차 실행 |
+| Cruise | Pipeline + Sustain | 분석→계획→구현→검증→리뷰 전체 자동화 |
+| Sync Knowledge | — (유틸리티) | 소스 코드와 knowledge 문서 간 불일치 탐지 및 수정 |
 
 ## 참조 문서
 

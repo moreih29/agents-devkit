@@ -29,7 +29,7 @@
 ## 복합 워크플로우 = 프리미티브 조합
 
 ```yaml
-# 예시: skills/autopilot/SKILL.md의 워크플로우 정의
+# 예시: skills/cruise/SKILL.md의 워크플로우 정의
 workflow:
   type: pipeline
   sustain: true      # 각 단계에서 Sustain 활성화
