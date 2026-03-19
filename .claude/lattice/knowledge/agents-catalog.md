@@ -32,8 +32,8 @@
 
 ## Phase별 추가 계획
 
-| Phase | 에이전트 |
-|-------|----------|
-| Phase 1 (MVP) | Steward, Artisan, Scout, Compass, Sentinel |
-| Phase 2 | + Strategist, Lens, Analyst, Tinker |
-| Phase 3 | + 나머지 (필요성 입증 후) |
+| Phase | 에이전트 | 상태 |
+|-------|----------|------|
+| Phase 1 (MVP) | Steward, Artisan, Scout, Compass, Sentinel | 완료 |
+| Phase 2 | + Strategist, Lens, Analyst, Tinker | 완료 |
+| Phase 3 | + 나머지 (필요성 입증 후) | 미정 |

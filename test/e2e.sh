@@ -120,6 +120,63 @@ check "Tracker/SessionStart" 'LATTICE.*Session' "$result"
 result=$(echo '{"hook_event_name":"SubagentStart","agent_name":"artisan"}' | node scripts/tracker.cjs 2>/dev/null)
 check "Tracker/SubagentStart" '"continue":true' "$result"
 
+# --- Phase 2: Parallel/Pipeline 훅 테스트 ---
+echo ""
+echo "=== Phase 2 훅 ==="
+
+# Phase 2 테스트 환경 초기화
+# Tracker/SessionStart가 createSession()으로 current-session.json을 덮어쓰므로 복원 필요
+rm -rf .lattice/state/sessions/e2e-hook
+mkdir -p .lattice/state/sessions/e2e-hook
+echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
+
+# Gate: Stop (parallel active, tasks incomplete) → block
+echo '{"active":true,"maxIterations":100,"currentIteration":0,"tasks":[{"id":"t1","status":"running"},{"id":"t2","status":"pending"}],"completedCount":0,"totalCount":2}' > .lattice/state/sessions/e2e-hook/parallel.json
+result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/Stop (parallel active)" '"decision":"block"' "$result"
+check "Gate/Stop (parallel progress)" 'PARALLEL 0/2' "$result"
+
+# Gate: Stop (parallel total=0, tasks not configured) → pass (no block)
+echo '{"active":true,"maxIterations":100,"currentIteration":0,"completedCount":0,"totalCount":0}' > .lattice/state/sessions/e2e-hook/parallel.json
+result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/Stop (parallel no tasks)" '"continue":true' "$result"
+
+# Gate: Stop (parallel all done) → pass
+echo '{"active":true,"maxIterations":100,"currentIteration":0,"tasks":[{"id":"t1","status":"done"},{"id":"t2","status":"done"}],"completedCount":2,"totalCount":2}' > .lattice/state/sessions/e2e-hook/parallel.json
+result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/Stop (parallel all done)" '"continue":true' "$result"
+rm -f .lattice/state/sessions/e2e-hook/parallel.json
+
+# Gate: Stop (pipeline active with stages) → block with stage info
+echo '{"active":true,"maxIterations":100,"currentIteration":0,"stages":[{"name":"analyze","status":"done"},{"name":"implement","status":"running"},{"name":"verify","status":"pending"}],"currentStage":"implement","currentStageIndex":1,"totalStages":3}' > .lattice/state/sessions/e2e-hook/pipeline.json
+result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/Stop (pipeline active)" '"decision":"block"' "$result"
+check "Gate/Stop (pipeline stage info)" 'implement (2/3)' "$result"
+rm -f .lattice/state/sessions/e2e-hook/pipeline.json
+
+# Gate: UserPromptSubmit (cruise keyword) → pipeline + sustain 동시 활성화
+rm -f .lattice/state/sessions/e2e-hook/pipeline.json .lattice/state/sessions/e2e-hook/sustain.json
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"cruise으로 진행해"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (cruise)" 'cruise mode ACTIVATED' "$result"
+# pipeline.json + sustain.json 둘 다 생성됐는지 확인
+[ -f .lattice/state/sessions/e2e-hook/pipeline.json ] && [ -f .lattice/state/sessions/e2e-hook/sustain.json ] && green "Gate/cruise (dual state)" && PASS=$((PASS + 1)) || (red "Gate/cruise (dual state)" && FAIL=$((FAIL + 1)))
+rm -f .lattice/state/sessions/e2e-hook/pipeline.json .lattice/state/sessions/e2e-hook/sustain.json .lattice/state/sessions/e2e-hook/parallel.json
+
+# Pulse: whisper tracker 초기화 (Phase 1 테스트에서 Read 카운트 누적됨)
+rm -f .lattice/state/sessions/e2e-hook/whisper-tracker.json
+
+# Pulse: PreToolUse with pipeline active → pipeline context
+echo '{"active":true,"currentStage":"verify","currentStageIndex":2,"totalStages":3}' > .lattice/state/sessions/e2e-hook/pipeline.json
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Read"}' | node scripts/pulse.cjs 2>/dev/null)
+check "Pulse/PreToolUse (pipeline)" 'PIPELINE stage: verify' "$result"
+rm -f .lattice/state/sessions/e2e-hook/pipeline.json
+
+# Pulse: PreToolUse with parallel active → parallel context
+echo '{"active":true,"completedCount":1,"totalCount":3}' > .lattice/state/sessions/e2e-hook/parallel.json
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Read"}' | node scripts/pulse.cjs 2>/dev/null)
+check "Pulse/PreToolUse (parallel)" 'PARALLEL 1/3 done' "$result"
+rm -f .lattice/state/sessions/e2e-hook/parallel.json
+
 # Cleanup
 rm -rf .lattice/state/sessions/e2e-hook .lattice/state/current-session.json .lattice/memo/*e2e* 2>/dev/null
 

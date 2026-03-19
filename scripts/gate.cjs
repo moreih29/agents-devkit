@@ -96,11 +96,30 @@ function handleStop() {
     try {
       const state = JSON.parse((0, import_fs3.readFileSync)(pipelinePath, "utf-8"));
       if (state.active) {
+        const stageInfo = state.currentStage ? `${state.currentStage} (${(state.currentStageIndex ?? 0) + 1}/${state.totalStages ?? "?"})` : "?";
         respond({
           decision: "block",
-          reason: `[PIPELINE stage: ${state.currentStage ?? "?"}] \uD30C\uC774\uD504\uB77C\uC778\uC774 \uC2E4\uD589 \uC911\uC785\uB2C8\uB2E4.`
+          reason: `[PIPELINE stage: ${stageInfo}] \uD30C\uC774\uD504\uB77C\uC778\uC774 \uC2E4\uD589 \uC911\uC785\uB2C8\uB2E4. \uD604\uC7AC \uB2E8\uACC4\uB97C \uC644\uB8CC\uD558\uACE0 \uB2E4\uC74C \uB2E8\uACC4\uB85C \uC9C4\uD589\uD558\uC138\uC694.`
         });
         return;
+      }
+    } catch {
+    }
+  }
+  const parallelPath = statePath(sid, "parallel");
+  if ((0, import_fs3.existsSync)(parallelPath)) {
+    try {
+      const state = JSON.parse((0, import_fs3.readFileSync)(parallelPath, "utf-8"));
+      if (state.active) {
+        const completed = state.completedCount ?? 0;
+        const total = state.totalCount ?? 0;
+        if (total > 0 && completed < total) {
+          respond({
+            decision: "block",
+            reason: `[PARALLEL ${completed}/${total}] \uBCD1\uB82C \uD0DC\uC2A4\uD06C\uAC00 \uC9C4\uD589 \uC911\uC785\uB2C8\uB2E4. \uBAA8\uB4E0 \uD0DC\uC2A4\uD06C\uAC00 \uC644\uB8CC\uB420 \uB54C\uAE4C\uC9C0 \uACC4\uC18D\uD558\uC138\uC694.`
+          });
+          return;
+        }
       }
     } catch {
     }
@@ -110,8 +129,10 @@ function handleStop() {
 var EXPLICIT_TAGS = {
   sustain: { primitive: "sustain", skill: "lattice:sustain" },
   parallel: { primitive: "parallel", skill: "lattice:parallel" },
-  pipeline: { primitive: "pipeline", skill: "lattice:pipeline" }
+  pipeline: { primitive: "pipeline", skill: "lattice:pipeline" },
+  cruise: { primitive: "pipeline", skill: "lattice:cruise" }
 };
+var CRUISE_PATTERNS = [/\bcruise\b/i, /자동으로\s*전부/, /end\s*to\s*end/i];
 var NATURAL_PATTERNS = [
   {
     patterns: [/\bsustain\b/i, /\bkeep\s+going\b/i, /\bdon'?t\s+stop\b/i, /멈추지\s*마/],
@@ -122,10 +143,15 @@ var NATURAL_PATTERNS = [
     match: { primitive: "parallel", skill: "lattice:parallel" }
   },
   {
-    patterns: [/\bpipeline\b/i, /\bauto\b/i, /자동으로/, /순서대로/],
+    patterns: [/\bpipeline\b/i, /순서대로/],
     match: { primitive: "pipeline", skill: "lattice:pipeline" }
   }
 ];
+function detectCruise(prompt) {
+  const tagMatch = prompt.match(/\[(\w+)\]/);
+  if (tagMatch && tagMatch[1].toLowerCase() === "cruise") return true;
+  return CRUISE_PATTERNS.some((p) => p.test(prompt));
+}
 function detectKeywords(prompt) {
   const tagMatch = prompt.match(/\[(\w+)\]/);
   if (tagMatch) {
@@ -155,13 +181,23 @@ function handleUserPromptSubmit(event) {
     pass();
     return;
   }
+  if (detectCruise(prompt)) {
+    const sid = getSessionId();
+    activatePrimitive("pipeline", sid);
+    activatePrimitive("sustain", sid);
+    respond({
+      continue: true,
+      additionalContext: `[LATTICE] cruise mode ACTIVATED (session: ${sid}). Pipeline + Sustain enabled. Follow the cruise skill instructions. IMPORTANT: Before finishing your response, you MUST call lat_state_clear({ key: "sustain" }) and lat_state_clear({ key: "pipeline" }) to deactivate. Do NOT attempt to stop without clearing state first.`
+    });
+    return;
+  }
   const match = detectKeywords(prompt);
   if (match) {
     const sid = getSessionId();
     activatePrimitive(match.primitive, sid);
     respond({
       continue: true,
-      additionalContext: `[LATTICE] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. When done, call lat_state_clear({ key: "${match.primitive}" }) to deactivate.`
+      additionalContext: `[LATTICE] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. IMPORTANT: Before finishing your response, you MUST call lat_state_clear({ key: "${match.primitive}" }) to deactivate. Do NOT attempt to stop without clearing state first.`
     });
     return;
   }

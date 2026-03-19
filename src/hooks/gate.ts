@@ -47,11 +47,36 @@ function handleStop(): void {
     try {
       const state = JSON.parse(readFileSync(pipelinePath, 'utf-8'));
       if (state.active) {
+        const stageInfo = state.currentStage
+          ? `${state.currentStage} (${(state.currentStageIndex ?? 0) + 1}/${state.totalStages ?? '?'})`
+          : '?';
         respond({
           decision: 'block',
-          reason: `[PIPELINE stage: ${state.currentStage ?? '?'}] 파이프라인이 실행 중입니다.`,
+          reason: `[PIPELINE stage: ${stageInfo}] 파이프라인이 실행 중입니다. 현재 단계를 완료하고 다음 단계로 진행하세요.`,
         });
         return;
+      }
+    } catch {
+      // 파싱 실패 시 통과
+    }
+  }
+
+  // Parallel 체크
+  const parallelPath = statePath(sid, 'parallel');
+  if (existsSync(parallelPath)) {
+    try {
+      const state = JSON.parse(readFileSync(parallelPath, 'utf-8'));
+      if (state.active) {
+        const completed = state.completedCount ?? 0;
+        const total = state.totalCount ?? 0;
+        if (total > 0 && completed < total) {
+          respond({
+            decision: 'block',
+            reason: `[PARALLEL ${completed}/${total}] 병렬 태스크가 진행 중입니다. 모든 태스크가 완료될 때까지 계속하세요.`,
+          });
+          return;
+        }
+        // total=0 (태스크 미설정) 또는 전부 완료: Sustain이 차단을 담당
       }
     } catch {
       // 파싱 실패 시 통과
@@ -68,11 +93,19 @@ interface KeywordMatch {
   skill: string;
 }
 
+interface CruiseMatch {
+  primitives: string[];
+  skill: string;
+}
+
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   sustain:  { primitive: 'sustain',  skill: 'lattice:sustain' },
   parallel: { primitive: 'parallel', skill: 'lattice:parallel' },
   pipeline: { primitive: 'pipeline', skill: 'lattice:pipeline' },
+  cruise: { primitive: 'pipeline', skill: 'lattice:cruise' },
 };
+
+const CRUISE_PATTERNS: RegExp[] = [/\bcruise\b/i, /자동으로\s*전부/, /end\s*to\s*end/i];
 
 const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
   {
@@ -84,10 +117,18 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
     match: { primitive: 'parallel', skill: 'lattice:parallel' },
   },
   {
-    patterns: [/\bpipeline\b/i, /\bauto\b/i, /자동으로/, /순서대로/],
+    patterns: [/\bpipeline\b/i, /순서대로/],
     match: { primitive: 'pipeline', skill: 'lattice:pipeline' },
   },
 ];
+
+function detectCruise(prompt: string): boolean {
+  // 명시적 태그
+  const tagMatch = prompt.match(/\[(\w+)\]/);
+  if (tagMatch && tagMatch[1].toLowerCase() === 'cruise') return true;
+  // 자연어 패턴
+  return CRUISE_PATTERNS.some((p) => p.test(prompt));
+}
 
 function detectKeywords(prompt: string): KeywordMatch | null {
   // 1차: 명시적 태그 [sustain], [parallel], [pipeline]
@@ -123,6 +164,19 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const prompt = (event.prompt ?? event.user_prompt ?? '') as string;
   if (!prompt) { pass(); return; }
 
+  // cruise: pipeline + sustain 동시 활성화
+  if (detectCruise(prompt)) {
+    const sid = getSessionId();
+    activatePrimitive('pipeline', sid);
+    activatePrimitive('sustain', sid);
+
+    respond({
+      continue: true,
+      additionalContext: `[LATTICE] cruise mode ACTIVATED (session: ${sid}). Pipeline + Sustain enabled. Follow the cruise skill instructions. IMPORTANT: Before finishing your response, you MUST call lat_state_clear({ key: "sustain" }) and lat_state_clear({ key: "pipeline" }) to deactivate. Do NOT attempt to stop without clearing state first.`,
+    });
+    return;
+  }
+
   const match = detectKeywords(prompt);
   if (match) {
     const sid = getSessionId();
@@ -130,7 +184,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
 
     respond({
       continue: true,
-      additionalContext: `[LATTICE] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. When done, call lat_state_clear({ key: "${match.primitive}" }) to deactivate.`,
+      additionalContext: `[LATTICE] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. IMPORTANT: Before finishing your response, you MUST call lat_state_clear({ key: "${match.primitive}" }) to deactivate. Do NOT attempt to stop without clearing state first.`,
     });
     return;
   }

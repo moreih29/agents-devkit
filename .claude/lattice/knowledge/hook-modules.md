@@ -25,13 +25,18 @@ Memory 모듈은 MCP 도구(`lat_*`)이므로 hooks.json에 등록하지 않음.
 { "continue": true }
 ```
 
-omc의 9단계 우선순위 → Lattice는 **3 프리미티브의 단일 우선순위**로 단순화:
-- Sustain이 active이면 block
-- Pipeline 실행 중이면 block
-- 그 외 허용
+omc의 9단계 우선순위 → Lattice는 **프리미티브별 순차 체크**로 단순화:
+1. Sustain이 active이면 block
+2. Pipeline이 active이면 block (stage 정보 표시)
+3. Parallel이 active이고 `totalCount > 0 && completedCount < totalCount`이면 block
+4. 그 외 허용
 
 ### 키워드 감지 (UserPromptSubmit)
 자연어 + 명시적 태그 감지 → 해당 프리미티브 상태 파일 생성 → 스킬 호출 지시 주입.
+
+감지 우선순위:
+1. Cruise (`[cruise]`, "cruise", "end to end") → pipeline + sustain 동시 활성화
+2. 프리미티브 (`[sustain]`, `[parallel]`, `[pipeline]` 및 자연어 패턴) → 단일 활성화
 
 ## Pulse 모듈
 
@@ -52,8 +57,14 @@ PreToolUse/PostToolUse에서 컨텍스트 주입. Guard 기능 내장.
 - 도구 호출 횟수로 context 사용량 휴리스틱 추정
 - 60% 초과 시 minimal 모드 (핵심 메시지만)
 
+### 워크플로우 상태 주입 (Phase 2)
+활성 워크플로우의 진행 상태를 컨텍스트에 주입:
+- `[SUSTAIN N/M]` — 지속 모드 진행 상황
+- `[PIPELINE stage: X (N/M)]` — 현재 파이프라인 단계
+- `[PARALLEL N/M done]` — 병렬 태스크 완료 현황
+
 ### 우선순위
-안전(Guard) > 워크플로우(Sustain 리마인더) > 가이던스(도구별 팁) > 정보(상태 알림)
+안전(Guard) > 워크플로우(Sustain/Pipeline/Parallel 리마인더) > 가이던스(도구별 팁) > 정보(상태 알림)
 
 ## Tracker 모듈
 
