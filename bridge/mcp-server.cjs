@@ -21763,6 +21763,120 @@ function registerLspTools(server2) {
       }
     }
   );
+  server2.tool(
+    "lat_lsp_rename",
+    "Rename a symbol across the project (returns a list of edits to apply)",
+    {
+      file: external_exports.string().describe("File path (relative to project root)"),
+      line: external_exports.number().describe("Line number (1-based)"),
+      character: external_exports.number().describe("Column number (1-based)"),
+      newName: external_exports.string().describe("New name for the symbol")
+    },
+    async ({ file, line, character, newName }) => {
+      try {
+        const lsp = await ensureClientForFile(file);
+        const uri = ensureFileOpen(lsp, file);
+        const result = await lsp.request("textDocument/rename", {
+          textDocument: { uri },
+          position: { line: line - 1, character: character - 1 },
+          newName
+        });
+        if (!result) {
+          return { content: [{ type: "text", text: JSON.stringify({ error: "Rename not supported at this position" }) }] };
+        }
+        const edits = [];
+        const root = projectRoot ?? findProjectRoot2();
+        if (result.changes) {
+          for (const [fileUri, changes] of Object.entries(result.changes)) {
+            const filePath = fileUri.replace((0, import_url.pathToFileURL)(root).href + "/", "");
+            for (const change of changes) {
+              edits.push({
+                file: filePath,
+                line: (change.range?.start?.line ?? 0) + 1,
+                newText: change.newText
+              });
+            }
+          }
+        }
+        if (result.documentChanges) {
+          for (const dc of result.documentChanges) {
+            if (dc.textDocument && dc.edits) {
+              const filePath = dc.textDocument.uri.replace((0, import_url.pathToFileURL)(root).href + "/", "");
+              for (const edit of dc.edits) {
+                edits.push({
+                  file: filePath,
+                  line: (edit.range?.start?.line ?? 0) + 1,
+                  newText: edit.newText
+                });
+              }
+            }
+          }
+        }
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ edits, count: edits.length, newName })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+  server2.tool(
+    "lat_lsp_code_actions",
+    "Get suggested fixes and refactoring actions for a code range",
+    {
+      file: external_exports.string().describe("File path (relative to project root)"),
+      startLine: external_exports.number().describe("Start line number (1-based)"),
+      endLine: external_exports.number().describe("End line number (1-based)")
+    },
+    async ({ file, startLine, endLine }) => {
+      try {
+        const lsp = await ensureClientForFile(file);
+        const uri = ensureFileOpen(lsp, file);
+        const diagnostics = [];
+        const handler = (params) => {
+          if (params.uri === uri) diagnostics.push(...params.diagnostics);
+        };
+        lsp.on("textDocument/publishDiagnostics", handler);
+        const text = (0, import_fs8.readFileSync)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
+        const langId = getLanguageId(file);
+        lsp.notify("textDocument/didClose", { textDocument: { uri } });
+        openedFiles.delete(uri);
+        lsp.notifyDidOpen(uri, langId, text);
+        openedFiles.add(uri);
+        await new Promise((r) => setTimeout(r, 1500));
+        lsp.removeListener("textDocument/publishDiagnostics", handler);
+        const rangeDiags = diagnostics.filter((d) => {
+          const line = d.range?.start?.line ?? 0;
+          return line >= startLine - 1 && line <= endLine - 1;
+        });
+        const result = await lsp.request("textDocument/codeAction", {
+          textDocument: { uri },
+          range: {
+            start: { line: startLine - 1, character: 0 },
+            end: { line: endLine - 1, character: 999 }
+          },
+          context: { diagnostics: rangeDiags }
+        });
+        const actions = Array.isArray(result) ? result : [];
+        const formatted = actions.map((a) => ({
+          title: a.title,
+          kind: a.kind ?? "unknown",
+          isPreferred: a.isPreferred ?? false
+        }));
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ actions: formatted, count: formatted.length, file, startLine, endLine })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
   const symbolKindMap = {
     1: "File",
     2: "Module",

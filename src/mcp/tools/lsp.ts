@@ -261,6 +261,135 @@ export function registerLspTools(server: McpServer): void {
     }
   );
 
+  server.tool(
+    'lat_lsp_rename',
+    'Rename a symbol across the project (returns a list of edits to apply)',
+    {
+      file: z.string().describe('File path (relative to project root)'),
+      line: z.number().describe('Line number (1-based)'),
+      character: z.number().describe('Column number (1-based)'),
+      newName: z.string().describe('New name for the symbol'),
+    },
+    async ({ file, line, character, newName }) => {
+      try {
+        const lsp = await ensureClientForFile(file);
+        const uri = ensureFileOpen(lsp, file);
+        const result = await lsp.request('textDocument/rename', {
+          textDocument: { uri },
+          position: { line: line - 1, character: character - 1 },
+          newName,
+        }) as { changes?: Record<string, any[]>; documentChanges?: any[] } | null;
+
+        if (!result) {
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Rename not supported at this position' }) }] };
+        }
+
+        const edits: Array<{ file: string; line: number; newText: string }> = [];
+        const root = projectRoot ?? findProjectRoot();
+
+        if (result.changes) {
+          for (const [fileUri, changes] of Object.entries(result.changes)) {
+            const filePath = fileUri.replace(pathToFileURL(root).href + '/', '');
+            for (const change of changes) {
+              edits.push({
+                file: filePath,
+                line: (change.range?.start?.line ?? 0) + 1,
+                newText: change.newText,
+              });
+            }
+          }
+        }
+
+        if (result.documentChanges) {
+          for (const dc of result.documentChanges) {
+            if (dc.textDocument && dc.edits) {
+              const filePath = dc.textDocument.uri.replace(pathToFileURL(root).href + '/', '');
+              for (const edit of dc.edits) {
+                edits.push({
+                  file: filePath,
+                  line: (edit.range?.start?.line ?? 0) + 1,
+                  newText: edit.newText,
+                });
+              }
+            }
+          }
+        }
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({ edits, count: edits.length, newName }),
+          }],
+        };
+      } catch (err) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+
+  server.tool(
+    'lat_lsp_code_actions',
+    'Get suggested fixes and refactoring actions for a code range',
+    {
+      file: z.string().describe('File path (relative to project root)'),
+      startLine: z.number().describe('Start line number (1-based)'),
+      endLine: z.number().describe('End line number (1-based)'),
+    },
+    async ({ file, startLine, endLine }) => {
+      try {
+        const lsp = await ensureClientForFile(file);
+        const uri = ensureFileOpen(lsp, file);
+
+        // 해당 범위의 diagnostics 수집
+        const diagnostics: any[] = [];
+        const handler = (params: { uri: string; diagnostics: any[] }) => {
+          if (params.uri === uri) diagnostics.push(...params.diagnostics);
+        };
+        lsp.on('textDocument/publishDiagnostics', handler);
+
+        const text = readFileSync(resolve(projectRoot ?? process.cwd(), file), 'utf-8');
+        const langId = getLanguageId(file);
+        lsp.notify('textDocument/didClose', { textDocument: { uri } });
+        openedFiles.delete(uri);
+        lsp.notifyDidOpen(uri, langId, text);
+        openedFiles.add(uri);
+        await new Promise((r) => setTimeout(r, 1500));
+        lsp.removeListener('textDocument/publishDiagnostics', handler);
+
+        // 범위 내 diagnostics 필터링
+        const rangeDiags = diagnostics.filter((d) => {
+          const line = d.range?.start?.line ?? 0;
+          return line >= startLine - 1 && line <= endLine - 1;
+        });
+
+        const result = await lsp.request('textDocument/codeAction', {
+          textDocument: { uri },
+          range: {
+            start: { line: startLine - 1, character: 0 },
+            end: { line: endLine - 1, character: 999 },
+          },
+          context: { diagnostics: rangeDiags },
+        });
+
+        const actions = Array.isArray(result) ? result : [];
+        const formatted = actions.map((a: any) => ({
+          title: a.title,
+          kind: a.kind ?? 'unknown',
+          isPreferred: a.isPreferred ?? false,
+        }));
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({ actions: formatted, count: formatted.length, file, startLine, endLine }),
+          }],
+        };
+      } catch (err) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+
   const symbolKindMap: Record<number, string> = {
     1: 'File', 2: 'Module', 3: 'Namespace', 4: 'Package', 5: 'Class',
     6: 'Method', 7: 'Property', 8: 'Field', 9: 'Constructor', 10: 'Enum',
