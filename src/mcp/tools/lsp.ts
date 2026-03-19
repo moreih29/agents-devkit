@@ -1,39 +1,43 @@
-// LSP MCP 도구 — hover, goto_definition, find_references, diagnostics
+// LSP MCP 도구 — hover, goto_definition, find_references, diagnostics, symbols
 import { z } from 'zod';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
 import { LspClient } from '../../code-intel/lsp-client.js';
-import { detectLanguage, getLspConfig, getLanguageId } from '../../code-intel/detect.js';
+import { detectLanguage, getLanguageFromExt, getLspConfig, getLanguageId } from '../../code-intel/detect.js';
+import type { Language } from '../../code-intel/detect.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-let client: LspClient | null = null;
+// 언어별 LSP 클라이언트 맵
+const clients = new Map<Language, LspClient>();
 let projectRoot: string | null = null;
 const openedFiles = new Set<string>();
 
 function findProjectRoot(): string {
   let dir = process.cwd();
-  const { existsSync } = require('fs');
-  const { join, resolve: res } = require('path');
   while (dir !== '/') {
     if (existsSync(join(dir, '.git'))) return dir;
-    dir = res(dir, '..');
+    dir = resolve(dir, '..');
   }
   return process.cwd();
 }
 
-async function ensureClient(): Promise<LspClient> {
-  if (client?.isReady()) return client;
+async function ensureClientForFile(filePath: string): Promise<LspClient> {
+  if (!projectRoot) projectRoot = findProjectRoot();
 
-  projectRoot = findProjectRoot();
-  const language = detectLanguage(projectRoot);
+  // 파일 확장자로 언어 판별, fallback으로 프로젝트 주 언어
+  const language = getLanguageFromExt(filePath) ?? detectLanguage(projectRoot!);
   if (!language) {
     throw new Error('No supported language detected. Looked for: tsconfig.json, pyproject.toml, Cargo.toml, go.mod');
   }
 
+  const existing = clients.get(language);
+  if (existing?.isReady()) return existing;
+
   const config = getLspConfig(language);
-  client = new LspClient(config.command, config.args);
-  await client.initialize(pathToFileURL(projectRoot).href);
+  const client = new LspClient(config.command, config.args);
+  await client.initialize(pathToFileURL(projectRoot!).href);
+  clients.set(language, client);
   return client;
 }
 
@@ -80,7 +84,7 @@ export function registerLspTools(server: McpServer): void {
     },
     async ({ file, line, character }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         const uri = ensureFileOpen(lsp, file);
         const result = await lsp.request('textDocument/hover', {
           textDocument: { uri },
@@ -118,7 +122,7 @@ export function registerLspTools(server: McpServer): void {
     },
     async ({ file, line, character }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         const uri = ensureFileOpen(lsp, file);
         const result = await lsp.request('textDocument/definition', {
           textDocument: { uri },
@@ -151,7 +155,7 @@ export function registerLspTools(server: McpServer): void {
     },
     async ({ file, line, character, includeDeclaration }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         const uri = ensureFileOpen(lsp, file);
         const result = await lsp.request('textDocument/references', {
           textDocument: { uri },
@@ -182,7 +186,7 @@ export function registerLspTools(server: McpServer): void {
     },
     async ({ file }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         ensureFileOpen(lsp, file);
 
         // diagnostics는 서버가 push하는 방식. 짧게 대기 후 수집.
@@ -247,7 +251,7 @@ export function registerLspTools(server: McpServer): void {
     },
     async ({ file }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         const uri = ensureFileOpen(lsp, file);
         const result = await lsp.request('textDocument/documentSymbol', {
           textDocument: { uri },
@@ -289,7 +293,10 @@ export function registerLspTools(server: McpServer): void {
     },
     async ({ query }) => {
       try {
-        const lsp = await ensureClient();
+        // workspace_symbols는 파일이 아닌 프로젝트 전체 대상 → 주 언어 사용
+        const root = projectRoot ?? findProjectRoot();
+        const lang = detectLanguage(root) ?? 'typescript';
+        const lsp = await ensureClientForFile(`dummy.${lang === 'typescript' ? 'ts' : lang === 'python' ? 'py' : lang === 'rust' ? 'rs' : 'go'}`);
         const result = await lsp.request('workspace/symbol', { query });
 
         const symbols = Array.isArray(result) ? result : [];
