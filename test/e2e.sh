@@ -214,6 +214,22 @@ check "Pulse/standard (has guidance)" 'parallel execution' "$result"
 
 rm -f .lattice/state/sessions/e2e-hook/agents.json .lattice/state/sessions/e2e-hook/whisper-tracker.json
 
+# --- Code Intelligence 테스트 ---
+echo ""
+echo "=== Code Intelligence ==="
+
+# LSP 테스트는 pipe 기반 E2E와 비호환 (long-lived 서버 필요)
+# → Claude Code 내에서 MCP 직접 호출로 수동 검증
+echo "  (LSP: pipe E2E 비호환, MCP 직접 호출로 검증)"
+
+# AST: search (@ast-grep/napi가 있을 때만)
+result=$(mcp_call "lat_ast_search" '{"pattern":"function $NAME($$$) { $$$BODY }","language":"typescript","path":"src/shared"}')
+if echo "$result" | grep -q '"error".*not installed'; then
+  echo "  (ast-grep not installed, skipping)"
+else
+  check "AST/search" 'matches' "$result"
+fi
+
 # Cleanup
 rm -rf .lattice/state/sessions/e2e-hook .lattice/state/current-session.json .lattice/memo/*e2e* 2>/dev/null
 
