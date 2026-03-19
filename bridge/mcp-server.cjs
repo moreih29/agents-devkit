@@ -21092,6 +21092,18 @@ function registerStateTools(server2) {
     },
     async ({ key, sessionId }) => {
       const sid = sessionId ?? getSessionId();
+      if (key === "cruise") {
+        const keys = ["cruise", "pipeline", "sustain"];
+        const cleared = [];
+        for (const k of keys) {
+          const p = statePath(sid, k);
+          if ((0, import_fs3.existsSync)(p)) {
+            (0, import_fs3.unlinkSync)(p);
+            cleared.push(k);
+          }
+        }
+        return { content: [{ type: "text", text: JSON.stringify({ cleared: true, key: "cruise", clearedKeys: cleared, sessionId: sid }) }] };
+      }
       const path = statePath(sid, key);
       if ((0, import_fs3.existsSync)(path)) {
         (0, import_fs3.unlinkSync)(path);

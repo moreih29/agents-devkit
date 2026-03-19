@@ -54,6 +54,18 @@ export function registerStateTools(server: McpServer): void {
     },
     async ({ key, sessionId }) => {
       const sid = sessionId ?? getSessionId();
+
+      // cruise: pipeline + sustain 한 번에 해제
+      if (key === 'cruise') {
+        const keys = ['cruise', 'pipeline', 'sustain'];
+        const cleared: string[] = [];
+        for (const k of keys) {
+          const p = statePath(sid, k);
+          if (existsSync(p)) { unlinkSync(p); cleared.push(k); }
+        }
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true, key: 'cruise', clearedKeys: cleared, sessionId: sid }) }] };
+      }
+
       const path = statePath(sid, key);
 
       if (existsSync(path)) {
