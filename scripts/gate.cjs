@@ -76,11 +76,17 @@ function handleStop() {
     try {
       const state = JSON.parse((0, import_fs3.readFileSync)(sustainPath, "utf-8"));
       if (state.active && state.currentIteration < state.maxIterations) {
+        state.currentIteration++;
+        (0, import_fs3.writeFileSync)(sustainPath, JSON.stringify(state, null, 2));
         respond({
           decision: "block",
-          reason: `[SUSTAIN ${state.currentIteration + 1}/${state.maxIterations}] \uC791\uC5C5\uC774 \uC644\uB8CC\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uACC4\uC18D \uC9C4\uD589\uD558\uC138\uC694.`
+          reason: `[SUSTAIN ${state.currentIteration}/${state.maxIterations}] \uC791\uC5C5\uC774 \uC644\uB8CC\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uACC4\uC18D \uC9C4\uD589\uD558\uC138\uC694. \uC791\uC5C5\uC774 \uC815\uB9D0 \uB05D\uB0AC\uB2E4\uBA74 lat_state_clear({ key: "sustain" })\uB97C \uD638\uCD9C\uD558\uC5EC sustain\uC744 \uD574\uC81C\uD558\uC138\uC694.`
         });
         return;
+      }
+      if (state.active && state.currentIteration >= state.maxIterations) {
+        state.active = false;
+        (0, import_fs3.writeFileSync)(sustainPath, JSON.stringify(state, null, 2));
       }
     } catch {
     }

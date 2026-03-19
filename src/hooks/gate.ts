@@ -21,11 +21,20 @@ function handleStop(): void {
     try {
       const state: SustainState = JSON.parse(readFileSync(sustainPath, 'utf-8'));
       if (state.active && state.currentIteration < state.maxIterations) {
+        // iteration 증가
+        state.currentIteration++;
+        writeFileSync(sustainPath, JSON.stringify(state, null, 2));
+
         respond({
           decision: 'block',
-          reason: `[SUSTAIN ${state.currentIteration + 1}/${state.maxIterations}] 작업이 완료되지 않았습니다. 계속 진행하세요.`,
+          reason: `[SUSTAIN ${state.currentIteration}/${state.maxIterations}] 작업이 완료되지 않았습니다. 계속 진행하세요. 작업이 정말 끝났다면 lat_state_clear({ key: "sustain" })를 호출하여 sustain을 해제하세요.`,
         });
         return;
+      }
+      // maxIterations 도달 시 자동 해제
+      if (state.active && state.currentIteration >= state.maxIterations) {
+        state.active = false;
+        writeFileSync(sustainPath, JSON.stringify(state, null, 2));
       }
     } catch {
       // 파싱 실패 시 통과
