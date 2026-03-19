@@ -110,8 +110,8 @@ function activatePrimitive(primitive: string, sid: string): void {
   writeFileSync(statePath(sid, primitive), JSON.stringify(state, null, 2));
 }
 
-function handleUserPromptSubmit(event: { user_prompt?: string }): void {
-  const prompt = event.user_prompt ?? '';
+function handleUserPromptSubmit(event: Record<string, unknown>): void {
+  const prompt = (event.prompt ?? event.user_prompt ?? '') as string;
   if (!prompt) { pass(); return; }
 
   const match = detectKeywords(prompt);
@@ -134,14 +134,14 @@ function handleUserPromptSubmit(event: { user_prompt?: string }): void {
 async function main() {
   const input = await readStdin();
   const event = JSON.parse(input);
-  const hookEvent = event.hook_event_name ?? event.type ?? '';
+  // Claude Code는 hook_event_name을 보내지 않을 수 있음.
+  // UserPromptSubmit은 prompt 필드가 있고, Stop은 없음.
+  const hasPrompt = 'prompt' in event || 'user_prompt' in event;
 
-  if (hookEvent === 'Stop') {
-    handleStop();
-  } else if (hookEvent === 'UserPromptSubmit') {
+  if (hasPrompt) {
     handleUserPromptSubmit(event);
   } else {
-    pass();
+    handleStop();
   }
 }
 

@@ -144,7 +144,7 @@ function activatePrimitive(primitive, sid) {
   (0, import_fs3.writeFileSync)(statePath(sid, primitive), JSON.stringify(state, null, 2));
 }
 function handleUserPromptSubmit(event) {
-  const prompt = event.user_prompt ?? "";
+  const prompt = event.prompt ?? event.user_prompt ?? "";
   if (!prompt) {
     pass();
     return;
@@ -164,13 +164,11 @@ function handleUserPromptSubmit(event) {
 async function main() {
   const input = await readStdin();
   const event = JSON.parse(input);
-  const hookEvent = event.hook_event_name ?? event.type ?? "";
-  if (hookEvent === "Stop") {
-    handleStop();
-  } else if (hookEvent === "UserPromptSubmit") {
+  const hasPrompt = "prompt" in event || "user_prompt" in event;
+  if (hasPrompt) {
     handleUserPromptSubmit(event);
   } else {
-    pass();
+    handleStop();
   }
 }
 main().catch(() => {

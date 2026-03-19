@@ -12,7 +12,8 @@
     "build": "node esbuild.config.mjs",
     "build:types": "tsc --noEmit",
     "check": "tsc --noEmit && npm run build",
-    "clean": "rm -rf dist bridge/mcp-server.cjs scripts/*.cjs"
+    "clean": "rm -rf dist bridge/mcp-server.cjs scripts/*.cjs",
+    "dev": "node esbuild.config.mjs && node dev-sync.mjs"
   },
   "files": [
     "agents",

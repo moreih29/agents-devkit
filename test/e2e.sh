@@ -93,19 +93,19 @@ check "Gate/Stop (sustain active)" '"decision":"block"' "$result"
 check "Gate/Stop (iteration)" 'SUSTAIN 3/10' "$result"
 
 # Gate: UserPromptSubmit (sustain keyword)
-result=$(echo '{"hook_event_name":"UserPromptSubmit","user_prompt":"sustain mode on"}' | node scripts/gate.cjs 2>/dev/null)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"sustain mode on"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (sustain)" 'sustain mode ACTIVATED' "$result"
 
 # Gate: UserPromptSubmit (parallel keyword)
-result=$(echo '{"hook_event_name":"UserPromptSubmit","user_prompt":"이거 병렬로 처리해줘"}' | node scripts/gate.cjs 2>/dev/null)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이거 병렬로 처리해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (parallel)" 'parallel mode ACTIVATED' "$result"
 
 # Gate: UserPromptSubmit (pipeline keyword)
-result=$(echo '{"hook_event_name":"UserPromptSubmit","user_prompt":"[pipeline] 자동으로 진행"}' | node scripts/gate.cjs 2>/dev/null)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[pipeline] 자동으로 진행"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (pipeline tag)" 'pipeline mode ACTIVATED' "$result"
 
 # Gate: UserPromptSubmit (no keyword)
-result=$(echo '{"hook_event_name":"UserPromptSubmit","user_prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (no keyword)" '"continue":true' "$result"
 
 # Pulse: PreToolUse
