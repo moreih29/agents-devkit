@@ -2980,7 +2980,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve2.call(this, root, ref);
+      let _sch = resolve4.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3007,7 +3007,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve2(root, ref) {
+    function resolve4(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3582,7 +3582,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve2(baseURI, relativeURI, options) {
+    function resolve4(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse3(baseURI, schemelessOptions), parse3(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
@@ -3809,7 +3809,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve2,
+      resolve: resolve4,
       resolveComponent,
       equal,
       serialize,
@@ -18873,7 +18873,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
+        await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error2) {
@@ -18890,7 +18890,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve4, reject) => {
       const earlyReject = (error2) => {
         reject(error2);
       };
@@ -18968,7 +18968,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve2(parseResult.data);
+            resolve4(parseResult.data);
           }
         } catch (error2) {
           reject(error2);
@@ -19229,12 +19229,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve4, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve2, interval);
+      const timeoutId = setTimeout(resolve4, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -20334,7 +20334,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
+      await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -20977,12 +20977,12 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve2) => {
+    return new Promise((resolve4) => {
       const json = serializeMessage(message);
       if (this._stdout.write(json)) {
-        resolve2();
+        resolve4();
       } else {
-        this._stdout.once("drain", resolve2);
+        this._stdout.once("drain", resolve4);
       }
     });
   }
@@ -21312,15 +21312,532 @@ function registerContextTool(server2) {
   );
 }
 
+// src/mcp/tools/lsp.ts
+var import_fs8 = require("fs");
+var import_path6 = require("path");
+var import_url = require("url");
+
+// src/code-intel/lsp-client.ts
+var import_child_process2 = require("child_process");
+var import_events = require("events");
+var LspClient = class extends import_events.EventEmitter {
+  constructor(command, args) {
+    super();
+    this.command = command;
+    this.args = args;
+  }
+  process = null;
+  initialized = false;
+  requestId = 0;
+  pending = /* @__PURE__ */ new Map();
+  buffer = "";
+  contentLength = -1;
+  async initialize(rootUri) {
+    if (this.initialized) return;
+    this.process = (0, import_child_process2.spawn)(this.command, this.args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, NODE_OPTIONS: "" }
+    });
+    this.process.unref();
+    this.process.stdin?.unref();
+    this.process.stdout?.unref();
+    this.process.stderr?.unref();
+    this.process.stdout.on("data", (chunk) => this.onData(chunk.toString()));
+    this.process.on("exit", () => {
+      this.initialized = false;
+      this.process = null;
+    });
+    const result = await this.request("initialize", {
+      processId: process.pid,
+      capabilities: {
+        textDocument: {
+          hover: { contentFormat: ["plaintext", "markdown"] },
+          definition: {},
+          references: {},
+          publishDiagnostics: {}
+        }
+      },
+      rootUri,
+      workspaceFolders: [{ uri: rootUri, name: "workspace" }]
+    });
+    this.notify("initialized", {});
+    this.initialized = true;
+    return result;
+  }
+  async request(method, params) {
+    if (!this.process && method !== "initialize") {
+      throw new Error("LSP server not running");
+    }
+    const id = ++this.requestId;
+    const message = JSON.stringify({ jsonrpc: "2.0", id, method, params });
+    this.send(message);
+    return new Promise((resolve4, reject) => {
+      this.pending.set(id, { resolve: resolve4, reject });
+      setTimeout(() => {
+        if (this.pending.has(id)) {
+          this.pending.delete(id);
+          reject(new Error(`LSP request timeout: ${method}`));
+        }
+      }, 3e4);
+    });
+  }
+  notify(method, params) {
+    const message = JSON.stringify({ jsonrpc: "2.0", method, params });
+    this.send(message);
+  }
+  send(message) {
+    const header = `Content-Length: ${Buffer.byteLength(message)}\r
+\r
+`;
+    this.process?.stdin?.write(header + message);
+  }
+  // JSON-RPC Content-Length 프로토콜 파싱
+  onData(data) {
+    this.buffer += data;
+    while (true) {
+      if (this.contentLength === -1) {
+        const headerEnd = this.buffer.indexOf("\r\n\r\n");
+        if (headerEnd === -1) return;
+        const header = this.buffer.slice(0, headerEnd);
+        const match = header.match(/Content-Length:\s*(\d+)/i);
+        if (!match) {
+          this.buffer = this.buffer.slice(headerEnd + 4);
+          continue;
+        }
+        this.contentLength = parseInt(match[1], 10);
+        this.buffer = this.buffer.slice(headerEnd + 4);
+      }
+      if (Buffer.byteLength(this.buffer) < this.contentLength) return;
+      const body = this.buffer.slice(0, this.contentLength);
+      this.buffer = this.buffer.slice(this.contentLength);
+      this.contentLength = -1;
+      try {
+        const msg = JSON.parse(body);
+        if ("id" in msg && this.pending.has(msg.id)) {
+          const { resolve: resolve4, reject } = this.pending.get(msg.id);
+          this.pending.delete(msg.id);
+          if (msg.error) {
+            reject(new Error(msg.error.message));
+          } else {
+            resolve4(msg.result);
+          }
+        } else if (msg.method) {
+          this.emit(msg.method, msg.params);
+        }
+      } catch {
+      }
+    }
+  }
+  // 파일 열기 알림 (LSP 도구 호출 전 필수)
+  notifyDidOpen(uri, languageId, text) {
+    this.notify("textDocument/didOpen", {
+      textDocument: { uri, languageId, version: 1, text }
+    });
+  }
+  isReady() {
+    return this.initialized && this.process !== null;
+  }
+  shutdown() {
+    if (this.process) {
+      try {
+        this.request("shutdown", {}).then(() => {
+          this.notify("exit", {});
+        }).catch(() => {
+          this.process?.kill();
+        });
+      } catch {
+        this.process.kill();
+      }
+    }
+    this.initialized = false;
+  }
+};
+
+// src/code-intel/detect.ts
+var import_fs7 = require("fs");
+var import_path5 = require("path");
+var LSP_SERVERS = {
+  typescript: {
+    command: "npx",
+    args: ["typescript-language-server", "--stdio"],
+    languageId: "typescript"
+  },
+  python: {
+    command: "pyright-langserver",
+    args: ["--stdio"],
+    languageId: "python"
+  },
+  rust: {
+    command: "rust-analyzer",
+    args: [],
+    languageId: "rust"
+  },
+  go: {
+    command: "gopls",
+    args: ["serve"],
+    languageId: "go"
+  }
+};
+var DETECT_FILES = [
+  { file: "tsconfig.json", language: "typescript" },
+  { file: "jsconfig.json", language: "typescript" },
+  { file: "pyproject.toml", language: "python" },
+  { file: "setup.py", language: "python" },
+  { file: "Cargo.toml", language: "rust" },
+  { file: "go.mod", language: "go" }
+];
+function detectLanguage(projectRoot2) {
+  for (const { file, language } of DETECT_FILES) {
+    if ((0, import_fs7.existsSync)((0, import_path5.join)(projectRoot2, file))) {
+      return language;
+    }
+  }
+  return null;
+}
+function getLspConfig(language) {
+  return LSP_SERVERS[language];
+}
+function getLanguageId(filePath) {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  const map = {
+    ts: "typescript",
+    tsx: "typescriptreact",
+    js: "javascript",
+    jsx: "javascriptreact",
+    py: "python",
+    rs: "rust",
+    go: "go"
+  };
+  return map[ext] ?? "plaintext";
+}
+
+// src/mcp/tools/lsp.ts
+var client = null;
+var projectRoot = null;
+var openedFiles = /* @__PURE__ */ new Set();
+function findProjectRoot2() {
+  let dir = process.cwd();
+  const { existsSync: existsSync9 } = require("fs");
+  const { join: join6, resolve: res } = require("path");
+  while (dir !== "/") {
+    if (existsSync9(join6(dir, ".git"))) return dir;
+    dir = res(dir, "..");
+  }
+  return process.cwd();
+}
+async function ensureClient() {
+  if (client?.isReady()) return client;
+  projectRoot = findProjectRoot2();
+  const language = detectLanguage(projectRoot);
+  if (!language) {
+    throw new Error("No supported language detected. Looked for: tsconfig.json, pyproject.toml, Cargo.toml, go.mod");
+  }
+  const config2 = getLspConfig(language);
+  client = new LspClient(config2.command, config2.args);
+  await client.initialize((0, import_url.pathToFileURL)(projectRoot).href);
+  return client;
+}
+function ensureFileOpen(lsp, filePath) {
+  const absPath = (0, import_path6.resolve)(projectRoot ?? process.cwd(), filePath);
+  const uri = (0, import_url.pathToFileURL)(absPath).href;
+  if (!openedFiles.has(uri)) {
+    const text = (0, import_fs8.readFileSync)(absPath, "utf-8");
+    const langId = getLanguageId(absPath);
+    lsp.notifyDidOpen(uri, langId, text);
+    openedFiles.add(uri);
+  }
+  return uri;
+}
+function formatLocation(loc) {
+  const file = loc.uri ? loc.uri.replace((0, import_url.pathToFileURL)(projectRoot ?? "").href + "/", "") : "unknown";
+  const line = (loc.range?.start.line ?? 0) + 1;
+  const col = (loc.range?.start.character ?? 0) + 1;
+  return `${file}:${line}:${col}`;
+}
+function formatMarkupContent(content) {
+  if (!content) return "";
+  if (typeof content === "string") return content;
+  if (typeof content === "object" && content !== null) {
+    const obj = content;
+    if (obj.value) return String(obj.value);
+    if (obj.contents) return formatMarkupContent(obj.contents);
+  }
+  return JSON.stringify(content);
+}
+function registerLspTools(server2) {
+  server2.tool(
+    "lat_lsp_hover",
+    "Get type information for a symbol at a specific position",
+    {
+      file: external_exports.string().describe("File path (relative to project root)"),
+      line: external_exports.number().describe("Line number (1-based)"),
+      character: external_exports.number().describe("Column number (1-based)")
+    },
+    async ({ file, line, character }) => {
+      try {
+        const lsp = await ensureClient();
+        const uri = ensureFileOpen(lsp, file);
+        const result = await lsp.request("textDocument/hover", {
+          textDocument: { uri },
+          position: { line: line - 1, character: character - 1 }
+        });
+        if (!result) {
+          return { content: [{ type: "text", text: JSON.stringify({ hover: null, file, line, character }) }] };
+        }
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              hover: formatMarkupContent(result.contents),
+              file,
+              line,
+              character
+            })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+  server2.tool(
+    "lat_lsp_goto_definition",
+    "Jump to the definition of a symbol",
+    {
+      file: external_exports.string().describe("File path (relative to project root)"),
+      line: external_exports.number().describe("Line number (1-based)"),
+      character: external_exports.number().describe("Column number (1-based)")
+    },
+    async ({ file, line, character }) => {
+      try {
+        const lsp = await ensureClient();
+        const uri = ensureFileOpen(lsp, file);
+        const result = await lsp.request("textDocument/definition", {
+          textDocument: { uri },
+          position: { line: line - 1, character: character - 1 }
+        });
+        const locations = Array.isArray(result) ? result : result ? [result] : [];
+        const formatted = locations.map((loc) => formatLocation(loc));
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ definitions: formatted, file, line, character })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+  server2.tool(
+    "lat_lsp_find_references",
+    "Find all references to a symbol",
+    {
+      file: external_exports.string().describe("File path (relative to project root)"),
+      line: external_exports.number().describe("Line number (1-based)"),
+      character: external_exports.number().describe("Column number (1-based)"),
+      includeDeclaration: external_exports.boolean().optional().describe("Include the declaration itself")
+    },
+    async ({ file, line, character, includeDeclaration }) => {
+      try {
+        const lsp = await ensureClient();
+        const uri = ensureFileOpen(lsp, file);
+        const result = await lsp.request("textDocument/references", {
+          textDocument: { uri },
+          position: { line: line - 1, character: character - 1 },
+          context: { includeDeclaration: includeDeclaration ?? true }
+        });
+        const locations = Array.isArray(result) ? result : [];
+        const formatted = locations.map((loc) => formatLocation(loc));
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ references: formatted, count: formatted.length, file, line, character })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+  server2.tool(
+    "lat_lsp_diagnostics",
+    "Get compiler/linter errors and warnings for a file",
+    {
+      file: external_exports.string().describe("File path (relative to project root)")
+    },
+    async ({ file }) => {
+      try {
+        const lsp = await ensureClient();
+        ensureFileOpen(lsp, file);
+        const diagnostics = [];
+        const uri = (0, import_url.pathToFileURL)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file)).href;
+        const handler = (params) => {
+          if (params.uri === uri) {
+            diagnostics.push(...params.diagnostics);
+          }
+        };
+        lsp.on("textDocument/publishDiagnostics", handler);
+        const text = (0, import_fs8.readFileSync)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
+        const langId = getLanguageId(file);
+        lsp.notify("textDocument/didClose", { textDocument: { uri } });
+        openedFiles.delete(uri);
+        lsp.notifyDidOpen(uri, langId, text);
+        openedFiles.add(uri);
+        await new Promise((r) => setTimeout(r, 2e3));
+        lsp.removeListener("textDocument/publishDiagnostics", handler);
+        const severityMap = { 1: "error", 2: "warning", 3: "info", 4: "hint" };
+        const formatted = diagnostics.map((d) => ({
+          severity: severityMap[d.severity] ?? "unknown",
+          message: d.message,
+          line: (d.range?.start?.line ?? 0) + 1,
+          character: (d.range?.start?.character ?? 0) + 1
+        }));
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ diagnostics: formatted, count: formatted.length, file })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+}
+
+// src/mcp/tools/ast.ts
+var import_path7 = require("path");
+var import_fs9 = require("fs");
+var astGrep = null;
+var astGrepAvailable = null;
+function loadAstGrep() {
+  if (astGrepAvailable !== null) return astGrepAvailable;
+  try {
+    astGrep = require("@ast-grep/napi");
+    astGrepAvailable = true;
+    return true;
+  } catch {
+    astGrepAvailable = false;
+    return false;
+  }
+}
+var LANG_MAP = {
+  ts: "TypeScript",
+  tsx: "Tsx",
+  js: "JavaScript",
+  jsx: "Jsx",
+  py: "Python",
+  rs: "Rust",
+  go: "Go",
+  java: "Java",
+  c: "C",
+  cpp: "Cpp"
+};
+function findProjectRoot3() {
+  let dir = process.cwd();
+  while (dir !== "/") {
+    if ((0, import_fs9.existsSync)((0, import_path7.resolve)(dir, ".git"))) return dir;
+    dir = (0, import_path7.resolve)(dir, "..");
+  }
+  return process.cwd();
+}
+function collectFiles(dir, ext, maxDepth = 5, depth = 0) {
+  if (depth > maxDepth) return [];
+  const files = [];
+  try {
+    for (const entry of (0, import_fs9.readdirSync)(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist") continue;
+      const full = (0, import_path7.resolve)(dir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...collectFiles(full, ext, maxDepth, depth + 1));
+      } else if (entry.name.endsWith(`.${ext}`)) {
+        files.push(full);
+      }
+    }
+  } catch {
+  }
+  return files;
+}
+function registerAstTools(server2) {
+  server2.tool(
+    "lat_ast_search",
+    "Search code by structural pattern using ast-grep (tree-sitter)",
+    {
+      pattern: external_exports.string().describe('ast-grep pattern (e.g., "function $NAME($$$) { $$$ }")'),
+      language: external_exports.string().optional().describe("Language: typescript, javascript, python, rust, go. Auto-detected if omitted."),
+      path: external_exports.string().optional().describe("Directory or file to search. Defaults to project root.")
+    },
+    async ({ pattern, language, path: searchPath }) => {
+      if (!loadAstGrep()) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              error: "@ast-grep/napi not installed",
+              install: "npm install @ast-grep/napi",
+              note: "AST search requires the @ast-grep/napi package. Install it in the project or globally."
+            })
+          }]
+        };
+      }
+      try {
+        const root = findProjectRoot3();
+        const targetPath = searchPath ? (0, import_path7.resolve)(root, searchPath) : root;
+        let lang = language?.toLowerCase() ?? "typescript";
+        const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
+        const astLang = LANG_MAP[ext];
+        if (!astLang) {
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({ error: `Unsupported language: ${lang}`, supported: Object.values(LANG_MAP) })
+            }]
+          };
+        }
+        const isFile = (0, import_fs9.existsSync)(targetPath) && (0, import_fs9.statSync)(targetPath).isFile();
+        const files = isFile ? [targetPath] : collectFiles(targetPath, ext);
+        const matches = [];
+        const sgLang = astGrep.Lang[astLang];
+        for (const file of files) {
+          try {
+            const source = (0, import_fs9.readFileSync)(file, "utf-8");
+            const sgRoot = astGrep.parse(sgLang, source).root();
+            const nodes = sgRoot.findAll(pattern);
+            for (const node of nodes) {
+              matches.push({
+                file: file.replace(root + "/", ""),
+                line: node.range().start.line + 1,
+                text: node.text().slice(0, 200)
+              });
+            }
+          } catch {
+          }
+        }
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ matches, count: matches.length, pattern, language: astLang })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+}
+
 // src/mcp/server.ts
 var server = new McpServer({
   name: "lat",
-  version: "0.1.0"
+  version: "0.2.0"
 });
 registerStateTools(server);
 registerKnowledgeTools(server);
 registerMemoTools(server);
 registerContextTool(server);
+registerLspTools(server);
+registerAstTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
