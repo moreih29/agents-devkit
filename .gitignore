@@ -4,3 +4,5 @@ node_modules/
 bun.lockb
 dist/
 *.tgz
+test/fixtures/rust/target/
+test/fixtures/rust/Cargo.lock

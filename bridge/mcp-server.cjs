@@ -21560,6 +21560,27 @@ function findProjectRoot2() {
   }
   return process.cwd();
 }
+var LANG_CONFIG_FILES = {
+  typescript: ["tsconfig.json", "jsconfig.json", "package.json"],
+  python: ["pyproject.toml", "setup.py", "setup.cfg"],
+  rust: ["Cargo.toml"],
+  go: ["go.mod"]
+};
+function findLanguageRoot(filePath, language) {
+  const root = projectRoot ?? findProjectRoot2();
+  const absPath = (0, import_path6.resolve)(root, filePath);
+  let dir = absPath.includes(".") ? (0, import_path6.resolve)(absPath, "..") : absPath;
+  const configFiles = LANG_CONFIG_FILES[language] ?? [];
+  while (dir.length >= root.length) {
+    for (const cf of configFiles) {
+      if ((0, import_fs8.existsSync)((0, import_path6.join)(dir, cf))) return dir;
+    }
+    const parent = (0, import_path6.resolve)(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return root;
+}
 async function ensureClientForFile(filePath) {
   if (!projectRoot) projectRoot = findProjectRoot2();
   const language = getLanguageFromExt(filePath) ?? detectLanguage(projectRoot);
@@ -21569,8 +21590,9 @@ async function ensureClientForFile(filePath) {
   const existing = clients.get(language);
   if (existing?.isReady()) return existing;
   const config2 = getLspConfig(language);
+  const langRoot = findLanguageRoot(filePath, language);
   const client = new LspClient(config2.command, config2.args);
-  await client.initialize((0, import_url.pathToFileURL)(projectRoot).href);
+  await client.initialize((0, import_url.pathToFileURL)(langRoot).href);
   clients.set(language, client);
   return client;
 }

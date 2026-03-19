@@ -22,6 +22,32 @@ function findProjectRoot(): string {
   return process.cwd();
 }
 
+// 언어별 설정 파일 → 해당 디렉토리를 LSP rootUri로 사용
+const LANG_CONFIG_FILES: Record<string, string[]> = {
+  typescript: ['tsconfig.json', 'jsconfig.json', 'package.json'],
+  python: ['pyproject.toml', 'setup.py', 'setup.cfg'],
+  rust: ['Cargo.toml'],
+  go: ['go.mod'],
+};
+
+/** 파일 위치에서 가장 가까운 언어 설정 파일이 있는 디렉토리 찾기 */
+function findLanguageRoot(filePath: string, language: string): string {
+  const root = projectRoot ?? findProjectRoot();
+  const absPath = resolve(root, filePath);
+  let dir = absPath.includes('.') ? resolve(absPath, '..') : absPath;
+  const configFiles = LANG_CONFIG_FILES[language] ?? [];
+
+  while (dir.length >= root.length) {
+    for (const cf of configFiles) {
+      if (existsSync(join(dir, cf))) return dir;
+    }
+    const parent = resolve(dir, '..');
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return root; // fallback to git root
+}
+
 async function ensureClientForFile(filePath: string): Promise<LspClient> {
   if (!projectRoot) projectRoot = findProjectRoot();
 
@@ -35,8 +61,9 @@ async function ensureClientForFile(filePath: string): Promise<LspClient> {
   if (existing?.isReady()) return existing;
 
   const config = getLspConfig(language);
+  const langRoot = findLanguageRoot(filePath, language);
   const client = new LspClient(config.command, config.args);
-  await client.initialize(pathToFileURL(projectRoot!).href);
+  await client.initialize(pathToFileURL(langRoot).href);
   clients.set(language, client);
   return client;
 }
