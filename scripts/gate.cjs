@@ -131,6 +131,18 @@ function detectKeywords(prompt) {
   }
   return null;
 }
+function activatePrimitive(primitive, sid) {
+  const dir = sessionDir(sid);
+  ensureDir(dir);
+  const state = {
+    active: true,
+    maxIterations: 100,
+    currentIteration: 0,
+    startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    sessionId: sid
+  };
+  (0, import_fs3.writeFileSync)(statePath(sid, primitive), JSON.stringify(state, null, 2));
+}
 function handleUserPromptSubmit(event) {
   const prompt = event.user_prompt ?? "";
   if (!prompt) {
@@ -139,9 +151,11 @@ function handleUserPromptSubmit(event) {
   }
   const match = detectKeywords(prompt);
   if (match) {
+    const sid = getSessionId();
+    activatePrimitive(match.primitive, sid);
     respond({
       continue: true,
-      additionalContext: `[LATTICE KEYWORD: ${match.primitive}] Invoke /${match.skill} to activate ${match.primitive} mode.`
+      additionalContext: `[LATTICE] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. When done, call lat_state_clear({ key: "${match.primitive}" }) to deactivate.`
     });
     return;
   }

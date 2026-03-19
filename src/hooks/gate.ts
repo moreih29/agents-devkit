@@ -1,7 +1,7 @@
 // Gate 훅: Stop (Sustain/Pipeline 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { existsSync, readFileSync } from 'fs';
-import { statePath } from '../shared/paths.js';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { statePath, sessionDir, ensureDir } from '../shared/paths.js';
 import { getSessionId } from '../shared/session.js';
 
 // --- Stop 이벤트 처리 ---
@@ -96,15 +96,32 @@ function detectKeywords(prompt: string): KeywordMatch | null {
   return null;
 }
 
+function activatePrimitive(primitive: string, sid: string): void {
+  const dir = sessionDir(sid);
+  ensureDir(dir);
+
+  const state = {
+    active: true,
+    maxIterations: 100,
+    currentIteration: 0,
+    startedAt: new Date().toISOString(),
+    sessionId: sid,
+  };
+  writeFileSync(statePath(sid, primitive), JSON.stringify(state, null, 2));
+}
+
 function handleUserPromptSubmit(event: { user_prompt?: string }): void {
   const prompt = event.user_prompt ?? '';
   if (!prompt) { pass(); return; }
 
   const match = detectKeywords(prompt);
   if (match) {
+    const sid = getSessionId();
+    activatePrimitive(match.primitive, sid);
+
     respond({
       continue: true,
-      additionalContext: `[LATTICE KEYWORD: ${match.primitive}] Invoke /${match.skill} to activate ${match.primitive} mode.`,
+      additionalContext: `[LATTICE] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. When done, call lat_state_clear({ key: "${match.primitive}" }) to deactivate.`,
     });
     return;
   }
