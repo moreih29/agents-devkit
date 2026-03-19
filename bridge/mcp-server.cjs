@@ -21704,6 +21704,100 @@ function registerLspTools(server2) {
       }
     }
   );
+  const symbolKindMap = {
+    1: "File",
+    2: "Module",
+    3: "Namespace",
+    4: "Package",
+    5: "Class",
+    6: "Method",
+    7: "Property",
+    8: "Field",
+    9: "Constructor",
+    10: "Enum",
+    11: "Interface",
+    12: "Function",
+    13: "Variable",
+    14: "Constant",
+    15: "String",
+    16: "Number",
+    17: "Boolean",
+    18: "Array",
+    19: "Object",
+    20: "Key",
+    21: "Null",
+    22: "EnumMember",
+    23: "Struct",
+    24: "Event",
+    25: "Operator",
+    26: "TypeParameter"
+  };
+  server2.tool(
+    "lat_lsp_document_symbols",
+    "List all symbols (functions, classes, interfaces, etc.) in a file",
+    {
+      file: external_exports.string().describe("File path (relative to project root)")
+    },
+    async ({ file }) => {
+      try {
+        const lsp = await ensureClient();
+        const uri = ensureFileOpen(lsp, file);
+        const result = await lsp.request("textDocument/documentSymbol", {
+          textDocument: { uri }
+        });
+        const symbols = Array.isArray(result) ? result : [];
+        const flatten = (items, depth = 0) => {
+          const out = [];
+          for (const s of items) {
+            out.push({
+              name: s.name,
+              kind: symbolKindMap[s.kind] ?? "Unknown",
+              line: (s.range?.start?.line ?? s.location?.range?.start?.line ?? 0) + 1,
+              depth
+            });
+            if (s.children) out.push(...flatten(s.children, depth + 1));
+          }
+          return out;
+        };
+        const formatted = flatten(symbols);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ symbols: formatted, count: formatted.length, file })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+  server2.tool(
+    "lat_lsp_workspace_symbols",
+    "Search for symbols across the entire project",
+    {
+      query: external_exports.string().describe("Symbol name or partial name to search")
+    },
+    async ({ query }) => {
+      try {
+        const lsp = await ensureClient();
+        const result = await lsp.request("workspace/symbol", { query });
+        const symbols = Array.isArray(result) ? result : [];
+        const formatted = symbols.map((s) => ({
+          name: s.name,
+          kind: symbolKindMap[s.kind] ?? "Unknown",
+          location: formatLocation(s.location)
+        }));
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ symbols: formatted, count: formatted.length, query })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
 }
 
 // src/mcp/tools/ast.ts
@@ -21838,6 +21932,7 @@ function registerAstTools(server2) {
 var server = new McpServer({
   name: "lat",
   version: "0.2.0"
+  // synced with package.json
 });
 registerStateTools(server);
 registerKnowledgeTools(server);

@@ -187,6 +187,11 @@ async function main() {
   const hookEvent = event.hook_event_name ?? event.type ?? "";
   const toolName = event.tool_name ?? "";
   const sid = getSessionId();
+  const sessDir = sessionDir(sid);
+  if (!(0, import_fs3.existsSync)(sessDir)) {
+    pass();
+    return;
+  }
   const tracker = loadTracker(sid);
   const contextLevel = getActiveContextLevel(sid);
   tracker.toolCallCount++;

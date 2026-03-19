@@ -9,7 +9,7 @@ import { registerAstTools } from './tools/ast.js';
 
 const server = new McpServer({
   name: 'lat',
-  version: '0.2.0',
+  version: '0.2.0', // synced with package.json
 });
 
 registerStateTools(server);
