@@ -235,9 +235,25 @@ fi
 # AST: search (@ast-grep/napi가 있을 때만)
 result=$(mcp_call "lat_ast_search" '{"pattern":"function $NAME($$$) { $$$BODY }","language":"typescript","path":"src/shared"}')
 if echo "$result" | grep -q '"error".*not installed'; then
-  echo "  (ast-grep not installed, skipping)"
+  echo "  (ast-grep not installed, skipping all AST tests)"
 else
-  check "AST/search" 'matches' "$result"
+  check "AST/search (TypeScript)" 'matches' "$result"
+
+  # AST: 다언어 — Python
+  result=$(mcp_call "lat_ast_search" '{"pattern":"def $NAME($$$):","language":"python","path":"test/fixtures/python"}')
+  check "AST/search (Python)" 'matches' "$result"
+
+  # AST: 다언어 — Rust
+  result=$(mcp_call "lat_ast_search" '{"pattern":"fn $NAME($$$) -> $RET { $$$BODY }","language":"rust","path":"test/fixtures/rust"}')
+  check "AST/search (Rust)" 'matches' "$result"
+
+  # AST: 다언어 — Go
+  result=$(mcp_call "lat_ast_search" '{"pattern":"func $NAME($$$) $RET { $$$BODY }","language":"go","path":"test/fixtures/go"}')
+  check "AST/search (Go)" 'matches' "$result"
+
+  # AST: replace (dry run)
+  result=$(mcp_call "lat_ast_replace" '{"pattern":"def greet($$$):","replacement":"def hello($$$):","language":"python","path":"test/fixtures/python","dryRun":true}')
+  check "AST/replace (dryRun)" 'changes' "$result"
 fi
 
 # Cleanup

@@ -21455,6 +21455,7 @@ var LspClient = class extends import_events.EventEmitter {
 
 // src/code-intel/detect.ts
 var import_fs7 = require("fs");
+var import_child_process3 = require("child_process");
 var import_path5 = require("path");
 var LSP_SERVERS = {
   typescript: {
@@ -21478,6 +21479,24 @@ var LSP_SERVERS = {
     languageId: "go"
   }
 };
+var COMMON_PATHS = {
+  "rust-analyzer": [`${process.env.HOME}/.cargo/bin/rust-analyzer`],
+  "gopls": [`${process.env.HOME}/go/bin/gopls`, "/usr/local/go/bin/gopls"],
+  "pyright-langserver": [`${process.env.HOME}/.local/bin/pyright-langserver`]
+};
+function resolveCommand(command) {
+  if (command === "npx") return command;
+  try {
+    const resolved = (0, import_child_process3.execSync)(`which ${command}`, { encoding: "utf-8", timeout: 3e3 }).trim();
+    if (resolved) return resolved;
+  } catch {
+  }
+  const paths = COMMON_PATHS[command] ?? [];
+  for (const p of paths) {
+    if ((0, import_fs7.existsSync)(p)) return p;
+  }
+  return command;
+}
 var DETECT_FILES = [
   { file: "tsconfig.json", language: "typescript" },
   { file: "jsconfig.json", language: "typescript" },
@@ -21486,6 +21505,15 @@ var DETECT_FILES = [
   { file: "Cargo.toml", language: "rust" },
   { file: "go.mod", language: "go" }
 ];
+var EXT_TO_LANGUAGE = {
+  ts: "typescript",
+  tsx: "typescript",
+  js: "typescript",
+  jsx: "typescript",
+  py: "python",
+  rs: "rust",
+  go: "go"
+};
 function detectLanguage(projectRoot2) {
   for (const { file, language } of DETECT_FILES) {
     if ((0, import_fs7.existsSync)((0, import_path5.join)(projectRoot2, file))) {
@@ -21494,8 +21522,16 @@ function detectLanguage(projectRoot2) {
   }
   return null;
 }
+function getLanguageFromExt(filePath) {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  return EXT_TO_LANGUAGE[ext] ?? null;
+}
 function getLspConfig(language) {
-  return LSP_SERVERS[language];
+  const config2 = LSP_SERVERS[language];
+  return {
+    ...config2,
+    command: resolveCommand(config2.command)
+  };
 }
 function getLanguageId(filePath) {
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
@@ -21512,29 +21548,29 @@ function getLanguageId(filePath) {
 }
 
 // src/mcp/tools/lsp.ts
-var client = null;
+var clients = /* @__PURE__ */ new Map();
 var projectRoot = null;
 var openedFiles = /* @__PURE__ */ new Set();
 function findProjectRoot2() {
   let dir = process.cwd();
-  const { existsSync: existsSync9 } = require("fs");
-  const { join: join6, resolve: res } = require("path");
   while (dir !== "/") {
-    if (existsSync9(join6(dir, ".git"))) return dir;
-    dir = res(dir, "..");
+    if ((0, import_fs8.existsSync)((0, import_path6.join)(dir, ".git"))) return dir;
+    dir = (0, import_path6.resolve)(dir, "..");
   }
   return process.cwd();
 }
-async function ensureClient() {
-  if (client?.isReady()) return client;
-  projectRoot = findProjectRoot2();
-  const language = detectLanguage(projectRoot);
+async function ensureClientForFile(filePath) {
+  if (!projectRoot) projectRoot = findProjectRoot2();
+  const language = getLanguageFromExt(filePath) ?? detectLanguage(projectRoot);
   if (!language) {
     throw new Error("No supported language detected. Looked for: tsconfig.json, pyproject.toml, Cargo.toml, go.mod");
   }
+  const existing = clients.get(language);
+  if (existing?.isReady()) return existing;
   const config2 = getLspConfig(language);
-  client = new LspClient(config2.command, config2.args);
+  const client = new LspClient(config2.command, config2.args);
   await client.initialize((0, import_url.pathToFileURL)(projectRoot).href);
+  clients.set(language, client);
   return client;
 }
 function ensureFileOpen(lsp, filePath) {
@@ -21575,7 +21611,7 @@ function registerLspTools(server2) {
     },
     async ({ file, line, character }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         const uri = ensureFileOpen(lsp, file);
         const result = await lsp.request("textDocument/hover", {
           textDocument: { uri },
@@ -21610,7 +21646,7 @@ function registerLspTools(server2) {
     },
     async ({ file, line, character }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         const uri = ensureFileOpen(lsp, file);
         const result = await lsp.request("textDocument/definition", {
           textDocument: { uri },
@@ -21640,7 +21676,7 @@ function registerLspTools(server2) {
     },
     async ({ file, line, character, includeDeclaration }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         const uri = ensureFileOpen(lsp, file);
         const result = await lsp.request("textDocument/references", {
           textDocument: { uri },
@@ -21668,7 +21704,7 @@ function registerLspTools(server2) {
     },
     async ({ file }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         ensureFileOpen(lsp, file);
         const diagnostics = [];
         const uri = (0, import_url.pathToFileURL)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file)).href;
@@ -21740,7 +21776,7 @@ function registerLspTools(server2) {
     },
     async ({ file }) => {
       try {
-        const lsp = await ensureClient();
+        const lsp = await ensureClientForFile(file);
         const uri = ensureFileOpen(lsp, file);
         const result = await lsp.request("textDocument/documentSymbol", {
           textDocument: { uri }
@@ -21779,7 +21815,9 @@ function registerLspTools(server2) {
     },
     async ({ query }) => {
       try {
-        const lsp = await ensureClient();
+        const root = projectRoot ?? findProjectRoot2();
+        const lang = detectLanguage(root) ?? "typescript";
+        const lsp = await ensureClientForFile(`dummy.${lang === "typescript" ? "ts" : lang === "python" ? "py" : lang === "rust" ? "rs" : "go"}`);
         const result = await lsp.request("workspace/symbol", { query });
         const symbols = Array.isArray(result) ? result : [];
         const formatted = symbols.map((s) => ({
@@ -21919,6 +21957,94 @@ function registerAstTools(server2) {
           content: [{
             type: "text",
             text: JSON.stringify({ matches, count: matches.length, pattern, language: astLang })
+          }]
+        };
+      } catch (err) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
+  server2.tool(
+    "lat_ast_replace",
+    "Replace code by structural pattern using ast-grep (tree-sitter). Use dryRun=true to preview changes.",
+    {
+      pattern: external_exports.string().describe("ast-grep pattern to match"),
+      replacement: external_exports.string().describe("Replacement pattern (use $NAME to reference captures)"),
+      language: external_exports.string().optional().describe("Language: typescript, javascript, python, rust, go"),
+      path: external_exports.string().optional().describe("Directory or file. Defaults to project root."),
+      dryRun: external_exports.boolean().optional().describe("Preview only, no file changes (default: true)")
+    },
+    async ({ pattern, replacement, language, path: searchPath, dryRun }) => {
+      if (!loadAstGrep()) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              error: "@ast-grep/napi not installed",
+              install: "npm install @ast-grep/napi"
+            })
+          }]
+        };
+      }
+      const isDryRun = dryRun ?? true;
+      try {
+        const root = findProjectRoot3();
+        const targetPath = searchPath ? (0, import_path7.resolve)(root, searchPath) : root;
+        let lang = language?.toLowerCase() ?? "typescript";
+        const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
+        const astLang = LANG_MAP[ext];
+        if (!astLang) {
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({ error: `Unsupported language: ${lang}` })
+            }]
+          };
+        }
+        const isFile = (0, import_fs9.existsSync)(targetPath) && (0, import_fs9.statSync)(targetPath).isFile();
+        const files = isFile ? [targetPath] : collectFiles(targetPath, ext);
+        const sgLang = astGrep.Lang[astLang];
+        const changes = [];
+        for (const file of files) {
+          try {
+            const source = (0, import_fs9.readFileSync)(file, "utf-8");
+            const sgRoot = astGrep.parse(sgLang, source).root();
+            const nodes = sgRoot.findAll(pattern);
+            if (nodes.length === 0) continue;
+            let newSource = source;
+            const sorted = [...nodes].sort((a, b) => b.range().start.index - a.range().start.index);
+            for (const node of sorted) {
+              const range = node.range();
+              const original = node.text();
+              const replaced = node.replace(replacement)?.text?.() ?? replacement;
+              changes.push({
+                file: file.replace(root + "/", ""),
+                line: range.start.line + 1,
+                original: original.slice(0, 100),
+                replaced: replaced.slice(0, 100)
+              });
+              if (!isDryRun) {
+                newSource = newSource.slice(0, range.start.index) + replaced + newSource.slice(range.end.index);
+              }
+            }
+            if (!isDryRun && newSource !== source) {
+              const { writeFileSync: writeFileSync5 } = require("fs");
+              writeFileSync5(file, newSource);
+            }
+          } catch {
+          }
+        }
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              changes,
+              count: changes.length,
+              dryRun: isDryRun,
+              pattern,
+              replacement,
+              language: astLang
+            })
           }]
         };
       } catch (err) {

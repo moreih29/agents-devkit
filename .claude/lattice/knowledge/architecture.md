@@ -118,16 +118,17 @@ claude-lattice/
 | Tracker | hooks.json (별도 프로세스) | SubagentStart/Stop, Session | 에이전트/세션 추적 |
 | Guard | Pulse 내장 + lat_context | PreToolUse (Pulse 경유) | Context window 모니터링 |
 
-## MCP 도구 (8개 Core + 7개 Code Intel)
+## MCP 도구 (8개 Core + 8개 Code Intel)
 
 ### Core
 `lat_state_read/write/clear`, `lat_knowledge_read/write`, `lat_memo_read/write`, `lat_context`
 
 ### Code Intelligence (lat 서버 통합)
 - LSP: `lat_lsp_hover`, `lat_lsp_goto_definition`, `lat_lsp_find_references`, `lat_lsp_diagnostics`, `lat_lsp_document_symbols`, `lat_lsp_workspace_symbols`
-- AST: `lat_ast_search` (@ast-grep/napi, tree-sitter 기반)
-- 프로젝트 언어 자동 감지 (tsconfig.json → TypeScript 등)
-- LSP 서버 lazy init + persistent connection
+- AST: `lat_ast_search`, `lat_ast_replace` (@ast-grep/napi, tree-sitter 기반)
+- 다언어 지원: TypeScript, Python, Rust, Go (자동 감지)
+- LSP 멀티 클라이언트 (언어별 lazy init + persistent connection)
+- LSP 서버 common paths 자동 탐색 (~/.cargo/bin, ~/go/bin, ~/.local/bin)
 
 ## 스킬 시스템
 

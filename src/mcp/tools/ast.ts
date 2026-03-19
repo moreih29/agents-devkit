@@ -142,4 +142,106 @@ export function registerAstTools(server: McpServer): void {
       }
     }
   );
+
+  server.tool(
+    'lat_ast_replace',
+    'Replace code by structural pattern using ast-grep (tree-sitter). Use dryRun=true to preview changes.',
+    {
+      pattern: z.string().describe('ast-grep pattern to match'),
+      replacement: z.string().describe('Replacement pattern (use $NAME to reference captures)'),
+      language: z.string().optional().describe('Language: typescript, javascript, python, rust, go'),
+      path: z.string().optional().describe('Directory or file. Defaults to project root.'),
+      dryRun: z.boolean().optional().describe('Preview only, no file changes (default: true)'),
+    },
+    async ({ pattern, replacement, language, path: searchPath, dryRun }) => {
+      if (!loadAstGrep()) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              error: '@ast-grep/napi not installed',
+              install: 'npm install @ast-grep/napi',
+            }),
+          }],
+        };
+      }
+
+      const isDryRun = dryRun ?? true; // 기본 dry run (안전)
+
+      try {
+        const root = findProjectRoot();
+        const targetPath = searchPath ? resolve(root, searchPath) : root;
+
+        let lang = language?.toLowerCase() ?? 'typescript';
+        const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
+        const astLang = LANG_MAP[ext];
+        if (!astLang) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ error: `Unsupported language: ${lang}` }),
+            }],
+          };
+        }
+
+        const isFile = existsSync(targetPath) && statSync(targetPath).isFile();
+        const files = isFile ? [targetPath] : collectFiles(targetPath, ext);
+        const sgLang = astGrep.Lang[astLang];
+
+        const changes: Array<{ file: string; line: number; original: string; replaced: string }> = [];
+
+        for (const file of files) {
+          try {
+            const source = readFileSync(file, 'utf-8');
+            const sgRoot = astGrep.parse(sgLang, source).root();
+            const nodes = sgRoot.findAll(pattern);
+
+            if (nodes.length === 0) continue;
+
+            let newSource = source;
+            // 뒤에서부터 치환 (오프셋 유지)
+            const sorted = [...nodes].sort((a: any, b: any) => b.range().start.index - a.range().start.index);
+
+            for (const node of sorted) {
+              const range = node.range();
+              const original = node.text();
+              const replaced = node.replace(replacement)?.text?.() ?? replacement;
+
+              changes.push({
+                file: file.replace(root + '/', ''),
+                line: range.start.line + 1,
+                original: original.slice(0, 100),
+                replaced: replaced.slice(0, 100),
+              });
+
+              if (!isDryRun) {
+                newSource = newSource.slice(0, range.start.index) + replaced + newSource.slice(range.end.index);
+              }
+            }
+
+            if (!isDryRun && newSource !== source) {
+              const { writeFileSync } = require('fs');
+              writeFileSync(file, newSource);
+            }
+          } catch { /* skip */ }
+        }
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              changes,
+              count: changes.length,
+              dryRun: isDryRun,
+              pattern,
+              replacement,
+              language: astLang,
+            }),
+          }],
+        };
+      } catch (err) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+      }
+    }
+  );
 }
