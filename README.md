@@ -95,7 +95,7 @@ Claude가 직접 호출하는 도구입니다.
 | `lat_memo_read/write` | 세션/단기 메모 (휘발성) |
 | `lat_context` | 현재 세션 상태 조회 |
 
-### Code Intelligence (7개)
+### Code Intelligence (10개)
 
 | 도구 | 용도 |
 |------|------|
@@ -103,9 +103,12 @@ Claude가 직접 호출하는 도구입니다.
 | `lat_lsp_goto_definition` | 정의 위치 이동 |
 | `lat_lsp_find_references` | 참조 목록 |
 | `lat_lsp_diagnostics` | 컴파일러/린터 에러 |
+| `lat_lsp_rename` | 프로젝트 전체 심볼 리네임 |
+| `lat_lsp_code_actions` | 자동 수정/리팩토링 제안 |
 | `lat_lsp_document_symbols` | 파일 내 심볼 목록 |
 | `lat_lsp_workspace_symbols` | 프로젝트 전체 심볼 검색 |
 | `lat_ast_search` | AST 패턴 검색 (tree-sitter) |
+| `lat_ast_replace` | AST 패턴 치환 (dryRun 지원) |
 
 LSP는 프로젝트 언어를 자동 감지합니다 (tsconfig.json → TypeScript 등).
 AST는 `@ast-grep/napi` 필요: `npm install @ast-grep/napi`
