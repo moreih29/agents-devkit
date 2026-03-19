@@ -68,6 +68,7 @@ export class LspClient extends EventEmitter {
     const message = JSON.stringify({ jsonrpc: '2.0', id, method, params });
     this.send(message);
 
+    const timeoutMs = method === 'initialize' ? 60000 : 30000;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       setTimeout(() => {
@@ -75,7 +76,7 @@ export class LspClient extends EventEmitter {
           this.pending.delete(id);
           reject(new Error(`LSP request timeout: ${method}`));
         }
-      }, 30000);
+      }, timeoutMs);
     });
   }
 

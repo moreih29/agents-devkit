@@ -21371,6 +21371,7 @@ var LspClient = class extends import_events.EventEmitter {
     const id = ++this.requestId;
     const message = JSON.stringify({ jsonrpc: "2.0", id, method, params });
     this.send(message);
+    const timeoutMs = method === "initialize" ? 6e4 : 3e4;
     return new Promise((resolve4, reject) => {
       this.pending.set(id, { resolve: resolve4, reject });
       setTimeout(() => {
@@ -21378,7 +21379,7 @@ var LspClient = class extends import_events.EventEmitter {
           this.pending.delete(id);
           reject(new Error(`LSP request timeout: ${method}`));
         }
-      }, 3e4);
+      }, timeoutMs);
     });
   }
   notify(method, params) {
