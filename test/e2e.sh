@@ -218,9 +218,19 @@ rm -f .lattice/state/sessions/e2e-hook/agents.json .lattice/state/sessions/e2e-h
 echo ""
 echo "=== Code Intelligence ==="
 
-# LSP 테스트는 pipe 기반 E2E와 비호환 (long-lived 서버 필요)
-# → Claude Code 내에서 MCP 직접 호출로 수동 검증
-echo "  (LSP: pipe E2E 비호환, MCP 직접 호출로 검증)"
+# LSP 테스트 (typescript-language-server 초기화에 시간 소요, 전체 E2E 시간 증가)
+if command -v npx &>/dev/null; then
+  result=$(mcp_call "lat_lsp_hover" '{"file":"src/shared/session.ts","line":9,"character":17}')
+  check "LSP/hover" 'hover' "$result"
+
+  result=$(mcp_call "lat_lsp_goto_definition" '{"file":"src/hooks/gate.ts","line":4,"character":40}')
+  check "LSP/goto_definition" 'definitions' "$result"
+
+  result=$(mcp_call "lat_lsp_find_references" '{"file":"src/shared/session.ts","line":9,"character":17}')
+  check "LSP/find_references" 'references' "$result"
+else
+  echo "  (LSP tests skipped: npx not available)"
+fi
 
 # AST: search (@ast-grep/napi가 있을 때만)
 result=$(mcp_call "lat_ast_search" '{"pattern":"function $NAME($$$) { $$$BODY }","language":"typescript","path":"src/shared"}')
