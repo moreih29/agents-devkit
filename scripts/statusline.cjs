@@ -148,7 +148,7 @@ function fetchOAuthUsage() {
     }
     const tokenMatch = credJson.match(/"accessToken"\s*:\s*"([^"]+)"/);
     if (!tokenMatch) return null;
-    return (0, import_child_process.execSync)(`curl -s --max-time 3 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    return (0, import_child_process.execSync)(`curl -s --max-time 1 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
   } catch {
     return null;
   }
@@ -157,30 +157,17 @@ function getUsage() {
   const now = Math.floor(Date.now() / 1e3);
   let currentTtl = CACHE_TTL_DEFAULT;
   let cachedData = "";
-  let cacheAge = Infinity;
   if ((0, import_fs.existsSync)(USAGE_CACHE_PATH)) {
     try {
       const lines = (0, import_fs.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
       const cachedAt = parseInt(lines[0]);
       currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
       cachedData = lines[2] || "";
-      cacheAge = now - cachedAt;
-      if (cacheAge < currentTtl) {
+      if (now - cachedAt < currentTtl) {
         return { json: cachedData, stale: currentTtl > CACHE_TTL_DEFAULT };
       }
     } catch {
     }
-  }
-  if (cachedData && cacheAge < 600) {
-    const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
-    const cacheContent = `${now}
-${nextTtl}
-${cachedData}`;
-    try {
-      require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
-    } catch {
-    }
-    return { json: cachedData, stale: true };
   }
   const resp = fetchOAuthUsage();
   if (resp && resp.includes("five_hour")) {

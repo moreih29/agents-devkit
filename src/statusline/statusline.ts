@@ -185,7 +185,7 @@ function fetchOAuthUsage(): string | null {
     const tokenMatch = credJson.match(/"accessToken"\s*:\s*"([^"]+)"/);
     if (!tokenMatch) return null;
 
-    return execSync(`curl -s --max-time 3 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    return execSync(`curl -s --max-time 1 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   } catch { return null; }
 }
 
@@ -193,7 +193,6 @@ function getUsage(): { json: string; stale: boolean } | null {
   const now = Math.floor(Date.now() / 1000);
   let currentTtl = CACHE_TTL_DEFAULT;
   let cachedData = '';
-  let cacheAge = Infinity;
 
   // 캐시 읽기 (여러 세션이 같은 캐시 공유)
   if (existsSync(USAGE_CACHE_PATH)) {
@@ -202,33 +201,24 @@ function getUsage(): { json: string; stale: boolean } | null {
       const cachedAt = parseInt(lines[0]);
       currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
       cachedData = lines[2] || '';
-      cacheAge = now - cachedAt;
 
-      // TTL 이내: 캐시 반환 (fresh or backoff-stale)
-      if (cacheAge < currentTtl) {
+      // TTL 이내: 캐시 반환 (backoff 중이면 stale)
+      if (now - cachedAt < currentTtl) {
         return { json: cachedData, stale: currentTtl > CACHE_TTL_DEFAULT };
       }
     } catch { /* skip */ }
   }
 
-  // TTL 만료: API 호출 시도 (단, 캐시가 10분 이내면 stale 캐시 즉시 반환하고 호출 스킵 — 깜빡임 방지)
-  if (cachedData && cacheAge < 600) {
-    // stale 캐시 즉시 반환 + 백그라운드 느낌으로 다음 호출 시 갱신
-    const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
-    const cacheContent = `${now}\n${nextTtl}\n${cachedData}`;
-    try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
-    return { json: cachedData, stale: true };
-  }
-
-  // 캐시 없거나 10분 이상 경과: 실제 API 호출
+  // TTL 만료: API 호출 시도
   const resp = fetchOAuthUsage();
   if (resp && resp.includes('five_hour')) {
+    // 성공: TTL 기본값 복원
     const cacheContent = `${now}\n${CACHE_TTL_DEFAULT}\n${resp}`;
     try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
     return { json: resp, stale: false };
   }
 
-  // 실패: stale 캐시 반환 + backoff
+  // 실패: TTL 2배 증가 (60→120→240), stale 캐시 반환
   if (cachedData) {
     const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
     const cacheContent = `${now}\n${nextTtl}\n${cachedData}`;
