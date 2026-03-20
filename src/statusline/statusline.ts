@@ -156,7 +156,8 @@ interface UsageCache {
 }
 
 const USAGE_CACHE_PATH = join(process.env.HOME || '~', '.claude', '.usage_cache');
-const CACHE_TTL = 60;
+const CACHE_TTL_DEFAULT = 60;
+const CACHE_TTL_MAX = 240;
 
 function fetchOAuthUsage(): string | null {
   try {
@@ -176,31 +177,39 @@ function fetchOAuthUsage(): string | null {
 
 function getUsage(): { json: string; stale: boolean } | null {
   const now = Math.floor(Date.now() / 1000);
+  let currentTtl = CACHE_TTL_DEFAULT;
 
-  // 캐시 확인
+  // 캐시 확인 (여러 세션이 같은 캐시 공유)
   if (existsSync(USAGE_CACHE_PATH)) {
     try {
       const lines = readFileSync(USAGE_CACHE_PATH, 'utf-8').split('\n');
       const cachedAt = parseInt(lines[0]);
-      const ttl = parseInt(lines[1]) || CACHE_TTL;
-      if (now - cachedAt < ttl) {
-        return { json: lines[2] || '', stale: ttl > CACHE_TTL };
+      currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
+      if (now - cachedAt < currentTtl) {
+        // TTL이 기본값보다 크면 backoff 중 → stale
+        return { json: lines[2] || '', stale: currentTtl > CACHE_TTL_DEFAULT };
       }
     } catch { /* skip */ }
   }
 
+  // API 호출
   const resp = fetchOAuthUsage();
   if (resp && resp.includes('five_hour')) {
-    const cacheContent = `${now}\n${CACHE_TTL}\n${resp}`;
+    // 성공: TTL 기본값 복원
+    const cacheContent = `${now}\n${CACHE_TTL_DEFAULT}\n${resp}`;
     try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
     return { json: resp, stale: false };
   }
 
-  // 실패 시 캐시 반환
+  // 실패: TTL 2배 증가 (exponential backoff, 최대 4분), stale 캐시 반환
   if (existsSync(USAGE_CACHE_PATH)) {
     try {
       const lines = readFileSync(USAGE_CACHE_PATH, 'utf-8').split('\n');
-      return { json: lines[2] || '', stale: true };
+      const oldData = lines[2] || '';
+      const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
+      const cacheContent = `${now}\n${nextTtl}\n${oldData}`;
+      try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
+      return { json: oldData, stale: true };
     } catch { /* skip */ }
   }
   return null;

@@ -118,7 +118,8 @@ function buildLine1() {
   return `${latticeTag}  ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
 }
 var USAGE_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".usage_cache");
-var CACHE_TTL = 60;
+var CACHE_TTL_DEFAULT = 60;
+var CACHE_TTL_MAX = 240;
 function fetchOAuthUsage() {
   try {
     let credJson = "";
@@ -137,13 +138,14 @@ function fetchOAuthUsage() {
 }
 function getUsage() {
   const now = Math.floor(Date.now() / 1e3);
+  let currentTtl = CACHE_TTL_DEFAULT;
   if ((0, import_fs.existsSync)(USAGE_CACHE_PATH)) {
     try {
       const lines = (0, import_fs.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
       const cachedAt = parseInt(lines[0]);
-      const ttl = parseInt(lines[1]) || CACHE_TTL;
-      if (now - cachedAt < ttl) {
-        return { json: lines[2] || "", stale: ttl > CACHE_TTL };
+      currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
+      if (now - cachedAt < currentTtl) {
+        return { json: lines[2] || "", stale: currentTtl > CACHE_TTL_DEFAULT };
       }
     } catch {
     }
@@ -151,7 +153,7 @@ function getUsage() {
   const resp = fetchOAuthUsage();
   if (resp && resp.includes("five_hour")) {
     const cacheContent = `${now}
-${CACHE_TTL}
+${CACHE_TTL_DEFAULT}
 ${resp}`;
     try {
       require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
@@ -162,7 +164,16 @@ ${resp}`;
   if ((0, import_fs.existsSync)(USAGE_CACHE_PATH)) {
     try {
       const lines = (0, import_fs.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
-      return { json: lines[2] || "", stale: true };
+      const oldData = lines[2] || "";
+      const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
+      const cacheContent = `${now}
+${nextTtl}
+${oldData}`;
+      try {
+        require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
+      } catch {
+      }
+      return { json: oldData, stale: true };
     } catch {
     }
   }
