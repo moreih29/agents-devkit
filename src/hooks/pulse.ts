@@ -149,6 +149,34 @@ function buildMessages(toolName: string, hookEvent: string, sid: string): Contex
     } catch { /* skip */ }
   }
 
+  // 오류 복구 가이드: sustain iteration이 80% 이상이면 경고
+  if (existsSync(sustainPath)) {
+    try {
+      const state = JSON.parse(readFileSync(sustainPath, 'utf-8'));
+      if (state.active && state.currentIteration >= (state.maxIterations ?? 100) * 0.8) {
+        messages.push({
+          key: 'recovery:sustain_limit',
+          priority: 'safety',
+          text: `[WARNING] Sustain iteration ${state.currentIteration}/${state.maxIterations}에 근접. 작업이 막혀있다면: 1) 현재 접근 방식을 재검토하세요. 2) lat_state_clear({ key: "sustain" })로 해제 후 다른 전략을 시도하세요.`,
+        });
+      }
+    } catch { /* skip */ }
+  }
+
+  // 오류 복구 가이드: pipeline에서 같은 stage에 오래 머물면 경고
+  if (existsSync(pipelinePath)) {
+    try {
+      const state = JSON.parse(readFileSync(pipelinePath, 'utf-8'));
+      if (state.active && state.currentIteration >= 10) {
+        messages.push({
+          key: 'recovery:pipeline_stuck',
+          priority: 'safety',
+          text: `[WARNING] Pipeline "${state.currentStage ?? 'unknown'}" 단계에서 ${state.currentIteration}회 반복 중. 막혀있다면: 1) 현재 단계를 skip하고 다음으로 진행하세요. 2) lat_state_clear({ key: "pipeline" })로 해제하세요.`,
+        });
+      }
+    } catch { /* skip */ }
+  }
+
   return messages;
 }
 
@@ -206,6 +234,36 @@ async function main() {
 
     tracker.injections[msg.key] = count + 1;
     filtered.push(msg.text);
+  }
+
+  // 프로그레스 알림: 매 20회마다 진행 상태 요약
+  const PROGRESS_INTERVAL = 20;
+  if (tracker.toolCallCount > 0 && tracker.toolCallCount % PROGRESS_INTERVAL === 0) {
+    const progressParts: string[] = [`[PROGRESS ${tracker.toolCallCount} tools]`];
+
+    // 워크플로우 상태
+    try {
+      const sustainP = statePath(sid, 'sustain');
+      const pipelineP = statePath(sid, 'pipeline');
+      if (existsSync(pipelineP) && existsSync(sustainP)) {
+        const p = JSON.parse(readFileSync(pipelineP, 'utf-8'));
+        if (p.active && p.currentStage) progressParts.push(`cruise: ${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? '?'}`);
+      } else if (existsSync(sustainP)) {
+        const s = JSON.parse(readFileSync(sustainP, 'utf-8'));
+        if (s.active) progressParts.push(`sustain: ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
+      }
+    } catch { /* skip */ }
+
+    // 에이전트 이력 수
+    try {
+      const agentsPath = join(sessionDir(sid), 'agents.json');
+      if (existsSync(agentsPath)) {
+        const record = JSON.parse(readFileSync(agentsPath, 'utf-8'));
+        if (record.history?.length > 0) progressParts.push(`agents: ${record.history.length} spawned`);
+      }
+    } catch { /* skip */ }
+
+    filtered.push(progressParts.join(' | '));
   }
 
   saveTracker(sid, tracker);
