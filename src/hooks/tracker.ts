@@ -163,7 +163,7 @@ function cleanupSessionState(sid: string): void {
   const dir = sessionDir(sid);
   if (!existsSync(dir)) return;
 
-  const workflowKeys = ['sustain', 'pipeline', 'parallel'];
+  const workflowKeys = ['nonstop', 'pipeline', 'parallel'];
   for (const key of workflowKeys) {
     const path = join(dir, `${key}.json`);
     if (existsSync(path)) {

@@ -23,7 +23,7 @@ async function readKnowledgeCached(path: string): Promise<string> {
 
 export function registerKnowledgeTools(server: McpServer): void {
   server.tool(
-    'lat_knowledge_read',
+    'nx_knowledge_read',
     'Read project knowledge (git-tracked, shared across team)',
     {
       topic: z.string().optional().describe('Specific topic name (e.g., "architecture", "conventions")'),
@@ -68,7 +68,7 @@ export function registerKnowledgeTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_knowledge_write',
+    'nx_knowledge_write',
     'Write project knowledge (git-tracked). Use for long-term, team-shared information.',
     {
       topic: z.string().describe('Topic name (becomes filename: knowledge/{topic}.md)'),

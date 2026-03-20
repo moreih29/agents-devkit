@@ -17,7 +17,7 @@ function getCurrentBranch(): string {
 
 export function registerContextTool(server: McpServer): void {
   server.tool(
-    'lat_context',
+    'nx_context',
     'Get aggregated context status: active mode, agents, session, branch',
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {} as Record<string, z.ZodType>,
@@ -27,7 +27,7 @@ export function registerContextTool(server: McpServer): void {
 
       // 활성 모드 감지
       let activeMode: string | null = null;
-      const modes = ['sustain', 'parallel', 'pipeline'];
+      const modes = ['nonstop', 'parallel', 'pipeline'];
       for (const mode of modes) {
         const stateFile = `${dir}/${mode}.json`;
         if (existsSync(stateFile)) {

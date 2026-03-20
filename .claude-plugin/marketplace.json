@@ -1,11 +1,11 @@
 {
-  "name": "lattice",
+  "name": "nexus",
   "owner": {
     "name": "kih"
   },
   "plugins": [
     {
-      "name": "claude-lattice",
+      "name": "claude-nexus",
       "description": "Agent orchestration plugin for Claude Code. Injects optimized context per agent role with minimal overhead.",
       "version": "0.1.0",
       "author": {

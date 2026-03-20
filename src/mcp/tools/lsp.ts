@@ -102,7 +102,7 @@ function formatMarkupContent(content: unknown): string {
 
 export function registerLspTools(server: McpServer): void {
   server.tool(
-    'lat_lsp_hover',
+    'nx_lsp_hover',
     'Get type information for a symbol at a specific position',
     {
       file: z.string().describe('File path (relative to project root)'),
@@ -140,7 +140,7 @@ export function registerLspTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_lsp_goto_definition',
+    'nx_lsp_goto_definition',
     'Jump to the definition of a symbol',
     {
       file: z.string().describe('File path (relative to project root)'),
@@ -172,7 +172,7 @@ export function registerLspTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_lsp_find_references',
+    'nx_lsp_find_references',
     'Find all references to a symbol',
     {
       file: z.string().describe('File path (relative to project root)'),
@@ -206,7 +206,7 @@ export function registerLspTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_lsp_diagnostics',
+    'nx_lsp_diagnostics',
     'Get compiler/linter errors and warnings for a file',
     {
       file: z.string().describe('File path (relative to project root)'),
@@ -262,7 +262,7 @@ export function registerLspTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_lsp_rename',
+    'nx_lsp_rename',
     'Rename a symbol across the project (returns a list of edits to apply)',
     {
       file: z.string().describe('File path (relative to project root)'),
@@ -328,7 +328,7 @@ export function registerLspTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_lsp_code_actions',
+    'nx_lsp_code_actions',
     'Get suggested fixes and refactoring actions for a code range',
     {
       file: z.string().describe('File path (relative to project root)'),
@@ -400,7 +400,7 @@ export function registerLspTools(server: McpServer): void {
   };
 
   server.tool(
-    'lat_lsp_document_symbols',
+    'nx_lsp_document_symbols',
     'List all symbols (functions, classes, interfaces, etc.) in a file',
     {
       file: z.string().describe('File path (relative to project root)'),
@@ -442,7 +442,7 @@ export function registerLspTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_lsp_workspace_symbols',
+    'nx_lsp_workspace_symbols',
     'Search for symbols across the entire project',
     {
       query: z.string().describe('Symbol name or partial name to search'),

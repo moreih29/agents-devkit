@@ -31,6 +31,6 @@ Produce a structured plan with:
 
 ## What You Do NOT Do
 - Write, edit, or create code files
-- Make final architecture decisions without Compass review for large changes
+- Make final architecture decisions without Architect review for large changes
 - Over-plan — keep plans proportional to task complexity
 </Guidelines>

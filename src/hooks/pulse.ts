@@ -34,17 +34,17 @@ function saveTracker(sid: string, tracker: WhisperTracker): void {
 type ContextLevel = 'minimal' | 'standard' | 'full';
 
 const AGENT_CONTEXT_LEVELS: Record<string, ContextLevel> = {
-  scout: 'minimal',
-  artisan: 'standard',
-  sentinel: 'standard',
-  tinker: 'standard',
-  steward: 'full',
-  compass: 'full',
+  finder: 'minimal',
+  builder: 'standard',
+  guard: 'standard',
+  debugger: 'standard',
+  lead: 'full',
+  architect: 'full',
   strategist: 'full',
-  lens: 'full',
+  reviewer: 'full',
   analyst: 'full',
-  weaver: 'standard',
-  scribe: 'minimal',
+  tester: 'standard',
+  writer: 'minimal',
 };
 
 function getActiveContextLevel(sid: string): ContextLevel {
@@ -99,8 +99,8 @@ function buildMessages(toolName: string, hookEvent: string, sid: string): Contex
     });
   }
 
-  // Workflow: Sustain 리마인더
-  const sustainPath = statePath(sid, 'sustain');
+  // Workflow: Nonstop 리마인더
+  const sustainPath = statePath(sid, 'nonstop');
   if (existsSync(sustainPath)) {
     try {
       const state = JSON.parse(readFileSync(sustainPath, 'utf-8'));
@@ -108,7 +108,7 @@ function buildMessages(toolName: string, hookEvent: string, sid: string): Contex
         messages.push({
           key: 'workflow:sustain_active',
           priority: 'workflow',
-          text: `[SUSTAIN ${state.currentIteration ?? 0}/${state.maxIterations ?? 100}] Sustain mode is active. Continue working until the task is complete.`,
+          text: `[SUSTAIN ${state.currentIteration ?? 0}/${state.maxIterations ?? 100}] Nonstop mode is active. Continue working until the task is complete.`,
         });
       }
     } catch { /* skip */ }
@@ -149,7 +149,7 @@ function buildMessages(toolName: string, hookEvent: string, sid: string): Contex
     } catch { /* skip */ }
   }
 
-  // 오류 복구 가이드: sustain iteration이 80% 이상이면 경고
+  // 오류 복구 가이드: nonstop iteration이 80% 이상이면 경고
   if (existsSync(sustainPath)) {
     try {
       const state = JSON.parse(readFileSync(sustainPath, 'utf-8'));
@@ -157,7 +157,7 @@ function buildMessages(toolName: string, hookEvent: string, sid: string): Contex
         messages.push({
           key: 'recovery:sustain_limit',
           priority: 'safety',
-          text: `[WARNING] Sustain iteration ${state.currentIteration}/${state.maxIterations}에 근접. 작업이 막혀있다면: 1) 현재 접근 방식을 재검토하세요. 2) lat_state_clear({ key: "sustain" })로 해제 후 다른 전략을 시도하세요.`,
+          text: `[WARNING] Nonstop iteration ${state.currentIteration}/${state.maxIterations}에 근접. 작업이 막혀있다면: 1) 현재 접근 방식을 재검토하세요. 2) nx_state_clear({ key: "nonstop" })로 해제 후 다른 전략을 시도하세요.`,
         });
       }
     } catch { /* skip */ }
@@ -171,7 +171,7 @@ function buildMessages(toolName: string, hookEvent: string, sid: string): Contex
         messages.push({
           key: 'recovery:pipeline_stuck',
           priority: 'safety',
-          text: `[WARNING] Pipeline "${state.currentStage ?? 'unknown'}" 단계에서 ${state.currentIteration}회 반복 중. 막혀있다면: 1) 현재 단계를 skip하고 다음으로 진행하세요. 2) lat_state_clear({ key: "pipeline" })로 해제하세요.`,
+          text: `[WARNING] Pipeline "${state.currentStage ?? 'unknown'}" 단계에서 ${state.currentIteration}회 반복 중. 막혀있다면: 1) 현재 단계를 skip하고 다음으로 진행하세요. 2) nx_state_clear({ key: "pipeline" })로 해제하세요.`,
         });
       }
     } catch { /* skip */ }
@@ -243,14 +243,14 @@ async function main() {
 
     // 워크플로우 상태
     try {
-      const sustainP = statePath(sid, 'sustain');
+      const sustainP = statePath(sid, 'nonstop');
       const pipelineP = statePath(sid, 'pipeline');
       if (existsSync(pipelineP) && existsSync(sustainP)) {
         const p = JSON.parse(readFileSync(pipelineP, 'utf-8'));
-        if (p.active && p.currentStage) progressParts.push(`cruise: ${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? '?'}`);
+        if (p.active && p.currentStage) progressParts.push(`auto: ${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? '?'}`);
       } else if (existsSync(sustainP)) {
         const s = JSON.parse(readFileSync(sustainP, 'utf-8'));
-        if (s.active) progressParts.push(`sustain: ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
+        if (s.active) progressParts.push(`nonstop: ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
       }
     } catch { /* skip */ }
 

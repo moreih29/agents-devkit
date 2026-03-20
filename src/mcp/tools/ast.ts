@@ -70,7 +70,7 @@ function collectFiles(dir: string, ext: string, maxDepth = 5, depth = 0): string
 
 export function registerAstTools(server: McpServer): void {
   server.tool(
-    'lat_ast_search',
+    'nx_ast_search',
     'Search code by structural pattern using ast-grep (tree-sitter)',
     {
       pattern: z.string().describe('ast-grep pattern (e.g., "function $NAME($$$) { $$$ }")'),
@@ -144,7 +144,7 @@ export function registerAstTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_ast_replace',
+    'nx_ast_replace',
     'Replace code by structural pattern using ast-grep (tree-sitter). Use dryRun=true to preview changes.',
     {
       pattern: z.string().describe('ast-grep pattern to match'),

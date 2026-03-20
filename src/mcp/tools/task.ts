@@ -43,7 +43,7 @@ async function loadAllTasks(): Promise<Task[]> {
 
 export function registerTaskTools(server: McpServer): void {
   server.tool(
-    'lat_task_create',
+    'nx_task_create',
     'Create a task for tracking work across sessions',
     {
       title: z.string().describe('Task title'),
@@ -66,7 +66,7 @@ export function registerTaskTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_task_list',
+    'nx_task_list',
     'List tasks with optional filtering by status or tags',
     {
       status: z.enum(['todo', 'in_progress', 'done', 'blocked']).optional().describe('Filter by status'),
@@ -83,7 +83,7 @@ export function registerTaskTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_task_update',
+    'nx_task_update',
     'Update a task (status, title, description, tags)',
     {
       id: z.string().describe('Task ID'),
@@ -111,7 +111,7 @@ export function registerTaskTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_task_summary',
+    'nx_task_summary',
     'Get task summary: counts by status + in-progress list',
     {},
     async () => {

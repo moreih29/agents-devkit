@@ -30,8 +30,8 @@ function findProjectRoot() {
   return process.cwd();
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".lattice");
-var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "lattice");
+var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".nexus");
+var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
 function sessionDir(sessionId) {
   return (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sessionId);
 }
@@ -197,7 +197,7 @@ function cleanupAllSessionStates() {
 function cleanupSessionState(sid) {
   const dir = sessionDir(sid);
   if (!(0, import_fs3.existsSync)(dir)) return;
-  const workflowKeys = ["sustain", "pipeline", "parallel"];
+  const workflowKeys = ["nonstop", "pipeline", "parallel"];
   for (const key of workflowKeys) {
     const path = (0, import_path3.join)(dir, `${key}.json`);
     if ((0, import_fs3.existsSync)(path)) {

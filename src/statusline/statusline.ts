@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Lattice 상태라인 — Claude Code statusLine.command로 실행
+// Nexus 상태라인 — Claude Code statusLine.command로 실행
 // stdin: Claude Code가 제공하는 JSON (display_name, used_percentage, cwd, transcript_path 등)
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
@@ -35,8 +35,8 @@ function findProjectRoot(): string {
 }
 
 const PROJECT_ROOT = findProjectRoot();
-const RUNTIME_ROOT = join(PROJECT_ROOT, '.lattice');
-const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'lattice');
+const RUNTIME_ROOT = join(PROJECT_ROOT, '.nexus');
+const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
 
 // --- Preset ---
 
@@ -145,20 +145,20 @@ function buildLine1(): string {
   // 버전 읽기
   let version = '';
   try {
-    const pkgPath = join(PROJECT_ROOT, 'node_modules', 'claude-lattice', 'package.json');
+    const pkgPath = join(PROJECT_ROOT, 'node_modules', 'claude-nexus', 'package.json');
     const pluginPkgPath = join(__dirname, '..', 'package.json');
     const localPkgPath = join(PROJECT_ROOT, 'package.json');
     for (const p of [pkgPath, pluginPkgPath, localPkgPath]) {
       if (existsSync(p)) {
         const pkg = JSON.parse(readFileSync(p, 'utf-8'));
-        if (pkg.name === 'claude-lattice' && pkg.version) { version = pkg.version; break; }
+        if (pkg.name === 'claude-nexus' && pkg.version) { version = pkg.version; break; }
       }
     }
   } catch { /* skip */ }
   const versionStr = version ? ` ${DIM}v${version}${RESET}` : '';
-  const latticeTag = `\x1b[38;5;141m◆Lattice${RESET}${versionStr}`;
+  const nexusTag = `\x1b[38;5;141m◆Nexus${RESET}${versionStr}`;
 
-  return `${latticeTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1b[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
+  return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1b[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
 }
 
 // --- Line 2: 컨텍스트 + 사용량 ---
@@ -329,12 +329,12 @@ function buildLine3(): string {
   if (sid) {
     const sessDir = join(RUNTIME_ROOT, 'state', 'sessions', sid);
     if (existsSync(sessDir)) {
-      // Sustain
-      const sustainPath = join(sessDir, 'sustain.json');
+      // Nonstop
+      const sustainPath = join(sessDir, 'nonstop.json');
       if (existsSync(sustainPath)) {
         try {
           const s = JSON.parse(readFileSync(sustainPath, 'utf-8'));
-          if (s.active) parts.push(`▶ sustain ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
+          if (s.active) parts.push(`▶ nonstop ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
         } catch { /* skip */ }
       }
 
@@ -345,10 +345,10 @@ function buildLine3(): string {
           const p = JSON.parse(readFileSync(pipelinePath, 'utf-8'));
           if (p.active) {
             const stage = p.currentStage ? `${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? '?'}` : 'init';
-            // sustain + pipeline = cruise
+            // nonstop + pipeline = auto
             if (existsSync(sustainPath)) {
-              parts.length = 0; // sustain 표시 제거
-              parts.push(`▶ cruise (${stage})`);
+              parts.length = 0; // nonstop 표시 제거
+              parts.push(`▶ auto (${stage})`);
             } else {
               parts.push(`▶ pipeline (${stage})`);
             }

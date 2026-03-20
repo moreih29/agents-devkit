@@ -1,5 +1,5 @@
 .omc/
-.lattice/
+.nexus/
 node_modules/
 bun.lockb
 dist/

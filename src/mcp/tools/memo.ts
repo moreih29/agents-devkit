@@ -31,7 +31,7 @@ function isExpired(entry: MemoEntry): boolean {
 
 export function registerMemoTools(server: McpServer): void {
   server.tool(
-    'lat_memo_read',
+    'nx_memo_read',
     'Read session memos (volatile, gitignored). For short-term progress tracking.',
     {
       ttl: z.enum(TTL_VALUES).optional().describe('Filter by TTL'),
@@ -72,7 +72,7 @@ export function registerMemoTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_memo_write',
+    'nx_memo_write',
     'Write a session memo (volatile). Use for progress notes, temporary context.',
     {
       content: z.string().describe('Memo content'),
