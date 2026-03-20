@@ -1,8 +1,25 @@
 import { z } from 'zod';
-import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { existsSync } from 'fs';
+import { readFile, writeFile, readdir } from 'fs/promises';
 import { knowledgePath, KNOWLEDGE_ROOT, ensureDir } from '../../shared/paths.js';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+// --- 메모리 캐시 ---
+
+const knowledgeCache = new Map<string, { content: string; mtime: number }>();
+
+async function readKnowledgeCached(path: string): Promise<string> {
+  const cached = knowledgeCache.get(path);
+  // 파일 존재 여부는 호출 전에 체크됨
+  const content = await readFile(path, 'utf-8');
+  // 내용이 같으면 캐시 히트로 간주 (mtime 체크 대신 간단한 길이 비교)
+  if (cached && cached.content.length === content.length && cached.content === content) {
+    return cached.content;
+  }
+  knowledgeCache.set(path, { content, mtime: Date.now() });
+  return content;
+}
 
 export function registerKnowledgeTools(server: McpServer): void {
   server.tool(
@@ -20,7 +37,7 @@ export function registerKnowledgeTools(server: McpServer): void {
         if (!existsSync(path)) {
           return { content: [{ type: 'text' as const, text: JSON.stringify({ exists: false, topic }) }] };
         }
-        const content = readFileSync(path, 'utf-8');
+        const content = await readKnowledgeCached(path);
         return { content: [{ type: 'text' as const, text: content }] };
       }
 
@@ -29,11 +46,12 @@ export function registerKnowledgeTools(server: McpServer): void {
         return { content: [{ type: 'text' as const, text: JSON.stringify({ topics: [] }) }] };
       }
 
-      const files = readdirSync(knowledgeDir).filter((f) => f.endsWith('.md'));
+      const files = (await readdir(knowledgeDir)).filter((f) => f.endsWith('.md'));
       const results: Array<{ topic: string; preview: string }> = [];
 
       for (const file of files) {
-        const content = readFileSync(join(knowledgeDir, file), 'utf-8');
+        const filePath = join(knowledgeDir, file);
+        const content = await readKnowledgeCached(filePath);
 
         if (tags && tags.length > 0) {
           const lowerContent = content.toLowerCase();
@@ -67,7 +85,9 @@ export function registerKnowledgeTools(server: McpServer): void {
       }
 
       const path = knowledgePath(topic);
-      writeFileSync(path, body);
+      await writeFile(path, body);
+      // 캐시 무효화
+      knowledgeCache.delete(path);
 
       return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, topic, path }) }] };
     }
