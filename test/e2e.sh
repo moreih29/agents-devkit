@@ -350,6 +350,38 @@ check "Routing (keyword priority)" 'sustain mode ACTIVATED' "$result"
 result=$(echo '{"prompt":"안녕"}' | node scripts/gate.cjs 2>/dev/null)
 check "Routing (no match)" '"continue":true' "$result"
 
+# --- 라우팅 히스토리 테스트 ---
+echo ""
+echo "=== 라우팅 히스토리 ==="
+
+# 히스토리 파일 초기화
+rm -f .lattice/routing-history.json
+
+# override 2회 기록 → 히스토리 반영 확인
+echo '{"prompt":"Artisan으로 이 버그 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null > /dev/null
+echo '{"prompt":"Artisan으로 이 에러 수정해"}' | node scripts/gate.cjs 2>/dev/null > /dev/null
+result=$(echo '{"prompt":"이 버그 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "History (learned override)" 'artisan' "$result"
+check "History (hint)" '히스토리' "$result"
+
+rm -f .lattice/routing-history.json
+
+# --- 태스크 자연어 연동 테스트 ---
+echo ""
+echo "=== 태스크 자연어 ==="
+
+result=$(echo '{"prompt":"진행 중인 작업 뭐야?"}' | node scripts/gate.cjs 2>/dev/null)
+check "Task (in_progress)" 'lat_task_list' "$result"
+
+result=$(echo '{"prompt":"다음 할 일 알려줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Task (todo)" 'lat_task_list' "$result"
+
+result=$(echo '{"prompt":"작업 현황 보여줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Task (summary)" 'lat_task_summary' "$result"
+
+result=$(echo '{"prompt":"막힌 작업 있어?"}' | node scripts/gate.cjs 2>/dev/null)
+check "Task (blocked)" 'lat_task_list' "$result"
+
 # --- Code Intelligence 테스트 ---
 echo ""
 echo "=== Code Intelligence ==="
