@@ -393,7 +393,7 @@ function buildLine3(): string {
     try {
       if (existsSync(parallelPath)) {
         const p = JSON.parse(readFileSync(parallelPath, 'utf-8'));
-        if (p.active) workflowParts.push(`🔀 parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
+        if (p.active && (p.totalCount ?? 0) > 0) workflowParts.push(`🔀 parallel ${p.completedCount ?? 0}/${p.totalCount}`);
       }
     } catch { /* skip */ }
 

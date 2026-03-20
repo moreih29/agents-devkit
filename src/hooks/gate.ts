@@ -298,6 +298,17 @@ Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip 
     const sid = getSessionId();
     activatePrimitive(match.primitive, sid);
 
+    if (match.primitive === 'parallel') {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] parallel mode ACTIVATED (session: ${sid}). IMPORTANT: You MUST immediately update the parallel state with a task list:
+nx_state_write({ key: "parallel", value: { active: true, tasks: [{ id: "t1", description: "...", agent: "builder", status: "running" }, ...], completedCount: 0, totalCount: N } })
+Then spawn Agent() calls for each task simultaneously (multiple Agent calls in one message).
+Before finishing, call nx_state_clear({ key: "parallel" }) to deactivate.`,
+      });
+      return;
+    }
+
     respond({
       continue: true,
       additionalContext: `[NEXUS] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. IMPORTANT: Before finishing your response, you MUST call nx_state_clear({ key: "${match.primitive}" }) to deactivate. Do NOT attempt to stop without clearing state first.`,
