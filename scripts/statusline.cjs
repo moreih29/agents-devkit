@@ -334,6 +334,22 @@ function buildLine3() {
     } catch {
     }
     try {
+      const consultPath = (0, import_path.join)(sessDir, "consult.json");
+      if ((0, import_fs.existsSync)(consultPath)) {
+        const c = JSON.parse((0, import_fs.readFileSync)(consultPath, "utf-8"));
+        if (c.active) workflowParts.push(`\u{1F4AC} consult (${c.phase ?? "?"})`);
+      }
+    } catch {
+    }
+    try {
+      const planPath = (0, import_path.join)(sessDir, "plan.json");
+      if ((0, import_fs.existsSync)(planPath)) {
+        const p = JSON.parse((0, import_fs.readFileSync)(planPath, "utf-8"));
+        if (p.active) workflowParts.push(`\u{1F4CB} plan (${p.phase ?? "?"})`);
+      }
+    } catch {
+    }
+    try {
       const agentsPath = (0, import_path.join)(sessDir, "agents.json");
       if ((0, import_fs.existsSync)(agentsPath)) {
         const record = JSON.parse((0, import_fs.readFileSync)(agentsPath, "utf-8"));

@@ -397,6 +397,23 @@ function buildLine3(): string {
       }
     } catch { /* skip */ }
 
+    // 대화형 워크플로우 (consult/plan)
+    try {
+      const consultPath = join(sessDir, 'consult.json');
+      if (existsSync(consultPath)) {
+        const c = JSON.parse(readFileSync(consultPath, 'utf-8'));
+        if (c.active) workflowParts.push(`💬 consult (${c.phase ?? '?'})`);
+      }
+    } catch { /* skip */ }
+
+    try {
+      const planPath = join(sessDir, 'plan.json');
+      if (existsSync(planPath)) {
+        const p = JSON.parse(readFileSync(planPath, 'utf-8'));
+        if (p.active) workflowParts.push(`📋 plan (${p.phase ?? '?'})`);
+      }
+    } catch { /* skip */ }
+
     // 에이전트
     try {
       const agentsPath = join(sessDir, 'agents.json');

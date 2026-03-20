@@ -415,9 +415,9 @@ result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"어떻게 하면 
 check "Gate/UserPromptSubmit (consult natural)" 'Consult mode' "$result"
 
 if [ -f .nexus/state/sessions/e2e-hook/consult.json ]; then
-  red "Consult (no state file expected)" && FAIL=$((FAIL + 1))
+  green "Consult (phase state file created)" && PASS=$((PASS + 1))
 else
-  green "Consult (no state file)" && PASS=$((PASS + 1))
+  red "Consult (phase state file missing)" && FAIL=$((FAIL + 1))
 fi
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[consult] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
@@ -460,9 +460,9 @@ result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"어떻게 구현�
 check "Gate/UserPromptSubmit (plan natural 2)" 'Plan mode' "$result"
 
 if [ -f .nexus/state/sessions/e2e-hook/plan.json ]; then
-  red "Plan (no state file expected)" && FAIL=$((FAIL + 1))
+  green "Plan (phase state file created)" && PASS=$((PASS + 1))
 else
-  green "Plan (no state file)" && PASS=$((PASS + 1))
+  red "Plan (phase state file missing)" && FAIL=$((FAIL + 1))
 fi
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)

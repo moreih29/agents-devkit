@@ -258,6 +258,11 @@ IMPORTANT: Always backup before modifying. Never delete without user approval.`
       return;
     }
     if (match.primitive === "consult") {
+      const sid2 = getSessionId();
+      if (sid2) {
+        ensureDir(sessionDir(sid2));
+        (0, import_fs3.writeFileSync)(statePath(sid2, "consult"), JSON.stringify({ active: true, phase: "explore", startedAt: (/* @__PURE__ */ new Date()).toISOString() }));
+      }
       respond({
         continue: true,
         additionalContext: `[NEXUS] Consult mode activated. Follow the consult workflow:
@@ -269,11 +274,17 @@ IMPORTANT: Always backup before modifying. Never delete without user approval.`
 6. CONVERGE: Elaborate chosen approach, follow-up if needed, produce concrete plan.
 7. CRYSTALLIZE: Finalize plan. If unclear dimensions remain, disclose risks transparently \u2014 but never block the user.
 8. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Auto (recommended) / Pipeline / Plan only.
-Key: One question at a time. Specific choices, not vague "what do you think?". Respect user autonomy.`
+Key: One question at a time. Specific choices, not vague "what do you think?". Respect user autonomy.
+PHASE TRACKING: Update phase as you progress: nx_state_write({ key: "consult", value: { active: true, phase: "<current_phase>" } }). Clear when done: nx_state_clear({ key: "consult" }).`
       });
       return;
     }
     if (match.primitive === "plan") {
+      const sid2 = getSessionId();
+      if (sid2) {
+        ensureDir(sessionDir(sid2));
+        (0, import_fs3.writeFileSync)(statePath(sid2, "plan"), JSON.stringify({ active: true, phase: "analyze", startedAt: (/* @__PURE__ */ new Date()).toISOString() }));
+      }
       respond({
         continue: true,
         additionalContext: `[NEXUS] Plan mode activated. Follow the plan workflow:
@@ -284,7 +295,8 @@ Key: One question at a time. Specific choices, not vague "what do you think?". R
 5. PERSIST: Save plan to .claude/nexus/plans/{branch}.md. Register each work unit as a task:
    nx_task_create({ title: "<unit>", description: "<details>", tags: ["plan"] })
 6. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Auto (recommended) / Pipeline / Plan only.
-Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Scale determines formality. Small tasks need only a checklist, not a full ADR.`
+Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Scale determines formality. Small tasks need only a checklist, not a full ADR.
+PHASE TRACKING: Update phase as you progress: nx_state_write({ key: "plan", value: { active: true, phase: "<current_phase>" } }). Clear when done: nx_state_clear({ key: "plan" }).`
       });
       return;
     }
