@@ -142,10 +142,12 @@ function generateSessionSummary(sid) {
   if (!(0, import_fs3.existsSync)(dir)) return;
   try {
     const parts = [`Session ${sid} summary:`];
+    let hasActivity = false;
     const agentsPath = (0, import_path3.join)(dir, "agents.json");
     if ((0, import_fs3.existsSync)(agentsPath)) {
       const record = JSON.parse((0, import_fs3.readFileSync)(agentsPath, "utf-8"));
       if (record.history.length > 0) {
+        hasActivity = true;
         const agentCounts = {};
         for (const h of record.history) agentCounts[h.name] = (agentCounts[h.name] ?? 0) + 1;
         const agentStr = Object.entries(agentCounts).map(([n, c]) => `${n}\xD7${c}`).join(", ");
@@ -155,7 +157,10 @@ function generateSessionSummary(sid) {
     const trackerPath = (0, import_path3.join)(dir, "whisper-tracker.json");
     if ((0, import_fs3.existsSync)(trackerPath)) {
       const t = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
-      if (t.toolCallCount > 0) parts.push(`Tools: ${t.toolCallCount} calls`);
+      if (t.toolCallCount > 0) {
+        hasActivity = true;
+        parts.push(`Tools: ${t.toolCallCount} calls`);
+      }
     }
     const sessionFile = (0, import_path3.join)(RUNTIME_ROOT, "state", "current-session.json");
     if ((0, import_fs3.existsSync)(sessionFile)) {
@@ -167,7 +172,7 @@ function generateSessionSummary(sid) {
         parts.push(`Duration: ${hh > 0 ? `${hh}h${mm}m` : `${mm}m`}`);
       }
     }
-    if (parts.length <= 1) return;
+    if (!hasActivity) return;
     const memoPath = (0, import_path3.join)(RUNTIME_ROOT, "memo");
     if (!(0, import_fs3.existsSync)(memoPath)) {
       try {

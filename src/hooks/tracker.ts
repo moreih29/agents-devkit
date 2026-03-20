@@ -103,12 +103,14 @@ function generateSessionSummary(sid: string): void {
 
   try {
     const parts: string[] = [`Session ${sid} summary:`];
+    let hasActivity = false;
 
     // 에이전트 이력
     const agentsPath = join(dir, 'agents.json');
     if (existsSync(agentsPath)) {
       const record: AgentRecord = JSON.parse(readFileSync(agentsPath, 'utf-8'));
       if (record.history.length > 0) {
+        hasActivity = true;
         const agentCounts: Record<string, number> = {};
         for (const h of record.history) agentCounts[h.name] = (agentCounts[h.name] ?? 0) + 1;
         const agentStr = Object.entries(agentCounts).map(([n, c]) => `${n}×${c}`).join(', ');
@@ -120,7 +122,7 @@ function generateSessionSummary(sid: string): void {
     const trackerPath = join(dir, 'whisper-tracker.json');
     if (existsSync(trackerPath)) {
       const t = JSON.parse(readFileSync(trackerPath, 'utf-8'));
-      if (t.toolCallCount > 0) parts.push(`Tools: ${t.toolCallCount} calls`);
+      if (t.toolCallCount > 0) { hasActivity = true; parts.push(`Tools: ${t.toolCallCount} calls`); }
     }
 
     // 세션 시간
@@ -135,7 +137,7 @@ function generateSessionSummary(sid: string): void {
       }
     }
 
-    if (parts.length <= 1) return; // 활동 없으면 생략
+    if (!hasActivity) return; // 에이전트/도구 활동 없으면 요약 생략
 
     // memo에 저장
     const memoPath = join(RUNTIME_ROOT, 'memo');
