@@ -288,9 +288,9 @@ result=$(mcp_call "lat_task_update" "{\"id\":\"$TASK_ID\",\"status\":\"done\"}")
 check "lat_task_update (done)" '"completedAt"' "$result"
 
 # Cleanup task files
-rm -rf .lattice/tasks/*e2e* 2>/dev/null
+rm -rf .claude/lattice/tasks/*e2e* 2>/dev/null
 # Find and remove the test task by ID
-[ -n "$TASK_ID" ] && rm -f ".lattice/tasks/${TASK_ID}.json" 2>/dev/null
+[ -n "$TASK_ID" ] && rm -f ".claude/lattice/tasks/${TASK_ID}.json" 2>/dev/null
 
 # --- 세션 상태 정리 테스트 ---
 echo ""

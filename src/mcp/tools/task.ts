@@ -3,10 +3,10 @@ import { existsSync } from 'fs';
 import { readFile, writeFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { RUNTIME_ROOT, ensureDir } from '../../shared/paths.js';
+import { KNOWLEDGE_ROOT, ensureDir } from '../../shared/paths.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-const TASKS_DIR = join(RUNTIME_ROOT, 'tasks');
+const TASKS_DIR = join(KNOWLEDGE_ROOT, 'tasks');
 
 interface Task {
   id: string;
