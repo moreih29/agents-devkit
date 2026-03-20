@@ -196,6 +196,42 @@ result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Read"}' | node scrip
 check "Pulse/PreToolUse (parallel)" 'PARALLEL 1/3 done' "$result"
 rm -f .lattice/state/sessions/e2e-hook/parallel.json
 
+# --- Tracker-Parallel 연동 테스트 ---
+echo ""
+echo "=== Tracker-Parallel 연동 ==="
+
+# 환경 복원
+rm -rf .lattice/state/sessions/e2e-hook
+mkdir -p .lattice/state/sessions/e2e-hook
+echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
+
+# Parallel 상태 세팅: artisan 2개 태스크
+echo '{"active":true,"maxIterations":100,"currentIteration":0,"tasks":[{"id":"t1","description":"task1","agent":"artisan","status":"running"},{"id":"t2","description":"task2","agent":"artisan","status":"running"}],"completedCount":0,"totalCount":2}' > .lattice/state/sessions/e2e-hook/parallel.json
+
+# SubagentStop(artisan) → 첫 번째 태스크 done
+result=$(echo '{"hook_event_name":"SubagentStop","agent_name":"artisan"}' | node scripts/tracker.cjs 2>/dev/null)
+check "Tracker/SubagentStop (parallel update)" '"continue":true' "$result"
+
+# parallel.json에서 completedCount 확인
+if [ -f .lattice/state/sessions/e2e-hook/parallel.json ]; then
+  completed=$(python3 -c "import json; print(json.load(open('.lattice/state/sessions/e2e-hook/parallel.json')).get('completedCount',0))")
+  if [ "$completed" = "1" ]; then
+    green "Parallel auto-update (1/2 done)" && PASS=$((PASS + 1))
+  else
+    red "Parallel auto-update — expected 1, got $completed" && FAIL=$((FAIL + 1))
+  fi
+else
+  red "Parallel auto-update (file missing)" && FAIL=$((FAIL + 1))
+fi
+
+# SubagentStop(artisan) 다시 → 두 번째 태스크 done → 자동 해제
+result=$(echo '{"hook_event_name":"SubagentStop","agent_name":"artisan"}' | node scripts/tracker.cjs 2>/dev/null)
+if [ -f .lattice/state/sessions/e2e-hook/parallel.json ]; then
+  red "Parallel auto-clear (file should be deleted)" && FAIL=$((FAIL + 1))
+else
+  green "Parallel auto-clear (all done)" && PASS=$((PASS + 1))
+fi
+
 # --- Pulse 컨텍스트 수준 테스트 ---
 echo ""
 echo "=== Pulse 컨텍스트 수준 ==="
