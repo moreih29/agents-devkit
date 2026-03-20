@@ -1,3 +1,8 @@
+---
+name: setup
+description: Interactive project setup wizard for Nexus configuration.
+triggers: ["setup", "nexus 설정", "nexus 세팅"]
+---
 # Setup
 
 Interactive project setup wizard — configure Nexus for a new project with minimal token cost.
@@ -55,26 +60,26 @@ AskUserQuestion({
 선택 시 `.nexus/config.json`에 `{"delegationEnforcement": "<선택>"}` 저장.
 Skip이면 아무것도 하지 않음 (기본값 warn 유지).
 
-### Step 3: Default Mode
+### Step 3: Auto Mode
 
 ```
 AskUserQuestion({
   questions: [{
-    question: "기본 실행 모드를 선택하세요.",
-    header: "Mode",
+    question: "Auto Mode를 켤까요?",
+    header: "Auto Mode",
     multiSelect: false,
     options: [
-      { label: "Off (Recommended)", description: "키워드 없으면 일반 모드. 필요 시 [auto] 등 직접 지정." },
-      { label: "Auto", description: "모든 작업에 자동으로 auto 모드 적용 (분석→계획→구현→검증→리뷰)" },
-      { label: "Skip", description: "기본 모드 설정 건너뛰기 (기본값 off)" }
+      { label: "Off (Recommended)", description: "필요할 때만 [auto] 키워드로 직접 활성화" },
+      { label: "On", description: "모든 작업에 자동으로 에이전트 파이프라인 적용 (분석→계획→구현→검증→리뷰)" },
+      { label: "Skip", description: "Auto Mode 설정 건너뛰기 (기본값 off)" }
     ]
   }]
 })
 ```
 
-선택 시 `.nexus/config.json`에 `{"defaultMode": "<선택>"}` 추가.
-- `auto`: 키워드 없어도 매 프롬프트에서 auto 활성화 (Pre-Execution Gate는 유지)
-- `off`/Skip: 기본 동작 (키워드 감지 시에만 모드 활성화)
+선택 시 `.nexus/config.json`에 `{"autoMode": true/false}` 추가.
+- On: 키워드 없어도 매 프롬프트에서 auto 파이프라인 활성화 (Pre-Execution Gate는 유지)
+- Off/Skip: 기본 동작 ([auto] 키워드 시에만 활성화)
 
 ### Step 4: Knowledge Init
 

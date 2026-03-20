@@ -1,3 +1,8 @@
+---
+name: parallel
+description: Distribute independent tasks to multiple agents concurrently.
+triggers: ["parallel", "concurrent", "동시에", "병렬로"]
+---
 # Parallel
 
 Execute independent tasks concurrently across multiple agents.

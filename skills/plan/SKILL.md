@@ -1,3 +1,8 @@
+---
+name: plan
+description: Structured planning with multi-agent consensus loop and adaptive formality.
+triggers: ["plan", "계획 세워", "설계해", "어떻게 구현", "plan this"]
+---
 # Plan
 
 Structured planning workflow — produce a concrete, reviewed plan before execution begins.

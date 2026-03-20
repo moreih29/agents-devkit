@@ -233,6 +233,7 @@ Execute these stages IN ORDER:
 3. Implement \u2014 write code (use parallel Agent calls for independent tasks)
 4. Verify \u2014 run tests, type-check
 5. Review \u2014 review your own changes for correctness
+6. Sync \u2014 run /nexus:sync to detect and auto-fix knowledge doc inconsistencies (skip if none)
 Update pipeline state with nx_state_write as you progress through stages.
 IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate all state at once. Do NOT stop without clearing state first.`
     });
@@ -289,7 +290,7 @@ Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Sc
         additionalContext: `[NEXUS] Setup wizard activated. Guide the user through these steps IN ORDER using AskUserQuestion for each:
 1. STATUSLINE: Ask preset choice (Full recommended / Standard / Minimal / Skip). If chosen, write {"preset":"<choice>"} to .nexus/statusline-preset.json.
 2. DELEGATION: Ask enforcement level (Warn recommended / Strict / Off / Skip). If chosen, write {"delegationEnforcement":"<choice>"} to .nexus/config.json.
-3. DEFAULT MODE: Ask default execution mode (Off recommended / Auto / Skip). If chosen, add {"defaultMode":"<choice>"} to .nexus/config.json.
+3. AUTO MODE: Ask whether to enable Auto Mode (Off recommended / On / Skip). If On, add {"autoMode":true} to .nexus/config.json. If Off, add {"autoMode":false}.
 4. INIT: Ask whether to run knowledge init (Yes recommended / Skip). If Yes, run the init workflow (SCAN\u2192TRIAGE\u2192PROPOSE\u2192GENERATE\u2192VERIFY).
 5. COMPLETE: Show summary of applied settings and brief intro to available skills/agents.
 Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip option.`
@@ -326,20 +327,20 @@ Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip 
     });
     return;
   }
-  const defaultMode = getDefaultMode();
-  if (defaultMode === "auto") {
+  if (isAutoModeEnabled()) {
     const sid = getSessionId();
     activatePrimitive("pipeline", sid);
     activatePrimitive("nonstop", sid);
     respond({
       continue: true,
-      additionalContext: `[NEXUS] auto mode ACTIVATED (defaultMode: auto). Pipeline + Nonstop enabled.
+      additionalContext: `[NEXUS] auto mode ACTIVATED (Auto Mode: on). Pipeline + Nonstop enabled.
 Execute these stages IN ORDER:
 1. Analyze \u2014 understand the codebase and request
 2. Plan \u2014 break into actionable steps
 3. Implement \u2014 write code (use parallel Agent calls for independent tasks)
 4. Verify \u2014 run tests, type-check
 5. Review \u2014 review your own changes for correctness
+6. Sync \u2014 run /nexus:sync to detect and auto-fix knowledge doc inconsistencies (skip if none)
 Update pipeline state with nx_state_write as you progress through stages.
 IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate all state at once.`
     });
@@ -347,16 +348,16 @@ IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate 
   }
   pass();
 }
-function getDefaultMode() {
+function isAutoModeEnabled() {
   const configPath = (0, import_path3.join)(RUNTIME_ROOT, "config.json");
   if ((0, import_fs3.existsSync)(configPath)) {
     try {
       const config = JSON.parse((0, import_fs3.readFileSync)(configPath, "utf-8"));
-      if (config.defaultMode === "auto") return "auto";
+      return config.autoMode === true;
     } catch {
     }
   }
-  return "off";
+  return false;
 }
 function hasConcreteSignals(prompt) {
   const signals = [

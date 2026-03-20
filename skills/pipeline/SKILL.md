@@ -1,3 +1,8 @@
+---
+name: pipeline
+description: Execute defined stages in sequential order.
+triggers: ["pipeline", "순서대로"]
+---
 # Pipeline
 
 Execute a sequence of stages in order, with optional Nonstop and Parallel within each stage.

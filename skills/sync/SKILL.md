@@ -1,9 +1,10 @@
 ---
-name: sync-knowledge
-description: "Detect inconsistencies between Nexus source code (agents, skills, hooks) and knowledge documents (.claude/nexus/knowledge/). Use this skill after making changes to agents/*.md, skills/*/SKILL.md, or src/hooks/*.ts, or when the user says 'sync knowledge', 'update docs', 'sync docs', '지식 동기화', '문서 업데이트', '문서 동기화'. Also use proactively when you notice code changes that might make knowledge docs outdated."
+name: sync
+description: Detect and fix inconsistencies between Nexus source code and knowledge documents.
+triggers: ["sync", "sync knowledge", "지식 동기화", "문서 동기화"]
 ---
 
-# Sync Knowledge
+# Sync
 
 Scan Nexus source files and compare against knowledge documents to find and fix inconsistencies.
 

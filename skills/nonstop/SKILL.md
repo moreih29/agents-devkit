@@ -1,3 +1,8 @@
+---
+name: nonstop
+description: Block Stop events and keep working until the task is complete.
+triggers: ["nonstop", "keep going", "don't stop", "멈추지 마"]
+---
 # Nonstop
 
 Persistent execution mode — prevents Claude from stopping until the task is complete.

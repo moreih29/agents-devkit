@@ -1,3 +1,8 @@
+---
+name: consult
+description: Interactive discovery workflow with adaptive depth and dimension tracking.
+triggers: ["consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까", "방법을 찾아줘"]
+---
 # Consult
 
 Interactive discovery workflow — understand the user's real intent, explore options, and converge on the best approach before execution.

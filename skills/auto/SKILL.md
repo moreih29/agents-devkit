@@ -1,3 +1,8 @@
+---
+name: auto
+description: Fully autonomous execution — combines Pipeline + Nonstop for end-to-end automation.
+triggers: ["auto", "자동으로 전부 해줘", "end to end"]
+---
 # Auto
 
 Fully autonomous execution from analysis to verified completion — combines Pipeline + Nonstop + Parallel.
@@ -96,6 +101,11 @@ After each stage:
 2. Pass stage results as context to the next stage
 3. If a stage fails after 3 retries, abort and report
 
+### 6. Sync (자동)
+- Review 완료 후 knowledge 문서와 소스 코드 간 불일치 탐지
+- 불일치 발견 시 자동 수정 (사용자 확인 없이)
+- 불일치 없으면 건너뜀
+
 ## Deactivation
 
 When all stages complete or pipeline aborts:
@@ -103,7 +113,7 @@ When all stages complete or pipeline aborts:
 nx_state_clear({ key: "auto" })
 ```
 This single call clears both pipeline and nonstop state at once.
-Report the full outcome: what was analyzed, planned, implemented, verified, and reviewed.
+Report the full outcome: what was analyzed, planned, implemented, verified, reviewed, and synced.
 
 ## Safety Limits
 
