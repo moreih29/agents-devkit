@@ -131,7 +131,42 @@ function handleSubagentStop(event: { agent_name?: string }): void {
   }
 
   saveAgents(sid, record);
+
+  // Parallel 상태 자동 연동: 에이전트 완료 시 해당 태스크 done 처리
+  updateParallelOnAgentStop(sid, name);
+
   pass();
+}
+
+/** SubagentStop 시 parallel.json의 해당 에이전트 태스크를 자동 완료 처리 */
+function updateParallelOnAgentStop(sid: string, agentName: string): void {
+  const path = join(sessionDir(sid), 'parallel.json');
+  if (!existsSync(path)) return;
+
+  try {
+    const state = JSON.parse(readFileSync(path, 'utf-8'));
+    if (!state.active || !Array.isArray(state.tasks)) return;
+
+    let updated = false;
+    for (const task of state.tasks) {
+      // running 상태인 해당 에이전트의 태스크를 done으로 변경
+      if (task.agent === agentName && task.status === 'running') {
+        task.status = 'done';
+        updated = true;
+        break; // 한 번에 하나만 완료 (동일 에이전트 복수 태스크 시 순차)
+      }
+    }
+
+    if (updated) {
+      state.completedCount = state.tasks.filter((t: { status: string }) => t.status === 'done').length;
+      writeFileSync(path, JSON.stringify(state, null, 2));
+
+      // 모든 태스크 완료 시 자동 해제
+      if (state.completedCount >= state.totalCount && state.totalCount > 0) {
+        try { unlinkSync(path); } catch { /* skip */ }
+      }
+    }
+  } catch { /* skip */ }
 }
 
 // --- Main ---

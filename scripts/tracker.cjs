@@ -165,7 +165,35 @@ function handleSubagentStop(event) {
     }
   }
   saveAgents(sid, record);
+  updateParallelOnAgentStop(sid, name);
   pass();
+}
+function updateParallelOnAgentStop(sid, agentName) {
+  const path = (0, import_path3.join)(sessionDir(sid), "parallel.json");
+  if (!(0, import_fs3.existsSync)(path)) return;
+  try {
+    const state = JSON.parse((0, import_fs3.readFileSync)(path, "utf-8"));
+    if (!state.active || !Array.isArray(state.tasks)) return;
+    let updated = false;
+    for (const task of state.tasks) {
+      if (task.agent === agentName && task.status === "running") {
+        task.status = "done";
+        updated = true;
+        break;
+      }
+    }
+    if (updated) {
+      state.completedCount = state.tasks.filter((t) => t.status === "done").length;
+      (0, import_fs3.writeFileSync)(path, JSON.stringify(state, null, 2));
+      if (state.completedCount >= state.totalCount && state.totalCount > 0) {
+        try {
+          (0, import_fs3.unlinkSync)(path);
+        } catch {
+        }
+      }
+    }
+  } catch {
+  }
 }
 async function main() {
   const input = await readStdin();
