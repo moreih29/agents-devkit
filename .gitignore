@@ -2,6 +2,7 @@
 .nexus/
 .claude/settings.local.json
 node_modules/
+package-lock.json
 bun.lockb
 dist/
 *.tgz
