@@ -22165,8 +22165,8 @@ function registerAstTools(server2) {
               }
             }
             if (!isDryRun && newSource !== source) {
-              const { writeFileSync: writeFileSync5 } = require("fs");
-              writeFileSync5(file, newSource);
+              const { writeFileSync: writeFileSync6 } = require("fs");
+              writeFileSync6(file, newSource);
             }
           } catch {
           }
@@ -22191,6 +22191,119 @@ function registerAstTools(server2) {
   );
 }
 
+// src/mcp/tools/task.ts
+var import_fs10 = require("fs");
+var import_path8 = require("path");
+var import_crypto2 = require("crypto");
+var TASKS_DIR = (0, import_path8.join)(RUNTIME_ROOT, "tasks");
+function loadTask(id) {
+  const path = (0, import_path8.join)(TASKS_DIR, `${id}.json`);
+  if (!(0, import_fs10.existsSync)(path)) return null;
+  try {
+    return JSON.parse((0, import_fs10.readFileSync)(path, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+function saveTask(task) {
+  ensureDir(TASKS_DIR);
+  (0, import_fs10.writeFileSync)((0, import_path8.join)(TASKS_DIR, `${task.id}.json`), JSON.stringify(task, null, 2));
+}
+function loadAllTasks() {
+  if (!(0, import_fs10.existsSync)(TASKS_DIR)) return [];
+  const tasks = [];
+  for (const file of (0, import_fs10.readdirSync)(TASKS_DIR).filter((f) => f.endsWith(".json"))) {
+    try {
+      tasks.push(JSON.parse((0, import_fs10.readFileSync)((0, import_path8.join)(TASKS_DIR, file), "utf-8")));
+    } catch {
+    }
+  }
+  return tasks.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+function registerTaskTools(server2) {
+  server2.tool(
+    "lat_task_create",
+    "Create a task for tracking work across sessions",
+    {
+      title: external_exports.string().describe("Task title"),
+      description: external_exports.string().optional().describe("Detailed description"),
+      tags: external_exports.array(external_exports.string()).optional().describe("Tags for filtering")
+    },
+    async ({ title, description, tags }) => {
+      const task = {
+        id: (0, import_crypto2.randomUUID)().slice(0, 8),
+        title,
+        status: "todo",
+        description,
+        tags,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      saveTask(task);
+      return { content: [{ type: "text", text: JSON.stringify({ success: true, task }) }] };
+    }
+  );
+  server2.tool(
+    "lat_task_list",
+    "List tasks with optional filtering by status or tags",
+    {
+      status: external_exports.enum(["todo", "in_progress", "done", "blocked"]).optional().describe("Filter by status"),
+      tags: external_exports.array(external_exports.string()).optional().describe("Filter by tags (any match)")
+    },
+    async ({ status, tags }) => {
+      let tasks = loadAllTasks();
+      if (status) tasks = tasks.filter((t) => t.status === status);
+      if (tags && tags.length > 0) {
+        tasks = tasks.filter((t) => t.tags?.some((tag) => tags.includes(tag)));
+      }
+      return { content: [{ type: "text", text: JSON.stringify({ count: tasks.length, tasks }) }] };
+    }
+  );
+  server2.tool(
+    "lat_task_update",
+    "Update a task (status, title, description, tags)",
+    {
+      id: external_exports.string().describe("Task ID"),
+      status: external_exports.enum(["todo", "in_progress", "done", "blocked"]).optional().describe("New status"),
+      title: external_exports.string().optional().describe("New title"),
+      description: external_exports.string().optional().describe("New description"),
+      tags: external_exports.array(external_exports.string()).optional().describe("New tags (replaces existing)")
+    },
+    async ({ id, status, title, description, tags }) => {
+      const task = loadTask(id);
+      if (!task) {
+        return { content: [{ type: "text", text: JSON.stringify({ success: false, error: "Task not found", id }) }] };
+      }
+      if (status) task.status = status;
+      if (title) task.title = title;
+      if (description !== void 0) task.description = description;
+      if (tags) task.tags = tags;
+      task.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      if (status === "done") task.completedAt = (/* @__PURE__ */ new Date()).toISOString();
+      saveTask(task);
+      return { content: [{ type: "text", text: JSON.stringify({ success: true, task }) }] };
+    }
+  );
+  server2.tool(
+    "lat_task_summary",
+    "Get task summary: counts by status + in-progress list",
+    {},
+    async () => {
+      const tasks = loadAllTasks();
+      const counts = { todo: 0, in_progress: 0, done: 0, blocked: 0 };
+      for (const t of tasks) counts[t.status]++;
+      const inProgress = tasks.filter((t) => t.status === "in_progress").map((t) => ({ id: t.id, title: t.title, tags: t.tags }));
+      const blocked = tasks.filter((t) => t.status === "blocked").map((t) => ({ id: t.id, title: t.title, tags: t.tags }));
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ total: tasks.length, counts, inProgress, blocked })
+        }]
+      };
+    }
+  );
+}
+
 // src/mcp/server.ts
 var server = new McpServer({
   name: "lat",
@@ -22203,6 +22316,7 @@ registerMemoTools(server);
 registerContextTool(server);
 registerLspTools(server);
 registerAstTools(server);
+registerTaskTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

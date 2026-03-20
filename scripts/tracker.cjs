@@ -58,6 +58,18 @@ function getSessionId() {
   }
   return createSession();
 }
+function getPreviousSessionId() {
+  if ((0, import_fs2.existsSync)(SESSION_FILE)) {
+    try {
+      const data = JSON.parse((0, import_fs2.readFileSync)(SESSION_FILE, "utf-8"));
+      if (data.sessionId && typeof data.sessionId === "string") {
+        return data.sessionId;
+      }
+    } catch {
+    }
+  }
+  return null;
+}
 function createSession() {
   const sessionId = (0, import_crypto.randomUUID)().slice(0, 8);
   ensureDir((0, import_path2.join)(RUNTIME_ROOT, "state"));
@@ -84,6 +96,11 @@ function saveAgents(sid, record) {
   (0, import_fs3.writeFileSync)((0, import_path3.join)(dir, "agents.json"), JSON.stringify(record, null, 2));
 }
 function handleSessionStart() {
+  try {
+    const prevSid = getPreviousSessionId();
+    if (prevSid) cleanupSessionState(prevSid);
+  } catch {
+  }
   const sid = createSession();
   const dir = sessionDir(sid);
   ensureDir(dir);
@@ -113,7 +130,23 @@ function handleSessionStart() {
   });
 }
 function handleSessionEnd() {
+  const sid = getSessionId();
+  cleanupSessionState(sid);
   pass();
+}
+function cleanupSessionState(sid) {
+  const dir = sessionDir(sid);
+  if (!(0, import_fs3.existsSync)(dir)) return;
+  const workflowKeys = ["sustain", "pipeline", "parallel"];
+  for (const key of workflowKeys) {
+    const path = (0, import_path3.join)(dir, `${key}.json`);
+    if ((0, import_fs3.existsSync)(path)) {
+      try {
+        (0, import_fs3.unlinkSync)(path);
+      } catch {
+      }
+    }
+  }
 }
 function handleSubagentStart(event) {
   const sid = getSessionId();

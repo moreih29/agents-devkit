@@ -2,7 +2,7 @@
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
 import { sessionDir, ensureDir, RUNTIME_ROOT, KNOWLEDGE_ROOT } from '../shared/paths.js';
-import { getSessionId, createSession } from '../shared/session.js';
+import { getSessionId, createSession, getPreviousSessionId } from '../shared/session.js';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
@@ -30,6 +30,12 @@ function saveAgents(sid: string, record: AgentRecord): void {
 // --- Session Start ---
 
 function handleSessionStart(): void {
+  // 이전 세션의 잔존 상태 정리 (비정상 종료 대비)
+  try {
+    const prevSid = getPreviousSessionId();
+    if (prevSid) cleanupSessionState(prevSid);
+  } catch { /* skip */ }
+
   const sid = createSession();
   const dir = sessionDir(sid);
   ensureDir(dir);
@@ -64,7 +70,23 @@ function handleSessionStart(): void {
 // --- Session End ---
 
 function handleSessionEnd(): void {
+  const sid = getSessionId();
+  cleanupSessionState(sid);
   pass();
+}
+
+/** 세션 디렉토리의 활성 워크플로우 상태 파일 정리 */
+function cleanupSessionState(sid: string): void {
+  const dir = sessionDir(sid);
+  if (!existsSync(dir)) return;
+
+  const workflowKeys = ['sustain', 'pipeline', 'parallel'];
+  for (const key of workflowKeys) {
+    const path = join(dir, `${key}.json`);
+    if (existsSync(path)) {
+      try { unlinkSync(path); } catch { /* skip */ }
+    }
+  }
 }
 
 // --- Subagent Start ---
