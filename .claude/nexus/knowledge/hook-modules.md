@@ -35,17 +35,17 @@ omc의 9단계 우선순위 → Nexus는 **프리미티브별 순차 체크**로
 자연어 + 명시적 태그 감지 → 해당 프리미티브 상태 파일 생성 → 스킬 호출 지시 주입.
 
 감지 우선순위:
-1. Auto (`[auto]`, "auto", "end to end") → pipeline + nonstop 동시 활성화
+1. Auto (`[auto]`, "auto", "end to end") → Pre-Execution Gate(구체성 검사) 통과 시 pipeline + nonstop 동시 활성화. `force:`/`[force]`로 Gate 우회 가능
 2. 프리미티브 (`[nonstop]`, `[parallel]`, `[pipeline]` 및 자연어 패턴) → 단일 활성화
-3. Consult (`[consult]`, "consult", "상담", "어떻게 하면 좋을까") → 상태 파일 없이 컨텍스트 주입만
+3. 대화형 (`[consult]`/`[plan]`/`[init]` 및 자연어) → 상태 파일 없이 컨텍스트 주입만
 4. 태스크 자연어 ("진행중인 작업", "다음 할 일", "작업 현황", "막힌 작업") → nx_task_* 호출 안내
-5. 적응형 라우팅 (v2) → 요청 카테고리 분류(10개) → 에이전트/워크플로우 제안 (강제 아님)
+5. 적응형 라우팅 (v2) → 요청 카테고리 분류(10개) → 에이전트 위임 지시 (`Agent()` 호출 구문 포함)
    - 에이전트 직접 언급 시 override (한글 조사 필수: "Finder로", 또는 대문자 시작, 또는 `nexus:` 접두사)
    - 히스토리 기반: 동일 카테고리에서 2회 이상 같은 에이전트 선택 시 자동 추천
    - 카테고리: 버그수정(debugger), 리뷰(reviewer), 테스트(tester), 리팩토링(builder), 탐색(finder), 설계(architect), 계획(strategist), 분석(analyst), 문서(writer), 대규모구현(auto 제안)
 
 ### 오탐 방지 (`isPrimitiveMention`)
-프리미티브 이름(nonstop/parallel/pipeline/auto)이 에러/버그 맥락(에러, 버그, fix, error 등)과 함께 등장하면 키워드 활성화를 스킵. "nonstop 에러 수정해" → nonstop 활성화 X, 적응형 라우팅으로 debugger 추천.
+프리미티브 이름(nonstop/parallel/pipeline/auto/plan)이 에러/버그 맥락(에러, 버그, fix, error 등)과 함께 등장하면 키워드 활성화를 스킵. "nonstop 에러 수정해" → nonstop 활성화 X, 적응형 라우팅으로 debugger 추천.
 명시적 태그(`[nonstop]`)는 항상 우선.
 
 ## Pulse 모듈

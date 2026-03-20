@@ -80,11 +80,22 @@ const implicit = detectNaturalKeywords(prompt);
 ## 대화형 워크플로우
 
 ### Consult (상담)
-- **기능**: 사용자의 진짜 의도를 파악하고 구조화된 선택지를 제공하는 발산→수렴 워크플로우
+- **기능**: 적응형 깊이 + 차원 추적을 통해 사용자의 진짜 의도를 파악하고 구조화된 선택지를 제공
 - **키워드**: consult, 상담, 어떻게 하면 좋을까, 뭐가 좋을까, 방법을 찾아
 - **상태 파일 없음** — 대화형이므로 Gate 차단 불필요, 컨텍스트 주입만
-- **AskUserQuestion** 도구로 TUI 내 선택지 제공 (preview 지원)
-- 워크플로우: explore → diverge → propose → converge → (optional) execute
+- **적응형 깊이**: 불명확 차원 0-1개 → lightweight, 2개 이상 → deep
+- **차원 추적**: Goal / Constraints / Criteria / Context (✅/⚠️/❌ 정성 평가, 숫자 점수 없음)
+- **Brownfield/Greenfield 자동 감지** → 탐색 방식 분기
+- 워크플로우: explore → assess → (clarify) → diverge → propose → converge → crystallize → execute bridge
+
+### Plan (계획)
+- **기능**: 합의 루프 기반 구현 계획 수립. 규모별 적응형 형식성
+- **키워드**: plan, 계획 세워/짜/수립, 설계해, 어떻게 구현, plan this
+- **상태 파일 없음** — 대화형, 컨텍스트 주입만
+- **합의 루프**: Strategist(초안) → Architect(구조 검토) → Reviewer(비판), 최대 3회 반복
+- **적응형 형식성**: 소규모(Strategist 단독) / 중규모(+Architect) / 대규모(3자 합의 + ADR)
+- **Pre-Execution Gate**: auto/nonstop 요청 시 구체성 신호 없으면 plan 사용 제안 (`force:`로 우회 가능)
+- 워크플로우: analyze → draft → [review loop] → persist → execute bridge
 
 ### Init (온보딩)
 - **기능**: 기존 프로젝트에 Nexus 도입 시 기존 문서를 트리아지하여 knowledge 자동 생성
