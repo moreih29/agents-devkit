@@ -22212,7 +22212,7 @@ var import_fs10 = require("fs");
 var import_promises5 = require("fs/promises");
 var import_path8 = require("path");
 var import_crypto2 = require("crypto");
-var TASKS_DIR = (0, import_path8.join)(RUNTIME_ROOT, "tasks");
+var TASKS_DIR = (0, import_path8.join)(KNOWLEDGE_ROOT, "tasks");
 async function loadTask(id) {
   const path = (0, import_path8.join)(TASKS_DIR, `${id}.json`);
   if (!(0, import_fs10.existsSync)(path)) return null;

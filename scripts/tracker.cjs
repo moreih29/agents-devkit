@@ -108,6 +108,21 @@ function handleSessionStart() {
       }
     }
   }
+  const tasksPath = (0, import_path3.join)(KNOWLEDGE_ROOT, "tasks");
+  if ((0, import_fs3.existsSync)(tasksPath)) {
+    const DONE_TTL = 7 * 864e5;
+    for (const file of (0, import_fs3.readdirSync)(tasksPath).filter((f) => f.endsWith(".json"))) {
+      try {
+        const task = JSON.parse((0, import_fs3.readFileSync)((0, import_path3.join)(tasksPath, file), "utf-8"));
+        if (task.status === "done" && task.completedAt) {
+          if (Date.now() - new Date(task.completedAt).getTime() > DONE_TTL) {
+            (0, import_fs3.unlinkSync)((0, import_path3.join)(tasksPath, file));
+          }
+        }
+      } catch {
+      }
+    }
+  }
   respond({
     continue: true,
     additionalContext: `[LATTICE] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? "found" : "none"}.`

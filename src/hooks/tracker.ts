@@ -58,6 +58,22 @@ function handleSessionStart(): void {
     }
   }
 
+  // 완료된 task 중 7일 이상 경과한 것 삭제
+  const tasksPath = join(KNOWLEDGE_ROOT, 'tasks');
+  if (existsSync(tasksPath)) {
+    const DONE_TTL = 7 * 86400000; // 7일
+    for (const file of readdirSync(tasksPath).filter((f) => f.endsWith('.json'))) {
+      try {
+        const task = JSON.parse(readFileSync(join(tasksPath, file), 'utf-8'));
+        if (task.status === 'done' && task.completedAt) {
+          if (Date.now() - new Date(task.completedAt).getTime() > DONE_TTL) {
+            unlinkSync(join(tasksPath, file));
+          }
+        }
+      } catch { /* skip */ }
+    }
+  }
+
   respond({
     continue: true,
     additionalContext: `[LATTICE] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? 'found' : 'none'}.`,

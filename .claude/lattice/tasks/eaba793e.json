@@ -1,0 +1,12 @@
+{
+  "id": "eaba793e",
+  "title": "태스크 도구 동작 검증",
+  "status": "done",
+  "description": "MCP 재시작 후 task CRUD 정상 동작 확인용",
+  "tags": [
+    "test"
+  ],
+  "createdAt": "2026-03-20T01:21:08.291Z",
+  "updatedAt": "2026-03-20T01:21:21.764Z",
+  "completedAt": "2026-03-20T01:21:21.764Z"
+}
