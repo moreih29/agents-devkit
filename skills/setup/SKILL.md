@@ -64,9 +64,8 @@ AskUserQuestion({
     header: "Mode",
     multiSelect: false,
     options: [
-      { label: "Off (Recommended)", description: "키워드 없으면 일반 모드. 필요 시 [auto], [nonstop] 등 직접 지정." },
+      { label: "Off (Recommended)", description: "키워드 없으면 일반 모드. 필요 시 [auto] 등 직접 지정." },
       { label: "Auto", description: "모든 작업에 자동으로 auto 모드 적용 (분석→계획→구현→검증→리뷰)" },
-      { label: "Nonstop", description: "모든 작업에 자동으로 nonstop 적용 (중단 없이 완료까지)" },
       { label: "Skip", description: "기본 모드 설정 건너뛰기 (기본값 off)" }
     ]
   }]
@@ -75,7 +74,6 @@ AskUserQuestion({
 
 선택 시 `.nexus/config.json`에 `{"defaultMode": "<선택>"}` 추가.
 - `auto`: 키워드 없어도 매 프롬프트에서 auto 활성화 (Pre-Execution Gate는 유지)
-- `nonstop`: 키워드 없어도 매 프롬프트에서 nonstop 활성화
 - `off`/Skip: 기본 동작 (키워드 감지 시에만 모드 활성화)
 
 ### Step 4: Knowledge Init

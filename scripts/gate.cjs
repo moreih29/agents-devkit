@@ -289,7 +289,7 @@ Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Sc
         additionalContext: `[NEXUS] Setup wizard activated. Guide the user through these steps IN ORDER using AskUserQuestion for each:
 1. STATUSLINE: Ask preset choice (Full recommended / Standard / Minimal / Skip). If chosen, write {"preset":"<choice>"} to .nexus/statusline-preset.json.
 2. DELEGATION: Ask enforcement level (Warn recommended / Strict / Off / Skip). If chosen, write {"delegationEnforcement":"<choice>"} to .nexus/config.json.
-3. DEFAULT MODE: Ask default execution mode (Off recommended / Auto / Nonstop / Skip). If chosen, add {"defaultMode":"<choice>"} to .nexus/config.json.
+3. DEFAULT MODE: Ask default execution mode (Off recommended / Auto / Skip). If chosen, add {"defaultMode":"<choice>"} to .nexus/config.json.
 4. INIT: Ask whether to run knowledge init (Yes recommended / Skip). If Yes, run the init workflow (SCAN\u2192TRIAGE\u2192PROPOSE\u2192GENERATE\u2192VERIFY).
 5. COMPLETE: Show summary of applied settings and brief intro to available skills/agents.
 Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip option.`
@@ -345,15 +345,6 @@ IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate 
     });
     return;
   }
-  if (defaultMode === "nonstop") {
-    const sid = getSessionId();
-    activatePrimitive("nonstop", sid);
-    respond({
-      continue: true,
-      additionalContext: `[NEXUS] nonstop mode ACTIVATED (defaultMode: nonstop). Do NOT stop until the task is fully complete. IMPORTANT: Before finishing, call nx_state_clear({ key: "nonstop" }) to deactivate.`
-    });
-    return;
-  }
   pass();
 }
 function getDefaultMode() {
@@ -361,8 +352,7 @@ function getDefaultMode() {
   if ((0, import_fs3.existsSync)(configPath)) {
     try {
       const config = JSON.parse((0, import_fs3.readFileSync)(configPath, "utf-8"));
-      const mode = config.defaultMode;
-      if (mode === "auto" || mode === "nonstop") return mode;
+      if (config.defaultMode === "auto") return "auto";
     } catch {
     }
   }
