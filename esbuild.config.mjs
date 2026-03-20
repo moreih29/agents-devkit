@@ -29,4 +29,11 @@ await Promise.all(
   )
 );
 
-console.log('Build complete: bridge/mcp-server.cjs, scripts/{gate,pulse,tracker}.cjs');
+// 상태라인 번들
+await build({
+  ...shared,
+  entryPoints: ['src/statusline/statusline.ts'],
+  outfile: 'scripts/statusline.cjs',
+});
+
+console.log('Build complete: bridge/mcp-server.cjs, scripts/{gate,pulse,tracker,statusline}.cjs');
