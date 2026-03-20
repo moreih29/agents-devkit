@@ -1,11 +1,11 @@
 # Pipeline
 
-Execute a sequence of stages in order, with optional Sustain and Parallel within each stage.
+Execute a sequence of stages in order, with optional Nonstop and Parallel within each stage.
 
 ## Trigger
 - User says: "pipeline", "auto", "자동으로", "순서대로"
 - Explicit tag: `[pipeline]`
-- Direct invocation: `/lattice:pipeline`
+- Direct invocation: `/nexus:pipeline`
 
 ## What It Does
 
@@ -18,7 +18,7 @@ Execute a sequence of stages in order, with optional Sustain and Parallel within
 
 Analyze the request and define stages. Then activate:
 ```
-lat_state_write({
+nx_state_write({
   key: "pipeline",
   value: {
     active: true,
@@ -27,9 +27,9 @@ lat_state_write({
     startedAt: "<current ISO timestamp>",
     sessionId: "<session ID>",
     stages: [
-      { "name": "analyze", "agent": "scout", "status": "pending" },
-      { "name": "implement", "agent": "artisan", "status": "pending" },
-      { "name": "verify", "agent": "sentinel", "status": "pending" }
+      { "name": "analyze", "agent": "finder", "status": "pending" },
+      { "name": "implement", "agent": "builder", "status": "pending" },
+      { "name": "verify", "agent": "guard", "status": "pending" }
     ],
     currentStage: "analyze",
     currentStageIndex: 0,
@@ -44,7 +44,7 @@ For each stage:
 
 1. Update state to mark the stage as `running`:
 ```
-lat_state_write({
+nx_state_write({
   key: "pipeline",
   value: { ...currentState, currentStage: "implement", currentStageIndex: 1,
            stages: [...with status: "running"] }
@@ -53,12 +53,12 @@ lat_state_write({
 
 2. Invoke the assigned agent:
 ```
-Agent({ subagent_type: "lattice:artisan", prompt: "Stage: implement\nContext from previous stage: ...\nTask: ..." })
+Agent({ subagent_type: "nexus:builder", prompt: "Stage: implement\nContext from previous stage: ...\nTask: ..." })
 ```
 
 3. On completion, mark stage as `done` and advance:
 ```
-lat_state_write({
+nx_state_write({
   key: "pipeline",
   value: { ...currentState, currentStageIndex: 2, currentStage: "verify",
            stages: [...with status: "done", result: "..."] }
@@ -71,18 +71,18 @@ lat_state_write({
 
 A stage can optionally use other primitives:
 
-- **sustain stage**: Activate Sustain within a stage for long-running work
+- **nonstop stage**: Activate Nonstop within a stage for long-running work
   ```
-  lat_state_write({ key: "sustain", value: { active: true, ... } })
+  nx_state_write({ key: "nonstop", value: { active: true, ... } })
   // ... do work ...
-  lat_state_clear({ key: "sustain" })
+  nx_state_clear({ key: "nonstop" })
   ```
 
 - **parallel stage**: Use Parallel within a stage for concurrent subtasks
   ```
-  lat_state_write({ key: "parallel", value: { active: true, tasks: [...], ... } })
+  nx_state_write({ key: "parallel", value: { active: true, tasks: [...], ... } })
   // ... spawn agents ...
-  lat_state_clear({ key: "parallel" })
+  nx_state_clear({ key: "parallel" })
   ```
 
 ## Common Stage Patterns
@@ -104,7 +104,7 @@ Each stage receives the results of previous stages. Include relevant context in 
 
 When all stages complete OR pipeline is aborted:
 ```
-lat_state_clear({ key: "pipeline" })
+nx_state_clear({ key: "pipeline" })
 ```
 Then report the final result summarizing all stage outcomes.
 
@@ -112,4 +112,4 @@ Then report the final result summarizing all stage outcomes.
 
 - **maxIterations**: 100 (default). If reached, auto-deactivates.
 - **Stage failure**: If a stage fails 3 times, abort pipeline and report.
-- **User cancel**: User can say "stop" or invoke `lat_state_clear({ key: "pipeline" })`.
+- **User cancel**: User can say "stop" or invoke `nx_state_clear({ key: "pipeline" })`.

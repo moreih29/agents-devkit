@@ -1,5 +1,5 @@
 {
-  "description": "Lattice orchestration hooks",
+  "description": "Nexus orchestration hooks",
   "hooks": {
     "Stop": [
       {

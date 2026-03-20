@@ -9,7 +9,7 @@ const CACHE = join(
 
 if (!existsSync(CACHE)) {
   console.error(`Cache not found: ${CACHE}`);
-  console.error('Run: claude plugin install claude-lattice@lattice');
+  console.error('Run: claude plugin install claude-nexus@nexus');
   process.exit(1);
 }
 

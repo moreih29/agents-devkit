@@ -5,7 +5,7 @@ Interactive discovery workflow — understand the user's real intent, explore op
 ## Trigger
 - User says: "consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까", "방법을 찾아줘"
 - Explicit tag: `[consult]`
-- Direct invocation: `/lattice:consult`
+- Direct invocation: `/nexus:consult`
 
 ## What It Does
 
@@ -15,13 +15,13 @@ A structured conversation loop that **discovers** the best approach rather than 
 explore → diverge → propose → converge → (optional) execute
 ```
 
-Unlike cruise which runs autonomously, consult keeps the user in the loop at every decision point.
+Unlike auto which runs autonomously, consult keeps the user in the loop at every decision point.
 
 ## Workflow
 
 ### Phase 1: Explore (자동)
 - Read the user's request carefully
-- Scan relevant code, knowledge, and project context using `lat_knowledge_read` and `lat_context`
+- Scan relevant code, knowledge, and project context using `nx_knowledge_read` and `nx_context`
 - Identify the core problem/goal behind the request
 - Note ambiguities, assumptions, and trade-offs
 
@@ -67,9 +67,9 @@ Based on the user's selection:
 
 ### Phase 5: Execute (선택적)
 If the user approves:
-- Offer to transition into execution mode (cruise, pipeline, or manual)
-- Ask: "바로 실행할까요? (cruise/pipeline/직접)"
-- If cruise: activate cruise with the plan context
+- Offer to transition into execution mode (auto, pipeline, or manual)
+- Ask: "바로 실행할까요? (auto/pipeline/직접)"
+- If auto: activate auto with the plan context
 - If pipeline: activate pipeline with custom stages from the plan
 - If manual: just present the plan and let the user drive
 
@@ -83,11 +83,11 @@ If the user approves:
 
 ## State Management
 
-Consult는 sustain 없이 동작합니다. 대화형이므로 Gate 차단이 필요 없습니다.
-진행 상태 추적이 필요하면 `lat_memo_write`로 메모:
+Consult는 nonstop 없이 동작합니다. 대화형이므로 Gate 차단이 필요 없습니다.
+진행 상태 추적이 필요하면 `nx_memo_write`로 메모:
 
 ```
-lat_memo_write({
+nx_memo_write({
   content: "Consult: auth 모듈 설계 - Option B (JWT) 선택, 구현 대기 중",
   tags: ["consult"],
   ttl: "day"
@@ -97,6 +97,6 @@ lat_memo_write({
 ## Deactivation
 
 Consult는 자연스럽게 종료됩니다:
-- 실행으로 전환 시 → cruise/pipeline이 인계
+- 실행으로 전환 시 → auto/pipeline이 인계
 - 계획만 정리 시 → 메모에 기록하고 종료
-- 별도 `lat_state_clear`는 불필요
+- 별도 `nx_state_clear`는 불필요

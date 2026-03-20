@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lattice 성능 벤치마크
+# Nexus 성능 벤치마크
 # 훅 실행 시간 + Pulse 주입 효율 측정
 
 set -e
@@ -13,25 +13,25 @@ MCP="bridge/mcp-server.cjs"
 
 # 벤치마크 전용 세션 ID (실제 세션 오염 방지)
 BENCH_SID="bench-$$"
-BENCH_DIR=".lattice/state/sessions/$BENCH_SID"
+BENCH_DIR=".nexus/state/sessions/$BENCH_SID"
 
 # 현재 세션 파일 백업 + 복원
-SESSION_FILE=".lattice/state/current-session.json"
+SESSION_FILE=".nexus/state/current-session.json"
 BACKUP_SESSION=""
 if [ -f "$SESSION_FILE" ]; then
   BACKUP_SESSION=$(cat "$SESSION_FILE")
 fi
 
 cleanup() {
-  rm -rf "$BENCH_DIR" .lattice/state/sessions/bench-* .lattice/tasks/bench-* 2>/dev/null
+  rm -rf "$BENCH_DIR" .nexus/state/sessions/bench-* .nexus/tasks/bench-* 2>/dev/null
   if [ -n "$BACKUP_SESSION" ]; then
-    mkdir -p .lattice/state
+    mkdir -p .nexus/state
     echo "$BACKUP_SESSION" > "$SESSION_FILE"
   fi
 }
 trap cleanup EXIT
 
-echo "=== Lattice Performance Benchmark ==="
+echo "=== Nexus Performance Benchmark ==="
 echo "Iterations: $ITERATIONS | Session: $BENCH_SID"
 echo ""
 
@@ -56,7 +56,7 @@ avg() {
 }
 
 set_session() {
-  mkdir -p .lattice/state
+  mkdir -p .nexus/state
   echo "{\"sessionId\":\"$BENCH_SID\",\"createdAt\":\"2026-01-01T00:00:00Z\"}" > "$SESSION_FILE"
 }
 
@@ -93,7 +93,7 @@ echo "Pulse/PreToolUse (fast):     avg $(avg "${times[@]}")ms  [${times[*]}]"
 
 # Pulse/PreToolUse (워크플로우 활성)
 mkdir -p "$BENCH_DIR"
-echo '{"active":true,"maxIterations":100,"currentIteration":5}' > "$BENCH_DIR/sustain.json"
+echo '{"active":true,"maxIterations":100,"currentIteration":5}' > "$BENCH_DIR/nonstop.json"
 set_session
 times=()
 for i in $(seq 1 $ITERATIONS); do
@@ -117,7 +117,7 @@ echo "=== 2. Pulse 주입 효율 ==="
 
 rm -rf "$BENCH_DIR"
 mkdir -p "$BENCH_DIR"
-echo '{"active":true,"maxIterations":100,"currentIteration":5}' > "$BENCH_DIR/sustain.json"
+echo '{"active":true,"maxIterations":100,"currentIteration":5}' > "$BENCH_DIR/nonstop.json"
 set_session
 
 injected=0
@@ -152,20 +152,20 @@ mcp_call() {
 
 times=()
 for i in $(seq 1 5); do
-  t=$(measure_ms "mcp_call lat_state_write '{\"key\":\"bench\",\"value\":{\"x\":1},\"sessionId\":\"bench-mcp\"}'")
+  t=$(measure_ms "mcp_call nx_state_write '{\"key\":\"bench\",\"value\":{\"x\":1},\"sessionId\":\"bench-mcp\"}'")
   times+=("$t")
 done
-echo "lat_state_write:             avg $(avg "${times[@]}")ms  [${times[*]}]"
+echo "nx_state_write:             avg $(avg "${times[@]}")ms  [${times[*]}]"
 
 times=()
 for i in $(seq 1 5); do
-  t=$(measure_ms "mcp_call lat_state_read '{\"key\":\"bench\",\"sessionId\":\"bench-mcp\"}'")
+  t=$(measure_ms "mcp_call nx_state_read '{\"key\":\"bench\",\"sessionId\":\"bench-mcp\"}'")
   times+=("$t")
 done
-echo "lat_state_read:              avg $(avg "${times[@]}")ms  [${times[*]}]"
+echo "nx_state_read:              avg $(avg "${times[@]}")ms  [${times[*]}]"
 
-t1=$(measure_ms "mcp_call lat_knowledge_read '{\"topic\":\"architecture\"}'")
-echo "lat_knowledge_read (cold):   ${t1}ms"
+t1=$(measure_ms "mcp_call nx_knowledge_read '{\"topic\":\"architecture\"}'")
+echo "nx_knowledge_read (cold):   ${t1}ms"
 echo "(참고: 벤치마크는 매번 새 프로세스. 실사용 시 MCP 서버 상주로 캐시 효과 있음)"
 
 # Cleanup은 trap EXIT에서 처리

@@ -30,8 +30,8 @@ function findProjectRoot() {
   return process.cwd();
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".lattice");
-var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "lattice");
+var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".nexus");
+var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
 function sessionDir(sessionId) {
   return (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sessionId);
 }
@@ -72,7 +72,7 @@ function createSession() {
 var import_path3 = require("path");
 function handleStop() {
   const sid = getSessionId();
-  const sustainPath = statePath(sid, "sustain");
+  const sustainPath = statePath(sid, "nonstop");
   if ((0, import_fs3.existsSync)(sustainPath)) {
     try {
       const state = JSON.parse((0, import_fs3.readFileSync)(sustainPath, "utf-8"));
@@ -81,7 +81,7 @@ function handleStop() {
         (0, import_fs3.writeFileSync)(sustainPath, JSON.stringify(state, null, 2));
         respond({
           decision: "block",
-          reason: `[SUSTAIN ${state.currentIteration}/${state.maxIterations}] \uC791\uC5C5\uC774 \uC644\uB8CC\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uACC4\uC18D \uC9C4\uD589\uD558\uC138\uC694. \uC791\uC5C5\uC774 \uC815\uB9D0 \uB05D\uB0AC\uB2E4\uBA74 lat_state_clear({ key: "sustain" })\uB97C \uD638\uCD9C\uD558\uC5EC sustain\uC744 \uD574\uC81C\uD558\uC138\uC694.`
+          reason: `[SUSTAIN ${state.currentIteration}/${state.maxIterations}] \uC791\uC5C5\uC774 \uC644\uB8CC\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uACC4\uC18D \uC9C4\uD589\uD558\uC138\uC694. \uC791\uC5C5\uC774 \uC815\uB9D0 \uB05D\uB0AC\uB2E4\uBA74 nx_state_clear({ key: "nonstop" })\uB97C \uD638\uCD9C\uD558\uC5EC nonstop\uC744 \uD574\uC81C\uD558\uC138\uC694.`
         });
         return;
       }
@@ -128,46 +128,46 @@ function handleStop() {
   pass();
 }
 var EXPLICIT_TAGS = {
-  sustain: { primitive: "sustain", skill: "lattice:sustain" },
-  parallel: { primitive: "parallel", skill: "lattice:parallel" },
-  pipeline: { primitive: "pipeline", skill: "lattice:pipeline" },
-  cruise: { primitive: "pipeline", skill: "lattice:cruise" },
-  consult: { primitive: "consult", skill: "lattice:consult" },
-  init: { primitive: "init", skill: "lattice:init" }
+  nonstop: { primitive: "nonstop", skill: "nexus:nonstop" },
+  parallel: { primitive: "parallel", skill: "nexus:parallel" },
+  pipeline: { primitive: "pipeline", skill: "nexus:pipeline" },
+  auto: { primitive: "pipeline", skill: "nexus:auto" },
+  consult: { primitive: "consult", skill: "nexus:consult" },
+  init: { primitive: "init", skill: "nexus:init" }
 };
-var CRUISE_PATTERNS = [/\bcruise\b/i, /자동으로\s*전부/, /end\s*to\s*end/i];
+var AUTO_PATTERNS = [/\bauto\b/i, /\bcruise\b/i, /자동으로\s*전부/, /end\s*to\s*end/i];
 var NATURAL_PATTERNS = [
   {
-    patterns: [/\bsustain\b/i, /\bkeep\s+going\b/i, /\bdon'?t\s+stop\b/i, /멈추지\s*마/],
-    match: { primitive: "sustain", skill: "lattice:sustain" }
+    patterns: [/\bnonstop\b/i, /\bsustain\b/i, /\bkeep\s+going\b/i, /\bdon'?t\s+stop\b/i, /멈추지\s*마/],
+    match: { primitive: "nonstop", skill: "nexus:nonstop" }
   },
   {
     patterns: [/\bparallel\b/i, /\bconcurrent\b/i, /동시에/, /병렬로/],
-    match: { primitive: "parallel", skill: "lattice:parallel" }
+    match: { primitive: "parallel", skill: "nexus:parallel" }
   },
   {
     patterns: [/\bpipeline\b/i, /순서대로/],
-    match: { primitive: "pipeline", skill: "lattice:pipeline" }
+    match: { primitive: "pipeline", skill: "nexus:pipeline" }
   },
   {
     patterns: [/\bconsult\b/i, /상담/, /어떻게\s*하면\s*좋을까/, /뭐가\s*좋을까/, /방법을?\s*찾아/],
-    match: { primitive: "consult", skill: "lattice:consult" }
+    match: { primitive: "consult", skill: "nexus:consult" }
   },
   {
-    patterns: [/\binit\b/i, /온보딩/, /lattice\s*설정/, /프로젝트\s*초기화/],
-    match: { primitive: "init", skill: "lattice:init" }
+    patterns: [/\binit\b/i, /온보딩/, /nexus\s*설정/, /프로젝트\s*초기화/],
+    match: { primitive: "init", skill: "nexus:init" }
   }
 ];
 var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-var PRIMITIVE_NAMES = /\b(sustain|parallel|pipeline|cruise)\b/i;
+var PRIMITIVE_NAMES = /\b(nonstop|parallel|pipeline|auto)\b/i;
 function isPrimitiveMention(prompt) {
   return PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt);
 }
-function detectCruise(prompt) {
+function detectAuto(prompt) {
   const tagMatch = prompt.match(/\[(\w+)\]/);
-  if (tagMatch && tagMatch[1].toLowerCase() === "cruise") return true;
+  if (tagMatch && tagMatch[1].toLowerCase() === "auto") return true;
   if (isPrimitiveMention(prompt)) return false;
-  return CRUISE_PATTERNS.some((p) => p.test(prompt));
+  return AUTO_PATTERNS.some((p) => p.test(prompt));
 }
 function detectKeywords(prompt) {
   const tagMatch = prompt.match(/\[(\w+)\]/);
@@ -201,21 +201,21 @@ function handleUserPromptSubmit(event) {
     pass();
     return;
   }
-  if (detectCruise(prompt)) {
+  if (detectAuto(prompt)) {
     const sid = getSessionId();
     activatePrimitive("pipeline", sid);
-    activatePrimitive("sustain", sid);
+    activatePrimitive("nonstop", sid);
     respond({
       continue: true,
-      additionalContext: `[LATTICE] cruise mode ACTIVATED (session: ${sid}). Pipeline + Sustain enabled.
+      additionalContext: `[LATTICE] auto mode ACTIVATED (session: ${sid}). Pipeline + Nonstop enabled.
 Execute these stages IN ORDER:
 1. Analyze \u2014 understand the codebase and request
 2. Plan \u2014 break into actionable steps
 3. Implement \u2014 write code (use parallel Agent calls for independent tasks)
 4. Verify \u2014 run tests, type-check
 5. Review \u2014 review your own changes for correctness
-Update pipeline state with lat_state_write as you progress through stages.
-IMPORTANT: Before finishing, call lat_state_clear({ key: "cruise" }) to deactivate all state at once. Do NOT stop without clearing state first.`
+Update pipeline state with nx_state_write as you progress through stages.
+IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate all state at once. Do NOT stop without clearing state first.`
     });
     return;
   }
@@ -226,10 +226,10 @@ IMPORTANT: Before finishing, call lat_state_clear({ key: "cruise" }) to deactiva
         continue: true,
         additionalContext: `[LATTICE] Init mode activated. Follow the init workflow:
 1. SCAN: Read project structure (top-level dirs, config files), CLAUDE.md, README.md, docs/, .claude/, and other .md files. Use git log for recent activity.
-2. TRIAGE: Classify each doc as Essential (\u2192 knowledge/), Useful (\u2192 knowledge/ condensed), Redundant (Lattice handles better), or Outdated (skip).
+2. TRIAGE: Classify each doc as Essential (\u2192 knowledge/), Useful (\u2192 knowledge/ condensed), Redundant (Nexus handles better), or Outdated (skip).
 3. PROPOSE: Present triage results to user via AskUserQuestion. Ask about CLAUDE.md slimming strategy and which knowledge files to generate.
-4. GENERATE: Create .claude/lattice/knowledge/ files (architecture.md, conventions.md, project-context.md). Backup original CLAUDE.md. Slim CLAUDE.md per user choice.
-5. VERIFY: Confirm generated files are readable via lat_knowledge_read. Report summary.
+4. GENERATE: Create .claude/nexus/knowledge/ files (architecture.md, conventions.md, project-context.md). Backup original CLAUDE.md. Slim CLAUDE.md per user choice.
+5. VERIFY: Confirm generated files are readable via nx_knowledge_read. Report summary.
 IMPORTANT: Always backup before modifying. Never delete without user approval.`
       });
       return;
@@ -238,11 +238,11 @@ IMPORTANT: Always backup before modifying. Never delete without user approval.`
       respond({
         continue: true,
         additionalContext: `[LATTICE] Consult mode activated. Follow the consult workflow:
-1. EXPLORE: Read relevant code, knowledge (lat_knowledge_read), and context (lat_context)
+1. EXPLORE: Read relevant code, knowledge (nx_knowledge_read), and context (nx_context)
 2. DIVERGE: Generate 2-4 genuinely different approaches
 3. PROPOSE: Present options using AskUserQuestion with preview for concrete comparisons
 4. CONVERGE: Elaborate on chosen approach, ask follow-up if needed, produce concrete plan
-5. (OPTIONAL) EXECUTE: Offer to transition to cruise/pipeline/manual
+5. (OPTIONAL) EXECUTE: Offer to transition to auto/pipeline/manual
 Key: Ask specific questions with real choices, not vague "what do you think?". Max 2 rounds of questions.`
       });
       return;
@@ -251,7 +251,7 @@ Key: Ask specific questions with real choices, not vague "what do you think?". M
     activatePrimitive(match.primitive, sid);
     respond({
       continue: true,
-      additionalContext: `[LATTICE] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. IMPORTANT: Before finishing your response, you MUST call lat_state_clear({ key: "${match.primitive}" }) to deactivate. Do NOT attempt to stop without clearing state first.`
+      additionalContext: `[LATTICE] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. IMPORTANT: Before finishing your response, you MUST call nx_state_clear({ key: "${match.primitive}" }) to deactivate. Do NOT attempt to stop without clearing state first.`
     });
     return;
   }
@@ -274,51 +274,51 @@ Key: Ask specific questions with real choices, not vague "what do you think?". M
   pass();
 }
 var AGENT_NAMES = [
-  "scout",
-  "artisan",
-  "sentinel",
-  "tinker",
-  "steward",
-  "compass",
+  "finder",
+  "builder",
+  "guard",
+  "debugger",
+  "lead",
+  "architect",
   "strategist",
-  "lens",
+  "reviewer",
   "analyst",
-  "weaver",
-  "scribe"
+  "tester",
+  "writer"
 ];
 var ROUTING_RULES = [
   {
     category: "\uBC84\uADF8 \uC218\uC815",
     patterns: [/버그/, /고쳐/, /\bfix\b/i, /에러/, /\berror\b/i, /안\s*돼/, /안\s*됨/, /\bbug\b/i, /오류/, /문제.*해결/],
-    agent: "tinker",
-    workflow: "sustain"
+    agent: "debugger",
+    workflow: "nonstop"
   },
   {
     category: "\uCF54\uB4DC \uB9AC\uBDF0",
     patterns: [/리뷰/, /\breview\b/i, /봐\s*줘/, /검토/, /코드\s*확인/],
-    agent: "lens"
+    agent: "reviewer"
   },
   {
     category: "\uD14C\uC2A4\uD2B8",
     patterns: [/테스트/, /\btest\b/i, /커버리지/, /\bcoverage\b/i, /검증\s*코드/],
-    agent: "weaver",
-    workflow: "sustain"
+    agent: "tester",
+    workflow: "nonstop"
   },
   {
     category: "\uB9AC\uD329\uD1A0\uB9C1",
     patterns: [/리팩토링/, /\brefactor\b/i, /정리/, /개선/, /클린\s*업/, /\bclean\s*up\b/i],
-    agent: "artisan",
-    workflow: "sustain"
+    agent: "builder",
+    workflow: "nonstop"
   },
   {
     category: "\uD0D0\uC0C9/\uAC80\uC0C9",
     patterns: [/찾아/, /어디/, /\bsearch\b/i, /\bfind\b/i, /검색/, /위치/],
-    agent: "scout"
+    agent: "finder"
   },
   {
     category: "\uC124\uACC4/\uC544\uD0A4\uD14D\uCC98",
     patterns: [/설계/, /아키텍처/, /구조/, /\bdesign\b/i, /\barchitect/i],
-    agent: "compass"
+    agent: "architect"
   },
   {
     category: "\uACC4\uD68D \uC218\uB9BD",
@@ -329,17 +329,17 @@ var ROUTING_RULES = [
     category: "\uBD84\uC11D",
     patterns: [/분석/, /\banalyze?\b/i, /왜\s/, /원인/, /조사/, /\binvestigat/i],
     agent: "analyst",
-    workflow: "sustain"
+    workflow: "nonstop"
   },
   {
     category: "\uBB38\uC11C",
     patterns: [/문서/, /\bREADME\b/i, /\bdocs?\b/i, /가이드/, /주석/],
-    agent: "scribe"
+    agent: "writer"
   },
   {
     category: "\uB300\uADDC\uBAA8 \uAD6C\uD604",
     patterns: [/구현/, /만들어/, /추가/, /\bimplement\b/i, /\bcreate\b/i, /새로운?\s*기능/],
-    workflow: "cruise"
+    workflow: "auto"
   }
 ];
 var HISTORY_PATH = (0, import_path3.join)(RUNTIME_ROOT, "routing-history.json");
@@ -384,7 +384,7 @@ function detectRouting(prompt) {
         break;
       }
     }
-    return `[LATTICE] \uC5D0\uC774\uC804\uD2B8 \uC9C0\uC815: lattice:${agentOverride}`;
+    return `[LATTICE] \uC5D0\uC774\uC804\uD2B8 \uC9C0\uC815: nexus:${agentOverride}`;
   }
   const history = loadHistory();
   for (const rule of ROUTING_RULES) {
@@ -394,12 +394,12 @@ function detectRouting(prompt) {
       const workflow = rule.workflow;
       if (agent && workflow) {
         const hint = preferred ? " (\uD788\uC2A4\uD1A0\uB9AC \uAE30\uBC18)" : "";
-        return `[LATTICE] ${rule.category} \u2192 lattice:${agent} + ${workflow} \uCD94\uCC9C${hint}`;
+        return `[LATTICE] ${rule.category} \u2192 nexus:${agent} + ${workflow} \uCD94\uCC9C${hint}`;
       } else if (agent) {
         const hint = preferred ? " (\uD788\uC2A4\uD1A0\uB9AC \uAE30\uBC18)" : "";
-        return `[LATTICE] ${rule.category} \u2192 lattice:${agent} \uCD94\uCC9C${hint}`;
-      } else if (workflow === "cruise") {
-        return `[LATTICE] ${rule.category} \u2192 cruise \uC6CC\uD06C\uD50C\uB85C\uC6B0 \uCD94\uCC9C (\uB300\uADDC\uBAA8 \uC791\uC5C5 \uC2DC)`;
+        return `[LATTICE] ${rule.category} \u2192 nexus:${agent} \uCD94\uCC9C${hint}`;
+      } else if (workflow === "auto") {
+        return `[LATTICE] ${rule.category} \u2192 auto \uC6CC\uD06C\uD50C\uB85C\uC6B0 \uCD94\uCC9C (\uB300\uADDC\uBAA8 \uC791\uC5C5 \uC2DC)`;
       }
     }
   }
@@ -408,7 +408,7 @@ function detectRouting(prompt) {
 var AGENT_SUFFIXES = /(?:로|으로|에게|한테|가|이|를|을|의|도|만|부터|까지)/;
 function detectAgentOverride(prompt) {
   for (const name of AGENT_NAMES) {
-    if (new RegExp(`lattice:${name}`, "i").test(prompt)) return name;
+    if (new RegExp(`nexus:${name}`, "i").test(prompt)) return name;
     if (new RegExp(`\\b${name}\\b${AGENT_SUFFIXES.source}`, "i").test(prompt)) return name;
     if (new RegExp(`\\b${name[0].toUpperCase()}${name.slice(1)}\\b`).test(prompt)) return name;
   }
@@ -417,22 +417,22 @@ function detectAgentOverride(prompt) {
 var TASK_PATTERNS = [
   {
     patterns: [/진행\s*중.*작업/, /현재\s*작업/, /지금\s*뭐/, /하고\s*있는\s*일/, /\bin.?progress\b/i],
-    tool: 'lat_task_list({ status: "in_progress" })',
+    tool: 'nx_task_list({ status: "in_progress" })',
     description: "\uC9C4\uD589 \uC911\uC778 \uD0DC\uC2A4\uD06C \uBAA9\uB85D"
   },
   {
     patterns: [/다음\s*(할\s*일|계획|작업)/, /\btodo\b/i, /할\s*일\s*목록/, /남은\s*작업/],
-    tool: 'lat_task_list({ status: "todo" })',
+    tool: 'nx_task_list({ status: "todo" })',
     description: "TODO \uD0DC\uC2A4\uD06C \uBAA9\uB85D"
   },
   {
     patterns: [/작업\s*현황/, /태스크\s*요약/, /\btask.*summary\b/i, /전체\s*진행/, /작업\s*상태/],
-    tool: "lat_task_summary()",
+    tool: "nx_task_summary()",
     description: "\uD0DC\uC2A4\uD06C \uC804\uCCB4 \uC694\uC57D"
   },
   {
     patterns: [/막힌\s*작업/, /블로커/, /\bblocked?\b/i],
-    tool: 'lat_task_list({ status: "blocked" })',
+    tool: 'nx_task_list({ status: "blocked" })',
     description: "\uBE14\uB85C\uD0B9\uB41C \uD0DC\uC2A4\uD06C \uBAA9\uB85D"
   }
 ];

@@ -9,7 +9,7 @@ import { registerAstTools } from './tools/ast.js';
 import { registerTaskTools } from './tools/task.js';
 
 const server = new McpServer({
-  name: 'lat',
+  name: 'nx',
   version: '0.2.0', // synced with package.json
 });
 
@@ -27,6 +27,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Lattice MCP server error:', err);
+  console.error('Nexus MCP server error:', err);
   process.exit(1);
 });

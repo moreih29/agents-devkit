@@ -21004,8 +21004,8 @@ function findProjectRoot() {
   return process.cwd();
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".lattice");
-var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "lattice");
+var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".nexus");
+var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
 function sessionDir(sessionId) {
   return (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sessionId);
 }
@@ -21051,10 +21051,10 @@ function createSession() {
 // src/mcp/tools/state.ts
 function registerStateTools(server2) {
   server2.tool(
-    "lat_state_read",
-    "Read runtime workflow state (e.g., sustain, parallel, pipeline)",
+    "nx_state_read",
+    "Read runtime workflow state (e.g., nonstop, parallel, pipeline)",
     {
-      key: external_exports.string().describe('State key (e.g., "sustain", "parallel", "pipeline")'),
+      key: external_exports.string().describe('State key (e.g., "nonstop", "parallel", "pipeline")'),
       sessionId: external_exports.string().optional().describe("Session ID. Uses current session if omitted.")
     },
     async ({ key, sessionId }) => {
@@ -21068,7 +21068,7 @@ function registerStateTools(server2) {
     }
   );
   server2.tool(
-    "lat_state_write",
+    "nx_state_write",
     "Write runtime workflow state",
     {
       key: external_exports.string().describe("State key"),
@@ -21085,7 +21085,7 @@ function registerStateTools(server2) {
     }
   );
   server2.tool(
-    "lat_state_clear",
+    "nx_state_clear",
     "Clear runtime workflow state",
     {
       key: external_exports.string().describe("State key to clear"),
@@ -21093,8 +21093,8 @@ function registerStateTools(server2) {
     },
     async ({ key, sessionId }) => {
       const sid = sessionId ?? getSessionId();
-      if (key === "cruise") {
-        const keys = ["pipeline", "sustain"];
+      if (key === "auto") {
+        const keys = ["pipeline", "nonstop"];
         const cleared = [];
         for (const k of keys) {
           const p = statePath(sid, k);
@@ -21103,7 +21103,7 @@ function registerStateTools(server2) {
             cleared.push(k);
           }
         }
-        return { content: [{ type: "text", text: JSON.stringify({ cleared: true, key: "cruise", clearedKeys: cleared, sessionId: sid }) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ cleared: true, key: "auto", clearedKeys: cleared, sessionId: sid }) }] };
       }
       const path = statePath(sid, key);
       if ((0, import_fs3.existsSync)(path)) {
@@ -21131,7 +21131,7 @@ async function readKnowledgeCached(path) {
 }
 function registerKnowledgeTools(server2) {
   server2.tool(
-    "lat_knowledge_read",
+    "nx_knowledge_read",
     "Read project knowledge (git-tracked, shared across team)",
     {
       topic: external_exports.string().optional().describe('Specific topic name (e.g., "architecture", "conventions")'),
@@ -21167,7 +21167,7 @@ function registerKnowledgeTools(server2) {
     }
   );
   server2.tool(
-    "lat_knowledge_write",
+    "nx_knowledge_write",
     "Write project knowledge (git-tracked). Use for long-term, team-shared information.",
     {
       topic: external_exports.string().describe("Topic name (becomes filename: knowledge/{topic}.md)"),
@@ -21212,7 +21212,7 @@ function isExpired(entry) {
 }
 function registerMemoTools(server2) {
   server2.tool(
-    "lat_memo_read",
+    "nx_memo_read",
     "Read session memos (volatile, gitignored). For short-term progress tracking.",
     {
       ttl: external_exports.enum(TTL_VALUES).optional().describe("Filter by TTL"),
@@ -21245,7 +21245,7 @@ function registerMemoTools(server2) {
     }
   );
   server2.tool(
-    "lat_memo_write",
+    "nx_memo_write",
     "Write a session memo (volatile). Use for progress notes, temporary context.",
     {
       content: external_exports.string().describe("Memo content"),
@@ -21281,7 +21281,7 @@ function getCurrentBranch() {
 }
 function registerContextTool(server2) {
   server2.tool(
-    "lat_context",
+    "nx_context",
     "Get aggregated context status: active mode, agents, session, branch",
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {},
@@ -21289,7 +21289,7 @@ function registerContextTool(server2) {
       const sessionId = getSessionId();
       const dir = sessionDir(sessionId);
       let activeMode = null;
-      const modes = ["sustain", "parallel", "pipeline"];
+      const modes = ["nonstop", "parallel", "pipeline"];
       for (const mode of modes) {
         const stateFile = `${dir}/${mode}.json`;
         if ((0, import_fs6.existsSync)(stateFile)) {
@@ -21641,7 +21641,7 @@ function formatMarkupContent(content) {
 }
 function registerLspTools(server2) {
   server2.tool(
-    "lat_lsp_hover",
+    "nx_lsp_hover",
     "Get type information for a symbol at a specific position",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
@@ -21676,7 +21676,7 @@ function registerLspTools(server2) {
     }
   );
   server2.tool(
-    "lat_lsp_goto_definition",
+    "nx_lsp_goto_definition",
     "Jump to the definition of a symbol",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
@@ -21705,7 +21705,7 @@ function registerLspTools(server2) {
     }
   );
   server2.tool(
-    "lat_lsp_find_references",
+    "nx_lsp_find_references",
     "Find all references to a symbol",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
@@ -21736,7 +21736,7 @@ function registerLspTools(server2) {
     }
   );
   server2.tool(
-    "lat_lsp_diagnostics",
+    "nx_lsp_diagnostics",
     "Get compiler/linter errors and warnings for a file",
     {
       file: external_exports.string().describe("File path (relative to project root)")
@@ -21780,7 +21780,7 @@ function registerLspTools(server2) {
     }
   );
   server2.tool(
-    "lat_lsp_rename",
+    "nx_lsp_rename",
     "Rename a symbol across the project (returns a list of edits to apply)",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
@@ -21840,7 +21840,7 @@ function registerLspTools(server2) {
     }
   );
   server2.tool(
-    "lat_lsp_code_actions",
+    "nx_lsp_code_actions",
     "Get suggested fixes and refactoring actions for a code range",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
@@ -21922,7 +21922,7 @@ function registerLspTools(server2) {
     26: "TypeParameter"
   };
   server2.tool(
-    "lat_lsp_document_symbols",
+    "nx_lsp_document_symbols",
     "List all symbols (functions, classes, interfaces, etc.) in a file",
     {
       file: external_exports.string().describe("File path (relative to project root)")
@@ -21961,7 +21961,7 @@ function registerLspTools(server2) {
     }
   );
   server2.tool(
-    "lat_lsp_workspace_symbols",
+    "nx_lsp_workspace_symbols",
     "Search for symbols across the entire project",
     {
       query: external_exports.string().describe("Symbol name or partial name to search")
@@ -22053,7 +22053,7 @@ function collectFiles(dir, ext, maxDepth = 5, depth = 0) {
 }
 function registerAstTools(server2) {
   server2.tool(
-    "lat_ast_search",
+    "nx_ast_search",
     "Search code by structural pattern using ast-grep (tree-sitter)",
     {
       pattern: external_exports.string().describe('ast-grep pattern (e.g., "function $NAME($$$) { $$$ }")'),
@@ -22118,7 +22118,7 @@ function registerAstTools(server2) {
     }
   );
   server2.tool(
-    "lat_ast_replace",
+    "nx_ast_replace",
     "Replace code by structural pattern using ast-grep (tree-sitter). Use dryRun=true to preview changes.",
     {
       pattern: external_exports.string().describe("ast-grep pattern to match"),
@@ -22239,7 +22239,7 @@ async function loadAllTasks() {
 }
 function registerTaskTools(server2) {
   server2.tool(
-    "lat_task_create",
+    "nx_task_create",
     "Create a task for tracking work across sessions",
     {
       title: external_exports.string().describe("Task title"),
@@ -22261,7 +22261,7 @@ function registerTaskTools(server2) {
     }
   );
   server2.tool(
-    "lat_task_list",
+    "nx_task_list",
     "List tasks with optional filtering by status or tags",
     {
       status: external_exports.enum(["todo", "in_progress", "done", "blocked"]).optional().describe("Filter by status"),
@@ -22277,7 +22277,7 @@ function registerTaskTools(server2) {
     }
   );
   server2.tool(
-    "lat_task_update",
+    "nx_task_update",
     "Update a task (status, title, description, tags)",
     {
       id: external_exports.string().describe("Task ID"),
@@ -22302,7 +22302,7 @@ function registerTaskTools(server2) {
     }
   );
   server2.tool(
-    "lat_task_summary",
+    "nx_task_summary",
     "Get task summary: counts by status + in-progress list",
     {},
     async () => {
@@ -22323,7 +22323,7 @@ function registerTaskTools(server2) {
 
 // src/mcp/server.ts
 var server = new McpServer({
-  name: "lat",
+  name: "nx",
   version: "0.2.0"
   // synced with package.json
 });
@@ -22339,7 +22339,7 @@ async function main() {
   await server.connect(transport);
 }
 main().catch((err) => {
-  console.error("Lattice MCP server error:", err);
+  console.error("Nexus MCP server error:", err);
   process.exit(1);
 });
 //# sourceMappingURL=mcp-server.cjs.map

@@ -28,8 +28,8 @@ function findProjectRoot() {
   return cwd;
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".lattice");
-var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "lattice");
+var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".nexus");
+var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
 function getPreset() {
   const env = process.env.LATTICE_STATUSLINE;
   if (env === "minimal" || env === "standard" || env === "full") return env;
@@ -116,13 +116,13 @@ function buildLine1() {
   const timePart = sessionTime ? `${DIM}${timeStr} (${sessionTime})${RESET}` : `${DIM}${timeStr}${RESET}`;
   let version = "";
   try {
-    const pkgPath = (0, import_path.join)(PROJECT_ROOT, "node_modules", "claude-lattice", "package.json");
+    const pkgPath = (0, import_path.join)(PROJECT_ROOT, "node_modules", "claude-nexus", "package.json");
     const pluginPkgPath = (0, import_path.join)(__dirname, "..", "package.json");
     const localPkgPath = (0, import_path.join)(PROJECT_ROOT, "package.json");
     for (const p of [pkgPath, pluginPkgPath, localPkgPath]) {
       if ((0, import_fs.existsSync)(p)) {
         const pkg = JSON.parse((0, import_fs.readFileSync)(p, "utf-8"));
-        if (pkg.name === "claude-lattice" && pkg.version) {
+        if (pkg.name === "claude-nexus" && pkg.version) {
           version = pkg.version;
           break;
         }
@@ -131,8 +131,8 @@ function buildLine1() {
   } catch {
   }
   const versionStr = version ? ` ${DIM}v${version}${RESET}` : "";
-  const latticeTag = `\x1B[38;5;141m\u25C6Lattice${RESET}${versionStr}`;
-  return `${latticeTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
+  const nexusTag = `\x1B[38;5;141m\u25C6Nexus${RESET}${versionStr}`;
+  return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
 }
 var USAGE_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".usage_cache");
 var CACHE_TTL_DEFAULT = 60;
@@ -275,11 +275,11 @@ function buildLine3() {
   if (sid) {
     const sessDir = (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sid);
     if ((0, import_fs.existsSync)(sessDir)) {
-      const sustainPath = (0, import_path.join)(sessDir, "sustain.json");
+      const sustainPath = (0, import_path.join)(sessDir, "nonstop.json");
       if ((0, import_fs.existsSync)(sustainPath)) {
         try {
           const s = JSON.parse((0, import_fs.readFileSync)(sustainPath, "utf-8"));
-          if (s.active) parts.push(`\u25B6 sustain ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
+          if (s.active) parts.push(`\u25B6 nonstop ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
         } catch {
         }
       }
@@ -291,7 +291,7 @@ function buildLine3() {
             const stage = p.currentStage ? `${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? "?"}` : "init";
             if ((0, import_fs.existsSync)(sustainPath)) {
               parts.length = 0;
-              parts.push(`\u25B6 cruise (${stage})`);
+              parts.push(`\u25B6 auto (${stage})`);
             } else {
               parts.push(`\u25B6 pipeline (${stage})`);
             }

@@ -7,10 +7,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 export function registerStateTools(server: McpServer): void {
   server.tool(
-    'lat_state_read',
-    'Read runtime workflow state (e.g., sustain, parallel, pipeline)',
+    'nx_state_read',
+    'Read runtime workflow state (e.g., nonstop, parallel, pipeline)',
     {
-      key: z.string().describe('State key (e.g., "sustain", "parallel", "pipeline")'),
+      key: z.string().describe('State key (e.g., "nonstop", "parallel", "pipeline")'),
       sessionId: z.string().optional().describe('Session ID. Uses current session if omitted.'),
     },
     async ({ key, sessionId }) => {
@@ -27,7 +27,7 @@ export function registerStateTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_state_write',
+    'nx_state_write',
     'Write runtime workflow state',
     {
       key: z.string().describe('State key'),
@@ -47,7 +47,7 @@ export function registerStateTools(server: McpServer): void {
   );
 
   server.tool(
-    'lat_state_clear',
+    'nx_state_clear',
     'Clear runtime workflow state',
     {
       key: z.string().describe('State key to clear'),
@@ -56,15 +56,15 @@ export function registerStateTools(server: McpServer): void {
     async ({ key, sessionId }) => {
       const sid = sessionId ?? getSessionId();
 
-      // cruise: pipeline + sustain 한 번에 해제
-      if (key === 'cruise') {
-        const keys = ['pipeline', 'sustain'];
+      // auto: pipeline + nonstop 한 번에 해제
+      if (key === 'auto') {
+        const keys = ['pipeline', 'nonstop'];
         const cleared: string[] = [];
         for (const k of keys) {
           const p = statePath(sid, k);
           if (existsSync(p)) { await unlink(p); cleared.push(k); }
         }
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true, key: 'cruise', clearedKeys: cleared, sessionId: sid }) }] };
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true, key: 'auto', clearedKeys: cleared, sessionId: sid }) }] };
       }
 
       const path = statePath(sid, key);

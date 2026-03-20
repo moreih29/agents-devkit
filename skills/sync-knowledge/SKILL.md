@@ -1,15 +1,15 @@
 ---
 name: sync-knowledge
-description: "Detect inconsistencies between Lattice source code (agents, skills, hooks) and knowledge documents (.claude/lattice/knowledge/). Use this skill after making changes to agents/*.md, skills/*/SKILL.md, or src/hooks/*.ts, or when the user says 'sync knowledge', 'update docs', 'sync docs', '지식 동기화', '문서 업데이트', '문서 동기화'. Also use proactively when you notice code changes that might make knowledge docs outdated."
+description: "Detect inconsistencies between Nexus source code (agents, skills, hooks) and knowledge documents (.claude/nexus/knowledge/). Use this skill after making changes to agents/*.md, skills/*/SKILL.md, or src/hooks/*.ts, or when the user says 'sync knowledge', 'update docs', 'sync docs', '지식 동기화', '문서 업데이트', '문서 동기화'. Also use proactively when you notice code changes that might make knowledge docs outdated."
 ---
 
 # Sync Knowledge
 
-Scan Lattice source files and compare against knowledge documents to find and fix inconsistencies.
+Scan Nexus source files and compare against knowledge documents to find and fix inconsistencies.
 
 ## Why This Exists
 
-Lattice knowledge documents (architecture.md, agents-catalog.md, hook-modules.md, workflows.md) serve as the shared understanding for all agents. When code changes — new agents added, skills renamed, hook logic updated — these documents can silently drift out of sync. This skill catches that drift before it causes confusion.
+Nexus knowledge documents (architecture.md, agents-catalog.md, hook-modules.md, workflows.md) serve as the shared understanding for all agents. When code changes — new agents added, skills renamed, hook logic updated — these documents can silently drift out of sync. This skill catches that drift before it causes confusion.
 
 ## Process
 
@@ -29,7 +29,7 @@ For each agent file:
 For each skill:
   - name (directory name)
   - trigger keywords
-  - which primitives it uses (sustain, parallel, pipeline, or combination)
+  - which primitives it uses (nonstop, parallel, pipeline, or combination)
 ```
 
 **Hooks** — Read `src/hooks/gate.ts` and `src/hooks/pulse.ts`:
@@ -38,7 +38,7 @@ From gate.ts:
   - EXPLICIT_TAGS keys (what keywords are detected)
   - NATURAL_PATTERNS (what natural language triggers exist)
   - handleStop() checks (which primitives block Stop, in what order)
-  - Any composite modes (like cruise = pipeline + sustain)
+  - Any composite modes (like auto = pipeline + nonstop)
 
 From pulse.ts:
   - What workflow states are injected as context
@@ -48,10 +48,10 @@ From pulse.ts:
 ### Phase 2: Scan Knowledge Documents
 
 Read the four knowledge documents:
-- `.claude/lattice/knowledge/architecture.md` — agent tables, hook descriptions, skill table
-- `.claude/lattice/knowledge/agents-catalog.md` — full agent catalog, phase status
-- `.claude/lattice/knowledge/hook-modules.md` — hook module details, keyword lists
-- `.claude/lattice/knowledge/workflows.md` — primitives, keyword patterns, composite workflows
+- `.claude/nexus/knowledge/architecture.md` — agent tables, hook descriptions, skill table
+- `.claude/nexus/knowledge/agents-catalog.md` — full agent catalog, phase status
+- `.claude/nexus/knowledge/hook-modules.md` — hook module details, keyword lists
+- `.claude/nexus/knowledge/workflows.md` — primitives, keyword patterns, composite workflows
 
 ### Phase 3: Compare and Report
 
@@ -62,7 +62,7 @@ Check each category for inconsistencies:
 - Agent file exists in `agents/` but not in agents-catalog.md catalog table
 - Agent listed in docs but no corresponding file in `agents/`
 - Agent tier/context/role mismatch between file frontmatter and docs
-- Steward's agent routing list missing any implemented agents
+- Lead's agent routing list missing any implemented agents
 
 **Skills:**
 - Skill directory exists in `skills/` but not in architecture.md skill table
@@ -73,7 +73,7 @@ Check each category for inconsistencies:
 - Gate keyword detected in gate.ts but not documented in hook-modules.md
 - Gate Stop check order in code doesn't match hook-modules.md description
 - Pulse context injection in code not reflected in hook-modules.md
-- Composite mode (e.g., cruise) exists in gate.ts but not in docs
+- Composite mode (e.g., auto) exists in gate.ts but not in docs
 
 **Phase Status:**
 - agents-catalog.md phase status doesn't match which agents actually have files
@@ -86,14 +86,14 @@ Output the results as a structured report:
 ### Inconsistencies Found: N
 
 #### Agents (X issues)
-- [MISSING IN DOCS] agents/tinker.md exists but not in architecture.md Phase 2 table
-- [MISMATCH] agents/scout.md has tier=low but architecture.md says medium
+- [MISSING IN DOCS] agents/debugger.md exists but not in architecture.md Phase 2 table
+- [MISMATCH] agents/finder.md has tier=low but architecture.md says medium
 
 #### Skills (X issues)
-- [MISSING IN DOCS] skills/cruise/ exists but not in workflows.md composite section
+- [MISSING IN DOCS] skills/auto/ exists but not in workflows.md composite section
 
 #### Hooks (X issues)
-- [MISSING IN DOCS] gate.ts detects "cruise" keyword but hook-modules.md doesn't mention it
+- [MISSING IN DOCS] gate.ts detects "auto" keyword but hook-modules.md doesn't mention it
 
 #### Phase Status (X issues)
 - [OUTDATED] agents-catalog.md shows Phase 2 as "planned" but all 4 agents are implemented

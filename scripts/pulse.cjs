@@ -30,8 +30,8 @@ function findProjectRoot() {
   return process.cwd();
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".lattice");
-var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "lattice");
+var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".nexus");
+var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
 function sessionDir(sessionId) {
   return (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sessionId);
 }
@@ -86,17 +86,17 @@ function saveTracker(sid, tracker) {
   (0, import_fs3.writeFileSync)((0, import_path3.join)(dir, "whisper-tracker.json"), JSON.stringify(tracker));
 }
 var AGENT_CONTEXT_LEVELS = {
-  scout: "minimal",
-  artisan: "standard",
-  sentinel: "standard",
-  tinker: "standard",
-  steward: "full",
-  compass: "full",
+  finder: "minimal",
+  builder: "standard",
+  guard: "standard",
+  debugger: "standard",
+  lead: "full",
+  architect: "full",
   strategist: "full",
-  lens: "full",
+  reviewer: "full",
   analyst: "full",
-  weaver: "standard",
-  scribe: "minimal"
+  tester: "standard",
+  writer: "minimal"
 };
 function getActiveContextLevel(sid) {
   const agentsPath = (0, import_path3.join)(sessionDir(sid), "agents.json");
@@ -134,7 +134,7 @@ function buildMessages(toolName, hookEvent, sid) {
       text: "Read multiple files in parallel when possible for faster analysis."
     });
   }
-  const sustainPath = statePath(sid, "sustain");
+  const sustainPath = statePath(sid, "nonstop");
   if ((0, import_fs3.existsSync)(sustainPath)) {
     try {
       const state = JSON.parse((0, import_fs3.readFileSync)(sustainPath, "utf-8"));
@@ -142,7 +142,7 @@ function buildMessages(toolName, hookEvent, sid) {
         messages.push({
           key: "workflow:sustain_active",
           priority: "workflow",
-          text: `[SUSTAIN ${state.currentIteration ?? 0}/${state.maxIterations ?? 100}] Sustain mode is active. Continue working until the task is complete.`
+          text: `[SUSTAIN ${state.currentIteration ?? 0}/${state.maxIterations ?? 100}] Nonstop mode is active. Continue working until the task is complete.`
         });
       }
     } catch {
@@ -186,7 +186,7 @@ function buildMessages(toolName, hookEvent, sid) {
         messages.push({
           key: "recovery:sustain_limit",
           priority: "safety",
-          text: `[WARNING] Sustain iteration ${state.currentIteration}/${state.maxIterations}\uC5D0 \uADFC\uC811. \uC791\uC5C5\uC774 \uB9C9\uD600\uC788\uB2E4\uBA74: 1) \uD604\uC7AC \uC811\uADFC \uBC29\uC2DD\uC744 \uC7AC\uAC80\uD1A0\uD558\uC138\uC694. 2) lat_state_clear({ key: "sustain" })\uB85C \uD574\uC81C \uD6C4 \uB2E4\uB978 \uC804\uB7B5\uC744 \uC2DC\uB3C4\uD558\uC138\uC694.`
+          text: `[WARNING] Nonstop iteration ${state.currentIteration}/${state.maxIterations}\uC5D0 \uADFC\uC811. \uC791\uC5C5\uC774 \uB9C9\uD600\uC788\uB2E4\uBA74: 1) \uD604\uC7AC \uC811\uADFC \uBC29\uC2DD\uC744 \uC7AC\uAC80\uD1A0\uD558\uC138\uC694. 2) nx_state_clear({ key: "nonstop" })\uB85C \uD574\uC81C \uD6C4 \uB2E4\uB978 \uC804\uB7B5\uC744 \uC2DC\uB3C4\uD558\uC138\uC694.`
         });
       }
     } catch {
@@ -199,7 +199,7 @@ function buildMessages(toolName, hookEvent, sid) {
         messages.push({
           key: "recovery:pipeline_stuck",
           priority: "safety",
-          text: `[WARNING] Pipeline "${state.currentStage ?? "unknown"}" \uB2E8\uACC4\uC5D0\uC11C ${state.currentIteration}\uD68C \uBC18\uBCF5 \uC911. \uB9C9\uD600\uC788\uB2E4\uBA74: 1) \uD604\uC7AC \uB2E8\uACC4\uB97C skip\uD558\uACE0 \uB2E4\uC74C\uC73C\uB85C \uC9C4\uD589\uD558\uC138\uC694. 2) lat_state_clear({ key: "pipeline" })\uB85C \uD574\uC81C\uD558\uC138\uC694.`
+          text: `[WARNING] Pipeline "${state.currentStage ?? "unknown"}" \uB2E8\uACC4\uC5D0\uC11C ${state.currentIteration}\uD68C \uBC18\uBCF5 \uC911. \uB9C9\uD600\uC788\uB2E4\uBA74: 1) \uD604\uC7AC \uB2E8\uACC4\uB97C skip\uD558\uACE0 \uB2E4\uC74C\uC73C\uB85C \uC9C4\uD589\uD558\uC138\uC694. 2) nx_state_clear({ key: "pipeline" })\uB85C \uD574\uC81C\uD558\uC138\uC694.`
         });
       }
     } catch {
@@ -241,14 +241,14 @@ async function main() {
   if (tracker.toolCallCount > 0 && tracker.toolCallCount % PROGRESS_INTERVAL === 0) {
     const progressParts = [`[PROGRESS ${tracker.toolCallCount} tools]`];
     try {
-      const sustainP = statePath(sid, "sustain");
+      const sustainP = statePath(sid, "nonstop");
       const pipelineP = statePath(sid, "pipeline");
       if ((0, import_fs3.existsSync)(pipelineP) && (0, import_fs3.existsSync)(sustainP)) {
         const p = JSON.parse((0, import_fs3.readFileSync)(pipelineP, "utf-8"));
-        if (p.active && p.currentStage) progressParts.push(`cruise: ${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? "?"}`);
+        if (p.active && p.currentStage) progressParts.push(`auto: ${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? "?"}`);
       } else if ((0, import_fs3.existsSync)(sustainP)) {
         const s = JSON.parse((0, import_fs3.readFileSync)(sustainP, "utf-8"));
-        if (s.active) progressParts.push(`sustain: ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
+        if (s.active) progressParts.push(`nonstop: ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
       }
     } catch {
     }

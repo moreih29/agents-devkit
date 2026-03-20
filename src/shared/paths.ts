@@ -13,11 +13,11 @@ function findProjectRoot(): string {
 
 const PROJECT_ROOT = findProjectRoot();
 
-/** .lattice/ — gitignore, 런타임 상태 */
-export const RUNTIME_ROOT = join(PROJECT_ROOT, '.lattice');
+/** .nexus/ — gitignore, 런타임 상태 */
+export const RUNTIME_ROOT = join(PROJECT_ROOT, '.nexus');
 
-/** .claude/lattice/ — git 추적, 공유 지식 */
-export const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'lattice');
+/** .claude/nexus/ — git 추적, 공유 지식 */
+export const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
 
 /** 세션별 상태 디렉토리 */
 export function sessionDir(sessionId: string): string {
