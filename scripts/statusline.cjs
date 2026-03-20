@@ -282,69 +282,73 @@ function buildLine2() {
 }
 function buildLine3() {
   const sid = getSessionId();
-  const parts = [];
+  const workflowParts = [];
+  let agentStr = "";
+  let toolCount = 0;
+  let taskStr = "";
   if (sid) {
     const sessDir = (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sid);
-    if ((0, import_fs.existsSync)(sessDir)) {
-      const sustainPath = (0, import_path.join)(sessDir, "nonstop.json");
-      if ((0, import_fs.existsSync)(sustainPath)) {
-        try {
-          const s = JSON.parse((0, import_fs.readFileSync)(sustainPath, "utf-8"));
-          if (s.active) parts.push(`\u25B6 nonstop ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
-        } catch {
+    const nonstopPath = (0, import_path.join)(sessDir, "nonstop.json");
+    const pipelinePath = (0, import_path.join)(sessDir, "pipeline.json");
+    const parallelPath = (0, import_path.join)(sessDir, "parallel.json");
+    let nonstopActive = false;
+    try {
+      if ((0, import_fs.existsSync)(nonstopPath)) {
+        const s = JSON.parse((0, import_fs.readFileSync)(nonstopPath, "utf-8"));
+        if (s.active) {
+          nonstopActive = true;
+          workflowParts.push(`\u25B6 nonstop ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
         }
       }
-      const pipelinePath = (0, import_path.join)(sessDir, "pipeline.json");
+    } catch {
+    }
+    try {
       if ((0, import_fs.existsSync)(pipelinePath)) {
-        try {
-          const p = JSON.parse((0, import_fs.readFileSync)(pipelinePath, "utf-8"));
-          if (p.active) {
-            const stage = p.currentStage ? `${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? "?"}` : "init";
-            if ((0, import_fs.existsSync)(sustainPath)) {
-              parts.length = 0;
-              parts.push(`\u25B6 auto (${stage})`);
-            } else {
-              parts.push(`\u25B6 pipeline (${stage})`);
-            }
+        const p = JSON.parse((0, import_fs.readFileSync)(pipelinePath, "utf-8"));
+        if (p.active) {
+          const stage = p.currentStage ? `${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? "?"}` : "init";
+          if (nonstopActive) {
+            workflowParts.length = 0;
+            workflowParts.push(`\u25B6 auto (${stage})`);
+          } else {
+            workflowParts.push(`\u25B6 pipeline (${stage})`);
           }
-        } catch {
         }
       }
-      const parallelPath = (0, import_path.join)(sessDir, "parallel.json");
+    } catch {
+    }
+    try {
       if ((0, import_fs.existsSync)(parallelPath)) {
-        try {
-          const p = JSON.parse((0, import_fs.readFileSync)(parallelPath, "utf-8"));
-          if (p.active) parts.push(`\u{1F500} parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
-        } catch {
-        }
+        const p = JSON.parse((0, import_fs.readFileSync)(parallelPath, "utf-8"));
+        if (p.active) workflowParts.push(`\u{1F500} parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
       }
+    } catch {
+    }
+    try {
       const agentsPath = (0, import_path.join)(sessDir, "agents.json");
       if ((0, import_fs.existsSync)(agentsPath)) {
-        try {
-          const record = JSON.parse((0, import_fs.readFileSync)(agentsPath, "utf-8"));
-          const active = record.active ?? [];
-          if (active.length > 0) {
-            const counts = {};
-            for (const a of active) counts[a] = (counts[a] ?? 0) + 1;
-            const agentStr = Object.entries(counts).map(([name, count]) => count > 1 ? `${name}\xD7${count}` : name).join(" ");
-            parts.push(`\u{1F916} ${agentStr}`);
-          }
-        } catch {
+        const record = JSON.parse((0, import_fs.readFileSync)(agentsPath, "utf-8"));
+        const active = record.active ?? [];
+        if (active.length > 0) {
+          const counts = {};
+          for (const a of active) counts[a] = (counts[a] ?? 0) + 1;
+          agentStr = Object.entries(counts).map(([name, count]) => count > 1 ? `${name}\xD7${count}` : name).join(" ");
         }
       }
+    } catch {
+    }
+    try {
       const trackerPath = (0, import_path.join)(sessDir, "whisper-tracker.json");
       if ((0, import_fs.existsSync)(trackerPath)) {
-        try {
-          const t = JSON.parse((0, import_fs.readFileSync)(trackerPath, "utf-8"));
-          if (t.toolCallCount > 0) parts.push(`\u{1F527} ${t.toolCallCount}`);
-        } catch {
-        }
+        const t = JSON.parse((0, import_fs.readFileSync)(trackerPath, "utf-8"));
+        toolCount = t.toolCallCount ?? 0;
       }
+    } catch {
     }
   }
   const tasksDir = (0, import_path.join)(KNOWLEDGE_ROOT, "tasks");
-  if ((0, import_fs.existsSync)(tasksDir)) {
-    try {
+  try {
+    if ((0, import_fs.existsSync)(tasksDir)) {
       const files = (0, import_fs.readdirSync)(tasksDir).filter((f) => f.endsWith(".json"));
       let inProgress = 0, todo = 0;
       for (const file of files) {
@@ -355,13 +359,22 @@ function buildLine3() {
         } catch {
         }
       }
-      const taskParts = [];
-      if (inProgress > 0) taskParts.push(`${inProgress} active`);
-      if (todo > 0) taskParts.push(`${todo} todo`);
-      if (taskParts.length > 0) parts.push(`\u{1F4DD} ${taskParts.join(", ")}`);
-    } catch {
+      const tp = [];
+      if (inProgress > 0) tp.push(`${inProgress} active`);
+      if (todo > 0) tp.push(`${todo} todo`);
+      if (tp.length > 0) taskStr = tp.join(", ");
     }
+  } catch {
   }
+  const parts = [];
+  if (workflowParts.length > 0) {
+    parts.push(workflowParts.join(" "));
+  } else {
+    parts.push(`${DIM}\u2014 idle${RESET}`);
+  }
+  parts.push(`\u{1F916} ${agentStr || "0"}`);
+  parts.push(`\u{1F527} ${toolCount}`);
+  parts.push(`\u{1F4DD} ${taskStr || "0"}`);
   return parts.join(` ${SEP} `);
 }
 function main() {

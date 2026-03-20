@@ -344,79 +344,77 @@ function buildLine2(): string {
 
 function buildLine3(): string {
   const sid = getSessionId();
-  const parts: string[] = [];
+  const workflowParts: string[] = [];
+  let agentStr = '';
+  let toolCount = 0;
+  let taskStr = '';
 
-  // 워크플로우 상태
   if (sid) {
     const sessDir = join(RUNTIME_ROOT, 'state', 'sessions', sid);
-    if (existsSync(sessDir)) {
-      // Nonstop
-      const sustainPath = join(sessDir, 'nonstop.json');
-      if (existsSync(sustainPath)) {
-        try {
-          const s = JSON.parse(readFileSync(sustainPath, 'utf-8'));
-          if (s.active) parts.push(`▶ nonstop ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
-        } catch { /* skip */ }
-      }
 
-      // Pipeline
-      const pipelinePath = join(sessDir, 'pipeline.json');
+    // 워크플로우 상태
+    const nonstopPath = join(sessDir, 'nonstop.json');
+    const pipelinePath = join(sessDir, 'pipeline.json');
+    const parallelPath = join(sessDir, 'parallel.json');
+
+    let nonstopActive = false;
+    try {
+      if (existsSync(nonstopPath)) {
+        const s = JSON.parse(readFileSync(nonstopPath, 'utf-8'));
+        if (s.active) { nonstopActive = true; workflowParts.push(`▶ nonstop ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`); }
+      }
+    } catch { /* skip */ }
+
+    try {
       if (existsSync(pipelinePath)) {
-        try {
-          const p = JSON.parse(readFileSync(pipelinePath, 'utf-8'));
-          if (p.active) {
-            const stage = p.currentStage ? `${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? '?'}` : 'init';
-            // nonstop + pipeline = auto
-            if (existsSync(sustainPath)) {
-              parts.length = 0; // nonstop 표시 제거
-              parts.push(`▶ auto (${stage})`);
-            } else {
-              parts.push(`▶ pipeline (${stage})`);
-            }
+        const p = JSON.parse(readFileSync(pipelinePath, 'utf-8'));
+        if (p.active) {
+          const stage = p.currentStage ? `${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? '?'}` : 'init';
+          if (nonstopActive) {
+            workflowParts.length = 0;
+            workflowParts.push(`▶ auto (${stage})`);
+          } else {
+            workflowParts.push(`▶ pipeline (${stage})`);
           }
-        } catch { /* skip */ }
+        }
       }
+    } catch { /* skip */ }
 
-      // Parallel
-      const parallelPath = join(sessDir, 'parallel.json');
+    try {
       if (existsSync(parallelPath)) {
-        try {
-          const p = JSON.parse(readFileSync(parallelPath, 'utf-8'));
-          if (p.active) parts.push(`🔀 parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
-        } catch { /* skip */ }
+        const p = JSON.parse(readFileSync(parallelPath, 'utf-8'));
+        if (p.active) workflowParts.push(`🔀 parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
       }
+    } catch { /* skip */ }
 
-      // 에이전트
+    // 에이전트
+    try {
       const agentsPath = join(sessDir, 'agents.json');
       if (existsSync(agentsPath)) {
-        try {
-          const record = JSON.parse(readFileSync(agentsPath, 'utf-8'));
-          const active: string[] = record.active ?? [];
-          if (active.length > 0) {
-            // 동일 에이전트 카운트
-            const counts: Record<string, number> = {};
-            for (const a of active) counts[a] = (counts[a] ?? 0) + 1;
-            const agentStr = Object.entries(counts).map(([name, count]) => count > 1 ? `${name}×${count}` : name).join(' ');
-            parts.push(`🤖 ${agentStr}`);
-          }
-        } catch { /* skip */ }
+        const record = JSON.parse(readFileSync(agentsPath, 'utf-8'));
+        const active: string[] = record.active ?? [];
+        if (active.length > 0) {
+          const counts: Record<string, number> = {};
+          for (const a of active) counts[a] = (counts[a] ?? 0) + 1;
+          agentStr = Object.entries(counts).map(([name, count]) => count > 1 ? `${name}×${count}` : name).join(' ');
+        }
       }
+    } catch { /* skip */ }
 
-      // 도구 호출 수
+    // 도구 호출 수
+    try {
       const trackerPath = join(sessDir, 'whisper-tracker.json');
       if (existsSync(trackerPath)) {
-        try {
-          const t = JSON.parse(readFileSync(trackerPath, 'utf-8'));
-          if (t.toolCallCount > 0) parts.push(`🔧 ${t.toolCallCount}`);
-        } catch { /* skip */ }
+        const t = JSON.parse(readFileSync(trackerPath, 'utf-8'));
+        toolCount = t.toolCallCount ?? 0;
       }
-    }
+    } catch { /* skip */ }
   }
 
   // 태스크 현황
   const tasksDir = join(KNOWLEDGE_ROOT, 'tasks');
-  if (existsSync(tasksDir)) {
-    try {
+  try {
+    if (existsSync(tasksDir)) {
       const files = readdirSync(tasksDir).filter(f => f.endsWith('.json'));
       let inProgress = 0, todo = 0;
       for (const file of files) {
@@ -426,12 +424,23 @@ function buildLine3(): string {
           else if (task.status === 'todo') todo++;
         } catch { /* skip */ }
       }
-      const taskParts: string[] = [];
-      if (inProgress > 0) taskParts.push(`${inProgress} active`);
-      if (todo > 0) taskParts.push(`${todo} todo`);
-      if (taskParts.length > 0) parts.push(`📝 ${taskParts.join(', ')}`);
-    } catch { /* skip */ }
+      const tp: string[] = [];
+      if (inProgress > 0) tp.push(`${inProgress} active`);
+      if (todo > 0) tp.push(`${todo} todo`);
+      if (tp.length > 0) taskStr = tp.join(', ');
+    }
+  } catch { /* skip */ }
+
+  // 조합: 항상 기본값 표시
+  const parts: string[] = [];
+  if (workflowParts.length > 0) {
+    parts.push(workflowParts.join(' '));
+  } else {
+    parts.push(`${DIM}— idle${RESET}`);
   }
+  parts.push(`🤖 ${agentStr || '0'}`);
+  parts.push(`🔧 ${toolCount}`);
+  parts.push(`📝 ${taskStr || '0'}`);
 
   return parts.join(` ${SEP} `);
 }
