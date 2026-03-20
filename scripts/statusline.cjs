@@ -372,7 +372,7 @@ function main() {
   }
   if (preset === "full") {
     const line3 = buildLine3();
-    if (line3) lines.push(line3);
+    lines.push(line3 || `${DIM}\u2014 idle${RESET}`);
   }
   process.stdout.write(lines.join("\n") + "\n");
 }
