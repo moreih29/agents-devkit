@@ -126,6 +126,7 @@ check "Pulse/PreToolUse (Bash)" 'parallel execution' "$result"
 # Tracker: SessionStart
 result=$(echo '{"hook_event_name":"SessionStart"}' | node scripts/tracker.cjs 2>/dev/null)
 check "Tracker/SessionStart" 'NEXUS.*Session' "$result"
+check "Tracker/SessionStart (delegation rule)" 'routing.*delegate' "$result"
 
 # Tracker: SubagentStart
 result=$(echo '{"hook_event_name":"SubagentStart","agent_name":"builder"}' | node scripts/tracker.cjs 2>/dev/null)
