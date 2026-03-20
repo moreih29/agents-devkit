@@ -158,7 +158,7 @@ function buildLine1(): string {
   const versionStr = version ? ` ${DIM}v${version}${RESET}` : '';
   const latticeTag = `\x1b[38;5;141m◆Lattice${RESET}${versionStr}`;
 
-  return `${latticeTag}  ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1b[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
+  return `${latticeTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1b[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
 }
 
 // --- Line 2: 컨텍스트 + 사용량 ---
@@ -192,39 +192,48 @@ function fetchOAuthUsage(): string | null {
 function getUsage(): { json: string; stale: boolean } | null {
   const now = Math.floor(Date.now() / 1000);
   let currentTtl = CACHE_TTL_DEFAULT;
+  let cachedData = '';
+  let cacheAge = Infinity;
 
-  // 캐시 확인 (여러 세션이 같은 캐시 공유)
+  // 캐시 읽기 (여러 세션이 같은 캐시 공유)
   if (existsSync(USAGE_CACHE_PATH)) {
     try {
       const lines = readFileSync(USAGE_CACHE_PATH, 'utf-8').split('\n');
       const cachedAt = parseInt(lines[0]);
       currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
-      if (now - cachedAt < currentTtl) {
-        // TTL이 기본값보다 크면 backoff 중 → stale
-        return { json: lines[2] || '', stale: currentTtl > CACHE_TTL_DEFAULT };
+      cachedData = lines[2] || '';
+      cacheAge = now - cachedAt;
+
+      // TTL 이내: 캐시 반환 (fresh or backoff-stale)
+      if (cacheAge < currentTtl) {
+        return { json: cachedData, stale: currentTtl > CACHE_TTL_DEFAULT };
       }
     } catch { /* skip */ }
   }
 
-  // API 호출
+  // TTL 만료: API 호출 시도 (단, 캐시가 10분 이내면 stale 캐시 즉시 반환하고 호출 스킵 — 깜빡임 방지)
+  if (cachedData && cacheAge < 600) {
+    // stale 캐시 즉시 반환 + 백그라운드 느낌으로 다음 호출 시 갱신
+    const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
+    const cacheContent = `${now}\n${nextTtl}\n${cachedData}`;
+    try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
+    return { json: cachedData, stale: true };
+  }
+
+  // 캐시 없거나 10분 이상 경과: 실제 API 호출
   const resp = fetchOAuthUsage();
   if (resp && resp.includes('five_hour')) {
-    // 성공: TTL 기본값 복원
     const cacheContent = `${now}\n${CACHE_TTL_DEFAULT}\n${resp}`;
     try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
     return { json: resp, stale: false };
   }
 
-  // 실패: TTL 2배 증가 (exponential backoff, 최대 4분), stale 캐시 반환
-  if (existsSync(USAGE_CACHE_PATH)) {
-    try {
-      const lines = readFileSync(USAGE_CACHE_PATH, 'utf-8').split('\n');
-      const oldData = lines[2] || '';
-      const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
-      const cacheContent = `${now}\n${nextTtl}\n${oldData}`;
-      try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
-      return { json: oldData, stale: true };
-    } catch { /* skip */ }
+  // 실패: stale 캐시 반환 + backoff
+  if (cachedData) {
+    const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
+    const cacheContent = `${now}\n${nextTtl}\n${cachedData}`;
+    try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
+    return { json: cachedData, stale: true };
   }
   return null;
 }
@@ -269,8 +278,21 @@ function extractResetInfo(json: string, section: string): { timeStr: string; rem
 }
 
 function isApiMode(): boolean {
-  // API 키가 환경변수에 있으면 API 모드
   return !!process.env.ANTHROPIC_API_KEY;
+}
+
+/** Admin API로 오늘의 비용 조회 (ANTHROPIC_ADMIN_KEY 필요) */
+function fetchApiCost(adminKey: string): number | null {
+  try {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const resp = execSync(
+      `curl -s --max-time 3 "https://api.anthropic.com/v1/organizations/cost_report?start_date=${today}&end_date=${today}" -H "x-api-key: ${adminKey}" -H "anthropic-version: 2023-06-01"`,
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+    ).trim();
+    // 응답에서 total_cost 추출
+    const costMatch = resp.match(/"total_cost"\s*:\s*([0-9.]+)/);
+    return costMatch ? parseFloat(costMatch[1]) : null;
+  } catch { return null; }
 }
 
 function buildLine2(): string {
@@ -279,7 +301,15 @@ function buildLine2(): string {
   const ctx = coloredMeter('ctx', ctxPct, BAR_WIDTH);
 
   if (isApiMode()) {
-    return `${ctx} ${SEP} ${DIM}API mode (ANTHROPIC_API_KEY)${RESET}`;
+    // Admin API 키가 있으면 비용 조회 시도
+    const adminKey = process.env.ANTHROPIC_ADMIN_KEY;
+    if (adminKey) {
+      const cost = fetchApiCost(adminKey);
+      if (cost !== null) {
+        return `${ctx} ${SEP} ${DIM}API${RESET} ${getColor(0)}$${cost.toFixed(2)} today${RESET}`;
+      }
+    }
+    return `${ctx} ${SEP} ${DIM}API mode${RESET}`;
   }
 
   const usage = getUsage();
@@ -341,7 +371,7 @@ function buildLine3(): string {
       if (existsSync(parallelPath)) {
         try {
           const p = JSON.parse(readFileSync(parallelPath, 'utf-8'));
-          if (p.active) parts.push(`|| parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
+          if (p.active) parts.push(`🔀 parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
         } catch { /* skip */ }
       }
 

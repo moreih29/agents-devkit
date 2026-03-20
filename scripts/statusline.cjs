@@ -132,7 +132,7 @@ function buildLine1() {
   }
   const versionStr = version ? ` ${DIM}v${version}${RESET}` : "";
   const latticeTag = `\x1B[38;5;141m\u25C6Lattice${RESET}${versionStr}`;
-  return `${latticeTag}  ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
+  return `${latticeTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
 }
 var USAGE_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".usage_cache");
 var CACHE_TTL_DEFAULT = 60;
@@ -156,16 +156,31 @@ function fetchOAuthUsage() {
 function getUsage() {
   const now = Math.floor(Date.now() / 1e3);
   let currentTtl = CACHE_TTL_DEFAULT;
+  let cachedData = "";
+  let cacheAge = Infinity;
   if ((0, import_fs.existsSync)(USAGE_CACHE_PATH)) {
     try {
       const lines = (0, import_fs.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
       const cachedAt = parseInt(lines[0]);
       currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
-      if (now - cachedAt < currentTtl) {
-        return { json: lines[2] || "", stale: currentTtl > CACHE_TTL_DEFAULT };
+      cachedData = lines[2] || "";
+      cacheAge = now - cachedAt;
+      if (cacheAge < currentTtl) {
+        return { json: cachedData, stale: currentTtl > CACHE_TTL_DEFAULT };
       }
     } catch {
     }
+  }
+  if (cachedData && cacheAge < 600) {
+    const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
+    const cacheContent = `${now}
+${nextTtl}
+${cachedData}`;
+    try {
+      require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
+    } catch {
+    }
+    return { json: cachedData, stale: true };
   }
   const resp = fetchOAuthUsage();
   if (resp && resp.includes("five_hour")) {
@@ -178,21 +193,16 @@ ${resp}`;
     }
     return { json: resp, stale: false };
   }
-  if ((0, import_fs.existsSync)(USAGE_CACHE_PATH)) {
-    try {
-      const lines = (0, import_fs.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
-      const oldData = lines[2] || "";
-      const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
-      const cacheContent = `${now}
+  if (cachedData) {
+    const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
+    const cacheContent = `${now}
 ${nextTtl}
-${oldData}`;
-      try {
-        require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
-      } catch {
-      }
-      return { json: oldData, stale: true };
+${cachedData}`;
+    try {
+      require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
     } catch {
     }
+    return { json: cachedData, stale: true };
   }
   return null;
 }
@@ -232,12 +242,32 @@ function extractResetInfo(json, section) {
 function isApiMode() {
   return !!process.env.ANTHROPIC_API_KEY;
 }
+function fetchApiCost(adminKey) {
+  try {
+    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const resp = (0, import_child_process.execSync)(
+      `curl -s --max-time 3 "https://api.anthropic.com/v1/organizations/cost_report?start_date=${today}&end_date=${today}" -H "x-api-key: ${adminKey}" -H "anthropic-version: 2023-06-01"`,
+      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
+    ).trim();
+    const costMatch = resp.match(/"total_cost"\s*:\s*([0-9.]+)/);
+    return costMatch ? parseFloat(costMatch[1]) : null;
+  } catch {
+    return null;
+  }
+}
 function buildLine2() {
   const BAR_WIDTH = 7;
   const ctxPct = Math.round(getNum("used_percentage"));
   const ctx = coloredMeter("ctx", ctxPct, BAR_WIDTH);
   if (isApiMode()) {
-    return `${ctx} ${SEP} ${DIM}API mode (ANTHROPIC_API_KEY)${RESET}`;
+    const adminKey = process.env.ANTHROPIC_ADMIN_KEY;
+    if (adminKey) {
+      const cost = fetchApiCost(adminKey);
+      if (cost !== null) {
+        return `${ctx} ${SEP} ${DIM}API${RESET} ${getColor(0)}$${cost.toFixed(2)} today${RESET}`;
+      }
+    }
+    return `${ctx} ${SEP} ${DIM}API mode${RESET}`;
   }
   const usage = getUsage();
   if (!usage || !usage.json) return ctx;
@@ -286,7 +316,7 @@ function buildLine3() {
       if ((0, import_fs.existsSync)(parallelPath)) {
         try {
           const p = JSON.parse((0, import_fs.readFileSync)(parallelPath, "utf-8"));
-          if (p.active) parts.push(`|| parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
+          if (p.active) parts.push(`\u{1F500} parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
         } catch {
         }
       }
