@@ -43,7 +43,7 @@ const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
 type Preset = 'minimal' | 'standard' | 'full';
 
 function getPreset(): Preset {
-  const env = process.env.LATTICE_STATUSLINE;
+  const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
   if (env === 'minimal' || env === 'standard' || env === 'full') return env;
   const presetFile = join(RUNTIME_ROOT, 'statusline-preset.json');
   if (existsSync(presetFile)) {

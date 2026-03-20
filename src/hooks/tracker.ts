@@ -76,7 +76,7 @@ function handleSessionStart(): void {
 
   respond({
     continue: true,
-    additionalContext: `[LATTICE] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? 'found' : 'none'}.`,
+    additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? 'found' : 'none'}.`,
   });
 }
 

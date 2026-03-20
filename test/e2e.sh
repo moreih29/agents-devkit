@@ -125,7 +125,7 @@ check "Pulse/PreToolUse (Bash)" 'parallel execution' "$result"
 
 # Tracker: SessionStart
 result=$(echo '{"hook_event_name":"SessionStart"}' | node scripts/tracker.cjs 2>/dev/null)
-check "Tracker/SessionStart" 'LATTICE.*Session' "$result"
+check "Tracker/SessionStart" 'NEXUS.*Session' "$result"
 
 # Tracker: SubagentStart
 result=$(echo '{"hook_event_name":"SubagentStart","agent_name":"builder"}' | node scripts/tracker.cjs 2>/dev/null)
@@ -304,7 +304,7 @@ echo '{"sessionId":"e2e-prev","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/stat
 
 # SessionStart should cleanup previous session state
 result=$(echo '{"hook_event_name":"SessionStart"}' | node scripts/tracker.cjs 2>/dev/null)
-check "Tracker/SessionStart (cleanup)" 'LATTICE.*Session' "$result"
+check "Tracker/SessionStart (cleanup)" 'NEXUS.*Session' "$result"
 
 # Verify previous session state files are cleaned up
 if [ -f .nexus/state/sessions/e2e-prev/nonstop.json ] || [ -f .nexus/state/sessions/e2e-prev/pipeline.json ]; then
@@ -387,6 +387,13 @@ else
   green "Consult (no state file)" && PASS=$((PASS + 1))
 fi
 
+# Consult additionalContext content verification
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[consult] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
+check "Consult (ASSESS step)" 'ASSESS' "$result"
+check "Consult (brownfield)" 'brownfield' "$result"
+check "Consult (EXECUTE BRIDGE)" 'EXECUTE BRIDGE' "$result"
+check "Consult (dimension tracking)" 'Goal' "$result"
+
 # --- 적응형 라우팅 테스트 ---
 echo ""
 echo "=== 적응형 라우팅 ==="
@@ -420,7 +427,7 @@ check "Routing (implement)" 'auto' "$result"
 # 에이전트 직접 언급 → override
 result=$(echo '{"prompt":"Builder으로 이 함수 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Routing (agent override)" 'builder' "$result"
-check "Routing (override format)" 'LATTICE' "$result"
+check "Routing (override format)" 'NEXUS' "$result"
 
 # 명시적 키워드는 라우팅보다 우선 ([nonstop] 태그)
 result=$(echo '{"prompt":"[nonstop] 이 버그 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null)
@@ -442,7 +449,7 @@ echo '{"prompt":"Builder으로 이 버그 고쳐줘"}' | node scripts/gate.cjs 2
 echo '{"prompt":"Builder으로 이 에러 수정해"}' | node scripts/gate.cjs 2>/dev/null > /dev/null
 result=$(echo '{"prompt":"이 버그 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "History (learned override)" 'builder' "$result"
-check "History (hint)" '히스토리' "$result"
+check "History (hint)" 'history-based' "$result"
 
 rm -f .nexus/routing-history.json
 

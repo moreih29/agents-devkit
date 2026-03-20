@@ -31,7 +31,7 @@ var PROJECT_ROOT = findProjectRoot();
 var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".nexus");
 var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
 function getPreset() {
-  const env = process.env.LATTICE_STATUSLINE;
+  const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
   if (env === "minimal" || env === "standard" || env === "full") return env;
   const presetFile = (0, import_path.join)(RUNTIME_ROOT, "statusline-preset.json");
   if ((0, import_fs.existsSync)(presetFile)) {

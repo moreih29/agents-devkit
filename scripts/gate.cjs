@@ -207,7 +207,7 @@ function handleUserPromptSubmit(event) {
     activatePrimitive("nonstop", sid);
     respond({
       continue: true,
-      additionalContext: `[LATTICE] auto mode ACTIVATED (session: ${sid}). Pipeline + Nonstop enabled.
+      additionalContext: `[NEXUS] auto mode ACTIVATED (session: ${sid}). Pipeline + Nonstop enabled.
 Execute these stages IN ORDER:
 1. Analyze \u2014 understand the codebase and request
 2. Plan \u2014 break into actionable steps
@@ -224,7 +224,7 @@ IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate 
     if (match.primitive === "init") {
       respond({
         continue: true,
-        additionalContext: `[LATTICE] Init mode activated. Follow the init workflow:
+        additionalContext: `[NEXUS] Init mode activated. Follow the init workflow:
 1. SCAN: Read project structure (top-level dirs, config files), CLAUDE.md, README.md, docs/, .claude/, and other .md files. Use git log for recent activity.
 2. TRIAGE: Classify each doc as Essential (\u2192 knowledge/), Useful (\u2192 knowledge/ condensed), Redundant (Nexus handles better), or Outdated (skip).
 3. PROPOSE: Present triage results to user via AskUserQuestion. Ask about CLAUDE.md slimming strategy and which knowledge files to generate.
@@ -237,13 +237,16 @@ IMPORTANT: Always backup before modifying. Never delete without user approval.`
     if (match.primitive === "consult") {
       respond({
         continue: true,
-        additionalContext: `[LATTICE] Consult mode activated. Follow the consult workflow:
-1. EXPLORE: Read relevant code, knowledge (nx_knowledge_read), and context (nx_context)
-2. DIVERGE: Generate 2-4 genuinely different approaches
-3. PROPOSE: Present options using AskUserQuestion with preview for concrete comparisons
-4. CONVERGE: Elaborate on chosen approach, ask follow-up if needed, produce concrete plan
-5. (OPTIONAL) EXECUTE: Offer to transition to auto/pipeline/manual
-Key: Ask specific questions with real choices, not vague "what do you think?". Max 2 rounds of questions.`
+        additionalContext: `[NEXUS] Consult mode activated. Follow the consult workflow:
+1. EXPLORE: Read code (nx_lsp_document_symbols, nx_ast_search for brownfield), knowledge (nx_knowledge_read), context (nx_context). Auto-detect brownfield vs greenfield.
+2. ASSESS: Evaluate 4 dimensions \u2014 [Goal: ?] [Constraints: ?] [Criteria: ?] [Context: ?]. Mark each \u2705/\u26A0\uFE0F/\u274C. If \u22641 unclear \u2192 lightweight mode. If \u22652 unclear \u2192 deep mode.
+3. CLARIFY (if unclear dimensions exist; 1-2 questions in lightweight, extended in deep): Ask ONE question at a time targeting the weakest dimension. Use perspective shifts naturally when needed.
+4. DIVERGE: Generate 2-4 genuinely different approaches with pros/cons/effort.
+5. PROPOSE: Present options via AskUserQuestion with preview for concrete comparisons.
+6. CONVERGE: Elaborate chosen approach, follow-up if needed, produce concrete plan.
+7. CRYSTALLIZE: Finalize plan. If unclear dimensions remain, disclose risks transparently \u2014 but never block the user.
+8. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Auto (recommended) / Pipeline / Plan only.
+Key: One question at a time. Specific choices, not vague "what do you think?". Respect user autonomy.`
       });
       return;
     }
@@ -251,7 +254,7 @@ Key: Ask specific questions with real choices, not vague "what do you think?". M
     activatePrimitive(match.primitive, sid);
     respond({
       continue: true,
-      additionalContext: `[LATTICE] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. IMPORTANT: Before finishing your response, you MUST call nx_state_clear({ key: "${match.primitive}" }) to deactivate. Do NOT attempt to stop without clearing state first.`
+      additionalContext: `[NEXUS] ${match.primitive} mode ACTIVATED (session: ${sid}). Do NOT stop until the task is fully complete. IMPORTANT: Before finishing your response, you MUST call nx_state_clear({ key: "${match.primitive}" }) to deactivate. Do NOT attempt to stop without clearing state first.`
     });
     return;
   }
@@ -384,7 +387,7 @@ function detectRouting(prompt) {
         break;
       }
     }
-    return `[LATTICE] \uC5D0\uC774\uC804\uD2B8 \uC9C0\uC815: nexus:${agentOverride}`;
+    return `[NEXUS] Agent specified: nexus:${agentOverride}. Delegate via Agent({ subagent_type: "nexus:${agentOverride}", prompt: "<task>" }).`;
   }
   const history = loadHistory();
   for (const rule of ROUTING_RULES) {
@@ -393,13 +396,13 @@ function detectRouting(prompt) {
       const agent = preferred ?? rule.agent;
       const workflow = rule.workflow;
       if (agent && workflow) {
-        const hint = preferred ? " (\uD788\uC2A4\uD1A0\uB9AC \uAE30\uBC18)" : "";
-        return `[LATTICE] ${rule.category} \u2192 nexus:${agent} + ${workflow} \uCD94\uCC9C${hint}`;
+        const hint = preferred ? " (history-based)" : "";
+        return `[NEXUS] Delegate to nexus:${agent} for ${rule.category}. Use Agent({ subagent_type: "nexus:${agent}", prompt: "<task>" }). Workflow: ${workflow}.${hint ? ` ${hint}` : ""}`;
       } else if (agent) {
-        const hint = preferred ? " (\uD788\uC2A4\uD1A0\uB9AC \uAE30\uBC18)" : "";
-        return `[LATTICE] ${rule.category} \u2192 nexus:${agent} \uCD94\uCC9C${hint}`;
+        const hint = preferred ? " (history-based)" : "";
+        return `[NEXUS] Delegate to nexus:${agent} for ${rule.category}. Use Agent({ subagent_type: "nexus:${agent}", prompt: "<task>" }).${hint ? ` ${hint}` : ""}`;
       } else if (workflow === "auto") {
-        return `[LATTICE] ${rule.category} \u2192 auto \uC6CC\uD06C\uD50C\uB85C\uC6B0 \uCD94\uCC9C (\uB300\uADDC\uBAA8 \uC791\uC5C5 \uC2DC)`;
+        return `[NEXUS] Large-scale implementation detected. Consider [auto] mode or delegate via Agent({ subagent_type: "nexus:builder", prompt: "<task>" }).`;
       }
     }
   }
@@ -439,7 +442,7 @@ var TASK_PATTERNS = [
 function detectTaskQuery(prompt) {
   for (const { patterns, tool, description } of TASK_PATTERNS) {
     if (patterns.some((p) => p.test(prompt))) {
-      return `[LATTICE] ${description}\uC744 \uD655\uC778\uD558\uB824\uBA74 ${tool}\uC744 \uD638\uCD9C\uD558\uC138\uC694.`;
+      return `[NEXUS] ${description}\uC744 \uD655\uC778\uD558\uB824\uBA74 ${tool}\uC744 \uD638\uCD9C\uD558\uC138\uC694.`;
     }
   }
   return null;
