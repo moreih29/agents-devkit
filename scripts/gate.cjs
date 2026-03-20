@@ -133,7 +133,8 @@ var EXPLICIT_TAGS = {
   pipeline: { primitive: "pipeline", skill: "nexus:pipeline" },
   auto: { primitive: "pipeline", skill: "nexus:auto" },
   consult: { primitive: "consult", skill: "nexus:consult" },
-  init: { primitive: "init", skill: "nexus:init" }
+  init: { primitive: "init", skill: "nexus:init" },
+  plan: { primitive: "plan", skill: "nexus:plan" }
 };
 var AUTO_PATTERNS = [/\bauto\b/i, /\bcruise\b/i, /자동으로\s*전부/, /end\s*to\s*end/i];
 var NATURAL_PATTERNS = [
@@ -156,10 +157,14 @@ var NATURAL_PATTERNS = [
   {
     patterns: [/\binit\b/i, /온보딩/, /nexus\s*설정/, /프로젝트\s*초기화/],
     match: { primitive: "init", skill: "nexus:init" }
+  },
+  {
+    patterns: [/계획\s*(세워|짜|수립)/, /\bplan\b/i, /구현\s*계획/, /설계해/, /어떻게\s*구현/, /plan\s*this/i],
+    match: { primitive: "plan", skill: "nexus:plan" }
   }
 ];
 var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-var PRIMITIVE_NAMES = /\b(nonstop|parallel|pipeline|auto)\b/i;
+var PRIMITIVE_NAMES = /\b(nonstop|parallel|pipeline|auto|plan)\b/i;
 function isPrimitiveMention(prompt) {
   return PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt);
 }
@@ -201,7 +206,16 @@ function handleUserPromptSubmit(event) {
     pass();
     return;
   }
-  if (detectAuto(prompt)) {
+  const isForced = /^force:\s*|^\[force\]\s*/i.test(prompt.trim());
+  const cleanPrompt = isForced ? prompt.trim().replace(/^force:\s*|^\[force\]\s*/i, "") : prompt;
+  if (detectAuto(cleanPrompt)) {
+    if (!isForced && !hasConcreteSignals(cleanPrompt)) {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] The request lacks concrete signals (file paths, identifiers, issue numbers, or structured steps). Consider using [plan] to create a detailed plan first, or prefix with "force:" to proceed anyway.`
+      });
+      return;
+    }
     const sid = getSessionId();
     activatePrimitive("pipeline", sid);
     activatePrimitive("nonstop", sid);
@@ -219,7 +233,7 @@ IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate 
     });
     return;
   }
-  const match = detectKeywords(prompt);
+  const match = detectKeywords(cleanPrompt);
   if (match) {
     if (match.primitive === "init") {
       respond({
@@ -250,6 +264,20 @@ Key: One question at a time. Specific choices, not vague "what do you think?". R
       });
       return;
     }
+    if (match.primitive === "plan") {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] Plan mode activated. Follow the plan workflow:
+1. ANALYZE: Analyze the request. Determine scale \u2014 small (1-3 files), medium (module-level), large (architecture/security/migration). Auto-escalate to large if request mentions auth, migration, delete, or security.
+2. DRAFT: Spawn Agent({ subagent_type: "nexus:strategist", prompt: "<full request context>" }) to create initial plan.
+3. REVIEW (medium+): Spawn Agent({ subagent_type: "nexus:architect", prompt: "Review this plan: <strategist output>" }) for structural review.
+4. CRITIQUE (large only): Spawn Agent({ subagent_type: "nexus:reviewer", prompt: "Critique this plan: <architect output>" }). If critical issues, loop back to DRAFT (max 3 iterations).
+5. PERSIST: Save plan to .claude/nexus/plans/{branch}.md. Present summary to user.
+6. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Auto (recommended) / Pipeline / Plan only.
+Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Scale determines formality. Small tasks need only a checklist, not a full ADR.`
+      });
+      return;
+    }
     const sid = getSessionId();
     activatePrimitive(match.primitive, sid);
     respond({
@@ -258,7 +286,7 @@ Key: One question at a time. Specific choices, not vague "what do you think?". R
     });
     return;
   }
-  const taskQuery = detectTaskQuery(prompt);
+  const taskQuery = detectTaskQuery(cleanPrompt);
   if (taskQuery) {
     respond({
       continue: true,
@@ -266,7 +294,7 @@ Key: One question at a time. Specific choices, not vague "what do you think?". R
     });
     return;
   }
-  const routing = detectRouting(prompt);
+  const routing = detectRouting(cleanPrompt);
   if (routing) {
     respond({
       continue: true,
@@ -275,6 +303,23 @@ Key: One question at a time. Specific choices, not vague "what do you think?". R
     return;
   }
   pass();
+}
+function hasConcreteSignals(prompt) {
+  const signals = [
+    /[a-zA-Z\/]+\.[a-z]{1,4}/,
+    // 파일 경로
+    /\b[a-z]+[A-Z][a-zA-Z]*\b/,
+    // camelCase
+    /\b[A-Z][a-z]+[A-Z][a-zA-Z]*\b/,
+    // PascalCase
+    /#\d+/,
+    // 이슈 번호
+    /^\s*\d+[\.\)]/m,
+    // 번호 매긴 단계
+    /plans?\//
+    // plan 문서 참조
+  ];
+  return signals.some((s) => s.test(prompt));
 }
 var AGENT_NAMES = [
   "finder",

@@ -167,7 +167,7 @@ rm -f .nexus/state/sessions/e2e-hook/pipeline.json
 
 # Gate: UserPromptSubmit (auto keyword) → pipeline + nonstop 동시 활성화
 rm -f .nexus/state/sessions/e2e-hook/pipeline.json .nexus/state/sessions/e2e-hook/nonstop.json
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"auto으로 진행해"}' | node scripts/gate.cjs 2>/dev/null)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"auto으로 src/hooks/gate.ts 리팩토링 진행해"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (auto)" 'auto mode ACTIVATED' "$result"
 # pipeline.json + nonstop.json 둘 다 생성됐는지 확인
 [ -f .nexus/state/sessions/e2e-hook/pipeline.json ] && [ -f .nexus/state/sessions/e2e-hook/nonstop.json ] && green "Gate/auto (dual state)" && PASS=$((PASS + 1)) || (red "Gate/auto (dual state)" && FAIL=$((FAIL + 1)))
@@ -393,6 +393,56 @@ check "Consult (ASSESS step)" 'ASSESS' "$result"
 check "Consult (brownfield)" 'brownfield' "$result"
 check "Consult (EXECUTE BRIDGE)" 'EXECUTE BRIDGE' "$result"
 check "Consult (dimension tracking)" 'Goal' "$result"
+
+# --- Plan 스킬 테스트 ---
+echo ""
+echo "=== Plan ==="
+
+# Gate: UserPromptSubmit (plan keyword)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] API 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (plan tag)" 'Plan mode' "$result"
+
+# Gate: UserPromptSubmit (plan natural language)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"계획 세워줘 게이트 훅 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (plan natural)" 'Plan mode' "$result"
+
+# Gate: UserPromptSubmit (plan natural 2)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"어떻게 구현할지 계획 짜줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (plan natural 2)" 'Plan mode' "$result"
+
+# Plan should NOT create state files
+if [ -f .nexus/state/sessions/e2e-hook/plan.json ]; then
+  red "Plan (no state file expected)" && FAIL=$((FAIL + 1))
+else
+  green "Plan (no state file)" && PASS=$((PASS + 1))
+fi
+
+# Plan additionalContext content verification
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
+check "Plan (consensus - strategist)" 'strategist' "$result"
+check "Plan (consensus - architect)" 'architect' "$result"
+check "Plan (EXECUTE BRIDGE)" 'EXECUTE BRIDGE' "$result"
+check "Plan (scale detection)" 'small' "$result"
+
+# --- Pre-Execution Gate 테스트 ---
+echo ""
+echo "=== Pre-Execution Gate ==="
+
+# 모호한 auto 요청 → plan 제안
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"auto 해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate (vague auto → plan suggestion)" 'plan' "$result"
+
+# 구체적 auto 요청 → 통과
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"auto으로 src/hooks/gate.ts 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate (concrete auto → activated)" 'ACTIVATED' "$result"
+
+# force: 접두사로 우회
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"force: auto 해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate (force: bypass)" 'ACTIVATED' "$result"
+
+# [force] 태그로 우회
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[force] auto 해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate ([force] bypass)" 'ACTIVATED' "$result"
 
 # --- 적응형 라우팅 테스트 ---
 echo ""
