@@ -286,8 +286,9 @@ Key: This is the standalone Plan skill — not the plan stage within auto. Scale
         additionalContext: `[NEXUS] Setup wizard activated. Guide the user through these steps IN ORDER using AskUserQuestion for each:
 1. STATUSLINE: Ask preset choice (Full recommended / Standard / Minimal / Skip). If chosen, write {"preset":"<choice>"} to .nexus/statusline-preset.json.
 2. DELEGATION: Ask enforcement level (Warn recommended / Strict / Off / Skip). If chosen, write {"delegationEnforcement":"<choice>"} to .nexus/config.json.
-3. INIT: Ask whether to run knowledge init (Yes recommended / Skip). If Yes, run the init workflow (SCAN→TRIAGE→PROPOSE→GENERATE→VERIFY).
-4. COMPLETE: Show summary of applied settings and brief intro to available skills/agents.
+3. DEFAULT MODE: Ask default execution mode (Off recommended / Auto / Nonstop / Skip). If chosen, add {"defaultMode":"<choice>"} to .nexus/config.json.
+4. INIT: Ask whether to run knowledge init (Yes recommended / Skip). If Yes, run the init workflow (SCAN→TRIAGE→PROPOSE→GENERATE→VERIFY).
+5. COMPLETE: Show summary of applied settings and brief intro to available skills/agents.
 Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip option.`,
       });
       return;
@@ -330,7 +331,49 @@ Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip 
     return;
   }
 
+  // defaultMode: 키워드/라우팅 매칭 없을 때 기본 모드 자동 활성화
+  const defaultMode = getDefaultMode();
+  if (defaultMode === 'auto') {
+    const sid = getSessionId();
+    activatePrimitive('pipeline', sid);
+    activatePrimitive('nonstop', sid);
+    respond({
+      continue: true,
+      additionalContext: `[NEXUS] auto mode ACTIVATED (defaultMode: auto). Pipeline + Nonstop enabled.
+Execute these stages IN ORDER:
+1. Analyze — understand the codebase and request
+2. Plan — break into actionable steps
+3. Implement — write code (use parallel Agent calls for independent tasks)
+4. Verify — run tests, type-check
+5. Review — review your own changes for correctness
+Update pipeline state with nx_state_write as you progress through stages.
+IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate all state at once.`,
+    });
+    return;
+  }
+  if (defaultMode === 'nonstop') {
+    const sid = getSessionId();
+    activatePrimitive('nonstop', sid);
+    respond({
+      continue: true,
+      additionalContext: `[NEXUS] nonstop mode ACTIVATED (defaultMode: nonstop). Do NOT stop until the task is fully complete. IMPORTANT: Before finishing, call nx_state_clear({ key: "nonstop" }) to deactivate.`,
+    });
+    return;
+  }
+
   pass();
+}
+
+function getDefaultMode(): 'off' | 'auto' | 'nonstop' {
+  const configPath = join(RUNTIME_ROOT, 'config.json');
+  if (existsSync(configPath)) {
+    try {
+      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+      const mode = config.defaultMode;
+      if (mode === 'auto' || mode === 'nonstop') return mode;
+    } catch { /* skip */ }
+  }
+  return 'off';
 }
 
 function hasConcreteSignals(prompt: string): boolean {
