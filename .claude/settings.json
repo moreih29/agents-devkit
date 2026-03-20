@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "oh-my-claudecode@omc": false,
+    "claude-nexus@nexus": true
+  },
+  "disabledMcpjsonServers": ["nx"]
+}

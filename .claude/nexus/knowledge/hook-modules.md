@@ -92,12 +92,15 @@ Tracker의 `agents.json`에서 활성 에이전트를 조회하고, 에이전트
 - **모든 세션**의 잔존 워크플로우 상태 정리 (`cleanupAllSessionStates` — resume, 비정상 종료, 벤치마크 잔존 등 방어)
 - 현재 브랜치의 plan 존재 확인
 - 이전 세션의 만료된 메모 정리 (TTL 체크)
+- **에이전트 위임 규칙 주입** (세션당 1회): `[NEXUS] routing context → delegate` 규칙을 additionalContext로 주입. 어떤 프로젝트에서든 플러그인 활성화만으로 위임 규칙 적용
 
 ### SessionEnd
 - 현재 세션의 활성 워크플로우 상태 파일 정리 (nonstop/pipeline/parallel)
 
 ### SubagentStart/Stop
 - `.nexus/state/sessions/{id}/agents.json`에 활성 에이전트 기록
+- **이름 정규화**: `normalizeAgentName()` — `nexus:`/`claude-nexus:` 접두사 제거 후 저장 (canonical form)
+- **중복 허용**: 동일 에이전트 복수 spawn 시 active 배열에 중복 push. Stop 시 첫 번째만 splice 제거
 - **SubagentStop 시 Parallel 자동 연동**: parallel.json의 해당 에이전트 태스크를 자동 done 처리, completedCount 증가, 전체 완료 시 자동 해제
 
 ## Phase별 최적화

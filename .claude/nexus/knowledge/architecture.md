@@ -112,10 +112,10 @@ claude-nexus/
 
 | 모듈 | 실행 방식 | 담당 이벤트 | 역할 |
 |------|-----------|-------------|------|
-| Gate | hooks.json (별도 프로세스) | Stop, UserPromptSubmit | Stop 차단, 키워드 감지, 적응형 라우팅 (v2 히스토리), 태스크 자연어 연동, 오탐 방지 |
+| Gate | hooks.json (별도 프로세스) | Stop, UserPromptSubmit | Stop 차단, 키워드 감지, 적응형 라우팅 (v2 히스토리), Pre-Execution Gate, 태스크 자연어 연동, 오탐 방지 |
 | Pulse | hooks.json (별도 프로세스) | PreToolUse | 컨텍스트 주입 (Whisper 패턴 + 워크플로우 diff 주입 + 에이전트별 수준 분기), Guard 내장 |
 | Memory | MCP 도구 (nx_* 호출 시) | 에이전트의 도구 호출 | knowledge, memo, state CRUD |
-| Tracker | hooks.json (별도 프로세스) | SubagentStart/Stop, Session | 에이전트/세션 추적 |
+| Tracker | hooks.json (별도 프로세스) | SubagentStart/Stop, Session | 에이전트/세션 추적, 위임 규칙 주입 (SessionStart) |
 | Guard | Pulse 내장 + nx_context | PreToolUse (Pulse 경유) | Context window 모니터링 |
 
 ## MCP 도구 (12개 Core + 10개 Code Intel)
