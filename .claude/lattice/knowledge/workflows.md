@@ -76,3 +76,12 @@ const implicit = detectNaturalKeywords(prompt);
 ```
 
 프리미티브가 3개뿐이므로 omc의 14개 패턴보다 오탐 확률이 훨씬 낮다.
+
+## 대화형 워크플로우
+
+### Consult (상담)
+- **기능**: 사용자의 진짜 의도를 파악하고 구조화된 선택지를 제공하는 발산→수렴 워크플로우
+- **키워드**: consult, 상담, 어떻게 하면 좋을까, 뭐가 좋을까, 방법을 찾아
+- **상태 파일 없음** — 대화형이므로 Gate 차단 불필요, 컨텍스트 주입만
+- **AskUserQuestion** 도구로 TUI 내 선택지 제공 (preview 지원)
+- 워크플로우: explore → diverge → propose → converge → (optional) execute

@@ -1,6 +1,6 @@
 # Lattice MCP 도구 API
 
-## Core 도구 (8개, 항상 활성)
+## Core 도구 (12개, 항상 활성)
 
 ### 상태 관리 (런타임, `.lattice/state/`)
 ```typescript
@@ -52,9 +52,16 @@ lat_context()
 | "이 세션/며칠만 기억하면 되는가?" | `lat_memo_write` | `.lattice/` (gitignore) |
 | "런타임 워크플로우 상태인가?" | `lat_state_write` | `.lattice/state/` (gitignore) |
 
-## Code Intelligence (별도 패키지: claude-lattice-code-intel)
+### 태스크 관리 (프로젝트 로컬, `.lattice/tasks/`)
+```typescript
+lat_task_create({ title: "인증 모듈 구현", description?: "...", tags?: ["auth"] })
+lat_task_list({ status?: "in_progress", tags?: ["auth"] })
+lat_task_update({ id: "eaba793e", status?: "done", title?, description?, tags? })
+lat_task_summary()
+// → { total, counts: { todo, in_progress, done, blocked }, inProgress, blocked }
+```
 
-`npm install claude-lattice-code-intel`로 opt-in.
+## Code Intelligence (lat 서버 통합)
 
 ### LSP 도구
 `lat_lsp_hover`, `lat_lsp_goto_definition`, `lat_lsp_find_references`, `lat_lsp_diagnostics`, `lat_lsp_rename`, `lat_lsp_code_actions`, `lat_lsp_document_symbols`, `lat_lsp_workspace_symbols`

@@ -112,16 +112,16 @@ claude-lattice/
 
 | 모듈 | 실행 방식 | 담당 이벤트 | 역할 |
 |------|-----------|-------------|------|
-| Gate | hooks.json (별도 프로세스) | Stop, UserPromptSubmit | Sustain/Parallel/Pipeline Stop 차단, 키워드 감지 (sustain/parallel/pipeline/cruise) |
+| Gate | hooks.json (별도 프로세스) | Stop, UserPromptSubmit | Sustain/Parallel/Pipeline Stop 차단, 키워드 감지 (sustain/parallel/pipeline/cruise/consult) |
 | Pulse | hooks.json (별도 프로세스) | PreToolUse, PostToolUse | 컨텍스트 주입 (Whisper 패턴 + 활성 워크플로우 상태 + 에이전트별 수준 분기), Guard 내장 |
 | Memory | MCP 도구 (lat_* 호출 시) | 에이전트의 도구 호출 | knowledge, memo, state CRUD |
 | Tracker | hooks.json (별도 프로세스) | SubagentStart/Stop, Session | 에이전트/세션 추적 |
 | Guard | Pulse 내장 + lat_context | PreToolUse (Pulse 경유) | Context window 모니터링 |
 
-## MCP 도구 (8개 Core + 10개 Code Intel)
+## MCP 도구 (12개 Core + 10개 Code Intel)
 
 ### Core
-`lat_state_read/write/clear`, `lat_knowledge_read/write`, `lat_memo_read/write`, `lat_context`
+`lat_state_read/write/clear`, `lat_knowledge_read/write`, `lat_memo_read/write`, `lat_context`, `lat_task_create/list/update/summary`
 
 ### Code Intelligence (lat 서버 통합)
 - LSP: `lat_lsp_hover`, `lat_lsp_goto_definition`, `lat_lsp_find_references`, `lat_lsp_diagnostics`, `lat_lsp_rename`, `lat_lsp_code_actions`, `lat_lsp_document_symbols`, `lat_lsp_workspace_symbols`
@@ -139,6 +139,7 @@ claude-lattice/
 | Pipeline | Pipeline | 단계별 순차 실행 |
 | Cruise | Pipeline + Sustain | 분석→계획→구현→검증→리뷰 전체 자동화 |
 | Sync Knowledge | — (유틸리티) | 소스 코드와 knowledge 문서 간 불일치 탐지 및 수정 |
+| Consult | — (대화형) | 발산→수렴 대화형 워크플로우, AskUserQuestion 활용 |
 
 ## 참조 문서
 
