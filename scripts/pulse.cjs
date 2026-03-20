@@ -116,9 +116,25 @@ function getActiveContextLevel(sid) {
     return "standard";
   }
 }
+function getDelegationEnforcement() {
+  const configPath = (0, import_path3.join)(RUNTIME_ROOT, "config.json");
+  if ((0, import_fs3.existsSync)(configPath)) {
+    try {
+      const config = JSON.parse((0, import_fs3.readFileSync)(configPath, "utf-8"));
+      const level = config.delegationEnforcement;
+      if (level === "off" || level === "warn" || level === "strict") return level;
+    } catch {
+    }
+  }
+  return "warn";
+}
+var ALLOWED_PATHS = [".nexus/", ".claude/nexus/", ".claude/settings", "CLAUDE.md", "test/"];
+function isAllowedPath(filePath) {
+  return ALLOWED_PATHS.some((p) => filePath.includes(p));
+}
 var MAX_REPEAT = 1;
 var ADAPTIVE_THRESHOLD = 60;
-function buildMessages(toolName, hookEvent, sid) {
+function buildMessages(toolName, hookEvent, sid, toolInput) {
   const messages = [];
   if (hookEvent === "PreToolUse" && toolName === "Bash") {
     messages.push({
@@ -179,6 +195,33 @@ function buildMessages(toolName, hookEvent, sid) {
     } catch {
     }
   }
+  if (hookEvent === "PreToolUse" && /^(Write|Edit|write|edit)$/.test(toolName)) {
+    const enforcement = getDelegationEnforcement();
+    if (enforcement !== "off") {
+      const filePath = toolInput?.file_path ?? "";
+      if (filePath && !isAllowedPath(filePath)) {
+        const routingPath = (0, import_path3.join)(sessionDir(sid), "routing.json");
+        if ((0, import_fs3.existsSync)(routingPath)) {
+          try {
+            const routing = JSON.parse((0, import_fs3.readFileSync)(routingPath, "utf-8"));
+            const agent = routing.agent ?? "unknown";
+            messages.push({
+              key: "delegation:routing_active",
+              priority: "safety",
+              text: `[NEXUS DELEGATION REMINDER] Routing directed delegation to nexus:${agent}. Use Agent({ subagent_type: "nexus:${agent}", prompt: "<task>" }) instead of editing files directly.`
+            });
+          } catch {
+          }
+        } else {
+          messages.push({
+            key: "delegation:write_edit_hint",
+            priority: "guidance",
+            text: "[NEXUS] Consider delegating implementation to an agent. See routing suggestions."
+          });
+        }
+      }
+    }
+  }
   if ((0, import_fs3.existsSync)(sustainPath)) {
     try {
       const state = JSON.parse((0, import_fs3.readFileSync)(sustainPath, "utf-8"));
@@ -212,6 +255,7 @@ async function main() {
   const event = JSON.parse(input);
   const hookEvent = event.hook_event_name ?? event.type ?? "";
   const toolName = event.tool_name ?? "";
+  const toolInput = event.tool_input ?? void 0;
   const sid = getSessionId();
   const sessDir = sessionDir(sid);
   if (!(0, import_fs3.existsSync)(sessDir)) {
@@ -222,7 +266,7 @@ async function main() {
   const contextLevel = getActiveContextLevel(sid);
   tracker.toolCallCount++;
   const adaptiveMinimal = tracker.toolCallCount > ADAPTIVE_THRESHOLD;
-  const messages = buildMessages(toolName, hookEvent, sid);
+  const messages = buildMessages(toolName, hookEvent, sid, toolInput);
   const workflowMessages = messages.filter((m) => m.priority === "workflow");
   const workflowHash = workflowMessages.map((m) => m.key).sort().join("|");
   const workflowChanged = workflowHash !== (tracker.lastWorkflowHash ?? "");
@@ -233,7 +277,7 @@ async function main() {
     if (contextLevel === "minimal" && msg.priority !== "safety" && msg.priority !== "workflow") continue;
     if (msg.priority === "workflow" && !workflowChanged) continue;
     const count = tracker.injections[msg.key] ?? 0;
-    if (count >= MAX_REPEAT) continue;
+    if (count >= MAX_REPEAT && msg.key !== "delegation:routing_active") continue;
     tracker.injections[msg.key] = count + 1;
     filtered.push(msg.text);
   }
@@ -263,6 +307,15 @@ async function main() {
     filtered.push(progressParts.join(" | "));
   }
   saveTracker(sid, tracker);
+  const hasDelegationWarning = messages.some((m) => m.key === "delegation:routing_active");
+  if (hasDelegationWarning && getDelegationEnforcement() === "strict") {
+    const routingMsg = messages.find((m) => m.key === "delegation:routing_active");
+    respond({
+      decision: "block",
+      reason: routingMsg?.text ?? "[NEXUS] Direct file editing is blocked while delegation routing is active."
+    });
+    return;
+  }
   if (filtered.length > 0) {
     respond({
       continue: true,

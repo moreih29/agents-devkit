@@ -1,7 +1,7 @@
 // Pulse 훅: PreToolUse/PostToolUse — Whisper 패턴 컨텍스트 주입 + Guard
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { sessionDir, ensureDir, statePath } from '../shared/paths.js';
+import { sessionDir, ensureDir, statePath, RUNTIME_ROOT } from '../shared/paths.js';
 import { getSessionId } from '../shared/session.js';
 import { join } from 'path';
 
@@ -68,6 +68,26 @@ function getActiveContextLevel(sid: string): ContextLevel {
   }
 }
 
+// --- Delegation Enforcement ---
+
+function getDelegationEnforcement(): 'off' | 'warn' | 'strict' {
+  const configPath = join(RUNTIME_ROOT, 'config.json');
+  if (existsSync(configPath)) {
+    try {
+      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+      const level = config.delegationEnforcement;
+      if (level === 'off' || level === 'warn' || level === 'strict') return level;
+    } catch { /* skip */ }
+  }
+  return 'warn';
+}
+
+const ALLOWED_PATHS = ['.nexus/', '.claude/nexus/', '.claude/settings', 'CLAUDE.md', 'test/'];
+
+function isAllowedPath(filePath: string): boolean {
+  return ALLOWED_PATHS.some(p => filePath.includes(p));
+}
+
 // --- Context Messages ---
 
 interface ContextMessage {
@@ -79,7 +99,7 @@ interface ContextMessage {
 const MAX_REPEAT = 1; // guidance는 1회만 주입 (토큰 절감)
 const ADAPTIVE_THRESHOLD = 60; // tool calls 이후 minimal 모드
 
-function buildMessages(toolName: string, hookEvent: string, sid: string): ContextMessage[] {
+function buildMessages(toolName: string, hookEvent: string, sid: string, toolInput?: Record<string, unknown>): ContextMessage[] {
   const messages: ContextMessage[] = [];
 
   // Guard: 안전 관련 (최우선)
@@ -149,6 +169,34 @@ function buildMessages(toolName: string, hookEvent: string, sid: string): Contex
     } catch { /* skip */ }
   }
 
+  // Delegation enforcement: Write/Edit 도구 사용 시 위임 리마인더
+  if (hookEvent === 'PreToolUse' && /^(Write|Edit|write|edit)$/.test(toolName)) {
+    const enforcement = getDelegationEnforcement();
+    if (enforcement !== 'off') {
+      const filePath = toolInput?.file_path ?? '';
+      if (filePath && !isAllowedPath(filePath)) {
+        const routingPath = join(sessionDir(sid), 'routing.json');
+        if (existsSync(routingPath)) {
+          try {
+            const routing = JSON.parse(readFileSync(routingPath, 'utf-8'));
+            const agent = routing.agent ?? 'unknown';
+            messages.push({
+              key: 'delegation:routing_active',
+              priority: 'safety',
+              text: `[NEXUS DELEGATION REMINDER] Routing directed delegation to nexus:${agent}. Use Agent({ subagent_type: "nexus:${agent}", prompt: "<task>" }) instead of editing files directly.`,
+            });
+          } catch { /* skip */ }
+        } else {
+          messages.push({
+            key: 'delegation:write_edit_hint',
+            priority: 'guidance',
+            text: '[NEXUS] Consider delegating implementation to an agent. See routing suggestions.',
+          });
+        }
+      }
+    }
+  }
+
   // 오류 복구 가이드: nonstop iteration이 80% 이상이면 경고
   if (existsSync(sustainPath)) {
     try {
@@ -187,6 +235,7 @@ async function main() {
   const event = JSON.parse(input);
   const hookEvent = event.hook_event_name ?? event.type ?? '';
   const toolName = event.tool_name ?? '';
+  const toolInput = (event.tool_input ?? undefined) as Record<string, unknown> | undefined;
 
   const sid = getSessionId();
 
@@ -205,7 +254,7 @@ async function main() {
   // adaptive 모드: 일정 도구 호출 이후 핵심 메시지만
   const adaptiveMinimal = tracker.toolCallCount > ADAPTIVE_THRESHOLD;
 
-  const messages = buildMessages(toolName, hookEvent, sid);
+  const messages = buildMessages(toolName, hookEvent, sid, toolInput);
 
   // 워크플로우 상태 변경 감지: 변경 없으면 workflow 메시지 스킵
   const workflowMessages = messages.filter(m => m.priority === 'workflow');
@@ -228,9 +277,9 @@ async function main() {
     // 워크플로우 메시지는 상태가 변경된 경우에만 주입
     if (msg.priority === 'workflow' && !workflowChanged) continue;
 
-    // 중복 방지: MAX_REPEAT 초과 시 건너뜀
+    // 중복 방지: MAX_REPEAT 초과 시 건너뜀 (routing_active safety는 매번 주입)
     const count = tracker.injections[msg.key] ?? 0;
-    if (count >= MAX_REPEAT) continue;
+    if (count >= MAX_REPEAT && msg.key !== 'delegation:routing_active') continue;
 
     tracker.injections[msg.key] = count + 1;
     filtered.push(msg.text);
@@ -267,6 +316,17 @@ async function main() {
   }
 
   saveTracker(sid, tracker);
+
+  // strict 모드: delegation 경고가 포함된 Write/Edit를 차단
+  const hasDelegationWarning = messages.some(m => m.key === 'delegation:routing_active');
+  if (hasDelegationWarning && getDelegationEnforcement() === 'strict') {
+    const routingMsg = messages.find(m => m.key === 'delegation:routing_active');
+    respond({
+      decision: 'block',
+      reason: routingMsg?.text ?? '[NEXUS] Direct file editing is blocked while delegation routing is active.',
+    });
+    return;
+  }
 
   if (filtered.length > 0) {
     respond({

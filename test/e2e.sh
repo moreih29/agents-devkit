@@ -487,6 +487,41 @@ check "Gate (force: bypass)" 'ACTIVATED' "$result"
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[force] auto 해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate ([force] bypass)" 'ACTIVATED' "$result"
 
+# --- 위임 강제 ---
+echo ""
+echo "=== 위임 강제 ==="
+
+rm -rf .nexus/state/sessions/e2e-hook
+mkdir -p .nexus/state/sessions/e2e-hook
+echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
+
+# routing.json이 있을 때 Write 도구 → 위임 리마인더
+echo '{"agent":"builder","issuedAt":1700000000}' > .nexus/state/sessions/e2e-hook/routing.json
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/foo.ts"}}' | node scripts/pulse.cjs 2>/dev/null)
+check "Pulse/delegation (routing active + Write)" 'DELEGATION' "$result"
+
+# 허용 경로는 경고 안 함
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":".nexus/config.json"}}' | node scripts/pulse.cjs 2>/dev/null)
+if echo "$result" | grep -q 'DELEGATION'; then
+  red "Pulse/delegation (allowed path leaked)" && FAIL=$((FAIL + 1))
+else
+  green "Pulse/delegation (allowed path OK)" && PASS=$((PASS + 1))
+fi
+
+# SubagentStart → routing.json 해제
+echo '{"hook_event_name":"SubagentStart","agent_type":"nexus:builder"}' | node scripts/tracker.cjs >/dev/null 2>&1
+if [ -f .nexus/state/sessions/e2e-hook/routing.json ]; then
+  red "Tracker/SubagentStart (routing not cleared)" && FAIL=$((FAIL + 1))
+else
+  green "Tracker/SubagentStart (routing cleared)" && PASS=$((PASS + 1))
+fi
+
+# SessionStart에 model 금지 지시 포함 확인
+result=$(echo '{"hook_event_name":"SessionStart"}' | node scripts/tracker.cjs 2>/dev/null)
+check "Tracker/SessionStart (model prohibition)" 'NEVER.*model' "$result"
+
+rm -f .nexus/state/sessions/e2e-hook/routing.json
+
 # --- 적응형 라우팅 ---
 echo ""
 echo "=== 적응형 라우팅 ==="

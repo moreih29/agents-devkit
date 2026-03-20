@@ -315,6 +315,13 @@ Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip 
   // 적응형 라우팅: 명시적 키워드 없을 때 요청 분류 → 에이전트/워크플로우 제안
   const routing = detectRouting(cleanPrompt);
   if (routing) {
+    // 라우팅 결과를 상태 파일로 기록 (Pulse가 참조)
+    const sid = getSessionId();
+    if (sid) {
+      const routingState = { agent: extractAgentFromRouting(routing), issuedAt: Date.now() };
+      ensureDir(sessionDir(sid));
+      writeFileSync(join(sessionDir(sid), 'routing.json'), JSON.stringify(routingState));
+    }
     respond({
       continue: true,
       additionalContext: routing,
@@ -448,6 +455,11 @@ function recordOverride(category: string, agent: string): void {
   if (!history.overrides[category]) history.overrides[category] = {};
   history.overrides[category][agent] = (history.overrides[category][agent] ?? 0) + 1;
   saveHistory(history);
+}
+
+function extractAgentFromRouting(routing: string): string {
+  const match = routing.match(/nexus:(\w+)/);
+  return match ? match[1] : 'unknown';
 }
 
 function detectRouting(prompt: string): string | null {

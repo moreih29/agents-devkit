@@ -80,7 +80,7 @@ function handleSessionStart(): void {
 
   respond({
     continue: true,
-    additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? 'found' : 'none'}. When [NEXUS] routing context is injected, delegate to the recommended agent via Agent({ subagent_type: "nexus:<agent>", prompt: "<task>" }). Handle directly: single-file lookups, simple questions, trivial edits. Delegate: multi-file changes, debugging, reviews, tests, analysis.`,
+    additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? 'found' : 'none'}. When [NEXUS] routing context is injected, delegate to the recommended agent via Agent({ subagent_type: "nexus:<agent>", prompt: "<task>" }). Handle directly: single-file lookups, simple questions, trivial edits. Delegate: multi-file changes, debugging, reviews, tests, analysis. NEVER pass a 'model' parameter when calling Agent(). Each agent's definition determines its model.`,
   });
 }
 
@@ -187,6 +187,12 @@ function handleSubagentStart(event: { agent_name?: string; agent_type?: string }
   record.active.push(name);
   record.history.push({ name, startedAt: new Date().toISOString() });
   saveAgents(sid, record);
+
+  // 위임이 시작되었으므로 routing.json 해제
+  const routingPath = join(sessionDir(sid), 'routing.json');
+  if (existsSync(routingPath)) {
+    try { unlinkSync(routingPath); } catch { /* skip */ }
+  }
 
   pass();
 }

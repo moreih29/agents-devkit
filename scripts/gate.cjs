@@ -312,6 +312,12 @@ Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip 
   }
   const routing = detectRouting(cleanPrompt);
   if (routing) {
+    const sid = getSessionId();
+    if (sid) {
+      const routingState = { agent: extractAgentFromRouting(routing), issuedAt: Date.now() };
+      ensureDir(sessionDir(sid));
+      (0, import_fs3.writeFileSync)((0, import_path3.join)(sessionDir(sid), "routing.json"), JSON.stringify(routingState));
+    }
     respond({
       continue: true,
       additionalContext: routing
@@ -438,6 +444,10 @@ function recordOverride(category, agent) {
   if (!history.overrides[category]) history.overrides[category] = {};
   history.overrides[category][agent] = (history.overrides[category][agent] ?? 0) + 1;
   saveHistory(history);
+}
+function extractAgentFromRouting(routing) {
+  const match = routing.match(/nexus:(\w+)/);
+  return match ? match[1] : "unknown";
 }
 function detectRouting(prompt) {
   const agentOverride = detectAgentOverride(prompt);

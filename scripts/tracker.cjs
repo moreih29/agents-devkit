@@ -128,7 +128,7 @@ function handleSessionStart() {
   }
   respond({
     continue: true,
-    additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? "found" : "none"}. When [NEXUS] routing context is injected, delegate to the recommended agent via Agent({ subagent_type: "nexus:<agent>", prompt: "<task>" }). Handle directly: single-file lookups, simple questions, trivial edits. Delegate: multi-file changes, debugging, reviews, tests, analysis.`
+    additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? "found" : "none"}. When [NEXUS] routing context is injected, delegate to the recommended agent via Agent({ subagent_type: "nexus:<agent>", prompt: "<task>" }). Handle directly: single-file lookups, simple questions, trivial edits. Delegate: multi-file changes, debugging, reviews, tests, analysis. NEVER pass a 'model' parameter when calling Agent(). Each agent's definition determines its model.`
   });
 }
 function handleSessionEnd() {
@@ -222,6 +222,13 @@ function handleSubagentStart(event) {
   record.active.push(name);
   record.history.push({ name, startedAt: (/* @__PURE__ */ new Date()).toISOString() });
   saveAgents(sid, record);
+  const routingPath = (0, import_path3.join)(sessionDir(sid), "routing.json");
+  if ((0, import_fs3.existsSync)(routingPath)) {
+    try {
+      (0, import_fs3.unlinkSync)(routingPath);
+    } catch {
+    }
+  }
   pass();
 }
 function handleSubagentStop(event) {
