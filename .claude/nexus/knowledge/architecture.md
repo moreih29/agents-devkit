@@ -123,7 +123,7 @@ claude-nexus/
 ### Core
 `nx_state_read/write/clear`, `nx_knowledge_read/write`, `nx_memo_read/write`, `nx_context`, `nx_task_create/list/update/summary`
 
-### Code Intelligence (lat 서버 통합)
+### Code Intelligence (nx 서버 통합)
 - LSP: `nx_lsp_hover`, `nx_lsp_goto_definition`, `nx_lsp_find_references`, `nx_lsp_diagnostics`, `nx_lsp_rename`, `nx_lsp_code_actions`, `nx_lsp_document_symbols`, `nx_lsp_workspace_symbols`
 - AST: `nx_ast_search`, `nx_ast_replace` (@ast-grep/napi, tree-sitter 기반)
 - 다언어 지원: TypeScript, Python, Rust, Go (자동 감지)
@@ -140,6 +140,7 @@ claude-nexus/
 | Auto | Pipeline + Nonstop | 분석→계획→구현→검증→리뷰 전체 자동화 |
 | Sync Knowledge | — (유틸리티) | 소스 코드와 knowledge 문서 간 불일치 탐지 및 수정 |
 | Consult | — (대화형) | 발산→수렴 대화형 워크플로우, AskUserQuestion 활용 |
+| Init | — (온보딩) | 기존 프로젝트에 Nexus 도입 시 knowledge 자동 생성 |
 
 ## 참조 문서
 

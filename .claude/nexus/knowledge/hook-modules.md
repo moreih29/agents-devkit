@@ -50,7 +50,7 @@ omc의 9단계 우선순위 → Nexus는 **프리미티브별 순차 체크**로
 
 ## Pulse 모듈
 
-PreToolUse/PostToolUse에서 컨텍스트 주입. Guard 기능 내장.
+PreToolUse에서 컨텍스트 주입. Guard 기능 내장. (PostToolUse는 성능 최적화로 제거됨)
 
 ### Whisper 패턴
 중복 방지 + 적응적 상세도를 위해 파일 기반 tracker 사용:

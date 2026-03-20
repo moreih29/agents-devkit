@@ -85,3 +85,9 @@ const implicit = detectNaturalKeywords(prompt);
 - **상태 파일 없음** — 대화형이므로 Gate 차단 불필요, 컨텍스트 주입만
 - **AskUserQuestion** 도구로 TUI 내 선택지 제공 (preview 지원)
 - 워크플로우: explore → diverge → propose → converge → (optional) execute
+
+### Init (온보딩)
+- **기능**: 기존 프로젝트에 Nexus 도입 시 기존 문서를 트리아지하여 knowledge 자동 생성
+- **키워드**: init, 온보딩, nexus 설정, 프로젝트 초기화
+- **상태 파일 없음** — 대화형 one-shot 프로세스
+- 워크플로우: SCAN → TRIAGE → PROPOSE → GENERATE → VERIFY
