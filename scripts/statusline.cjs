@@ -66,8 +66,8 @@ function makeBar(pct, width) {
 function coloredMeter(label, pct, width) {
   const color = getColor(pct);
   const bar = makeBar(pct, width);
-  const pctStr = String(Math.round(pct)).padStart(3);
-  return `${DIM}${label}${RESET} ${color}${bar} ${pctStr}%${RESET}`;
+  const pctStr = `${Math.round(pct)}%`;
+  return `${DIM}${label}${RESET} ${color}${bar} ${pctStr}${RESET}`;
 }
 function getSessionId() {
   const sessionFile = (0, import_path.join)(RUNTIME_ROOT, "state", "current-session.json");
@@ -136,21 +136,26 @@ function buildLine1() {
 }
 var USAGE_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".usage_cache");
 var CACHE_TTL_DEFAULT = 60;
-var CACHE_TTL_MAX = 240;
-function fetchOAuthUsage() {
+function triggerBackgroundFetch() {
   try {
-    let credJson = "";
+    let tokenCmd = "";
     if (process.platform === "darwin") {
-      credJson = (0, import_child_process.execSync)('security find-generic-password -s "Claude Code-credentials" -w', { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+      tokenCmd = `TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null | grep -o '"accessToken":"[^"]*"' | sed 's/"accessToken":"//;s/"//')`;
     } else {
       const credFile = (0, import_path.join)(process.env.HOME || "~", ".claude", ".credentials.json");
-      if ((0, import_fs.existsSync)(credFile)) credJson = (0, import_fs.readFileSync)(credFile, "utf-8");
+      tokenCmd = `TOKEN=$(grep -o '"accessToken":"[^"]*"' "${credFile}" 2>/dev/null | sed 's/"accessToken":"//;s/"//')`;
     }
-    const tokenMatch = credJson.match(/"accessToken"\s*:\s*"([^"]+)"/);
-    if (!tokenMatch) return null;
-    return (0, import_child_process.execSync)(`curl -s --max-time 1 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    const script = `
+      ${tokenCmd}
+      [ -z "$TOKEN" ] && exit 1
+      RESP=$(curl -s --max-time 3 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer $TOKEN" -H "anthropic-beta: oauth-2025-04-20" 2>/dev/null)
+      echo "$RESP" | grep -q "five_hour" && printf '%s\\n%s\\n%s\\n' "$(date +%s)" "${CACHE_TTL_DEFAULT}" "$RESP" > "${USAGE_CACHE_PATH}"
+    `;
+    require("child_process").spawn("sh", ["-c", script], {
+      stdio: "ignore",
+      detached: true
+    }).unref();
   } catch {
-    return null;
   }
 }
 function getUsage() {
@@ -164,32 +169,38 @@ function getUsage() {
       currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
       cachedData = lines[2] || "";
       if (now - cachedAt < currentTtl) {
-        return { json: cachedData, stale: currentTtl > CACHE_TTL_DEFAULT };
+        return { json: cachedData, stale: false };
       }
     } catch {
     }
   }
-  const resp = fetchOAuthUsage();
-  if (resp && resp.includes("five_hour")) {
-    const cacheContent = `${now}
+  triggerBackgroundFetch();
+  if (cachedData) {
+    return { json: cachedData, stale: true };
+  }
+  try {
+    let credJson = "";
+    if (process.platform === "darwin") {
+      credJson = (0, import_child_process.execSync)('security find-generic-password -s "Claude Code-credentials" -w', { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    } else {
+      const credFile = (0, import_path.join)(process.env.HOME || "~", ".claude", ".credentials.json");
+      if ((0, import_fs.existsSync)(credFile)) credJson = (0, import_fs.readFileSync)(credFile, "utf-8");
+    }
+    const tokenMatch = credJson.match(/"accessToken"\s*:\s*"([^"]+)"/);
+    if (tokenMatch) {
+      const resp = (0, import_child_process.execSync)(`curl -s --max-time 2 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+      if (resp && resp.includes("five_hour")) {
+        const cacheContent = `${now}
 ${CACHE_TTL_DEFAULT}
 ${resp}`;
-    try {
-      require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
-    } catch {
+        try {
+          require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
+        } catch {
+        }
+        return { json: resp, stale: false };
+      }
     }
-    return { json: resp, stale: false };
-  }
-  if (cachedData) {
-    const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
-    const cacheContent = `${now}
-${nextTtl}
-${cachedData}`;
-    try {
-      require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
-    } catch {
-    }
-    return { json: cachedData, stale: true };
+  } catch {
   }
   return null;
 }

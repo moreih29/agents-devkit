@@ -84,8 +84,8 @@ function makeBar(pct: number, width: number): string {
 function coloredMeter(label: string, pct: number, width: number): string {
   const color = getColor(pct);
   const bar = makeBar(pct, width);
-  const pctStr = String(Math.round(pct)).padStart(3);
-  return `${DIM}${label}${RESET} ${color}${bar} ${pctStr}%${RESET}`;
+  const pctStr = `${Math.round(pct)}%`;
+  return `${DIM}${label}${RESET} ${color}${bar} ${pctStr}${RESET}`;
 }
 
 // --- 세션 ID ---
@@ -173,20 +173,29 @@ const USAGE_CACHE_PATH = join(process.env.HOME || '~', '.claude', '.usage_cache'
 const CACHE_TTL_DEFAULT = 60;
 const CACHE_TTL_MAX = 240;
 
-function fetchOAuthUsage(): string | null {
+/** 백그라운드에서 OAuth API 호출 → 캐시 파일에 저장 (non-blocking) */
+function triggerBackgroundFetch(): void {
   try {
-    let credJson = '';
+    let tokenCmd = '';
     if (process.platform === 'darwin') {
-      credJson = execSync('security find-generic-password -s "Claude Code-credentials" -w', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+      tokenCmd = 'TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null | grep -o \'"accessToken":"[^"]*"\' | sed \'s/"accessToken":"//;s/"//\')';
     } else {
       const credFile = join(process.env.HOME || '~', '.claude', '.credentials.json');
-      if (existsSync(credFile)) credJson = readFileSync(credFile, 'utf-8');
+      tokenCmd = `TOKEN=$(grep -o '"accessToken":"[^"]*"' "${credFile}" 2>/dev/null | sed 's/"accessToken":"//;s/"//')`;
     }
-    const tokenMatch = credJson.match(/"accessToken"\s*:\s*"([^"]+)"/);
-    if (!tokenMatch) return null;
 
-    return execSync(`curl -s --max-time 1 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-  } catch { return null; }
+    // 백그라운드 셸에서 API 호출 → 성공 시 캐시 갱신
+    const script = `
+      ${tokenCmd}
+      [ -z "$TOKEN" ] && exit 1
+      RESP=$(curl -s --max-time 3 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer $TOKEN" -H "anthropic-beta: oauth-2025-04-20" 2>/dev/null)
+      echo "$RESP" | grep -q "five_hour" && printf '%s\\n%s\\n%s\\n' "$(date +%s)" "${CACHE_TTL_DEFAULT}" "$RESP" > "${USAGE_CACHE_PATH}"
+    `;
+    require('child_process').spawn('sh', ['-c', script], {
+      stdio: 'ignore',
+      detached: true,
+    }).unref();
+  } catch { /* skip */ }
 }
 
 function getUsage(): { json: string; stale: boolean } | null {
@@ -202,29 +211,41 @@ function getUsage(): { json: string; stale: boolean } | null {
       currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
       cachedData = lines[2] || '';
 
-      // TTL 이내: 캐시 반환 (backoff 중이면 stale)
+      // TTL 이내: 캐시 반환 (fresh)
       if (now - cachedAt < currentTtl) {
-        return { json: cachedData, stale: currentTtl > CACHE_TTL_DEFAULT };
+        return { json: cachedData, stale: false };
       }
     } catch { /* skip */ }
   }
 
-  // TTL 만료: API 호출 시도
-  const resp = fetchOAuthUsage();
-  if (resp && resp.includes('five_hour')) {
-    // 성공: TTL 기본값 복원
-    const cacheContent = `${now}\n${CACHE_TTL_DEFAULT}\n${resp}`;
-    try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
-    return { json: resp, stale: false };
-  }
+  // TTL 만료: 백그라운드에서 갱신 트리거 (non-blocking)
+  triggerBackgroundFetch();
 
-  // 실패: TTL 2배 증가 (60→120→240), stale 캐시 반환
+  // stale 캐시가 있으면 즉시 반환
   if (cachedData) {
-    const nextTtl = Math.min(currentTtl * 2, CACHE_TTL_MAX);
-    const cacheContent = `${now}\n${nextTtl}\n${cachedData}`;
-    try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
     return { json: cachedData, stale: true };
   }
+
+  // 캐시 없음 (최초 실행): 동기 호출 1회 (어쩔 수 없음)
+  try {
+    let credJson = '';
+    if (process.platform === 'darwin') {
+      credJson = execSync('security find-generic-password -s "Claude Code-credentials" -w', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    } else {
+      const credFile = join(process.env.HOME || '~', '.claude', '.credentials.json');
+      if (existsSync(credFile)) credJson = readFileSync(credFile, 'utf-8');
+    }
+    const tokenMatch = credJson.match(/"accessToken"\s*:\s*"([^"]+)"/);
+    if (tokenMatch) {
+      const resp = execSync(`curl -s --max-time 2 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+      if (resp && resp.includes('five_hour')) {
+        const cacheContent = `${now}\n${CACHE_TTL_DEFAULT}\n${resp}`;
+        try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
+        return { json: resp, stale: false };
+      }
+    }
+  } catch { /* skip */ }
+
   return null;
 }
 
