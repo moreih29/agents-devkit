@@ -217,7 +217,130 @@ Key: Ask specific questions with real choices, not vague "what do you think?". M
     return;
   }
 
+  // 적응형 라우팅: 명시적 키워드 없을 때 요청 분류 → 에이전트/워크플로우 제안
+  const routing = detectRouting(prompt);
+  if (routing) {
+    respond({
+      continue: true,
+      additionalContext: routing,
+    });
+    return;
+  }
+
   pass();
+}
+
+// --- 적응형 라우팅 ---
+
+const AGENT_NAMES = [
+  'scout', 'artisan', 'sentinel', 'tinker', 'steward', 'compass',
+  'strategist', 'lens', 'analyst', 'weaver', 'scribe',
+];
+
+interface RoutingRule {
+  category: string;
+  patterns: RegExp[];
+  agent?: string;
+  workflow?: string;
+}
+
+const ROUTING_RULES: RoutingRule[] = [
+  {
+    category: '버그 수정',
+    patterns: [/버그/, /고쳐/, /\bfix\b/i, /에러/, /\berror\b/i, /안\s*돼/, /안\s*됨/, /\bbug\b/i, /오류/, /문제.*해결/],
+    agent: 'tinker',
+    workflow: 'sustain',
+  },
+  {
+    category: '코드 리뷰',
+    patterns: [/리뷰/, /\breview\b/i, /봐\s*줘/, /검토/, /코드\s*확인/],
+    agent: 'lens',
+  },
+  {
+    category: '테스트',
+    patterns: [/테스트/, /\btest\b/i, /커버리지/, /\bcoverage\b/i, /검증\s*코드/],
+    agent: 'weaver',
+    workflow: 'sustain',
+  },
+  {
+    category: '리팩토링',
+    patterns: [/리팩토링/, /\brefactor\b/i, /정리/, /개선/, /클린\s*업/, /\bclean\s*up\b/i],
+    agent: 'artisan',
+    workflow: 'sustain',
+  },
+  {
+    category: '탐색/검색',
+    patterns: [/찾아/, /어디/, /\bsearch\b/i, /\bfind\b/i, /검색/, /위치/],
+    agent: 'scout',
+  },
+  {
+    category: '설계/아키텍처',
+    patterns: [/설계/, /아키텍처/, /구조/, /\bdesign\b/i, /\barchitect/i],
+    agent: 'compass',
+  },
+  {
+    category: '계획 수립',
+    patterns: [/계획/, /\bplan\b/i, /어떻게\s*진행/, /단계/, /로드맵/],
+    agent: 'strategist',
+  },
+  {
+    category: '분석',
+    patterns: [/분석/, /\banalyze?\b/i, /왜\s/, /원인/, /조사/, /\binvestigat/i],
+    agent: 'analyst',
+    workflow: 'sustain',
+  },
+  {
+    category: '문서',
+    patterns: [/문서/, /\bREADME\b/i, /\bdocs?\b/i, /가이드/, /주석/],
+    agent: 'scribe',
+  },
+  {
+    category: '대규모 구현',
+    patterns: [/구현/, /만들어/, /추가/, /\bimplement\b/i, /\bcreate\b/i, /새로운?\s*기능/],
+    workflow: 'cruise',
+  },
+];
+
+function detectRouting(prompt: string): string | null {
+  // 사용자가 에이전트를 직접 언급하면 해당 에이전트만 제안 (override)
+  const agentOverride = detectAgentOverride(prompt);
+  if (agentOverride) {
+    return `[LATTICE ROUTING] 에이전트 지정 감지: ${agentOverride}. Use the Agent tool to call lattice:${agentOverride} for this task.`;
+  }
+
+  // 카테고리 분류
+  for (const rule of ROUTING_RULES) {
+    if (rule.patterns.some((p) => p.test(prompt))) {
+      const parts: string[] = [`[LATTICE ROUTING] 이 요청은 "${rule.category}"으로 분류됩니다.`];
+
+      if (rule.agent && rule.workflow) {
+        parts.push(`추천: ${rule.agent} 에이전트 + ${rule.workflow} 모드.`);
+        parts.push(`이 추천을 따르려면 Agent 도구로 lattice:${rule.agent}를 호출하세요.`);
+      } else if (rule.agent) {
+        parts.push(`추천: ${rule.agent} 에이전트.`);
+        parts.push(`이 추천을 따르려면 Agent 도구로 lattice:${rule.agent}를 호출하세요.`);
+      } else if (rule.workflow === 'cruise') {
+        parts.push(`추천: cruise 워크플로우 (분석→계획→구현→검증→리뷰).`);
+        parts.push(`대규모 작업이라면 cruise를 고려하세요. 직접 처리해도 됩니다.`);
+      }
+
+      parts.push('다른 접근을 원하면 이 제안을 무시하세요.');
+      return parts.join('\n');
+    }
+  }
+
+  return null;
+}
+
+function detectAgentOverride(prompt: string): string | null {
+  const lower = prompt.toLowerCase();
+  for (const name of AGENT_NAMES) {
+    // "Scout로", "artisan으로", "Lens에게" 등 에이전트명 + 조사 패턴
+    if (new RegExp(`\\b${name}\\b`, 'i').test(lower)) {
+      return name;
+    }
+  }
+  return null;
 }
 
 // --- 메인 ---

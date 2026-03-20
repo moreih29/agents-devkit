@@ -227,7 +227,117 @@ Key: Ask specific questions with real choices, not vague "what do you think?". M
     });
     return;
   }
+  const routing = detectRouting(prompt);
+  if (routing) {
+    respond({
+      continue: true,
+      additionalContext: routing
+    });
+    return;
+  }
   pass();
+}
+var AGENT_NAMES = [
+  "scout",
+  "artisan",
+  "sentinel",
+  "tinker",
+  "steward",
+  "compass",
+  "strategist",
+  "lens",
+  "analyst",
+  "weaver",
+  "scribe"
+];
+var ROUTING_RULES = [
+  {
+    category: "\uBC84\uADF8 \uC218\uC815",
+    patterns: [/버그/, /고쳐/, /\bfix\b/i, /에러/, /\berror\b/i, /안\s*돼/, /안\s*됨/, /\bbug\b/i, /오류/, /문제.*해결/],
+    agent: "tinker",
+    workflow: "sustain"
+  },
+  {
+    category: "\uCF54\uB4DC \uB9AC\uBDF0",
+    patterns: [/리뷰/, /\breview\b/i, /봐\s*줘/, /검토/, /코드\s*확인/],
+    agent: "lens"
+  },
+  {
+    category: "\uD14C\uC2A4\uD2B8",
+    patterns: [/테스트/, /\btest\b/i, /커버리지/, /\bcoverage\b/i, /검증\s*코드/],
+    agent: "weaver",
+    workflow: "sustain"
+  },
+  {
+    category: "\uB9AC\uD329\uD1A0\uB9C1",
+    patterns: [/리팩토링/, /\brefactor\b/i, /정리/, /개선/, /클린\s*업/, /\bclean\s*up\b/i],
+    agent: "artisan",
+    workflow: "sustain"
+  },
+  {
+    category: "\uD0D0\uC0C9/\uAC80\uC0C9",
+    patterns: [/찾아/, /어디/, /\bsearch\b/i, /\bfind\b/i, /검색/, /위치/],
+    agent: "scout"
+  },
+  {
+    category: "\uC124\uACC4/\uC544\uD0A4\uD14D\uCC98",
+    patterns: [/설계/, /아키텍처/, /구조/, /\bdesign\b/i, /\barchitect/i],
+    agent: "compass"
+  },
+  {
+    category: "\uACC4\uD68D \uC218\uB9BD",
+    patterns: [/계획/, /\bplan\b/i, /어떻게\s*진행/, /단계/, /로드맵/],
+    agent: "strategist"
+  },
+  {
+    category: "\uBD84\uC11D",
+    patterns: [/분석/, /\banalyze?\b/i, /왜\s/, /원인/, /조사/, /\binvestigat/i],
+    agent: "analyst",
+    workflow: "sustain"
+  },
+  {
+    category: "\uBB38\uC11C",
+    patterns: [/문서/, /\bREADME\b/i, /\bdocs?\b/i, /가이드/, /주석/],
+    agent: "scribe"
+  },
+  {
+    category: "\uB300\uADDC\uBAA8 \uAD6C\uD604",
+    patterns: [/구현/, /만들어/, /추가/, /\bimplement\b/i, /\bcreate\b/i, /새로운?\s*기능/],
+    workflow: "cruise"
+  }
+];
+function detectRouting(prompt) {
+  const agentOverride = detectAgentOverride(prompt);
+  if (agentOverride) {
+    return `[LATTICE ROUTING] \uC5D0\uC774\uC804\uD2B8 \uC9C0\uC815 \uAC10\uC9C0: ${agentOverride}. Use the Agent tool to call lattice:${agentOverride} for this task.`;
+  }
+  for (const rule of ROUTING_RULES) {
+    if (rule.patterns.some((p) => p.test(prompt))) {
+      const parts = [`[LATTICE ROUTING] \uC774 \uC694\uCCAD\uC740 "${rule.category}"\uC73C\uB85C \uBD84\uB958\uB429\uB2C8\uB2E4.`];
+      if (rule.agent && rule.workflow) {
+        parts.push(`\uCD94\uCC9C: ${rule.agent} \uC5D0\uC774\uC804\uD2B8 + ${rule.workflow} \uBAA8\uB4DC.`);
+        parts.push(`\uC774 \uCD94\uCC9C\uC744 \uB530\uB974\uB824\uBA74 Agent \uB3C4\uAD6C\uB85C lattice:${rule.agent}\uB97C \uD638\uCD9C\uD558\uC138\uC694.`);
+      } else if (rule.agent) {
+        parts.push(`\uCD94\uCC9C: ${rule.agent} \uC5D0\uC774\uC804\uD2B8.`);
+        parts.push(`\uC774 \uCD94\uCC9C\uC744 \uB530\uB974\uB824\uBA74 Agent \uB3C4\uAD6C\uB85C lattice:${rule.agent}\uB97C \uD638\uCD9C\uD558\uC138\uC694.`);
+      } else if (rule.workflow === "cruise") {
+        parts.push(`\uCD94\uCC9C: cruise \uC6CC\uD06C\uD50C\uB85C\uC6B0 (\uBD84\uC11D\u2192\uACC4\uD68D\u2192\uAD6C\uD604\u2192\uAC80\uC99D\u2192\uB9AC\uBDF0).`);
+        parts.push(`\uB300\uADDC\uBAA8 \uC791\uC5C5\uC774\uB77C\uBA74 cruise\uB97C \uACE0\uB824\uD558\uC138\uC694. \uC9C1\uC811 \uCC98\uB9AC\uD574\uB3C4 \uB429\uB2C8\uB2E4.`);
+      }
+      parts.push("\uB2E4\uB978 \uC811\uADFC\uC744 \uC6D0\uD558\uBA74 \uC774 \uC81C\uC548\uC744 \uBB34\uC2DC\uD558\uC138\uC694.");
+      return parts.join("\n");
+    }
+  }
+  return null;
+}
+function detectAgentOverride(prompt) {
+  const lower = prompt.toLowerCase();
+  for (const name of AGENT_NAMES) {
+    if (new RegExp(`\\b${name}\\b`, "i").test(lower)) {
+      return name;
+    }
+  }
+  return null;
 }
 async function main() {
   const input = await readStdin();
