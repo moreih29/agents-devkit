@@ -134,7 +134,8 @@ var EXPLICIT_TAGS = {
   auto: { primitive: "pipeline", skill: "nexus:auto" },
   consult: { primitive: "consult", skill: "nexus:consult" },
   init: { primitive: "init", skill: "nexus:init" },
-  plan: { primitive: "plan", skill: "nexus:plan" }
+  plan: { primitive: "plan", skill: "nexus:plan" },
+  setup: { primitive: "setup", skill: "nexus:setup" }
 };
 var AUTO_PATTERNS = [/\bauto\b/i, /\bcruise\b/i, /자동으로\s*전부/, /end\s*to\s*end/i];
 var NATURAL_PATTERNS = [
@@ -155,16 +156,20 @@ var NATURAL_PATTERNS = [
     match: { primitive: "consult", skill: "nexus:consult" }
   },
   {
-    patterns: [/\binit\b/i, /온보딩/, /nexus\s*설정/, /프로젝트\s*초기화/],
+    patterns: [/\binit\b/i, /온보딩/, /프로젝트\s*초기화/],
     match: { primitive: "init", skill: "nexus:init" }
   },
   {
     patterns: [/계획\s*(세워|짜|수립)/, /\bplan\b/i, /구현\s*계획/, /설계해/, /어떻게\s*구현/, /plan\s*this/i],
     match: { primitive: "plan", skill: "nexus:plan" }
+  },
+  {
+    patterns: [/\bsetup\b/i, /nexus\s*설정/, /nexus\s*세팅/, /setup\s*nexus/i],
+    match: { primitive: "setup", skill: "nexus:setup" }
   }
 ];
 var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-var PRIMITIVE_NAMES = /\b(nonstop|parallel|pipeline|auto|plan)\b/i;
+var PRIMITIVE_NAMES = /\b(nonstop|parallel|pipeline|auto|plan|setup)\b/i;
 function isPrimitiveMention(prompt) {
   return PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt);
 }
@@ -275,6 +280,17 @@ Key: One question at a time. Specific choices, not vague "what do you think?". R
 5. PERSIST: Save plan to .claude/nexus/plans/{branch}.md. Present summary to user.
 6. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Auto (recommended) / Pipeline / Plan only.
 Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Scale determines formality. Small tasks need only a checklist, not a full ADR.`
+      });
+      return;
+    }
+    if (match.primitive === "setup") {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] Setup wizard activated. Guide the user through these steps IN ORDER using AskUserQuestion for each:
+1. STATUSLINE: Ask preset choice (Full recommended / Standard / Minimal / Skip). If chosen, write {"preset":"<choice>"} to .nexus/statusline-preset.json.
+2. INIT: Ask whether to run knowledge init (Yes recommended / Skip). If Yes, run the init workflow (SCAN\u2192TRIAGE\u2192PROPOSE\u2192GENERATE\u2192VERIFY).
+3. COMPLETE: Show summary of applied settings and brief intro to available skills/agents.
+Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip option.`
       });
       return;
     }

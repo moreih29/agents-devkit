@@ -416,6 +416,28 @@ check "Consult (brownfield)" 'brownfield' "$result"
 check "Consult (EXECUTE BRIDGE)" 'EXECUTE BRIDGE' "$result"
 check "Consult (dimension tracking)" 'Goal' "$result"
 
+# --- Setup 스킬 테스트 ---
+echo ""
+echo "=== Setup ==="
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[setup] nexus 세팅하자"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (setup tag)" 'Setup wizard' "$result"
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"nexus 설정해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (setup natural)" 'Setup wizard' "$result"
+
+# Setup should NOT create state files
+if [ -f .nexus/state/sessions/e2e-hook/setup.json ]; then
+  red "Setup (no state file expected)" && FAIL=$((FAIL + 1))
+else
+  green "Setup (no state file)" && PASS=$((PASS + 1))
+fi
+
+# Setup additionalContext content verification
+check "Setup (STATUSLINE step)" 'STATUSLINE' "$result"
+check "Setup (INIT step)" 'INIT' "$result"
+check "Setup (AskUserQuestion)" 'AskUserQuestion' "$result"
+
 # --- Plan 스킬 테스트 ---
 echo ""
 echo "=== Plan ==="
