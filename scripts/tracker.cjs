@@ -98,19 +98,6 @@ function handleSessionStart() {
   }
   const planFile = (0, import_path3.join)(KNOWLEDGE_ROOT, "plans", `${branch.replace(/\//g, "--")}.md`);
   const hasPlan = (0, import_fs3.existsSync)(planFile);
-  const memoPath = (0, import_path3.join)(RUNTIME_ROOT, "memo");
-  if ((0, import_fs3.existsSync)(memoPath)) {
-    for (const file of (0, import_fs3.readdirSync)(memoPath).filter((f) => f.endsWith(".json"))) {
-      try {
-        const entry = JSON.parse((0, import_fs3.readFileSync)((0, import_path3.join)(memoPath, file), "utf-8"));
-        const ttlMs = entry.ttl === "week" ? 7 * 864e5 : 864e5;
-        if (Date.now() - new Date(entry.createdAt).getTime() > ttlMs) {
-          (0, import_fs3.unlinkSync)((0, import_path3.join)(memoPath, file));
-        }
-      } catch {
-      }
-    }
-  }
   const tasksPath = (0, import_path3.join)(KNOWLEDGE_ROOT, "tasks");
   if ((0, import_fs3.existsSync)(tasksPath)) {
     const DONE_TTL = 7 * 864e5;
@@ -133,13 +120,17 @@ function handleSessionStart() {
 }
 function handleSessionEnd() {
   const sid = getSessionId();
-  generateSessionSummary(sid);
+  const summary = generateSessionSummary(sid);
   cleanupSessionState(sid);
-  pass();
+  if (summary) {
+    respond({ continue: true, additionalContext: summary });
+  } else {
+    pass();
+  }
 }
 function generateSessionSummary(sid) {
   const dir = sessionDir(sid);
-  if (!(0, import_fs3.existsSync)(dir)) return;
+  if (!(0, import_fs3.existsSync)(dir)) return null;
   try {
     const parts = [`Session ${sid} summary:`];
     let hasActivity = false;
@@ -172,24 +163,10 @@ function generateSessionSummary(sid) {
         parts.push(`Duration: ${hh > 0 ? `${hh}h${mm}m` : `${mm}m`}`);
       }
     }
-    if (!hasActivity) return;
-    const memoPath = (0, import_path3.join)(RUNTIME_ROOT, "memo");
-    if (!(0, import_fs3.existsSync)(memoPath)) {
-      try {
-        require("fs").mkdirSync(memoPath, { recursive: true });
-      } catch {
-        return;
-      }
-    }
-    const memoId = `${Date.now()}-summary`;
-    const memo = {
-      content: parts.join("\n"),
-      ttl: "day",
-      tags: ["session-summary"],
-      createdAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    (0, import_fs3.writeFileSync)((0, import_path3.join)(memoPath, `${memoId}.json`), JSON.stringify(memo, null, 2));
+    if (!hasActivity) return null;
+    return parts.join("\n");
   } catch {
+    return null;
   }
 }
 function cleanupAllSessionStates() {
@@ -219,15 +196,9 @@ function cleanupAllSessionStates() {
 function cleanupSessionState(sid) {
   const dir = sessionDir(sid);
   if (!(0, import_fs3.existsSync)(dir)) return;
-  const workflowKeys = ["nonstop", "pipeline", "parallel"];
-  for (const key of workflowKeys) {
-    const path = (0, import_path3.join)(dir, `${key}.json`);
-    if ((0, import_fs3.existsSync)(path)) {
-      try {
-        (0, import_fs3.unlinkSync)(path);
-      } catch {
-      }
-    }
+  try {
+    (0, import_fs3.rmSync)(dir, { recursive: true, force: true });
+  } catch {
   }
 }
 function handleSubagentStart(event) {

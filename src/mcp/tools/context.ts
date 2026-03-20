@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { existsSync } from 'fs';
-import { readFile, readdir } from 'fs/promises';
-import { sessionDir, RUNTIME_ROOT } from '../../shared/paths.js';
+import { readFile } from 'fs/promises';
+import { sessionDir } from '../../shared/paths.js';
 import { getSessionId } from '../../shared/session.js';
 import { execSync } from 'child_process';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -54,19 +54,11 @@ export function registerContextTool(server: McpServer): void {
         }
       }
 
-      // 메모 수
-      const memoPath = `${RUNTIME_ROOT}/memo`;
-      let memoCount = 0;
-      if (existsSync(memoPath)) {
-        memoCount = (await readdir(memoPath)).filter((f) => f.endsWith('.json')).length;
-      }
-
       const result = {
         sessionId,
         branch: getCurrentBranch(),
         activeMode,
         agents,
-        memoCount,
       };
 
       return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };

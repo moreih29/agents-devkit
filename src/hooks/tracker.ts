@@ -1,6 +1,6 @@
 // Tracker 훅: SubagentStart/Stop, SessionStart/End — 에이전트/세션 추적
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync, rmdirSync, statSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync, rmdirSync, rmSync, statSync } from 'fs';
 import { sessionDir, ensureDir, RUNTIME_ROOT, KNOWLEDGE_ROOT } from '../shared/paths.js';
 import { getSessionId, createSession } from '../shared/session.js';
 import { join } from 'path';
@@ -48,20 +48,6 @@ function handleSessionStart(): void {
   const planFile = join(KNOWLEDGE_ROOT, 'plans', `${branch.replace(/\//g, '--')}.md`);
   const hasPlan = existsSync(planFile);
 
-  // 만료된 메모 정리
-  const memoPath = join(RUNTIME_ROOT, 'memo');
-  if (existsSync(memoPath)) {
-    for (const file of readdirSync(memoPath).filter((f) => f.endsWith('.json'))) {
-      try {
-        const entry = JSON.parse(readFileSync(join(memoPath, file), 'utf-8'));
-        const ttlMs = entry.ttl === 'week' ? 7 * 86400000 : 86400000;
-        if (Date.now() - new Date(entry.createdAt).getTime() > ttlMs) {
-          unlinkSync(join(memoPath, file));
-        }
-      } catch { /* skip corrupt files */ }
-    }
-  }
-
   // 완료된 task 중 7일 이상 경과한 것 삭제
   const tasksPath = join(KNOWLEDGE_ROOT, 'tasks');
   if (existsSync(tasksPath)) {
@@ -90,16 +76,21 @@ function handleSessionEnd(): void {
   const sid = getSessionId();
 
   // 세션 요약 리포트 생성
-  generateSessionSummary(sid);
+  const summary = generateSessionSummary(sid);
 
   cleanupSessionState(sid);
-  pass();
+
+  if (summary) {
+    respond({ continue: true, additionalContext: summary });
+  } else {
+    pass();
+  }
 }
 
-/** 세션 종료 시 활동 요약을 memo에 저장 */
-function generateSessionSummary(sid: string): void {
+/** 세션 종료 시 활동 요약 텍스트를 반환 */
+function generateSessionSummary(sid: string): string | null {
   const dir = sessionDir(sid);
-  if (!existsSync(dir)) return;
+  if (!existsSync(dir)) return null;
 
   try {
     const parts: string[] = [`Session ${sid} summary:`];
@@ -137,20 +128,10 @@ function generateSessionSummary(sid: string): void {
       }
     }
 
-    if (!hasActivity) return; // 에이전트/도구 활동 없으면 요약 생략
+    if (!hasActivity) return null;
 
-    // memo에 저장
-    const memoPath = join(RUNTIME_ROOT, 'memo');
-    if (!existsSync(memoPath)) { try { require('fs').mkdirSync(memoPath, { recursive: true }); } catch { return; } }
-    const memoId = `${Date.now()}-summary`;
-    const memo = {
-      content: parts.join('\n'),
-      ttl: 'day',
-      tags: ['session-summary'],
-      createdAt: new Date().toISOString(),
-    };
-    writeFileSync(join(memoPath, `${memoId}.json`), JSON.stringify(memo, null, 2));
-  } catch { /* skip */ }
+    return parts.join('\n');
+  } catch { return null; }
 }
 
 /** 모든 세션의 워크플로우 상태 정리 + 오래된 빈 세션 삭제 (SessionStart 시 호출) */
@@ -181,18 +162,12 @@ function cleanupAllSessionStates(): void {
   } catch { /* skip */ }
 }
 
-/** 세션 디렉토리의 활성 워크플로우 상태 파일 정리 */
+/** 세션 디렉토리 전체 삭제 */
 function cleanupSessionState(sid: string): void {
   const dir = sessionDir(sid);
   if (!existsSync(dir)) return;
 
-  const workflowKeys = ['nonstop', 'pipeline', 'parallel'];
-  for (const key of workflowKeys) {
-    const path = join(dir, `${key}.json`);
-    if (existsSync(path)) {
-      try { unlinkSync(path); } catch { /* skip */ }
-    }
-  }
+  try { rmSync(dir, { recursive: true, force: true }); } catch { /* skip */ }
 }
 
 // --- Subagent Start ---

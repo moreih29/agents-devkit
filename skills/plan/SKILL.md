@@ -165,15 +165,7 @@ AskUserQuestion({
 
 ## State Management
 
-진행 상태가 필요하면 `nx_memo_write`로 메모:
-
-```
-nx_memo_write({
-  content: "Plan: auth 리팩토링 계획 완료 - .claude/nexus/plans/feature-auth.md",
-  tags: ["plan"],
-  ttl: "week"
-})
-```
+Plan은 상태 파일 없이 동작합니다.
 
 ## Deactivation
 

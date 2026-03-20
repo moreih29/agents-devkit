@@ -156,16 +156,7 @@ options:
 
 ## State Management
 
-Consult는 nonstop 없이 동작합니다. 대화형이므로 Gate 차단이 필요 없습니다.
-진행 상태 추적이 필요하면 `nx_memo_write`로 메모:
-
-```
-nx_memo_write({
-  content: "Consult: auth 모듈 설계 - Option B (JWT) 선택, 구현 대기 중",
-  tags: ["consult"],
-  ttl: "day"
-})
-```
+Consult는 상태 파일 없이 동작합니다.
 
 ## Deactivation
 

@@ -139,12 +139,6 @@ check "nx_knowledge_read" 'Nexus' "$result"
 result=$(mcp_call "nx_knowledge_read" '{}')
 check "nx_knowledge_read (list)" '"topics"' "$result"
 
-result=$(mcp_call "nx_memo_write" '{"content":"E2E test memo","ttl":"session","tags":["test"]}')
-check "nx_memo_write" '"success":true' "$result"
-
-result=$(mcp_call "nx_memo_read" '{"tags":["test"]}')
-check "nx_memo_read" 'E2E test memo' "$result"
-
 result=$(mcp_call "nx_context" '{}')
 check "nx_context" '"branch"' "$result"
 check "nx_context (sessionId)" '"sessionId"' "$result"
@@ -369,10 +363,10 @@ echo '{"active":true,"maxIterations":100,"currentIteration":0}' > ".nexus/state/
 result=$(echo '{"hook_event_name":"SessionEnd"}' | node scripts/tracker.cjs 2>/dev/null)
 check "Tracker/SessionEnd (cleanup)" '"continue":true' "$result"
 
-if [ -f ".nexus/state/sessions/${NEW_SID}/nonstop.json" ]; then
-  red "SessionEnd (state not cleaned)" && FAIL=$((FAIL + 1))
+if [ -d ".nexus/state/sessions/${NEW_SID}" ]; then
+  red "SessionEnd (session dir not deleted)" && FAIL=$((FAIL + 1))
 else
-  green "SessionEnd (state cleaned)" && PASS=$((PASS + 1))
+  green "SessionEnd (session dir deleted)" && PASS=$((PASS + 1))
 fi
 
 mkdir -p .nexus/state/sessions/e2e-old1 .nexus/state/sessions/e2e-old2
@@ -608,7 +602,7 @@ fi
 rm -f "$CI_RESULT"
 
 # Cleanup — 테스트 세션 제거 + 원본 세션 복원
-rm -rf .nexus/state/sessions/e2e-hook .nexus/state/sessions/e2e-auto .nexus/state/sessions/e2e-test .nexus/state/sessions/e2e-prev .nexus/state/sessions/e2e-old1 .nexus/state/sessions/e2e-old2 .nexus/memo/*e2e* 2>/dev/null
+rm -rf .nexus/state/sessions/e2e-hook .nexus/state/sessions/e2e-auto .nexus/state/sessions/e2e-test .nexus/state/sessions/e2e-prev .nexus/state/sessions/e2e-old1 .nexus/state/sessions/e2e-old2 2>/dev/null
 if [ -n "$ORIG_SESSION" ]; then
   echo "$ORIG_SESSION" > .nexus/state/current-session.json
 else

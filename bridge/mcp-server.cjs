@@ -21015,9 +21015,6 @@ function statePath(sessionId, key) {
 function knowledgePath(topic) {
   return (0, import_path.join)(KNOWLEDGE_ROOT, "knowledge", `${topic}.md`);
 }
-function memoDir() {
-  return (0, import_path.join)(RUNTIME_ROOT, "memo");
-}
 function ensureDir(dir) {
   if (!(0, import_fs.existsSync)(dir)) {
     (0, import_fs.mkdirSync)(dir, { recursive: true });
@@ -21190,87 +21187,9 @@ ${content}`;
   );
 }
 
-// src/mcp/tools/memo.ts
+// src/mcp/tools/context.ts
 var import_fs5 = require("fs");
 var import_promises3 = require("fs/promises");
-var import_path4 = require("path");
-var TTL_VALUES = ["session", "day", "week"];
-function ttlMs(ttl) {
-  switch (ttl) {
-    case "session":
-      return 24 * 60 * 60 * 1e3;
-    // 24h (세션 근사치)
-    case "day":
-      return 24 * 60 * 60 * 1e3;
-    case "week":
-      return 7 * 24 * 60 * 60 * 1e3;
-  }
-}
-function isExpired(entry) {
-  const age = Date.now() - new Date(entry.createdAt).getTime();
-  return age > ttlMs(entry.ttl);
-}
-function registerMemoTools(server2) {
-  server2.tool(
-    "nx_memo_read",
-    "Read session memos (volatile, gitignored). For short-term progress tracking.",
-    {
-      ttl: external_exports.enum(TTL_VALUES).optional().describe("Filter by TTL"),
-      tags: external_exports.array(external_exports.string()).optional().describe("Filter by tags")
-    },
-    async ({ ttl, tags }) => {
-      const dir = memoDir();
-      if (!(0, import_fs5.existsSync)(dir)) {
-        return { content: [{ type: "text", text: JSON.stringify({ memos: [] }) }] };
-      }
-      const files = (await (0, import_promises3.readdir)(dir)).filter((f) => f.endsWith(".json"));
-      const memos = [];
-      for (const file of files) {
-        try {
-          const entry = JSON.parse(await (0, import_promises3.readFile)((0, import_path4.join)(dir, file), "utf-8"));
-          if (isExpired(entry)) {
-            await (0, import_promises3.unlink)((0, import_path4.join)(dir, file));
-            continue;
-          }
-          if (ttl && entry.ttl !== ttl) continue;
-          if (tags && tags.length > 0) {
-            const matched = tags.some((t) => entry.tags.includes(t));
-            if (!matched) continue;
-          }
-          memos.push({ ...entry, id: file.replace(".json", "") });
-        } catch {
-        }
-      }
-      return { content: [{ type: "text", text: JSON.stringify({ memos }) }] };
-    }
-  );
-  server2.tool(
-    "nx_memo_write",
-    "Write a session memo (volatile). Use for progress notes, temporary context.",
-    {
-      content: external_exports.string().describe("Memo content"),
-      ttl: external_exports.enum(TTL_VALUES).default("session").describe("Time-to-live: session (24h), day, week"),
-      tags: external_exports.array(external_exports.string()).default([]).describe("Tags for filtering")
-    },
-    async ({ content, ttl, tags }) => {
-      const dir = memoDir();
-      ensureDir(dir);
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const entry = {
-        content,
-        ttl,
-        tags,
-        createdAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      await (0, import_promises3.writeFile)((0, import_path4.join)(dir, `${id}.json`), JSON.stringify(entry, null, 2));
-      return { content: [{ type: "text", text: JSON.stringify({ success: true, id, ttl }) }] };
-    }
-  );
-}
-
-// src/mcp/tools/context.ts
-var import_fs6 = require("fs");
-var import_promises4 = require("fs/promises");
 var import_child_process = require("child_process");
 function getCurrentBranch() {
   try {
@@ -21292,9 +21211,9 @@ function registerContextTool(server2) {
       const modes = ["nonstop", "parallel", "pipeline"];
       for (const mode of modes) {
         const stateFile = `${dir}/${mode}.json`;
-        if ((0, import_fs6.existsSync)(stateFile)) {
+        if ((0, import_fs5.existsSync)(stateFile)) {
           try {
-            const data = JSON.parse(await (0, import_promises4.readFile)(stateFile, "utf-8"));
+            const data = JSON.parse(await (0, import_promises3.readFile)(stateFile, "utf-8"));
             if (data.active) {
               activeMode = mode;
               break;
@@ -21305,23 +21224,17 @@ function registerContextTool(server2) {
       }
       let agents = [];
       const agentsFile = `${dir}/agents.json`;
-      if ((0, import_fs6.existsSync)(agentsFile)) {
+      if ((0, import_fs5.existsSync)(agentsFile)) {
         try {
-          agents = JSON.parse(await (0, import_promises4.readFile)(agentsFile, "utf-8")).active ?? [];
+          agents = JSON.parse(await (0, import_promises3.readFile)(agentsFile, "utf-8")).active ?? [];
         } catch {
         }
-      }
-      const memoPath = `${RUNTIME_ROOT}/memo`;
-      let memoCount = 0;
-      if ((0, import_fs6.existsSync)(memoPath)) {
-        memoCount = (await (0, import_promises4.readdir)(memoPath)).filter((f) => f.endsWith(".json")).length;
       }
       const result = {
         sessionId,
         branch: getCurrentBranch(),
         activeMode,
-        agents,
-        memoCount
+        agents
       };
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
@@ -21329,8 +21242,8 @@ function registerContextTool(server2) {
 }
 
 // src/mcp/tools/lsp.ts
-var import_fs8 = require("fs");
-var import_path6 = require("path");
+var import_fs7 = require("fs");
+var import_path5 = require("path");
 var import_url = require("url");
 
 // src/code-intel/lsp-client.ts
@@ -21471,9 +21384,9 @@ var LspClient = class extends import_events.EventEmitter {
 };
 
 // src/code-intel/detect.ts
-var import_fs7 = require("fs");
+var import_fs6 = require("fs");
 var import_child_process3 = require("child_process");
-var import_path5 = require("path");
+var import_path4 = require("path");
 var LSP_SERVERS = {
   typescript: {
     command: "npx",
@@ -21510,7 +21423,7 @@ function resolveCommand(command) {
   }
   const paths = COMMON_PATHS[command] ?? [];
   for (const p of paths) {
-    if ((0, import_fs7.existsSync)(p)) return p;
+    if ((0, import_fs6.existsSync)(p)) return p;
   }
   return command;
 }
@@ -21533,7 +21446,7 @@ var EXT_TO_LANGUAGE = {
 };
 function detectLanguage(projectRoot2) {
   for (const { file, language } of DETECT_FILES) {
-    if ((0, import_fs7.existsSync)((0, import_path5.join)(projectRoot2, file))) {
+    if ((0, import_fs6.existsSync)((0, import_path4.join)(projectRoot2, file))) {
       return language;
     }
   }
@@ -21571,8 +21484,8 @@ var openedFiles = /* @__PURE__ */ new Set();
 function findProjectRoot2() {
   let dir = process.cwd();
   while (dir !== "/") {
-    if ((0, import_fs8.existsSync)((0, import_path6.join)(dir, ".git"))) return dir;
-    dir = (0, import_path6.resolve)(dir, "..");
+    if ((0, import_fs7.existsSync)((0, import_path5.join)(dir, ".git"))) return dir;
+    dir = (0, import_path5.resolve)(dir, "..");
   }
   return process.cwd();
 }
@@ -21584,14 +21497,14 @@ var LANG_CONFIG_FILES = {
 };
 function findLanguageRoot(filePath, language) {
   const root = projectRoot ?? findProjectRoot2();
-  const absPath = (0, import_path6.resolve)(root, filePath);
-  let dir = absPath.includes(".") ? (0, import_path6.resolve)(absPath, "..") : absPath;
+  const absPath = (0, import_path5.resolve)(root, filePath);
+  let dir = absPath.includes(".") ? (0, import_path5.resolve)(absPath, "..") : absPath;
   const configFiles = LANG_CONFIG_FILES[language] ?? [];
   while (dir.length >= root.length) {
     for (const cf of configFiles) {
-      if ((0, import_fs8.existsSync)((0, import_path6.join)(dir, cf))) return dir;
+      if ((0, import_fs7.existsSync)((0, import_path5.join)(dir, cf))) return dir;
     }
-    const parent = (0, import_path6.resolve)(dir, "..");
+    const parent = (0, import_path5.resolve)(dir, "..");
     if (parent === dir) break;
     dir = parent;
   }
@@ -21613,10 +21526,10 @@ async function ensureClientForFile(filePath) {
   return client;
 }
 function ensureFileOpen(lsp, filePath) {
-  const absPath = (0, import_path6.resolve)(projectRoot ?? process.cwd(), filePath);
+  const absPath = (0, import_path5.resolve)(projectRoot ?? process.cwd(), filePath);
   const uri = (0, import_url.pathToFileURL)(absPath).href;
   if (!openedFiles.has(uri)) {
-    const text = (0, import_fs8.readFileSync)(absPath, "utf-8");
+    const text = (0, import_fs7.readFileSync)(absPath, "utf-8");
     const langId = getLanguageId(absPath);
     lsp.notifyDidOpen(uri, langId, text);
     openedFiles.add(uri);
@@ -21746,14 +21659,14 @@ function registerLspTools(server2) {
         const lsp = await ensureClientForFile(file);
         ensureFileOpen(lsp, file);
         const diagnostics = [];
-        const uri = (0, import_url.pathToFileURL)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file)).href;
+        const uri = (0, import_url.pathToFileURL)((0, import_path5.resolve)(projectRoot ?? process.cwd(), file)).href;
         const handler = (params) => {
           if (params.uri === uri) {
             diagnostics.push(...params.diagnostics);
           }
         };
         lsp.on("textDocument/publishDiagnostics", handler);
-        const text = (0, import_fs8.readFileSync)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
+        const text = (0, import_fs7.readFileSync)((0, import_path5.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
         const langId = getLanguageId(file);
         lsp.notify("textDocument/didClose", { textDocument: { uri } });
         openedFiles.delete(uri);
@@ -21856,7 +21769,7 @@ function registerLspTools(server2) {
           if (params.uri === uri) diagnostics.push(...params.diagnostics);
         };
         lsp.on("textDocument/publishDiagnostics", handler);
-        const text = (0, import_fs8.readFileSync)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
+        const text = (0, import_fs7.readFileSync)((0, import_path5.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
         const langId = getLanguageId(file);
         lsp.notify("textDocument/didClose", { textDocument: { uri } });
         openedFiles.delete(uri);
@@ -21992,8 +21905,8 @@ function registerLspTools(server2) {
 }
 
 // src/mcp/tools/ast.ts
-var import_path7 = require("path");
-var import_fs9 = require("fs");
+var import_path6 = require("path");
+var import_fs8 = require("fs");
 var astGrep = null;
 var astGrepAvailable = null;
 function loadAstGrep() {
@@ -22006,7 +21919,7 @@ function loadAstGrep() {
   }
   try {
     const projectRoot2 = findProjectRoot3();
-    astGrep = require((0, import_path7.resolve)(projectRoot2, "node_modules", "@ast-grep", "napi"));
+    astGrep = require((0, import_path6.resolve)(projectRoot2, "node_modules", "@ast-grep", "napi"));
     astGrepAvailable = true;
     return true;
   } catch {
@@ -22029,8 +21942,8 @@ var LANG_MAP = {
 function findProjectRoot3() {
   let dir = process.cwd();
   while (dir !== "/") {
-    if ((0, import_fs9.existsSync)((0, import_path7.resolve)(dir, ".git"))) return dir;
-    dir = (0, import_path7.resolve)(dir, "..");
+    if ((0, import_fs8.existsSync)((0, import_path6.resolve)(dir, ".git"))) return dir;
+    dir = (0, import_path6.resolve)(dir, "..");
   }
   return process.cwd();
 }
@@ -22038,9 +21951,9 @@ function collectFiles(dir, ext, maxDepth = 5, depth = 0) {
   if (depth > maxDepth) return [];
   const files = [];
   try {
-    for (const entry of (0, import_fs9.readdirSync)(dir, { withFileTypes: true })) {
+    for (const entry of (0, import_fs8.readdirSync)(dir, { withFileTypes: true })) {
       if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist") continue;
-      const full = (0, import_path7.resolve)(dir, entry.name);
+      const full = (0, import_path6.resolve)(dir, entry.name);
       if (entry.isDirectory()) {
         files.push(...collectFiles(full, ext, maxDepth, depth + 1));
       } else if (entry.name.endsWith(`.${ext}`)) {
@@ -22075,7 +21988,7 @@ function registerAstTools(server2) {
       }
       try {
         const root = findProjectRoot3();
-        const targetPath = searchPath ? (0, import_path7.resolve)(root, searchPath) : root;
+        const targetPath = searchPath ? (0, import_path6.resolve)(root, searchPath) : root;
         let lang = language?.toLowerCase() ?? "typescript";
         const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
         const astLang = LANG_MAP[ext];
@@ -22087,13 +22000,13 @@ function registerAstTools(server2) {
             }]
           };
         }
-        const isFile = (0, import_fs9.existsSync)(targetPath) && (0, import_fs9.statSync)(targetPath).isFile();
+        const isFile = (0, import_fs8.existsSync)(targetPath) && (0, import_fs8.statSync)(targetPath).isFile();
         const files = isFile ? [targetPath] : collectFiles(targetPath, ext);
         const matches = [];
         const sgLang = astGrep.Lang[astLang];
         for (const file of files) {
           try {
-            const source = (0, import_fs9.readFileSync)(file, "utf-8");
+            const source = (0, import_fs8.readFileSync)(file, "utf-8");
             const sgRoot = astGrep.parse(sgLang, source).root();
             const nodes = sgRoot.findAll(pattern);
             for (const node of nodes) {
@@ -22142,7 +22055,7 @@ function registerAstTools(server2) {
       const isDryRun = dryRun ?? true;
       try {
         const root = findProjectRoot3();
-        const targetPath = searchPath ? (0, import_path7.resolve)(root, searchPath) : root;
+        const targetPath = searchPath ? (0, import_path6.resolve)(root, searchPath) : root;
         let lang = language?.toLowerCase() ?? "typescript";
         const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
         const astLang = LANG_MAP[ext];
@@ -22154,13 +22067,13 @@ function registerAstTools(server2) {
             }]
           };
         }
-        const isFile = (0, import_fs9.existsSync)(targetPath) && (0, import_fs9.statSync)(targetPath).isFile();
+        const isFile = (0, import_fs8.existsSync)(targetPath) && (0, import_fs8.statSync)(targetPath).isFile();
         const files = isFile ? [targetPath] : collectFiles(targetPath, ext);
         const sgLang = astGrep.Lang[astLang];
         const changes = [];
         for (const file of files) {
           try {
-            const source = (0, import_fs9.readFileSync)(file, "utf-8");
+            const source = (0, import_fs8.readFileSync)(file, "utf-8");
             const sgRoot = astGrep.parse(sgLang, source).root();
             const nodes = sgRoot.findAll(pattern);
             if (nodes.length === 0) continue;
@@ -22208,30 +22121,30 @@ function registerAstTools(server2) {
 }
 
 // src/mcp/tools/task.ts
-var import_fs10 = require("fs");
-var import_promises5 = require("fs/promises");
-var import_path8 = require("path");
+var import_fs9 = require("fs");
+var import_promises4 = require("fs/promises");
+var import_path7 = require("path");
 var import_crypto2 = require("crypto");
-var TASKS_DIR = (0, import_path8.join)(KNOWLEDGE_ROOT, "tasks");
+var TASKS_DIR = (0, import_path7.join)(KNOWLEDGE_ROOT, "tasks");
 async function loadTask(id) {
-  const path = (0, import_path8.join)(TASKS_DIR, `${id}.json`);
-  if (!(0, import_fs10.existsSync)(path)) return null;
+  const path = (0, import_path7.join)(TASKS_DIR, `${id}.json`);
+  if (!(0, import_fs9.existsSync)(path)) return null;
   try {
-    return JSON.parse(await (0, import_promises5.readFile)(path, "utf-8"));
+    return JSON.parse(await (0, import_promises4.readFile)(path, "utf-8"));
   } catch {
     return null;
   }
 }
 async function saveTask(task) {
   ensureDir(TASKS_DIR);
-  await (0, import_promises5.writeFile)((0, import_path8.join)(TASKS_DIR, `${task.id}.json`), JSON.stringify(task, null, 2));
+  await (0, import_promises4.writeFile)((0, import_path7.join)(TASKS_DIR, `${task.id}.json`), JSON.stringify(task, null, 2));
 }
 async function loadAllTasks() {
-  if (!(0, import_fs10.existsSync)(TASKS_DIR)) return [];
+  if (!(0, import_fs9.existsSync)(TASKS_DIR)) return [];
   const tasks = [];
-  for (const file of (await (0, import_promises5.readdir)(TASKS_DIR)).filter((f) => f.endsWith(".json"))) {
+  for (const file of (await (0, import_promises4.readdir)(TASKS_DIR)).filter((f) => f.endsWith(".json"))) {
     try {
-      tasks.push(JSON.parse(await (0, import_promises5.readFile)((0, import_path8.join)(TASKS_DIR, file), "utf-8")));
+      tasks.push(JSON.parse(await (0, import_promises4.readFile)((0, import_path7.join)(TASKS_DIR, file), "utf-8")));
     } catch {
     }
   }
@@ -22329,7 +22242,6 @@ var server = new McpServer({
 });
 registerStateTools(server);
 registerKnowledgeTools(server);
-registerMemoTools(server);
 registerContextTool(server);
 registerLspTools(server);
 registerAstTools(server);
