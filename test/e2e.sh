@@ -307,6 +307,49 @@ else
   green "Consult (no state file)" && PASS=$((PASS + 1))
 fi
 
+# --- 적응형 라우팅 테스트 ---
+echo ""
+echo "=== 적응형 라우팅 ==="
+
+# 환경 복원
+rm -rf .lattice/state/sessions/e2e-hook
+mkdir -p .lattice/state/sessions/e2e-hook
+echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
+
+# 버그 수정 → tinker + sustain 추천
+result=$(echo '{"prompt":"이 버그 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Routing (bug fix)" 'tinker' "$result"
+check "Routing (bug fix workflow)" 'sustain' "$result"
+
+# 코드 리뷰 → lens 추천
+result=$(echo '{"prompt":"이 코드 리뷰해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Routing (review)" 'lens' "$result"
+
+# 테스트 → weaver 추천
+result=$(echo '{"prompt":"테스트 추가해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Routing (test)" 'weaver' "$result"
+
+# 탐색 → scout 추천
+result=$(echo '{"prompt":"이 함수 어디에 있어?"}' | node scripts/gate.cjs 2>/dev/null)
+check "Routing (search)" 'scout' "$result"
+
+# 대규모 구현 → cruise 추천
+result=$(echo '{"prompt":"새로운 기능 구현해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Routing (implement)" 'cruise' "$result"
+
+# 에이전트 직접 언급 → override
+result=$(echo '{"prompt":"Artisan으로 이 함수 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Routing (agent override)" 'artisan' "$result"
+check "Routing (override format)" 'LATTICE ROUTING' "$result"
+
+# 명시적 키워드는 라우팅보다 우선 ([sustain] 태그)
+result=$(echo '{"prompt":"[sustain] 이 버그 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Routing (keyword priority)" 'sustain mode ACTIVATED' "$result"
+
+# 매칭 없음 → pass
+result=$(echo '{"prompt":"안녕"}' | node scripts/gate.cjs 2>/dev/null)
+check "Routing (no match)" '"continue":true' "$result"
+
 # --- Code Intelligence 테스트 ---
 echo ""
 echo "=== Code Intelligence ==="
