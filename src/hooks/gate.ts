@@ -128,25 +128,33 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
   },
 ];
 
+// 프리미티브 이름이 에러/버그 맥락에서 언급되면 활성화가 아닌 "대화" — 오탐 방지
+const MENTION_CONTEXT = /에러|버그|오류|수정|고쳐|\bfix\b|\bbug\b|\berror\b|문제|이슈|\bissue\b/i;
+
 function detectCruise(prompt: string): boolean {
-  // 명시적 태그
+  // 명시적 태그 — 항상 확정
   const tagMatch = prompt.match(/\[(\w+)\]/);
   if (tagMatch && tagMatch[1].toLowerCase() === 'cruise') return true;
-  // 자연어 패턴
+  // 자연어 패턴 (에러/버그 맥락이면 스킵)
+  if (MENTION_CONTEXT.test(prompt)) return false;
   return CRUISE_PATTERNS.some((p) => p.test(prompt));
 }
 
 function detectKeywords(prompt: string): KeywordMatch | null {
-  // 1차: 명시적 태그 [sustain], [parallel], [pipeline]
+  // 1차: 명시적 태그 [sustain], [parallel], [pipeline] — 항상 확정
   const tagMatch = prompt.match(/\[(\w+)\]/);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
   }
 
-  // 2차: 자연어 패턴
+  // 2차: 자연어 패턴 (오탐 필터 적용)
   for (const { patterns, match } of NATURAL_PATTERNS) {
-    if (patterns.some((p) => p.test(prompt))) return match;
+    if (patterns.some((p) => p.test(prompt))) {
+      // 프리미티브 이름 + 에러/버그 맥락 → 단순 언급이므로 스킵
+      if (MENTION_CONTEXT.test(prompt)) continue;
+      return match;
+    }
   }
 
   return null;
