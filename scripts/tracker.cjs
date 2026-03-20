@@ -218,7 +218,7 @@ function handleSubagentStart(event) {
     return;
   }
   const record = loadAgents(sid);
-  const name = normalizeAgentName(event.agent_name ?? "unknown");
+  const name = normalizeAgentName(event.agent_type ?? event.agent_name ?? "unknown");
   record.active.push(name);
   record.history.push({ name, startedAt: (/* @__PURE__ */ new Date()).toISOString() });
   saveAgents(sid, record);
@@ -231,7 +231,7 @@ function handleSubagentStop(event) {
     return;
   }
   const record = loadAgents(sid);
-  const name = normalizeAgentName(event.agent_name ?? "unknown");
+  const name = normalizeAgentName(event.agent_type ?? event.agent_name ?? "unknown");
   const idx = record.active.indexOf(name);
   if (idx >= 0) record.active.splice(idx, 1);
   for (let i = record.history.length - 1; i >= 0; i--) {

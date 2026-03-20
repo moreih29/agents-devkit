@@ -178,11 +178,11 @@ function cleanupSessionState(sid: string): void {
 
 // --- Subagent Start ---
 
-function handleSubagentStart(event: { agent_name?: string }): void {
+function handleSubagentStart(event: { agent_name?: string; agent_type?: string }): void {
   const sid = getSessionId();
   if (!sid) { pass(); return; }
   const record = loadAgents(sid);
-  const name = normalizeAgentName(event.agent_name ?? 'unknown');
+  const name = normalizeAgentName(event.agent_type ?? event.agent_name ?? 'unknown');
 
   record.active.push(name);
   record.history.push({ name, startedAt: new Date().toISOString() });
@@ -193,11 +193,11 @@ function handleSubagentStart(event: { agent_name?: string }): void {
 
 // --- Subagent Stop ---
 
-function handleSubagentStop(event: { agent_name?: string }): void {
+function handleSubagentStop(event: { agent_name?: string; agent_type?: string }): void {
   const sid = getSessionId();
   if (!sid) { pass(); return; }
   const record = loadAgents(sid);
-  const name = normalizeAgentName(event.agent_name ?? 'unknown');
+  const name = normalizeAgentName(event.agent_type ?? event.agent_name ?? 'unknown');
 
   const idx = record.active.indexOf(name);
   if (idx >= 0) record.active.splice(idx, 1);
