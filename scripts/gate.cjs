@@ -153,11 +153,15 @@ var NATURAL_PATTERNS = [
     match: { primitive: "consult", skill: "lattice:consult" }
   }
 ];
-var MENTION_CONTEXT = /에러|버그|오류|수정|고쳐|\bfix\b|\bbug\b|\berror\b|문제|이슈|\bissue\b/i;
+var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
+var PRIMITIVE_NAMES = /\b(sustain|parallel|pipeline|cruise)\b/i;
+function isPrimitiveMention(prompt) {
+  return PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt);
+}
 function detectCruise(prompt) {
   const tagMatch = prompt.match(/\[(\w+)\]/);
   if (tagMatch && tagMatch[1].toLowerCase() === "cruise") return true;
-  if (MENTION_CONTEXT.test(prompt)) return false;
+  if (isPrimitiveMention(prompt)) return false;
   return CRUISE_PATTERNS.some((p) => p.test(prompt));
 }
 function detectKeywords(prompt) {
@@ -168,7 +172,7 @@ function detectKeywords(prompt) {
   }
   for (const { patterns, match } of NATURAL_PATTERNS) {
     if (patterns.some((p) => p.test(prompt))) {
-      if (MENTION_CONTEXT.test(prompt)) continue;
+      if (isPrimitiveMention(prompt)) continue;
       return match;
     }
   }
@@ -383,12 +387,12 @@ function detectRouting(prompt) {
   }
   return null;
 }
+var AGENT_SUFFIXES = /(?:로|으로|에게|한테|가|이|를|을|의|도|만|부터|까지)/;
 function detectAgentOverride(prompt) {
-  const lower = prompt.toLowerCase();
   for (const name of AGENT_NAMES) {
-    if (new RegExp(`\\b${name}\\b`, "i").test(lower)) {
-      return name;
-    }
+    if (new RegExp(`lattice:${name}`, "i").test(prompt)) return name;
+    if (new RegExp(`\\b${name}\\b${AGENT_SUFFIXES.source}`, "i").test(prompt)) return name;
+    if (new RegExp(`\\b${name[0].toUpperCase()}${name.slice(1)}\\b`).test(prompt)) return name;
   }
   return null;
 }

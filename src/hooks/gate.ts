@@ -129,14 +129,21 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
 ];
 
 // 프리미티브 이름이 에러/버그 맥락에서 언급되면 활성화가 아닌 "대화" — 오탐 방지
-const MENTION_CONTEXT = /에러|버그|오류|수정|고쳐|\bfix\b|\bbug\b|\berror\b|문제|이슈|\bissue\b/i;
+// "sustain 에러 수정해" → 오탐, "멈추지 마" + "에러" → 정상 (프리미티브 이름 아님)
+const ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
+const PRIMITIVE_NAMES = /\b(sustain|parallel|pipeline|cruise)\b/i;
+
+/** 프리미티브 이름이 에러/버그 맥락과 함께 등장하는지 (오탐 판별) */
+function isPrimitiveMention(prompt: string): boolean {
+  return PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt);
+}
 
 function detectCruise(prompt: string): boolean {
   // 명시적 태그 — 항상 확정
   const tagMatch = prompt.match(/\[(\w+)\]/);
   if (tagMatch && tagMatch[1].toLowerCase() === 'cruise') return true;
-  // 자연어 패턴 (에러/버그 맥락이면 스킵)
-  if (MENTION_CONTEXT.test(prompt)) return false;
+  // 프리미티브 이름 + 에러 맥락 → 단순 언급이므로 스킵
+  if (isPrimitiveMention(prompt)) return false;
   return CRUISE_PATTERNS.some((p) => p.test(prompt));
 }
 
@@ -148,11 +155,10 @@ function detectKeywords(prompt: string): KeywordMatch | null {
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
   }
 
-  // 2차: 자연어 패턴 (오탐 필터 적용)
+  // 2차: 자연어 패턴 (프리미티브 이름 + 에러 맥락일 때만 필터)
   for (const { patterns, match } of NATURAL_PATTERNS) {
     if (patterns.some((p) => p.test(prompt))) {
-      // 프리미티브 이름 + 에러/버그 맥락 → 단순 언급이므로 스킵
-      if (MENTION_CONTEXT.test(prompt)) continue;
+      if (isPrimitiveMention(prompt)) continue;
       return match;
     }
   }
@@ -400,13 +406,18 @@ function detectRouting(prompt: string): string | null {
   return null;
 }
 
+// 에이전트 이름 뒤에 한글 조사가 오거나, "lattice:" 접두사가 있을 때만 override
+// "Scout로 찾아줘", "lattice:artisan으로 해줘", "Tinker에게 맡겨"
+const AGENT_SUFFIXES = /(?:로|으로|에게|한테|가|이|를|을|의|도|만|부터|까지)/;
+
 function detectAgentOverride(prompt: string): string | null {
-  const lower = prompt.toLowerCase();
   for (const name of AGENT_NAMES) {
-    // "Scout로", "artisan으로", "Lens에게" 등 에이전트명 + 조사 패턴
-    if (new RegExp(`\\b${name}\\b`, 'i').test(lower)) {
-      return name;
-    }
+    // 1. "lattice:agent" 형태 (확정)
+    if (new RegExp(`lattice:${name}`, 'i').test(prompt)) return name;
+    // 2. 에이전트명 + 한글 조사 (한국어 맥락에서 확정)
+    if (new RegExp(`\\b${name}\\b${AGENT_SUFFIXES.source}`, 'i').test(prompt)) return name;
+    // 3. 대문자 시작 에이전트명 (영문 맥락에서 고유명사로 사용)
+    if (new RegExp(`\\b${name[0].toUpperCase()}${name.slice(1)}\\b`).test(prompt)) return name;
   }
   return null;
 }
