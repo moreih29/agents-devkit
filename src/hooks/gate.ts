@@ -1,8 +1,9 @@
 // Gate 훅: Stop (Sustain/Pipeline 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { statePath, sessionDir, ensureDir } from '../shared/paths.js';
+import { statePath, sessionDir, ensureDir, RUNTIME_ROOT } from '../shared/paths.js';
 import { getSessionId } from '../shared/session.js';
+import { join } from 'path';
 
 // --- Stop 이벤트 처리 ---
 
@@ -217,6 +218,16 @@ Key: Ask specific questions with real choices, not vague "what do you think?". M
     return;
   }
 
+  // 태스크 자연어 연동: "진행중인 작업", "다음 할 일" 등
+  const taskQuery = detectTaskQuery(prompt);
+  if (taskQuery) {
+    respond({
+      continue: true,
+      additionalContext: taskQuery,
+    });
+    return;
+  }
+
   // 적응형 라우팅: 명시적 키워드 없을 때 요청 분류 → 에이전트/워크플로우 제안
   const routing = detectRouting(prompt);
   if (routing) {
@@ -301,21 +312,78 @@ const ROUTING_RULES: RoutingRule[] = [
   },
 ];
 
+// --- 라우팅 히스토리 ---
+
+const HISTORY_PATH = join(RUNTIME_ROOT, 'routing-history.json');
+
+interface RoutingHistory {
+  // category → { agent → 선택 횟수 }
+  overrides: Record<string, Record<string, number>>;
+}
+
+function loadHistory(): RoutingHistory {
+  if (existsSync(HISTORY_PATH)) {
+    try { return JSON.parse(readFileSync(HISTORY_PATH, 'utf-8')); } catch { /* skip */ }
+  }
+  return { overrides: {} };
+}
+
+function saveHistory(history: RoutingHistory): void {
+  ensureDir(RUNTIME_ROOT);
+  writeFileSync(HISTORY_PATH, JSON.stringify(history, null, 2));
+}
+
+/** 히스토리에서 카테고리별 선호 에이전트 조회 */
+function getPreferredAgent(history: RoutingHistory, category: string): string | null {
+  const counts = history.overrides[category];
+  if (!counts) return null;
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [agent, count] of Object.entries(counts)) {
+    if (count > bestCount) { best = agent; bestCount = count; }
+  }
+  // 최소 2회 이상 선택된 패턴만 적용
+  return bestCount >= 2 ? best : null;
+}
+
+/** 사용자가 에이전트를 직접 지정했을 때, 해당 카테고리의 히스토리 업데이트 */
+function recordOverride(category: string, agent: string): void {
+  const history = loadHistory();
+  if (!history.overrides[category]) history.overrides[category] = {};
+  history.overrides[category][agent] = (history.overrides[category][agent] ?? 0) + 1;
+  saveHistory(history);
+}
+
 function detectRouting(prompt: string): string | null {
   // 사용자가 에이전트를 직접 언급하면 해당 에이전트만 제안 (override)
   const agentOverride = detectAgentOverride(prompt);
   if (agentOverride) {
+    // 카테고리 매칭 시 히스토리에 기록
+    for (const rule of ROUTING_RULES) {
+      if (rule.patterns.some((p) => p.test(prompt))) {
+        recordOverride(rule.category, agentOverride);
+        break;
+      }
+    }
     return `[LATTICE] 에이전트 지정: lattice:${agentOverride}`;
   }
 
   // 카테고리 분류
+  const history = loadHistory();
   for (const rule of ROUTING_RULES) {
     if (rule.patterns.some((p) => p.test(prompt))) {
-      if (rule.agent && rule.workflow) {
-        return `[LATTICE] ${rule.category} → lattice:${rule.agent} + ${rule.workflow} 추천`;
-      } else if (rule.agent) {
-        return `[LATTICE] ${rule.category} → lattice:${rule.agent} 추천`;
-      } else if (rule.workflow === 'cruise') {
+      // 히스토리에서 선호 에이전트 확인
+      const preferred = getPreferredAgent(history, rule.category);
+      const agent = preferred ?? rule.agent;
+      const workflow = rule.workflow;
+
+      if (agent && workflow) {
+        const hint = preferred ? ' (히스토리 기반)' : '';
+        return `[LATTICE] ${rule.category} → lattice:${agent} + ${workflow} 추천${hint}`;
+      } else if (agent) {
+        const hint = preferred ? ' (히스토리 기반)' : '';
+        return `[LATTICE] ${rule.category} → lattice:${agent} 추천${hint}`;
+      } else if (workflow === 'cruise') {
         return `[LATTICE] ${rule.category} → cruise 워크플로우 추천 (대규모 작업 시)`;
       }
     }
@@ -330,6 +398,40 @@ function detectAgentOverride(prompt: string): string | null {
     // "Scout로", "artisan으로", "Lens에게" 등 에이전트명 + 조사 패턴
     if (new RegExp(`\\b${name}\\b`, 'i').test(lower)) {
       return name;
+    }
+  }
+  return null;
+}
+
+// --- 태스크 자연어 연동 ---
+
+const TASK_PATTERNS: Array<{ patterns: RegExp[]; tool: string; description: string }> = [
+  {
+    patterns: [/진행\s*중.*작업/, /현재\s*작업/, /지금\s*뭐/, /하고\s*있는\s*일/, /\bin.?progress\b/i],
+    tool: 'lat_task_list({ status: "in_progress" })',
+    description: '진행 중인 태스크 목록',
+  },
+  {
+    patterns: [/다음\s*(할\s*일|계획|작업)/, /\btodo\b/i, /할\s*일\s*목록/, /남은\s*작업/],
+    tool: 'lat_task_list({ status: "todo" })',
+    description: 'TODO 태스크 목록',
+  },
+  {
+    patterns: [/작업\s*현황/, /태스크\s*요약/, /\btask.*summary\b/i, /전체\s*진행/, /작업\s*상태/],
+    tool: 'lat_task_summary()',
+    description: '태스크 전체 요약',
+  },
+  {
+    patterns: [/막힌\s*작업/, /블로커/, /\bblocked?\b/i],
+    tool: 'lat_task_list({ status: "blocked" })',
+    description: '블로킹된 태스크 목록',
+  },
+];
+
+function detectTaskQuery(prompt: string): string | null {
+  for (const { patterns, tool, description } of TASK_PATTERNS) {
+    if (patterns.some((p) => p.test(prompt))) {
+      return `[LATTICE] ${description}을 확인하려면 ${tool}을 호출하세요.`;
     }
   }
   return null;

@@ -69,6 +69,7 @@ function createSession() {
 }
 
 // src/hooks/gate.ts
+var import_path3 = require("path");
 function handleStop() {
   const sid = getSessionId();
   const sustainPath = statePath(sid, "sustain");
@@ -227,6 +228,14 @@ Key: Ask specific questions with real choices, not vague "what do you think?". M
     });
     return;
   }
+  const taskQuery = detectTaskQuery(prompt);
+  if (taskQuery) {
+    respond({
+      continue: true,
+      additionalContext: taskQuery
+    });
+    return;
+  }
   const routing = detectRouting(prompt);
   if (routing) {
     respond({
@@ -306,18 +315,63 @@ var ROUTING_RULES = [
     workflow: "cruise"
   }
 ];
+var HISTORY_PATH = (0, import_path3.join)(RUNTIME_ROOT, "routing-history.json");
+function loadHistory() {
+  if ((0, import_fs3.existsSync)(HISTORY_PATH)) {
+    try {
+      return JSON.parse((0, import_fs3.readFileSync)(HISTORY_PATH, "utf-8"));
+    } catch {
+    }
+  }
+  return { overrides: {} };
+}
+function saveHistory(history) {
+  ensureDir(RUNTIME_ROOT);
+  (0, import_fs3.writeFileSync)(HISTORY_PATH, JSON.stringify(history, null, 2));
+}
+function getPreferredAgent(history, category) {
+  const counts = history.overrides[category];
+  if (!counts) return null;
+  let best = null;
+  let bestCount = 0;
+  for (const [agent, count] of Object.entries(counts)) {
+    if (count > bestCount) {
+      best = agent;
+      bestCount = count;
+    }
+  }
+  return bestCount >= 2 ? best : null;
+}
+function recordOverride(category, agent) {
+  const history = loadHistory();
+  if (!history.overrides[category]) history.overrides[category] = {};
+  history.overrides[category][agent] = (history.overrides[category][agent] ?? 0) + 1;
+  saveHistory(history);
+}
 function detectRouting(prompt) {
   const agentOverride = detectAgentOverride(prompt);
   if (agentOverride) {
+    for (const rule of ROUTING_RULES) {
+      if (rule.patterns.some((p) => p.test(prompt))) {
+        recordOverride(rule.category, agentOverride);
+        break;
+      }
+    }
     return `[LATTICE] \uC5D0\uC774\uC804\uD2B8 \uC9C0\uC815: lattice:${agentOverride}`;
   }
+  const history = loadHistory();
   for (const rule of ROUTING_RULES) {
     if (rule.patterns.some((p) => p.test(prompt))) {
-      if (rule.agent && rule.workflow) {
-        return `[LATTICE] ${rule.category} \u2192 lattice:${rule.agent} + ${rule.workflow} \uCD94\uCC9C`;
-      } else if (rule.agent) {
-        return `[LATTICE] ${rule.category} \u2192 lattice:${rule.agent} \uCD94\uCC9C`;
-      } else if (rule.workflow === "cruise") {
+      const preferred = getPreferredAgent(history, rule.category);
+      const agent = preferred ?? rule.agent;
+      const workflow = rule.workflow;
+      if (agent && workflow) {
+        const hint = preferred ? " (\uD788\uC2A4\uD1A0\uB9AC \uAE30\uBC18)" : "";
+        return `[LATTICE] ${rule.category} \u2192 lattice:${agent} + ${workflow} \uCD94\uCC9C${hint}`;
+      } else if (agent) {
+        const hint = preferred ? " (\uD788\uC2A4\uD1A0\uB9AC \uAE30\uBC18)" : "";
+        return `[LATTICE] ${rule.category} \u2192 lattice:${agent} \uCD94\uCC9C${hint}`;
+      } else if (workflow === "cruise") {
         return `[LATTICE] ${rule.category} \u2192 cruise \uC6CC\uD06C\uD50C\uB85C\uC6B0 \uCD94\uCC9C (\uB300\uADDC\uBAA8 \uC791\uC5C5 \uC2DC)`;
       }
     }
@@ -329,6 +383,36 @@ function detectAgentOverride(prompt) {
   for (const name of AGENT_NAMES) {
     if (new RegExp(`\\b${name}\\b`, "i").test(lower)) {
       return name;
+    }
+  }
+  return null;
+}
+var TASK_PATTERNS = [
+  {
+    patterns: [/진행\s*중.*작업/, /현재\s*작업/, /지금\s*뭐/, /하고\s*있는\s*일/, /\bin.?progress\b/i],
+    tool: 'lat_task_list({ status: "in_progress" })',
+    description: "\uC9C4\uD589 \uC911\uC778 \uD0DC\uC2A4\uD06C \uBAA9\uB85D"
+  },
+  {
+    patterns: [/다음\s*(할\s*일|계획|작업)/, /\btodo\b/i, /할\s*일\s*목록/, /남은\s*작업/],
+    tool: 'lat_task_list({ status: "todo" })',
+    description: "TODO \uD0DC\uC2A4\uD06C \uBAA9\uB85D"
+  },
+  {
+    patterns: [/작업\s*현황/, /태스크\s*요약/, /\btask.*summary\b/i, /전체\s*진행/, /작업\s*상태/],
+    tool: "lat_task_summary()",
+    description: "\uD0DC\uC2A4\uD06C \uC804\uCCB4 \uC694\uC57D"
+  },
+  {
+    patterns: [/막힌\s*작업/, /블로커/, /\bblocked?\b/i],
+    tool: 'lat_task_list({ status: "blocked" })',
+    description: "\uBE14\uB85C\uD0B9\uB41C \uD0DC\uC2A4\uD06C \uBAA9\uB85D"
+  }
+];
+function detectTaskQuery(prompt) {
+  for (const { patterns, tool, description } of TASK_PATTERNS) {
+    if (patterns.some((p) => p.test(prompt))) {
+      return `[LATTICE] ${description}\uC744 \uD655\uC778\uD558\uB824\uBA74 ${tool}\uC744 \uD638\uCD9C\uD558\uC138\uC694.`;
     }
   }
   return null;
