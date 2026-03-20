@@ -142,7 +142,21 @@ function buildLine1(): string {
   }
 
   const timePart = sessionTime ? `${DIM}${timeStr} (${sessionTime})${RESET}` : `${DIM}${timeStr}${RESET}`;
-  const latticeTag = '\x1b[38;5;141m◆Lattice\x1b[0m';
+  // 버전 읽기
+  let version = '';
+  try {
+    const pkgPath = join(PROJECT_ROOT, 'node_modules', 'claude-lattice', 'package.json');
+    const pluginPkgPath = join(__dirname, '..', 'package.json');
+    const localPkgPath = join(PROJECT_ROOT, 'package.json');
+    for (const p of [pkgPath, pluginPkgPath, localPkgPath]) {
+      if (existsSync(p)) {
+        const pkg = JSON.parse(readFileSync(p, 'utf-8'));
+        if (pkg.name === 'claude-lattice' && pkg.version) { version = pkg.version; break; }
+      }
+    }
+  } catch { /* skip */ }
+  const versionStr = version ? ` ${DIM}v${version}${RESET}` : '';
+  const latticeTag = `\x1b[38;5;141m◆Lattice${RESET}${versionStr}`;
 
   return `${latticeTag}  ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1b[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
 }
@@ -225,15 +239,33 @@ function extractUtil(json: string, section: string): number {
   return val > 1 ? val : val * 100;
 }
 
-function extractReset(json: string, section: string): string {
+function extractResetInfo(json: string, section: string): { timeStr: string; remaining: string; dayStr: string } {
+  const empty = { timeStr: '', remaining: '', dayStr: '' };
   const sectionMatch = json.match(new RegExp(`"${section}":\\{[^}]*}`));
-  if (!sectionMatch) return '';
+  if (!sectionMatch) return empty;
   const resetMatch = sectionMatch[0].match(/"resets_at":"([^"]+)"/);
-  if (!resetMatch) return '';
+  if (!resetMatch) return empty;
   try {
     const d = new Date(resetMatch[1]);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  } catch { return ''; }
+    const now = new Date();
+    const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+    // 남은 시간
+    const diffMs = d.getTime() - now.getTime();
+    let remaining = '';
+    if (diffMs > 0) {
+      const diffMin = Math.floor(diffMs / 60000);
+      const hh = Math.floor(diffMin / 60);
+      const mm = diffMin % 60;
+      remaining = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
+    }
+
+    // 요일 (7d용)
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayStr = days[d.getDay()];
+
+    return { timeStr, remaining, dayStr };
+  } catch { return empty; }
 }
 
 function isApiMode(): boolean {
@@ -242,11 +274,12 @@ function isApiMode(): boolean {
 }
 
 function buildLine2(): string {
+  const BAR_WIDTH = 7;
   const ctxPct = Math.round(getNum('used_percentage'));
-  const ctx = coloredMeter('ctx', ctxPct, 10);
+  const ctx = coloredMeter('ctx', ctxPct, BAR_WIDTH);
 
   if (isApiMode()) {
-    return `${ctx} ${SEP} ${DIM}API mode${RESET}`;
+    return `${ctx} ${SEP} ${DIM}API mode (ANTHROPIC_API_KEY)${RESET}`;
   }
 
   const usage = getUsage();
@@ -254,13 +287,13 @@ function buildLine2(): string {
 
   const pct5h = Math.round(extractUtil(usage.json, 'five_hour'));
   const pct7d = Math.round(extractUtil(usage.json, 'seven_day'));
-  const reset5h = extractReset(usage.json, 'five_hour');
-  const reset7d = extractReset(usage.json, 'seven_day');
+  const { timeStr: reset5h, remaining: remain5h } = extractResetInfo(usage.json, 'five_hour');
+  const { timeStr: reset7d, remaining: remain7d, dayStr: resetDay } = extractResetInfo(usage.json, 'seven_day');
 
-  const m5h = coloredMeter('5h', pct5h, 10);
-  const m7d = coloredMeter('7d', pct7d, 10);
-  const r5h = reset5h ? ` ${DIM}~${reset5h}${RESET}` : '';
-  const r7d = reset7d ? ` ${DIM}~${reset7d}${RESET}` : '';
+  const m5h = coloredMeter('5h', pct5h, BAR_WIDTH);
+  const m7d = coloredMeter('7d', pct7d, BAR_WIDTH);
+  const r5h = reset5h ? ` ${DIM}~${reset5h}${remain5h ? ` (${remain5h})` : ''}${RESET}` : '';
+  const r7d = reset7d ? ` ${DIM}~${resetDay ? `${resetDay} ` : ''}${reset7d}${remain7d ? ` (${remain7d})` : ''}${RESET}` : '';
   const staleTag = usage.stale ? ` \x1b[33m[stale]\x1b[0m` : '';
 
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${staleTag}`;
@@ -308,7 +341,7 @@ function buildLine3(): string {
       if (existsSync(parallelPath)) {
         try {
           const p = JSON.parse(readFileSync(parallelPath, 'utf-8'));
-          if (p.active) parts.push(`⊞ parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
+          if (p.active) parts.push(`|| parallel ${p.completedCount ?? 0}/${p.totalCount ?? 0}`);
         } catch { /* skip */ }
       }
 
