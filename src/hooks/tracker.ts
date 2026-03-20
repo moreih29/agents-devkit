@@ -84,8 +84,67 @@ function handleSessionStart(): void {
 
 function handleSessionEnd(): void {
   const sid = getSessionId();
+
+  // 세션 요약 리포트 생성
+  generateSessionSummary(sid);
+
   cleanupSessionState(sid);
   pass();
+}
+
+/** 세션 종료 시 활동 요약을 memo에 저장 */
+function generateSessionSummary(sid: string): void {
+  const dir = sessionDir(sid);
+  if (!existsSync(dir)) return;
+
+  try {
+    const parts: string[] = [`Session ${sid} summary:`];
+
+    // 에이전트 이력
+    const agentsPath = join(dir, 'agents.json');
+    if (existsSync(agentsPath)) {
+      const record: AgentRecord = JSON.parse(readFileSync(agentsPath, 'utf-8'));
+      if (record.history.length > 0) {
+        const agentCounts: Record<string, number> = {};
+        for (const h of record.history) agentCounts[h.name] = (agentCounts[h.name] ?? 0) + 1;
+        const agentStr = Object.entries(agentCounts).map(([n, c]) => `${n}×${c}`).join(', ');
+        parts.push(`Agents: ${record.history.length} total (${agentStr})`);
+      }
+    }
+
+    // 도구 호출 수
+    const trackerPath = join(dir, 'whisper-tracker.json');
+    if (existsSync(trackerPath)) {
+      const t = JSON.parse(readFileSync(trackerPath, 'utf-8'));
+      if (t.toolCallCount > 0) parts.push(`Tools: ${t.toolCallCount} calls`);
+    }
+
+    // 세션 시간
+    const sessionFile = join(RUNTIME_ROOT, 'state', 'current-session.json');
+    if (existsSync(sessionFile)) {
+      const sessionData = JSON.parse(readFileSync(sessionFile, 'utf-8'));
+      if (sessionData.createdAt) {
+        const elapsed = Math.floor((Date.now() - new Date(sessionData.createdAt).getTime()) / 1000);
+        const hh = Math.floor(elapsed / 3600);
+        const mm = Math.floor((elapsed % 3600) / 60);
+        parts.push(`Duration: ${hh > 0 ? `${hh}h${mm}m` : `${mm}m`}`);
+      }
+    }
+
+    if (parts.length <= 1) return; // 활동 없으면 생략
+
+    // memo에 저장
+    const memoPath = join(RUNTIME_ROOT, 'memo');
+    if (!existsSync(memoPath)) { try { require('fs').mkdirSync(memoPath, { recursive: true }); } catch { return; } }
+    const memoId = `${Date.now()}-summary`;
+    const memo = {
+      content: parts.join('\n'),
+      ttl: 'day',
+      tags: ['session-summary'],
+      createdAt: new Date().toISOString(),
+    };
+    writeFileSync(join(memoPath, `${memoId}.json`), JSON.stringify(memo, null, 2));
+  } catch { /* skip */ }
 }
 
 /** 모든 세션의 워크플로우 상태 정리 (SessionStart 시 호출) */

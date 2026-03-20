@@ -179,6 +179,32 @@ function buildMessages(toolName, hookEvent, sid) {
     } catch {
     }
   }
+  if ((0, import_fs3.existsSync)(sustainPath)) {
+    try {
+      const state = JSON.parse((0, import_fs3.readFileSync)(sustainPath, "utf-8"));
+      if (state.active && state.currentIteration >= (state.maxIterations ?? 100) * 0.8) {
+        messages.push({
+          key: "recovery:sustain_limit",
+          priority: "safety",
+          text: `[WARNING] Sustain iteration ${state.currentIteration}/${state.maxIterations}\uC5D0 \uADFC\uC811. \uC791\uC5C5\uC774 \uB9C9\uD600\uC788\uB2E4\uBA74: 1) \uD604\uC7AC \uC811\uADFC \uBC29\uC2DD\uC744 \uC7AC\uAC80\uD1A0\uD558\uC138\uC694. 2) lat_state_clear({ key: "sustain" })\uB85C \uD574\uC81C \uD6C4 \uB2E4\uB978 \uC804\uB7B5\uC744 \uC2DC\uB3C4\uD558\uC138\uC694.`
+        });
+      }
+    } catch {
+    }
+  }
+  if ((0, import_fs3.existsSync)(pipelinePath)) {
+    try {
+      const state = JSON.parse((0, import_fs3.readFileSync)(pipelinePath, "utf-8"));
+      if (state.active && state.currentIteration >= 10) {
+        messages.push({
+          key: "recovery:pipeline_stuck",
+          priority: "safety",
+          text: `[WARNING] Pipeline "${state.currentStage ?? "unknown"}" \uB2E8\uACC4\uC5D0\uC11C ${state.currentIteration}\uD68C \uBC18\uBCF5 \uC911. \uB9C9\uD600\uC788\uB2E4\uBA74: 1) \uD604\uC7AC \uB2E8\uACC4\uB97C skip\uD558\uACE0 \uB2E4\uC74C\uC73C\uB85C \uC9C4\uD589\uD558\uC138\uC694. 2) lat_state_clear({ key: "pipeline" })\uB85C \uD574\uC81C\uD558\uC138\uC694.`
+        });
+      }
+    } catch {
+    }
+  }
   return messages;
 }
 async function main() {
@@ -210,6 +236,31 @@ async function main() {
     if (count >= MAX_REPEAT) continue;
     tracker.injections[msg.key] = count + 1;
     filtered.push(msg.text);
+  }
+  const PROGRESS_INTERVAL = 20;
+  if (tracker.toolCallCount > 0 && tracker.toolCallCount % PROGRESS_INTERVAL === 0) {
+    const progressParts = [`[PROGRESS ${tracker.toolCallCount} tools]`];
+    try {
+      const sustainP = statePath(sid, "sustain");
+      const pipelineP = statePath(sid, "pipeline");
+      if ((0, import_fs3.existsSync)(pipelineP) && (0, import_fs3.existsSync)(sustainP)) {
+        const p = JSON.parse((0, import_fs3.readFileSync)(pipelineP, "utf-8"));
+        if (p.active && p.currentStage) progressParts.push(`cruise: ${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? "?"}`);
+      } else if ((0, import_fs3.existsSync)(sustainP)) {
+        const s = JSON.parse((0, import_fs3.readFileSync)(sustainP, "utf-8"));
+        if (s.active) progressParts.push(`sustain: ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
+      }
+    } catch {
+    }
+    try {
+      const agentsPath = (0, import_path3.join)(sessionDir(sid), "agents.json");
+      if ((0, import_fs3.existsSync)(agentsPath)) {
+        const record = JSON.parse((0, import_fs3.readFileSync)(agentsPath, "utf-8"));
+        if (record.history?.length > 0) progressParts.push(`agents: ${record.history.length} spawned`);
+      }
+    } catch {
+    }
+    filtered.push(progressParts.join(" | "));
   }
   saveTracker(sid, tracker);
   if (filtered.length > 0) {
