@@ -89,7 +89,7 @@ function handleStop(): void {
 // --- UserPromptSubmit 이벤트 처리: 키워드 감지 ---
 
 interface KeywordMatch {
-  primitive: 'sustain' | 'parallel' | 'pipeline';
+  primitive: 'sustain' | 'parallel' | 'pipeline' | 'consult';
   skill: string;
 }
 
@@ -102,7 +102,8 @@ const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   sustain:  { primitive: 'sustain',  skill: 'lattice:sustain' },
   parallel: { primitive: 'parallel', skill: 'lattice:parallel' },
   pipeline: { primitive: 'pipeline', skill: 'lattice:pipeline' },
-  cruise: { primitive: 'pipeline', skill: 'lattice:cruise' },
+  cruise:   { primitive: 'pipeline', skill: 'lattice:cruise' },
+  consult:  { primitive: 'consult',  skill: 'lattice:consult' },
 };
 
 const CRUISE_PATTERNS: RegExp[] = [/\bcruise\b/i, /자동으로\s*전부/, /end\s*to\s*end/i];
@@ -119,6 +120,10 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
   {
     patterns: [/\bpipeline\b/i, /순서대로/],
     match: { primitive: 'pipeline', skill: 'lattice:pipeline' },
+  },
+  {
+    patterns: [/\bconsult\b/i, /상담/, /어떻게\s*하면\s*좋을까/, /뭐가\s*좋을까/, /방법을?\s*찾아/],
+    match: { primitive: 'consult', skill: 'lattice:consult' },
   },
 ];
 
@@ -187,6 +192,21 @@ IMPORTANT: Before finishing, call lat_state_clear({ key: "cruise" }) to deactiva
 
   const match = detectKeywords(prompt);
   if (match) {
+    // consult는 대화형 — 상태 파일 불필요, 컨텍스트 주입만
+    if (match.primitive === 'consult') {
+      respond({
+        continue: true,
+        additionalContext: `[LATTICE] Consult mode activated. Follow the consult workflow:
+1. EXPLORE: Read relevant code, knowledge (lat_knowledge_read), and context (lat_context)
+2. DIVERGE: Generate 2-4 genuinely different approaches
+3. PROPOSE: Present options using AskUserQuestion with preview for concrete comparisons
+4. CONVERGE: Elaborate on chosen approach, ask follow-up if needed, produce concrete plan
+5. (OPTIONAL) EXECUTE: Offer to transition to cruise/pipeline/manual
+Key: Ask specific questions with real choices, not vague "what do you think?". Max 2 rounds of questions.`,
+      });
+      return;
+    }
+
     const sid = getSessionId();
     activatePrimitive(match.primitive, sid);
 

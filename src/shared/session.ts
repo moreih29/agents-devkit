@@ -20,6 +20,19 @@ export function getSessionId(): string {
   return createSession();
 }
 
+/** 현재 저장된 세션 ID를 읽기 (덮어쓰기 전 호출용) */
+export function getPreviousSessionId(): string | null {
+  if (existsSync(SESSION_FILE)) {
+    try {
+      const data = JSON.parse(readFileSync(SESSION_FILE, 'utf-8'));
+      if (data.sessionId && typeof data.sessionId === 'string') {
+        return data.sessionId;
+      }
+    } catch { /* skip */ }
+  }
+  return null;
+}
+
 /** 새 세션 생성 */
 export function createSession(): string {
   const sessionId = randomUUID().slice(0, 8);

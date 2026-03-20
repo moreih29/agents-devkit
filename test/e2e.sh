@@ -214,6 +214,99 @@ check "Pulse/standard (has guidance)" 'parallel execution' "$result"
 
 rm -f .lattice/state/sessions/e2e-hook/agents.json .lattice/state/sessions/e2e-hook/whisper-tracker.json
 
+# --- 태스크 관리 테스트 ---
+echo ""
+echo "=== 태스크 관리 ==="
+
+# lat_task_create
+result=$(mcp_call "lat_task_create" '{"title":"E2E test task","description":"Testing task CRUD","tags":["test","e2e"]}')
+check "lat_task_create" '"success":true' "$result"
+TASK_ID=$(echo "$result" | sed 's/\\"/"/g' | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"//')
+
+# lat_task_list
+result=$(mcp_call "lat_task_list" '{"status":"todo"}')
+check "lat_task_list (todo)" 'E2E test task' "$result"
+
+# lat_task_list (by tags)
+result=$(mcp_call "lat_task_list" '{"tags":["e2e"]}')
+check "lat_task_list (tags)" 'E2E test task' "$result"
+
+# lat_task_update
+result=$(mcp_call "lat_task_update" "{\"id\":\"$TASK_ID\",\"status\":\"in_progress\"}")
+check "lat_task_update" '"success":true' "$result"
+
+# lat_task_summary
+result=$(mcp_call "lat_task_summary" '{}')
+check "lat_task_summary" '"in_progress":' "$result"
+
+# lat_task_update (done)
+result=$(mcp_call "lat_task_update" "{\"id\":\"$TASK_ID\",\"status\":\"done\"}")
+check "lat_task_update (done)" '"completedAt"' "$result"
+
+# Cleanup task files
+rm -rf .lattice/tasks/*e2e* 2>/dev/null
+# Find and remove the test task by ID
+[ -n "$TASK_ID" ] && rm -f ".lattice/tasks/${TASK_ID}.json" 2>/dev/null
+
+# --- 세션 상태 정리 테스트 ---
+echo ""
+echo "=== 세션 상태 정리 ==="
+
+# Setup: 이전 세션에 잔존 상태 생성
+mkdir -p .lattice/state/sessions/e2e-prev
+echo '{"active":true,"maxIterations":100,"currentIteration":5}' > .lattice/state/sessions/e2e-prev/sustain.json
+echo '{"active":true,"stages":[]}' > .lattice/state/sessions/e2e-prev/pipeline.json
+echo '{"sessionId":"e2e-prev","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
+
+# SessionStart should cleanup previous session state
+result=$(echo '{"hook_event_name":"SessionStart"}' | node scripts/tracker.cjs 2>/dev/null)
+check "Tracker/SessionStart (cleanup)" 'LATTICE.*Session' "$result"
+
+# Verify previous session state files are cleaned up
+if [ -f .lattice/state/sessions/e2e-prev/sustain.json ] || [ -f .lattice/state/sessions/e2e-prev/pipeline.json ]; then
+  red "SessionStart (prev state not cleaned)" && FAIL=$((FAIL + 1))
+else
+  green "SessionStart (prev state cleaned)" && PASS=$((PASS + 1))
+fi
+
+# SessionEnd should cleanup current session state
+# First setup a session with active state
+NEW_SID=$(cat .lattice/state/current-session.json | grep -o '"sessionId":"[^"]*"' | sed 's/"sessionId":"//;s/"//')
+mkdir -p ".lattice/state/sessions/${NEW_SID}"
+echo '{"active":true,"maxIterations":100,"currentIteration":0}' > ".lattice/state/sessions/${NEW_SID}/sustain.json"
+result=$(echo '{"hook_event_name":"SessionEnd"}' | node scripts/tracker.cjs 2>/dev/null)
+check "Tracker/SessionEnd (cleanup)" '"continue":true' "$result"
+
+if [ -f ".lattice/state/sessions/${NEW_SID}/sustain.json" ]; then
+  red "SessionEnd (state not cleaned)" && FAIL=$((FAIL + 1))
+else
+  green "SessionEnd (state cleaned)" && PASS=$((PASS + 1))
+fi
+
+# --- Gate consult 테스트 ---
+echo ""
+echo "=== Consult ==="
+
+# 훅 테스트 환경 복원
+rm -rf .lattice/state/sessions/e2e-hook
+mkdir -p .lattice/state/sessions/e2e-hook
+echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
+
+# Gate: UserPromptSubmit (consult keyword)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[consult] 어떤 구조가 좋을까"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (consult tag)" 'Consult mode' "$result"
+
+# Gate: UserPromptSubmit (consult natural language)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"어떻게 하면 좋을까"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (consult natural)" 'Consult mode' "$result"
+
+# Consult should NOT create state files (unlike sustain)
+if [ -f .lattice/state/sessions/e2e-hook/consult.json ]; then
+  red "Consult (no state file expected)" && FAIL=$((FAIL + 1))
+else
+  green "Consult (no state file)" && PASS=$((PASS + 1))
+fi
+
 # --- Code Intelligence 테스트 ---
 echo ""
 echo "=== Code Intelligence ==="
@@ -234,7 +327,7 @@ fi
 
 # AST: search (@ast-grep/napi가 있을 때만)
 result=$(mcp_call "lat_ast_search" '{"pattern":"function $NAME($$$) { $$$BODY }","language":"typescript","path":"src/shared"}')
-if echo "$result" | grep -q '"error".*not installed'; then
+if echo "$result" | sed 's/\\"/"/g' | grep -q '"error".*not installed'; then
   echo "  (ast-grep not installed, skipping all AST tests)"
 else
   check "AST/search (TypeScript)" 'matches' "$result"
