@@ -11,13 +11,32 @@ PULSE="scripts/pulse.cjs"
 TRACKER="scripts/tracker.cjs"
 MCP="bridge/mcp-server.cjs"
 
+# 벤치마크 전용 세션 ID (실제 세션 오염 방지)
+BENCH_SID="bench-$$"
+BENCH_DIR=".lattice/state/sessions/$BENCH_SID"
+
+# 현재 세션 파일 백업 + 복원
+SESSION_FILE=".lattice/state/current-session.json"
+BACKUP_SESSION=""
+if [ -f "$SESSION_FILE" ]; then
+  BACKUP_SESSION=$(cat "$SESSION_FILE")
+fi
+
+cleanup() {
+  rm -rf "$BENCH_DIR" .lattice/state/sessions/bench-* .lattice/tasks/bench-* 2>/dev/null
+  if [ -n "$BACKUP_SESSION" ]; then
+    mkdir -p .lattice/state
+    echo "$BACKUP_SESSION" > "$SESSION_FILE"
+  fi
+}
+trap cleanup EXIT
+
 echo "=== Lattice Performance Benchmark ==="
-echo "Iterations: $ITERATIONS"
+echo "Iterations: $ITERATIONS | Session: $BENCH_SID"
 echo ""
 
 # --- 유틸리티 ---
 
-# 밀리초 단위 실행 시간 측정 (macOS date 호환)
 measure_ms() {
   local cmd="$1"
   local start end
@@ -36,10 +55,16 @@ avg() {
   echo $((sum / count))
 }
 
+set_session() {
+  mkdir -p .lattice/state
+  echo "{\"sessionId\":\"$BENCH_SID\",\"createdAt\":\"2026-01-01T00:00:00Z\"}" > "$SESSION_FILE"
+}
+
 # --- 1. 훅 실행 시간 ---
 echo "=== 1. 훅 실행 시간 (ms) ==="
 
 # Gate/Stop (워크플로우 비활성)
+set_session
 times=()
 for i in $(seq 1 $ITERATIONS); do
   t=$(measure_ms "echo '{\"hook_event_name\":\"Stop\"}' | node $GATE")
@@ -48,6 +73,7 @@ done
 echo "Gate/Stop (no workflow):     avg $(avg "${times[@]}")ms  [${times[*]}]"
 
 # Gate/UserPromptSubmit (라우팅)
+set_session
 times=()
 for i in $(seq 1 $ITERATIONS); do
   t=$(measure_ms "echo '{\"prompt\":\"이 버그 고쳐줘\"}' | node $GATE")
@@ -56,8 +82,8 @@ done
 echo "Gate/Submit (routing):       avg $(avg "${times[@]}")ms  [${times[*]}]"
 
 # Pulse/PreToolUse (fast path — 세션 디렉토리 없음)
-rm -rf .lattice/state/sessions/bench-perf 2>/dev/null
-echo '{"sessionId":"bench-perf","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
+rm -rf "$BENCH_DIR" 2>/dev/null
+set_session
 times=()
 for i in $(seq 1 $ITERATIONS); do
   t=$(measure_ms "echo '{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\"}' | node $PULSE")
@@ -66,8 +92,9 @@ done
 echo "Pulse/PreToolUse (fast):     avg $(avg "${times[@]}")ms  [${times[*]}]"
 
 # Pulse/PreToolUse (워크플로우 활성)
-mkdir -p .lattice/state/sessions/bench-perf
-echo '{"active":true,"maxIterations":100,"currentIteration":5}' > .lattice/state/sessions/bench-perf/sustain.json
+mkdir -p "$BENCH_DIR"
+echo '{"active":true,"maxIterations":100,"currentIteration":5}' > "$BENCH_DIR/sustain.json"
+set_session
 times=()
 for i in $(seq 1 $ITERATIONS); do
   t=$(measure_ms "echo '{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\"}' | node $PULSE")
@@ -76,6 +103,7 @@ done
 echo "Pulse/PreToolUse (workflow): avg $(avg "${times[@]}")ms  [${times[*]}]"
 
 # Tracker/SessionStart
+set_session
 times=()
 for i in $(seq 1 $ITERATIONS); do
   t=$(measure_ms "echo '{\"hook_event_name\":\"SessionStart\"}' | node $TRACKER")
@@ -87,11 +115,10 @@ echo "Tracker/SessionStart:        avg $(avg "${times[@]}")ms  [${times[*]}]"
 echo ""
 echo "=== 2. Pulse 주입 효율 ==="
 
-# 20번 연속 호출 시 실제 주입 횟수 측정
-rm -rf .lattice/state/sessions/bench-inject
-mkdir -p .lattice/state/sessions/bench-inject
-echo '{"sessionId":"bench-inject","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
-echo '{"active":true,"maxIterations":100,"currentIteration":5}' > .lattice/state/sessions/bench-inject/sustain.json
+rm -rf "$BENCH_DIR"
+mkdir -p "$BENCH_DIR"
+echo '{"active":true,"maxIterations":100,"currentIteration":5}' > "$BENCH_DIR/sustain.json"
+set_session
 
 injected=0
 passed=0
@@ -106,9 +133,8 @@ done
 
 echo "20 Pulse 호출 → 주입: ${injected}, 스킵: ${passed}"
 
-# tracker 상태 확인
-if [ -f .lattice/state/sessions/bench-inject/whisper-tracker.json ]; then
-  toolCallCount=$(cat .lattice/state/sessions/bench-inject/whisper-tracker.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('toolCallCount',0))")
+if [ -f "$BENCH_DIR/whisper-tracker.json" ]; then
+  toolCallCount=$(python3 -c "import json; print(json.load(open('$BENCH_DIR/whisper-tracker.json')).get('toolCallCount',0))")
   echo "whisper-tracker toolCallCount: $toolCallCount"
 fi
 
@@ -124,31 +150,25 @@ mcp_call() {
   echo -e "$init\n$initialized\n$call" | node "$MCP" 2>/dev/null | tail -1
 }
 
-# lat_state_write + read + clear
 times=()
 for i in $(seq 1 5); do
-  t=$(measure_ms "mcp_call lat_state_write '{\"key\":\"bench\",\"value\":{\"x\":1},\"sessionId\":\"bench\"}'")
+  t=$(measure_ms "mcp_call lat_state_write '{\"key\":\"bench\",\"value\":{\"x\":1},\"sessionId\":\"bench-mcp\"}'")
   times+=("$t")
 done
 echo "lat_state_write:             avg $(avg "${times[@]}")ms  [${times[*]}]"
 
 times=()
 for i in $(seq 1 5); do
-  t=$(measure_ms "mcp_call lat_state_read '{\"key\":\"bench\",\"sessionId\":\"bench\"}'")
+  t=$(measure_ms "mcp_call lat_state_read '{\"key\":\"bench\",\"sessionId\":\"bench-mcp\"}'")
   times+=("$t")
 done
 echo "lat_state_read:              avg $(avg "${times[@]}")ms  [${times[*]}]"
 
-# lat_knowledge_read (캐시 효과 측정: 첫 호출 vs 반복)
 t1=$(measure_ms "mcp_call lat_knowledge_read '{\"topic\":\"architecture\"}'")
 echo "lat_knowledge_read (cold):   ${t1}ms"
+echo "(참고: 벤치마크는 매번 새 프로세스. 실사용 시 MCP 서버 상주로 캐시 효과 있음)"
 
-# 반복은 별도 프로세스이므로 프로세스 레벨 캐시는 효과 없음
-# MCP 서버가 long-lived일 때만 캐시 효과 발생 (실사용 환경)
-echo "(참고: 벤치마크는 매번 새 프로세스. 실사용 시 MCP 서버가 상주하므로 캐시 효과 있음)"
-
-# --- Cleanup ---
-rm -rf .lattice/state/sessions/bench-perf .lattice/state/sessions/bench-inject .lattice/state/sessions/bench 2>/dev/null
+# Cleanup은 trap EXIT에서 처리
 
 echo ""
 echo "=== Benchmark Complete ==="
