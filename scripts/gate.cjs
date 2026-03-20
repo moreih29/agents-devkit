@@ -153,9 +153,11 @@ var NATURAL_PATTERNS = [
     match: { primitive: "consult", skill: "lattice:consult" }
   }
 ];
+var MENTION_CONTEXT = /에러|버그|오류|수정|고쳐|\bfix\b|\bbug\b|\berror\b|문제|이슈|\bissue\b/i;
 function detectCruise(prompt) {
   const tagMatch = prompt.match(/\[(\w+)\]/);
   if (tagMatch && tagMatch[1].toLowerCase() === "cruise") return true;
+  if (MENTION_CONTEXT.test(prompt)) return false;
   return CRUISE_PATTERNS.some((p) => p.test(prompt));
 }
 function detectKeywords(prompt) {
@@ -165,7 +167,10 @@ function detectKeywords(prompt) {
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
   }
   for (const { patterns, match } of NATURAL_PATTERNS) {
-    if (patterns.some((p) => p.test(prompt))) return match;
+    if (patterns.some((p) => p.test(prompt))) {
+      if (MENTION_CONTEXT.test(prompt)) continue;
+      return match;
+    }
   }
   return null;
 }

@@ -107,6 +107,14 @@ check "Gate/UserPromptSubmit (parallel)" 'parallel mode ACTIVATED' "$result"
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[pipeline] 자동으로 진행"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (pipeline tag)" 'pipeline mode ACTIVATED' "$result"
 
+# Gate: UserPromptSubmit (sustain keyword with error context → 오탐 방지)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"sustain 에러 수정해"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (sustain mention → routing)" 'tinker' "$result"
+
+# Gate: UserPromptSubmit ([sustain] 태그는 에러 맥락이어도 항상 활성화)
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[sustain] 이 에러 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (sustain tag in error)" 'sustain mode ACTIVATED' "$result"
+
 # Gate: UserPromptSubmit (no keyword)
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (no keyword)" '"continue":true' "$result"
@@ -281,6 +289,18 @@ if [ -f ".lattice/state/sessions/${NEW_SID}/sustain.json" ]; then
   red "SessionEnd (state not cleaned)" && FAIL=$((FAIL + 1))
 else
   green "SessionEnd (state cleaned)" && PASS=$((PASS + 1))
+fi
+
+# SessionStart: 여러 세션의 잔존 상태 동시 정리 (resume 시나리오)
+mkdir -p .lattice/state/sessions/e2e-old1 .lattice/state/sessions/e2e-old2
+echo '{"active":true}' > .lattice/state/sessions/e2e-old1/sustain.json
+echo '{"active":true}' > .lattice/state/sessions/e2e-old2/pipeline.json
+echo '{"sessionId":"e2e-old1","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
+result=$(echo '{"hook_event_name":"SessionStart"}' | node scripts/tracker.cjs 2>/dev/null)
+if [ -f .lattice/state/sessions/e2e-old1/sustain.json ] || [ -f .lattice/state/sessions/e2e-old2/pipeline.json ]; then
+  red "SessionStart (multi-session cleanup)" && FAIL=$((FAIL + 1))
+else
+  green "SessionStart (multi-session cleanup)" && PASS=$((PASS + 1))
 fi
 
 # --- Gate consult 테스트 ---

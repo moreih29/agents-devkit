@@ -2,7 +2,7 @@
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
 import { sessionDir, ensureDir, RUNTIME_ROOT, KNOWLEDGE_ROOT } from '../shared/paths.js';
-import { getSessionId, createSession, getPreviousSessionId } from '../shared/session.js';
+import { getSessionId, createSession } from '../shared/session.js';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
@@ -30,11 +30,8 @@ function saveAgents(sid: string, record: AgentRecord): void {
 // --- Session Start ---
 
 function handleSessionStart(): void {
-  // 이전 세션의 잔존 상태 정리 (비정상 종료 대비)
-  try {
-    const prevSid = getPreviousSessionId();
-    if (prevSid) cleanupSessionState(prevSid);
-  } catch { /* skip */ }
+  // 모든 세션의 잔존 워크플로우 상태 정리 (resume, 비정상 종료, 벤치마크 잔존 등 방어)
+  cleanupAllSessionStates();
 
   const sid = createSession();
   const dir = sessionDir(sid);
@@ -73,6 +70,17 @@ function handleSessionEnd(): void {
   const sid = getSessionId();
   cleanupSessionState(sid);
   pass();
+}
+
+/** 모든 세션의 워크플로우 상태 정리 (SessionStart 시 호출) */
+function cleanupAllSessionStates(): void {
+  const sessionsDir = join(RUNTIME_ROOT, 'state', 'sessions');
+  if (!existsSync(sessionsDir)) return;
+  try {
+    for (const dir of readdirSync(sessionsDir)) {
+      cleanupSessionState(dir);
+    }
+  } catch { /* skip */ }
 }
 
 /** 세션 디렉토리의 활성 워크플로우 상태 파일 정리 */
