@@ -229,8 +229,11 @@ function handleUserPromptSubmit(event) {
       additionalContext: `[NEXUS] auto mode ACTIVATED (session: ${sid}). Pipeline + Nonstop enabled.
 Execute these stages IN ORDER:
 1. Analyze \u2014 understand the codebase and request
-2. Plan \u2014 break into actionable steps
-3. Implement \u2014 write code (use parallel Agent calls for independent tasks)
+2. Plan \u2014 break into actionable steps. After planning, register each work unit:
+   nx_task_create({ title: "<unit>", description: "<details>", tags: ["auto"] })
+3. Implement \u2014 update tasks as you progress:
+   nx_task_update({ id: "<id>", status: "in_progress" }) when starting, nx_task_update({ id: "<id>", status: "done" }) when complete.
+   Use parallel Agent calls for independent tasks.
 4. Verify \u2014 run tests, type-check
 5. Review \u2014 review your own changes for correctness
 6. Sync \u2014 run /nexus:sync to detect and auto-fix knowledge doc inconsistencies (skip if none)
@@ -278,7 +281,8 @@ Key: One question at a time. Specific choices, not vague "what do you think?". R
 2. DRAFT: Spawn Agent({ subagent_type: "nexus:strategist", prompt: "<full request context>" }) to create initial plan.
 3. REVIEW (medium+): Spawn Agent({ subagent_type: "nexus:architect", prompt: "Review this plan: <strategist output>" }) for structural review.
 4. CRITIQUE (large only): Spawn Agent({ subagent_type: "nexus:reviewer", prompt: "Critique this plan: <architect output>" }). If critical issues, loop back to DRAFT (max 3 iterations).
-5. PERSIST: Save plan to .claude/nexus/plans/{branch}.md. Present summary to user.
+5. PERSIST: Save plan to .claude/nexus/plans/{branch}.md. Register each work unit as a task:
+   nx_task_create({ title: "<unit>", description: "<details>", tags: ["plan"] })
 6. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Auto (recommended) / Pipeline / Plan only.
 Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Scale determines formality. Small tasks need only a checklist, not a full ADR.`
       });
@@ -346,8 +350,11 @@ Before finishing, call nx_state_clear({ key: "parallel" }) to deactivate.`
       additionalContext: `[NEXUS] auto mode ACTIVATED (Auto Mode: on). Pipeline + Nonstop enabled.
 Execute these stages IN ORDER:
 1. Analyze \u2014 understand the codebase and request
-2. Plan \u2014 break into actionable steps
-3. Implement \u2014 write code (use parallel Agent calls for independent tasks)
+2. Plan \u2014 break into actionable steps. After planning, register each work unit:
+   nx_task_create({ title: "<unit>", description: "<details>", tags: ["auto"] })
+3. Implement \u2014 update tasks as you progress:
+   nx_task_update({ id: "<id>", status: "in_progress" }) when starting, nx_task_update({ id: "<id>", status: "done" }) when complete.
+   Use parallel Agent calls for independent tasks.
 4. Verify \u2014 run tests, type-check
 5. Review \u2014 review your own changes for correctness
 6. Sync \u2014 run /nexus:sync to detect and auto-fix knowledge doc inconsistencies (skip if none)
