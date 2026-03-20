@@ -1,6 +1,6 @@
 // Tracker 훅: SubagentStart/Stop, SessionStart/End — 에이전트/세션 추적
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync, rmdirSync, statSync } from 'fs';
 import { sessionDir, ensureDir, RUNTIME_ROOT, KNOWLEDGE_ROOT } from '../shared/paths.js';
 import { getSessionId, createSession } from '../shared/session.js';
 import { join } from 'path';
@@ -151,13 +151,30 @@ function generateSessionSummary(sid: string): void {
   } catch { /* skip */ }
 }
 
-/** 모든 세션의 워크플로우 상태 정리 (SessionStart 시 호출) */
+/** 모든 세션의 워크플로우 상태 정리 + 오래된 빈 세션 삭제 (SessionStart 시 호출) */
 function cleanupAllSessionStates(): void {
   const sessionsDir = join(RUNTIME_ROOT, 'state', 'sessions');
   if (!existsSync(sessionsDir)) return;
   try {
-    for (const dir of readdirSync(sessionsDir)) {
+    const dirs = readdirSync(sessionsDir);
+    for (const dir of dirs) {
       cleanupSessionState(dir);
+    }
+    // 빈 세션 디렉토리 정리 (최근 10개 유지)
+    if (dirs.length > 10) {
+      const sorted = dirs
+        .filter(d => !d.startsWith('e2e'))
+        .map(d => ({ name: d, mtime: statSync(join(sessionsDir, d)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime);
+      for (const s of sorted.slice(10)) {
+        const sdir = join(sessionsDir, s.name);
+        try {
+          const files = readdirSync(sdir);
+          if (files.length === 0) {
+            rmdirSync(sdir);
+          }
+        } catch { /* skip */ }
+      }
     }
   } catch { /* skip */ }
 }

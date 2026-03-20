@@ -10,6 +10,12 @@ PASS=0
 FAIL=0
 MCP="bridge/mcp-server.cjs"
 
+# 현재 세션 백업 (테스트 후 복원)
+ORIG_SESSION=""
+if [ -f .nexus/state/current-session.json ]; then
+  ORIG_SESSION=$(cat .nexus/state/current-session.json)
+fi
+
 green() { echo -e "\033[32m✔ $1\033[0m"; }
 red() { echo -e "\033[31m✘ $1\033[0m"; }
 
@@ -601,8 +607,13 @@ if [ -f "$CI_RESULT" ]; then
 fi
 rm -f "$CI_RESULT"
 
-# Cleanup
-rm -rf .nexus/state/sessions/e2e-hook .nexus/state/current-session.json .nexus/memo/*e2e* 2>/dev/null
+# Cleanup — 테스트 세션 제거 + 원본 세션 복원
+rm -rf .nexus/state/sessions/e2e-hook .nexus/state/sessions/e2e-auto .nexus/state/sessions/e2e-test .nexus/state/sessions/e2e-prev .nexus/state/sessions/e2e-old1 .nexus/state/sessions/e2e-old2 .nexus/memo/*e2e* 2>/dev/null
+if [ -n "$ORIG_SESSION" ]; then
+  echo "$ORIG_SESSION" > .nexus/state/current-session.json
+else
+  rm -f .nexus/state/current-session.json
+fi
 
 # --- 결과 ---
 echo ""

@@ -191,8 +191,22 @@ function cleanupAllSessionStates() {
   const sessionsDir = (0, import_path3.join)(RUNTIME_ROOT, "state", "sessions");
   if (!(0, import_fs3.existsSync)(sessionsDir)) return;
   try {
-    for (const dir of (0, import_fs3.readdirSync)(sessionsDir)) {
+    const dirs = (0, import_fs3.readdirSync)(sessionsDir);
+    for (const dir of dirs) {
       cleanupSessionState(dir);
+    }
+    if (dirs.length > 10) {
+      const sorted = dirs.filter((d) => !d.startsWith("e2e")).map((d) => ({ name: d, mtime: (0, import_fs3.statSync)((0, import_path3.join)(sessionsDir, d)).mtimeMs })).sort((a, b) => b.mtime - a.mtime);
+      for (const s of sorted.slice(10)) {
+        const sdir = (0, import_path3.join)(sessionsDir, s.name);
+        try {
+          const files = (0, import_fs3.readdirSync)(sdir);
+          if (files.length === 0) {
+            (0, import_fs3.rmdirSync)(sdir);
+          }
+        } catch {
+        }
+      }
     }
   } catch {
   }
