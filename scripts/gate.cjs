@@ -309,23 +309,17 @@ var ROUTING_RULES = [
 function detectRouting(prompt) {
   const agentOverride = detectAgentOverride(prompt);
   if (agentOverride) {
-    return `[LATTICE ROUTING] \uC5D0\uC774\uC804\uD2B8 \uC9C0\uC815 \uAC10\uC9C0: ${agentOverride}. Use the Agent tool to call lattice:${agentOverride} for this task.`;
+    return `[LATTICE] \uC5D0\uC774\uC804\uD2B8 \uC9C0\uC815: lattice:${agentOverride}`;
   }
   for (const rule of ROUTING_RULES) {
     if (rule.patterns.some((p) => p.test(prompt))) {
-      const parts = [`[LATTICE ROUTING] \uC774 \uC694\uCCAD\uC740 "${rule.category}"\uC73C\uB85C \uBD84\uB958\uB429\uB2C8\uB2E4.`];
       if (rule.agent && rule.workflow) {
-        parts.push(`\uCD94\uCC9C: ${rule.agent} \uC5D0\uC774\uC804\uD2B8 + ${rule.workflow} \uBAA8\uB4DC.`);
-        parts.push(`\uC774 \uCD94\uCC9C\uC744 \uB530\uB974\uB824\uBA74 Agent \uB3C4\uAD6C\uB85C lattice:${rule.agent}\uB97C \uD638\uCD9C\uD558\uC138\uC694.`);
+        return `[LATTICE] ${rule.category} \u2192 lattice:${rule.agent} + ${rule.workflow} \uCD94\uCC9C`;
       } else if (rule.agent) {
-        parts.push(`\uCD94\uCC9C: ${rule.agent} \uC5D0\uC774\uC804\uD2B8.`);
-        parts.push(`\uC774 \uCD94\uCC9C\uC744 \uB530\uB974\uB824\uBA74 Agent \uB3C4\uAD6C\uB85C lattice:${rule.agent}\uB97C \uD638\uCD9C\uD558\uC138\uC694.`);
+        return `[LATTICE] ${rule.category} \u2192 lattice:${rule.agent} \uCD94\uCC9C`;
       } else if (rule.workflow === "cruise") {
-        parts.push(`\uCD94\uCC9C: cruise \uC6CC\uD06C\uD50C\uB85C\uC6B0 (\uBD84\uC11D\u2192\uACC4\uD68D\u2192\uAD6C\uD604\u2192\uAC80\uC99D\u2192\uB9AC\uBDF0).`);
-        parts.push(`\uB300\uADDC\uBAA8 \uC791\uC5C5\uC774\uB77C\uBA74 cruise\uB97C \uACE0\uB824\uD558\uC138\uC694. \uC9C1\uC811 \uCC98\uB9AC\uD574\uB3C4 \uB429\uB2C8\uB2E4.`);
+        return `[LATTICE] ${rule.category} \u2192 cruise \uC6CC\uD06C\uD50C\uB85C\uC6B0 \uCD94\uCC9C (\uB300\uADDC\uBAA8 \uC791\uC5C5 \uC2DC)`;
       }
-      parts.push("\uB2E4\uB978 \uC811\uADFC\uC744 \uC6D0\uD558\uBA74 \uC774 \uC81C\uC548\uC744 \uBB34\uC2DC\uD558\uC138\uC694.");
-      return parts.join("\n");
     }
   }
   return null;

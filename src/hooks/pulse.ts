@@ -75,7 +75,7 @@ interface ContextMessage {
   text: string;
 }
 
-const MAX_REPEAT = 3;
+const MAX_REPEAT = 1; // guidance는 1회만 주입 (토큰 절감)
 const ADAPTIVE_THRESHOLD = 60; // tool calls 이후 minimal 모드
 
 function buildMessages(toolName: string, hookEvent: string, sid: string): ContextMessage[] {

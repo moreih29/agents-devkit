@@ -116,7 +116,7 @@ function getActiveContextLevel(sid) {
     return "standard";
   }
 }
-var MAX_REPEAT = 3;
+var MAX_REPEAT = 1;
 var ADAPTIVE_THRESHOLD = 60;
 function buildMessages(toolName, hookEvent, sid) {
   const messages = [];

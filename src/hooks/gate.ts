@@ -305,27 +305,19 @@ function detectRouting(prompt: string): string | null {
   // 사용자가 에이전트를 직접 언급하면 해당 에이전트만 제안 (override)
   const agentOverride = detectAgentOverride(prompt);
   if (agentOverride) {
-    return `[LATTICE ROUTING] 에이전트 지정 감지: ${agentOverride}. Use the Agent tool to call lattice:${agentOverride} for this task.`;
+    return `[LATTICE] 에이전트 지정: lattice:${agentOverride}`;
   }
 
   // 카테고리 분류
   for (const rule of ROUTING_RULES) {
     if (rule.patterns.some((p) => p.test(prompt))) {
-      const parts: string[] = [`[LATTICE ROUTING] 이 요청은 "${rule.category}"으로 분류됩니다.`];
-
       if (rule.agent && rule.workflow) {
-        parts.push(`추천: ${rule.agent} 에이전트 + ${rule.workflow} 모드.`);
-        parts.push(`이 추천을 따르려면 Agent 도구로 lattice:${rule.agent}를 호출하세요.`);
+        return `[LATTICE] ${rule.category} → lattice:${rule.agent} + ${rule.workflow} 추천`;
       } else if (rule.agent) {
-        parts.push(`추천: ${rule.agent} 에이전트.`);
-        parts.push(`이 추천을 따르려면 Agent 도구로 lattice:${rule.agent}를 호출하세요.`);
+        return `[LATTICE] ${rule.category} → lattice:${rule.agent} 추천`;
       } else if (rule.workflow === 'cruise') {
-        parts.push(`추천: cruise 워크플로우 (분석→계획→구현→검증→리뷰).`);
-        parts.push(`대규모 작업이라면 cruise를 고려하세요. 직접 처리해도 됩니다.`);
+        return `[LATTICE] ${rule.category} → cruise 워크플로우 추천 (대규모 작업 시)`;
       }
-
-      parts.push('다른 접근을 원하면 이 제안을 무시하세요.');
-      return parts.join('\n');
     }
   }
 

@@ -340,7 +340,7 @@ check "Routing (implement)" 'cruise' "$result"
 # 에이전트 직접 언급 → override
 result=$(echo '{"prompt":"Artisan으로 이 함수 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Routing (agent override)" 'artisan' "$result"
-check "Routing (override format)" 'LATTICE ROUTING' "$result"
+check "Routing (override format)" 'LATTICE' "$result"
 
 # 명시적 키워드는 라우팅보다 우선 ([sustain] 태그)
 result=$(echo '{"prompt":"[sustain] 이 버그 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null)
