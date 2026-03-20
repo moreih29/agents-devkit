@@ -217,7 +217,7 @@ function handleUserPromptSubmit(event) {
     if (!isForced && !hasConcreteSignals(cleanPrompt)) {
       respond({
         continue: true,
-        additionalContext: `[NEXUS] The request lacks concrete signals (file paths, identifiers, issue numbers, or structured steps). Consider using [plan] to create a detailed plan first, or prefix with "force:" to proceed anyway.`
+        additionalContext: `[NEXUS] The request lacks concrete signals (file paths, identifiers, issue numbers, or structured steps). Redirecting to Plan mode first. You MUST invoke: Skill({ skill: "nexus:plan" }) to create a detailed plan before execution. If the user insists on skipping planning, they can prefix with "force:".`
       });
       return;
     }
@@ -234,10 +234,11 @@ Execute these stages IN ORDER:
 3. Implement \u2014 update tasks as you progress:
    nx_task_update({ id: "<id>", status: "in_progress" }) when starting, nx_task_update({ id: "<id>", status: "done" }) when complete.
    Use parallel Agent calls for independent tasks.
-4. Verify \u2014 run tests, type-check
+4. Verify \u2014 run tests, type-check. IF VERIFY FAILS: go back to step 2 (replan) with failure context. Max 3 replan cycles.
 5. Review \u2014 review your own changes for correctness
 6. Sync \u2014 run /nexus:sync to detect and auto-fix knowledge doc inconsistencies (skip if none)
 Update pipeline state with nx_state_write as you progress through stages.
+REPLAN LOOP: If verify (step 4) fails, do NOT proceed to review. Instead: analyze failure \u2192 replan (step 2) \u2192 re-implement (step 3) \u2192 re-verify (step 4). Track replan count. After 3 failed cycles, stop and report failures to user.
 IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate all state at once. Do NOT stop without clearing state first.`
     });
     return;
@@ -367,10 +368,11 @@ Execute these stages IN ORDER:
 3. Implement \u2014 update tasks as you progress:
    nx_task_update({ id: "<id>", status: "in_progress" }) when starting, nx_task_update({ id: "<id>", status: "done" }) when complete.
    Use parallel Agent calls for independent tasks.
-4. Verify \u2014 run tests, type-check
+4. Verify \u2014 run tests, type-check. IF VERIFY FAILS: go back to step 2 (replan) with failure context. Max 3 replan cycles.
 5. Review \u2014 review your own changes for correctness
 6. Sync \u2014 run /nexus:sync to detect and auto-fix knowledge doc inconsistencies (skip if none)
 Update pipeline state with nx_state_write as you progress through stages.
+REPLAN LOOP: If verify (step 4) fails, do NOT proceed to review. Instead: analyze failure \u2192 replan (step 2) \u2192 re-implement (step 3) \u2192 re-verify (step 4). Track replan count. After 3 failed cycles, stop and report failures to user.
 IMPORTANT: Before finishing, call nx_state_clear({ key: "auto" }) to deactivate all state at once.`
     });
     return;

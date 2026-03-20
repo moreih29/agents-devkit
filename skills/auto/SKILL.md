@@ -86,7 +86,12 @@ nx_state_write({
 ### 4. Verify (Guard)
 - Run tests, type-check, lint
 - Verify the implementation matches the plan
-- If issues found: loop back to implement stage (max 3 retries)
+- **If verify fails**: do NOT proceed to Review. Instead:
+  1. Analyze failure cause
+  2. Go back to Plan (stage 2) — replan with failure context
+  3. Re-implement (stage 3)
+  4. Re-verify (stage 4)
+  - Max 3 replan cycles. After 3 failures, stop and report to user.
 - Output: Verification report
 
 ### 5. Review (Reviewer)
