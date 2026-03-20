@@ -4,7 +4,7 @@ import { join } from 'path';
 
 const CACHE = join(
   process.env.HOME ?? '~',
-  '.claude/plugins/cache/lattice/claude-lattice/0.1.0'
+  '.claude/plugins/cache/nexus/claude-nexus/0.1.0'
 );
 
 if (!existsSync(CACHE)) {
