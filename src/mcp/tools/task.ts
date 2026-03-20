@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
+import { existsSync } from 'fs';
+import { readFile, writeFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { RUNTIME_ROOT, ensureDir } from '../../shared/paths.js';
@@ -18,23 +19,23 @@ interface Task {
   completedAt?: string;
 }
 
-function loadTask(id: string): Task | null {
+async function loadTask(id: string): Promise<Task | null> {
   const path = join(TASKS_DIR, `${id}.json`);
   if (!existsSync(path)) return null;
-  try { return JSON.parse(readFileSync(path, 'utf-8')); } catch { return null; }
+  try { return JSON.parse(await readFile(path, 'utf-8')); } catch { return null; }
 }
 
-function saveTask(task: Task): void {
+async function saveTask(task: Task): Promise<void> {
   ensureDir(TASKS_DIR);
-  writeFileSync(join(TASKS_DIR, `${task.id}.json`), JSON.stringify(task, null, 2));
+  await writeFile(join(TASKS_DIR, `${task.id}.json`), JSON.stringify(task, null, 2));
 }
 
-function loadAllTasks(): Task[] {
+async function loadAllTasks(): Promise<Task[]> {
   if (!existsSync(TASKS_DIR)) return [];
   const tasks: Task[] = [];
-  for (const file of readdirSync(TASKS_DIR).filter(f => f.endsWith('.json'))) {
+  for (const file of (await readdir(TASKS_DIR)).filter(f => f.endsWith('.json'))) {
     try {
-      tasks.push(JSON.parse(readFileSync(join(TASKS_DIR, file), 'utf-8')));
+      tasks.push(JSON.parse(await readFile(join(TASKS_DIR, file), 'utf-8')));
     } catch { /* skip corrupt */ }
   }
   return tasks.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -59,7 +60,7 @@ export function registerTaskTools(server: McpServer): void {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      saveTask(task);
+      await saveTask(task);
       return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, task }) }] };
     }
   );
@@ -72,7 +73,7 @@ export function registerTaskTools(server: McpServer): void {
       tags: z.array(z.string()).optional().describe('Filter by tags (any match)'),
     },
     async ({ status, tags }) => {
-      let tasks = loadAllTasks();
+      let tasks = await loadAllTasks();
       if (status) tasks = tasks.filter(t => t.status === status);
       if (tags && tags.length > 0) {
         tasks = tasks.filter(t => t.tags?.some(tag => tags.includes(tag)));
@@ -92,7 +93,7 @@ export function registerTaskTools(server: McpServer): void {
       tags: z.array(z.string()).optional().describe('New tags (replaces existing)'),
     },
     async ({ id, status, title, description, tags }) => {
-      const task = loadTask(id);
+      const task = await loadTask(id);
       if (!task) {
         return { content: [{ type: 'text' as const, text: JSON.stringify({ success: false, error: 'Task not found', id }) }] };
       }
@@ -104,7 +105,7 @@ export function registerTaskTools(server: McpServer): void {
       task.updatedAt = new Date().toISOString();
       if (status === 'done') task.completedAt = new Date().toISOString();
 
-      saveTask(task);
+      await saveTask(task);
       return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, task }) }] };
     }
   );
@@ -114,7 +115,7 @@ export function registerTaskTools(server: McpServer): void {
     'Get task summary: counts by status + in-progress list',
     {},
     async () => {
-      const tasks = loadAllTasks();
+      const tasks = await loadAllTasks();
       const counts = { todo: 0, in_progress: 0, done: 0, blocked: 0 };
       for (const t of tasks) counts[t.status]++;
 

@@ -20990,6 +20990,7 @@ var StdioServerTransport = class {
 
 // src/mcp/tools/state.ts
 var import_fs3 = require("fs");
+var import_promises = require("fs/promises");
 
 // src/shared/paths.ts
 var import_path = require("path");
@@ -21062,7 +21063,7 @@ function registerStateTools(server2) {
       if (!(0, import_fs3.existsSync)(path)) {
         return { content: [{ type: "text", text: JSON.stringify({ exists: false, key, sessionId: sid }) }] };
       }
-      const data = JSON.parse((0, import_fs3.readFileSync)(path, "utf-8"));
+      const data = JSON.parse(await (0, import_promises.readFile)(path, "utf-8"));
       return { content: [{ type: "text", text: JSON.stringify({ exists: true, key, sessionId: sid, value: data }) }] };
     }
   );
@@ -21079,7 +21080,7 @@ function registerStateTools(server2) {
       const dir = sessionDir(sid);
       ensureDir(dir);
       const path = statePath(sid, key);
-      (0, import_fs3.writeFileSync)(path, JSON.stringify(value, null, 2));
+      await (0, import_promises.writeFile)(path, JSON.stringify(value, null, 2));
       return { content: [{ type: "text", text: JSON.stringify({ success: true, key, sessionId: sid }) }] };
     }
   );
@@ -21098,7 +21099,7 @@ function registerStateTools(server2) {
         for (const k of keys) {
           const p = statePath(sid, k);
           if ((0, import_fs3.existsSync)(p)) {
-            (0, import_fs3.unlinkSync)(p);
+            await (0, import_promises.unlink)(p);
             cleared.push(k);
           }
         }
@@ -21106,7 +21107,7 @@ function registerStateTools(server2) {
       }
       const path = statePath(sid, key);
       if ((0, import_fs3.existsSync)(path)) {
-        (0, import_fs3.unlinkSync)(path);
+        await (0, import_promises.unlink)(path);
         return { content: [{ type: "text", text: JSON.stringify({ cleared: true, key, sessionId: sid }) }] };
       }
       return { content: [{ type: "text", text: JSON.stringify({ cleared: false, key, sessionId: sid, reason: "not found" }) }] };
@@ -21116,7 +21117,18 @@ function registerStateTools(server2) {
 
 // src/mcp/tools/knowledge.ts
 var import_fs4 = require("fs");
+var import_promises2 = require("fs/promises");
 var import_path3 = require("path");
+var knowledgeCache = /* @__PURE__ */ new Map();
+async function readKnowledgeCached(path) {
+  const cached2 = knowledgeCache.get(path);
+  const content = await (0, import_promises2.readFile)(path, "utf-8");
+  if (cached2 && cached2.content.length === content.length && cached2.content === content) {
+    return cached2.content;
+  }
+  knowledgeCache.set(path, { content, mtime: Date.now() });
+  return content;
+}
 function registerKnowledgeTools(server2) {
   server2.tool(
     "lat_knowledge_read",
@@ -21132,16 +21144,17 @@ function registerKnowledgeTools(server2) {
         if (!(0, import_fs4.existsSync)(path)) {
           return { content: [{ type: "text", text: JSON.stringify({ exists: false, topic }) }] };
         }
-        const content = (0, import_fs4.readFileSync)(path, "utf-8");
+        const content = await readKnowledgeCached(path);
         return { content: [{ type: "text", text: content }] };
       }
       if (!(0, import_fs4.existsSync)(knowledgeDir)) {
         return { content: [{ type: "text", text: JSON.stringify({ topics: [] }) }] };
       }
-      const files = (0, import_fs4.readdirSync)(knowledgeDir).filter((f) => f.endsWith(".md"));
+      const files = (await (0, import_promises2.readdir)(knowledgeDir)).filter((f) => f.endsWith(".md"));
       const results = [];
       for (const file of files) {
-        const content = (0, import_fs4.readFileSync)((0, import_path3.join)(knowledgeDir, file), "utf-8");
+        const filePath = (0, import_path3.join)(knowledgeDir, file);
+        const content = await readKnowledgeCached(filePath);
         if (tags && tags.length > 0) {
           const lowerContent = content.toLowerCase();
           const matched = tags.some((tag) => lowerContent.includes(tag.toLowerCase()));
@@ -21170,7 +21183,8 @@ function registerKnowledgeTools(server2) {
 ${content}`;
       }
       const path = knowledgePath(topic);
-      (0, import_fs4.writeFileSync)(path, body);
+      await (0, import_promises2.writeFile)(path, body);
+      knowledgeCache.delete(path);
       return { content: [{ type: "text", text: JSON.stringify({ success: true, topic, path }) }] };
     }
   );
@@ -21178,6 +21192,7 @@ ${content}`;
 
 // src/mcp/tools/memo.ts
 var import_fs5 = require("fs");
+var import_promises3 = require("fs/promises");
 var import_path4 = require("path");
 var TTL_VALUES = ["session", "day", "week"];
 function ttlMs(ttl) {
@@ -21208,13 +21223,13 @@ function registerMemoTools(server2) {
       if (!(0, import_fs5.existsSync)(dir)) {
         return { content: [{ type: "text", text: JSON.stringify({ memos: [] }) }] };
       }
-      const files = (0, import_fs5.readdirSync)(dir).filter((f) => f.endsWith(".json"));
+      const files = (await (0, import_promises3.readdir)(dir)).filter((f) => f.endsWith(".json"));
       const memos = [];
       for (const file of files) {
         try {
-          const entry = JSON.parse((0, import_fs5.readFileSync)((0, import_path4.join)(dir, file), "utf-8"));
+          const entry = JSON.parse(await (0, import_promises3.readFile)((0, import_path4.join)(dir, file), "utf-8"));
           if (isExpired(entry)) {
-            (0, import_fs5.unlinkSync)((0, import_path4.join)(dir, file));
+            await (0, import_promises3.unlink)((0, import_path4.join)(dir, file));
             continue;
           }
           if (ttl && entry.ttl !== ttl) continue;
@@ -21247,7 +21262,7 @@ function registerMemoTools(server2) {
         tags,
         createdAt: (/* @__PURE__ */ new Date()).toISOString()
       };
-      (0, import_fs5.writeFileSync)((0, import_path4.join)(dir, `${id}.json`), JSON.stringify(entry, null, 2));
+      await (0, import_promises3.writeFile)((0, import_path4.join)(dir, `${id}.json`), JSON.stringify(entry, null, 2));
       return { content: [{ type: "text", text: JSON.stringify({ success: true, id, ttl }) }] };
     }
   );
@@ -21255,6 +21270,7 @@ function registerMemoTools(server2) {
 
 // src/mcp/tools/context.ts
 var import_fs6 = require("fs");
+var import_promises4 = require("fs/promises");
 var import_child_process = require("child_process");
 function getCurrentBranch() {
   try {
@@ -21278,7 +21294,7 @@ function registerContextTool(server2) {
         const stateFile = `${dir}/${mode}.json`;
         if ((0, import_fs6.existsSync)(stateFile)) {
           try {
-            const data = JSON.parse((0, import_fs6.readFileSync)(stateFile, "utf-8"));
+            const data = JSON.parse(await (0, import_promises4.readFile)(stateFile, "utf-8"));
             if (data.active) {
               activeMode = mode;
               break;
@@ -21291,14 +21307,14 @@ function registerContextTool(server2) {
       const agentsFile = `${dir}/agents.json`;
       if ((0, import_fs6.existsSync)(agentsFile)) {
         try {
-          agents = JSON.parse((0, import_fs6.readFileSync)(agentsFile, "utf-8")).active ?? [];
+          agents = JSON.parse(await (0, import_promises4.readFile)(agentsFile, "utf-8")).active ?? [];
         } catch {
         }
       }
       const memoPath = `${RUNTIME_ROOT}/memo`;
       let memoCount = 0;
       if ((0, import_fs6.existsSync)(memoPath)) {
-        memoCount = (0, import_fs6.readdirSync)(memoPath).filter((f) => f.endsWith(".json")).length;
+        memoCount = (await (0, import_promises4.readdir)(memoPath)).filter((f) => f.endsWith(".json")).length;
       }
       const result = {
         sessionId,
@@ -22165,8 +22181,8 @@ function registerAstTools(server2) {
               }
             }
             if (!isDryRun && newSource !== source) {
-              const { writeFileSync: writeFileSync6 } = require("fs");
-              writeFileSync6(file, newSource);
+              const { writeFileSync: writeFileSync2 } = require("fs");
+              writeFileSync2(file, newSource);
             }
           } catch {
           }
@@ -22193,28 +22209,29 @@ function registerAstTools(server2) {
 
 // src/mcp/tools/task.ts
 var import_fs10 = require("fs");
+var import_promises5 = require("fs/promises");
 var import_path8 = require("path");
 var import_crypto2 = require("crypto");
 var TASKS_DIR = (0, import_path8.join)(RUNTIME_ROOT, "tasks");
-function loadTask(id) {
+async function loadTask(id) {
   const path = (0, import_path8.join)(TASKS_DIR, `${id}.json`);
   if (!(0, import_fs10.existsSync)(path)) return null;
   try {
-    return JSON.parse((0, import_fs10.readFileSync)(path, "utf-8"));
+    return JSON.parse(await (0, import_promises5.readFile)(path, "utf-8"));
   } catch {
     return null;
   }
 }
-function saveTask(task) {
+async function saveTask(task) {
   ensureDir(TASKS_DIR);
-  (0, import_fs10.writeFileSync)((0, import_path8.join)(TASKS_DIR, `${task.id}.json`), JSON.stringify(task, null, 2));
+  await (0, import_promises5.writeFile)((0, import_path8.join)(TASKS_DIR, `${task.id}.json`), JSON.stringify(task, null, 2));
 }
-function loadAllTasks() {
+async function loadAllTasks() {
   if (!(0, import_fs10.existsSync)(TASKS_DIR)) return [];
   const tasks = [];
-  for (const file of (0, import_fs10.readdirSync)(TASKS_DIR).filter((f) => f.endsWith(".json"))) {
+  for (const file of (await (0, import_promises5.readdir)(TASKS_DIR)).filter((f) => f.endsWith(".json"))) {
     try {
-      tasks.push(JSON.parse((0, import_fs10.readFileSync)((0, import_path8.join)(TASKS_DIR, file), "utf-8")));
+      tasks.push(JSON.parse(await (0, import_promises5.readFile)((0, import_path8.join)(TASKS_DIR, file), "utf-8")));
     } catch {
     }
   }
@@ -22239,7 +22256,7 @@ function registerTaskTools(server2) {
         createdAt: (/* @__PURE__ */ new Date()).toISOString(),
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
-      saveTask(task);
+      await saveTask(task);
       return { content: [{ type: "text", text: JSON.stringify({ success: true, task }) }] };
     }
   );
@@ -22251,7 +22268,7 @@ function registerTaskTools(server2) {
       tags: external_exports.array(external_exports.string()).optional().describe("Filter by tags (any match)")
     },
     async ({ status, tags }) => {
-      let tasks = loadAllTasks();
+      let tasks = await loadAllTasks();
       if (status) tasks = tasks.filter((t) => t.status === status);
       if (tags && tags.length > 0) {
         tasks = tasks.filter((t) => t.tags?.some((tag) => tags.includes(tag)));
@@ -22270,7 +22287,7 @@ function registerTaskTools(server2) {
       tags: external_exports.array(external_exports.string()).optional().describe("New tags (replaces existing)")
     },
     async ({ id, status, title, description, tags }) => {
-      const task = loadTask(id);
+      const task = await loadTask(id);
       if (!task) {
         return { content: [{ type: "text", text: JSON.stringify({ success: false, error: "Task not found", id }) }] };
       }
@@ -22280,7 +22297,7 @@ function registerTaskTools(server2) {
       if (tags) task.tags = tags;
       task.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
       if (status === "done") task.completedAt = (/* @__PURE__ */ new Date()).toISOString();
-      saveTask(task);
+      await saveTask(task);
       return { content: [{ type: "text", text: JSON.stringify({ success: true, task }) }] };
     }
   );
@@ -22289,7 +22306,7 @@ function registerTaskTools(server2) {
     "Get task summary: counts by status + in-progress list",
     {},
     async () => {
-      const tasks = loadAllTasks();
+      const tasks = await loadAllTasks();
       const counts = { todo: 0, in_progress: 0, done: 0, blocked: 0 };
       for (const t of tasks) counts[t.status]++;
       const inProgress = tasks.filter((t) => t.status === "in_progress").map((t) => ({ id: t.id, title: t.title, tags: t.tags }));

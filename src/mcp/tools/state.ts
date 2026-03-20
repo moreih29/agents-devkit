@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
+import { existsSync } from 'fs';
+import { readFile, writeFile, unlink } from 'fs/promises';
 import { statePath, ensureDir, sessionDir } from '../../shared/paths.js';
 import { getSessionId } from '../../shared/session.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -20,7 +21,7 @@ export function registerStateTools(server: McpServer): void {
         return { content: [{ type: 'text' as const, text: JSON.stringify({ exists: false, key, sessionId: sid }) }] };
       }
 
-      const data = JSON.parse(readFileSync(path, 'utf-8'));
+      const data = JSON.parse(await readFile(path, 'utf-8'));
       return { content: [{ type: 'text' as const, text: JSON.stringify({ exists: true, key, sessionId: sid, value: data }) }] };
     }
   );
@@ -39,7 +40,7 @@ export function registerStateTools(server: McpServer): void {
       ensureDir(dir);
 
       const path = statePath(sid, key);
-      writeFileSync(path, JSON.stringify(value, null, 2));
+      await writeFile(path, JSON.stringify(value, null, 2));
 
       return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, key, sessionId: sid }) }] };
     }
@@ -61,7 +62,7 @@ export function registerStateTools(server: McpServer): void {
         const cleared: string[] = [];
         for (const k of keys) {
           const p = statePath(sid, k);
-          if (existsSync(p)) { unlinkSync(p); cleared.push(k); }
+          if (existsSync(p)) { await unlink(p); cleared.push(k); }
         }
         return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true, key: 'cruise', clearedKeys: cleared, sessionId: sid }) }] };
       }
@@ -69,7 +70,7 @@ export function registerStateTools(server: McpServer): void {
       const path = statePath(sid, key);
 
       if (existsSync(path)) {
-        unlinkSync(path);
+        await unlink(path);
         return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true, key, sessionId: sid }) }] };
       }
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
+import { existsSync } from 'fs';
+import { readFile, writeFile, readdir, unlink } from 'fs/promises';
 import { memoDir, ensureDir } from '../../shared/paths.js';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -42,15 +43,15 @@ export function registerMemoTools(server: McpServer): void {
         return { content: [{ type: 'text' as const, text: JSON.stringify({ memos: [] }) }] };
       }
 
-      const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
+      const files = (await readdir(dir)).filter((f) => f.endsWith('.json'));
       const memos: Array<MemoEntry & { id: string }> = [];
 
       for (const file of files) {
         try {
-          const entry: MemoEntry = JSON.parse(readFileSync(join(dir, file), 'utf-8'));
+          const entry: MemoEntry = JSON.parse(await readFile(join(dir, file), 'utf-8'));
 
           if (isExpired(entry)) {
-            unlinkSync(join(dir, file));
+            await unlink(join(dir, file));
             continue;
           }
 
@@ -90,7 +91,7 @@ export function registerMemoTools(server: McpServer): void {
         createdAt: new Date().toISOString(),
       };
 
-      writeFileSync(join(dir, `${id}.json`), JSON.stringify(entry, null, 2));
+      await writeFile(join(dir, `${id}.json`), JSON.stringify(entry, null, 2));
 
       return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, id, ttl }) }] };
     }

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { existsSync, readFileSync, readdirSync } from 'fs';
+import { existsSync } from 'fs';
+import { readFile, readdir } from 'fs/promises';
 import { sessionDir, RUNTIME_ROOT } from '../../shared/paths.js';
 import { getSessionId } from '../../shared/session.js';
 import { execSync } from 'child_process';
@@ -31,7 +32,7 @@ export function registerContextTool(server: McpServer): void {
         const stateFile = `${dir}/${mode}.json`;
         if (existsSync(stateFile)) {
           try {
-            const data = JSON.parse(readFileSync(stateFile, 'utf-8'));
+            const data = JSON.parse(await readFile(stateFile, 'utf-8'));
             if (data.active) {
               activeMode = mode;
               break;
@@ -47,7 +48,7 @@ export function registerContextTool(server: McpServer): void {
       const agentsFile = `${dir}/agents.json`;
       if (existsSync(agentsFile)) {
         try {
-          agents = JSON.parse(readFileSync(agentsFile, 'utf-8')).active ?? [];
+          agents = JSON.parse(await readFile(agentsFile, 'utf-8')).active ?? [];
         } catch {
           // skip
         }
@@ -57,7 +58,7 @@ export function registerContextTool(server: McpServer): void {
       const memoPath = `${RUNTIME_ROOT}/memo`;
       let memoCount = 0;
       if (existsSync(memoPath)) {
-        memoCount = readdirSync(memoPath).filter((f) => f.endsWith('.json')).length;
+        memoCount = (await readdir(memoPath)).filter((f) => f.endsWith('.json')).length;
       }
 
       const result = {
