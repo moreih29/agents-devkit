@@ -284,7 +284,6 @@ function buildLine3() {
   const sid = getSessionId();
   const workflowParts = [];
   let agentStr = "";
-  let toolCount = 0;
   let taskStr = "";
   if (sid) {
     const sessDir = (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sid);
@@ -337,14 +336,6 @@ function buildLine3() {
       }
     } catch {
     }
-    try {
-      const trackerPath = (0, import_path.join)(sessDir, "whisper-tracker.json");
-      if ((0, import_fs.existsSync)(trackerPath)) {
-        const t = JSON.parse((0, import_fs.readFileSync)(trackerPath, "utf-8"));
-        toolCount = t.toolCallCount ?? 0;
-      }
-    } catch {
-    }
   }
   const tasksDir = (0, import_path.join)(KNOWLEDGE_ROOT, "tasks");
   try {
@@ -373,7 +364,6 @@ function buildLine3() {
     parts.push(`${DIM}\u2014 idle${RESET}`);
   }
   parts.push(`\u{1F916} ${agentStr || "0"}`);
-  parts.push(`\u{1F527} ${toolCount}`);
   parts.push(`\u{1F4DD} ${taskStr || "0"}`);
   return parts.join(` ${SEP} `);
 }

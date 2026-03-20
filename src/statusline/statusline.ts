@@ -346,7 +346,6 @@ function buildLine3(): string {
   const sid = getSessionId();
   const workflowParts: string[] = [];
   let agentStr = '';
-  let toolCount = 0;
   let taskStr = '';
 
   if (sid) {
@@ -401,14 +400,6 @@ function buildLine3(): string {
       }
     } catch { /* skip */ }
 
-    // 도구 호출 수
-    try {
-      const trackerPath = join(sessDir, 'whisper-tracker.json');
-      if (existsSync(trackerPath)) {
-        const t = JSON.parse(readFileSync(trackerPath, 'utf-8'));
-        toolCount = t.toolCallCount ?? 0;
-      }
-    } catch { /* skip */ }
   }
 
   // 태스크 현황
@@ -439,7 +430,6 @@ function buildLine3(): string {
     parts.push(`${DIM}— idle${RESET}`);
   }
   parts.push(`🤖 ${agentStr || '0'}`);
-  parts.push(`🔧 ${toolCount}`);
   parts.push(`📝 ${taskStr || '0'}`);
 
   return parts.join(` ${SEP} `);
