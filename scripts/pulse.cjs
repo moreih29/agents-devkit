@@ -197,10 +197,15 @@ async function main() {
   tracker.toolCallCount++;
   const adaptiveMinimal = tracker.toolCallCount > ADAPTIVE_THRESHOLD;
   const messages = buildMessages(toolName, hookEvent, sid);
+  const workflowMessages = messages.filter((m) => m.priority === "workflow");
+  const workflowHash = workflowMessages.map((m) => m.key).sort().join("|");
+  const workflowChanged = workflowHash !== (tracker.lastWorkflowHash ?? "");
+  if (workflowChanged) tracker.lastWorkflowHash = workflowHash;
   const filtered = [];
   for (const msg of messages) {
     if (adaptiveMinimal && msg.priority !== "safety" && msg.priority !== "workflow") continue;
     if (contextLevel === "minimal" && msg.priority !== "safety" && msg.priority !== "workflow") continue;
+    if (msg.priority === "workflow" && !workflowChanged) continue;
     const count = tracker.injections[msg.key] ?? 0;
     if (count >= MAX_REPEAT) continue;
     tracker.injections[msg.key] = count + 1;

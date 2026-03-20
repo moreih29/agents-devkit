@@ -10,6 +10,7 @@ import { join } from 'path';
 interface WhisperTracker {
   injections: Record<string, number>;
   toolCallCount: number;
+  lastWorkflowHash?: string; // 워크플로우 상태 변경 감지용
 }
 
 function loadTracker(sid: string): WhisperTracker {
@@ -177,6 +178,13 @@ async function main() {
   const adaptiveMinimal = tracker.toolCallCount > ADAPTIVE_THRESHOLD;
 
   const messages = buildMessages(toolName, hookEvent, sid);
+
+  // 워크플로우 상태 변경 감지: 변경 없으면 workflow 메시지 스킵
+  const workflowMessages = messages.filter(m => m.priority === 'workflow');
+  const workflowHash = workflowMessages.map(m => m.key).sort().join('|');
+  const workflowChanged = workflowHash !== (tracker.lastWorkflowHash ?? '');
+  if (workflowChanged) tracker.lastWorkflowHash = workflowHash;
+
   const filtered: string[] = [];
 
   for (const msg of messages) {
@@ -188,6 +196,9 @@ async function main() {
     // standard → safety + workflow + guidance
     // full → 전부
     if (contextLevel === 'minimal' && msg.priority !== 'safety' && msg.priority !== 'workflow') continue;
+
+    // 워크플로우 메시지는 상태가 변경된 경우에만 주입
+    if (msg.priority === 'workflow' && !workflowChanged) continue;
 
     // 중복 방지: MAX_REPEAT 초과 시 건너뜀
     const count = tracker.injections[msg.key] ?? 0;
