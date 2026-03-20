@@ -132,6 +132,27 @@ check "Tracker/SessionStart (delegation rule)" 'routing.*delegate' "$result"
 result=$(echo '{"hook_event_name":"SubagentStart","agent_name":"builder"}' | node scripts/tracker.cjs 2>/dev/null)
 check "Tracker/SubagentStart" '"continue":true' "$result"
 
+# Tracker: SubagentStart 중복 push + 이름 정규화
+rm -rf .nexus/state/sessions/e2e-hook
+mkdir -p .nexus/state/sessions/e2e-hook
+echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
+echo '{"hook_event_name":"SubagentStart","agent_name":"nexus:builder"}' | node scripts/tracker.cjs >/dev/null 2>&1
+echo '{"hook_event_name":"SubagentStart","agent_name":"nexus:builder"}' | node scripts/tracker.cjs >/dev/null 2>&1
+active_count=$(node -e "try{const a=JSON.parse(require('fs').readFileSync('.nexus/state/sessions/e2e-hook/agents.json','utf-8')).active;console.log(a.filter(x=>x==='builder').length)}catch{console.log(0)}")
+if [ "$active_count" -ge 2 ]; then
+  green "Tracker/SubagentStart (duplicate push)" && PASS=$((PASS + 1))
+else
+  red "Tracker/SubagentStart (duplicate push) — expected >=2, got: $active_count" && FAIL=$((FAIL + 1))
+fi
+# Stop 1회 → 1개만 제거
+echo '{"hook_event_name":"SubagentStop","agent_name":"nexus:builder"}' | node scripts/tracker.cjs >/dev/null 2>&1
+active_count=$(node -e "try{const a=JSON.parse(require('fs').readFileSync('.nexus/state/sessions/e2e-hook/agents.json','utf-8')).active;console.log(a.filter(x=>x==='builder').length)}catch{console.log(0)}")
+if [ "$active_count" -ge 1 ]; then
+  green "Tracker/SubagentStop (splice one)" && PASS=$((PASS + 1))
+else
+  red "Tracker/SubagentStop (splice one) — expected >=1, got: $active_count" && FAIL=$((FAIL + 1))
+fi
+
 # --- Phase 2: Parallel/Pipeline 훅 테스트 ---
 echo ""
 echo "=== Phase 2 훅 ==="

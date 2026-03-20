@@ -149,7 +149,7 @@ function triggerBackgroundFetch() {
       ${tokenCmd}
       [ -z "$TOKEN" ] && exit 1
       RESP=$(curl -s --max-time 3 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer $TOKEN" -H "anthropic-beta: oauth-2025-04-20" 2>/dev/null)
-      echo "$RESP" | grep -q "five_hour" && printf '%s\\n%s\\n%s\\n' "$(date +%s)" "${CACHE_TTL_DEFAULT}" "$RESP" > "${USAGE_CACHE_PATH}"
+      echo "$RESP" | grep -q "five_hour" && printf '%s\\n%s\\n%s\\n' "$(date +%s)" "${CACHE_TTL_DEFAULT}" "$RESP" > "${USAGE_CACHE_PATH}.tmp" && mv "${USAGE_CACHE_PATH}.tmp" "${USAGE_CACHE_PATH}"
     `;
     require("child_process").spawn("sh", ["-c", script], {
       stdio: "ignore",
@@ -194,8 +194,13 @@ function getUsage() {
 ${CACHE_TTL_DEFAULT}
 ${resp}`;
         try {
-          require("fs").writeFileSync(USAGE_CACHE_PATH, cacheContent);
+          require("fs").writeFileSync(USAGE_CACHE_PATH + ".tmp", cacheContent);
+          require("fs").renameSync(USAGE_CACHE_PATH + ".tmp", USAGE_CACHE_PATH);
         } catch {
+          try {
+            require("fs").unlinkSync(USAGE_CACHE_PATH + ".tmp");
+          } catch {
+          }
         }
         return { json: resp, stale: false };
       }
@@ -268,7 +273,9 @@ function buildLine2() {
     return `${ctx} ${SEP} ${DIM}API mode${RESET}`;
   }
   const usage = getUsage();
-  if (!usage || !usage.json) return ctx;
+  if (!usage || !usage.json) {
+    return `${ctx} ${SEP} ${coloredMeter("5h", 0, BAR_WIDTH)} ${SEP} ${coloredMeter("7d", 0, BAR_WIDTH)}`;
+  }
   const pct5h = Math.round(extractUtil(usage.json, "five_hour"));
   const pct7d = Math.round(extractUtil(usage.json, "seven_day"));
   const { timeStr: reset5h, remaining: remain5h } = extractResetInfo(usage.json, "five_hour");
@@ -279,6 +286,9 @@ function buildLine2() {
   const r7d = reset7d ? ` ${DIM}~${resetDay ? `${resetDay} ` : ""}${reset7d}${remain7d ? ` (${remain7d})` : ""}${RESET}` : "";
   const staleTag = usage.stale ? ` \x1B[33m[stale]\x1B[0m` : "";
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${staleTag}`;
+}
+function normalizeAgentName(name) {
+  return name.replace(/^(nexus|claude-nexus):/, "");
 }
 function buildLine3() {
   const sid = getSessionId();
@@ -330,7 +340,10 @@ function buildLine3() {
         const active = record.active ?? [];
         if (active.length > 0) {
           const counts = {};
-          for (const a of active) counts[a] = (counts[a] ?? 0) + 1;
+          for (const a of active) {
+            const n = normalizeAgentName(a);
+            counts[n] = (counts[n] ?? 0) + 1;
+          }
           agentStr = Object.entries(counts).map(([name, count]) => count > 1 ? `${name}\xD7${count}` : name).join(" ");
         }
       }

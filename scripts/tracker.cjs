@@ -68,6 +68,9 @@ function createSession() {
 // src/hooks/tracker.ts
 var import_path3 = require("path");
 var import_child_process = require("child_process");
+function normalizeAgentName(name) {
+  return name.replace(/^(nexus|claude-nexus):/, "");
+}
 function loadAgents(sid) {
   const path = (0, import_path3.join)(sessionDir(sid), "agents.json");
   if ((0, import_fs3.existsSync)(path)) {
@@ -210,20 +213,27 @@ function cleanupSessionState(sid) {
 }
 function handleSubagentStart(event) {
   const sid = getSessionId();
-  const record = loadAgents(sid);
-  const name = event.agent_name ?? "unknown";
-  if (!record.active.includes(name)) {
-    record.active.push(name);
+  if (!sid) {
+    pass();
+    return;
   }
+  const record = loadAgents(sid);
+  const name = normalizeAgentName(event.agent_name ?? "unknown");
+  record.active.push(name);
   record.history.push({ name, startedAt: (/* @__PURE__ */ new Date()).toISOString() });
   saveAgents(sid, record);
   pass();
 }
 function handleSubagentStop(event) {
   const sid = getSessionId();
+  if (!sid) {
+    pass();
+    return;
+  }
   const record = loadAgents(sid);
-  const name = event.agent_name ?? "unknown";
-  record.active = record.active.filter((a) => a !== name);
+  const name = normalizeAgentName(event.agent_name ?? "unknown");
+  const idx = record.active.indexOf(name);
+  if (idx >= 0) record.active.splice(idx, 1);
   for (let i = record.history.length - 1; i >= 0; i--) {
     if (record.history[i].name === name && !record.history[i].stoppedAt) {
       record.history[i].stoppedAt = (/* @__PURE__ */ new Date()).toISOString();

@@ -189,7 +189,7 @@ function triggerBackgroundFetch(): void {
       ${tokenCmd}
       [ -z "$TOKEN" ] && exit 1
       RESP=$(curl -s --max-time 3 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer $TOKEN" -H "anthropic-beta: oauth-2025-04-20" 2>/dev/null)
-      echo "$RESP" | grep -q "five_hour" && printf '%s\\n%s\\n%s\\n' "$(date +%s)" "${CACHE_TTL_DEFAULT}" "$RESP" > "${USAGE_CACHE_PATH}"
+      echo "$RESP" | grep -q "five_hour" && printf '%s\\n%s\\n%s\\n' "$(date +%s)" "${CACHE_TTL_DEFAULT}" "$RESP" > "${USAGE_CACHE_PATH}.tmp" && mv "${USAGE_CACHE_PATH}.tmp" "${USAGE_CACHE_PATH}"
     `;
     require('child_process').spawn('sh', ['-c', script], {
       stdio: 'ignore',
@@ -240,7 +240,12 @@ function getUsage(): { json: string; stale: boolean } | null {
       const resp = execSync(`curl -s --max-time 2 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
       if (resp && resp.includes('five_hour')) {
         const cacheContent = `${now}\n${CACHE_TTL_DEFAULT}\n${resp}`;
-        try { require('fs').writeFileSync(USAGE_CACHE_PATH, cacheContent); } catch { /* skip */ }
+        try {
+          require('fs').writeFileSync(USAGE_CACHE_PATH + '.tmp', cacheContent);
+          require('fs').renameSync(USAGE_CACHE_PATH + '.tmp', USAGE_CACHE_PATH);
+        } catch {
+          try { require('fs').unlinkSync(USAGE_CACHE_PATH + '.tmp'); } catch { /* skip */ }
+        }
         return { json: resp, stale: false };
       }
     }
@@ -324,7 +329,9 @@ function buildLine2(): string {
   }
 
   const usage = getUsage();
-  if (!usage || !usage.json) return ctx;
+  if (!usage || !usage.json) {
+    return `${ctx} ${SEP} ${coloredMeter('5h', 0, BAR_WIDTH)} ${SEP} ${coloredMeter('7d', 0, BAR_WIDTH)}`;
+  }
 
   const pct5h = Math.round(extractUtil(usage.json, 'five_hour'));
   const pct7d = Math.round(extractUtil(usage.json, 'seven_day'));
@@ -341,6 +348,10 @@ function buildLine2(): string {
 }
 
 // --- Line 3: 워크플로우 + 에이전트 + 태스크 + 도구 ---
+
+function normalizeAgentName(name: string): string {
+  return name.replace(/^(nexus|claude-nexus):/, '');
+}
 
 function buildLine3(): string {
   const sid = getSessionId();
@@ -394,7 +405,7 @@ function buildLine3(): string {
         const active: string[] = record.active ?? [];
         if (active.length > 0) {
           const counts: Record<string, number> = {};
-          for (const a of active) counts[a] = (counts[a] ?? 0) + 1;
+          for (const a of active) { const n = normalizeAgentName(a); counts[n] = (counts[n] ?? 0) + 1; }
           agentStr = Object.entries(counts).map(([name, count]) => count > 1 ? `${name}×${count}` : name).join(' ');
         }
       }

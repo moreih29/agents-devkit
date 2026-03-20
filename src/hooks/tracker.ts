@@ -13,6 +13,10 @@ interface AgentRecord {
   history: Array<{ name: string; startedAt: string; stoppedAt?: string }>;
 }
 
+function normalizeAgentName(name: string): string {
+  return name.replace(/^(nexus|claude-nexus):/, '');
+}
+
 function loadAgents(sid: string): AgentRecord {
   const path = join(sessionDir(sid), 'agents.json');
   if (existsSync(path)) {
@@ -176,12 +180,11 @@ function cleanupSessionState(sid: string): void {
 
 function handleSubagentStart(event: { agent_name?: string }): void {
   const sid = getSessionId();
+  if (!sid) { pass(); return; }
   const record = loadAgents(sid);
-  const name = event.agent_name ?? 'unknown';
+  const name = normalizeAgentName(event.agent_name ?? 'unknown');
 
-  if (!record.active.includes(name)) {
-    record.active.push(name);
-  }
+  record.active.push(name);
   record.history.push({ name, startedAt: new Date().toISOString() });
   saveAgents(sid, record);
 
@@ -192,10 +195,12 @@ function handleSubagentStart(event: { agent_name?: string }): void {
 
 function handleSubagentStop(event: { agent_name?: string }): void {
   const sid = getSessionId();
+  if (!sid) { pass(); return; }
   const record = loadAgents(sid);
-  const name = event.agent_name ?? 'unknown';
+  const name = normalizeAgentName(event.agent_name ?? 'unknown');
 
-  record.active = record.active.filter((a) => a !== name);
+  const idx = record.active.indexOf(name);
+  if (idx >= 0) record.active.splice(idx, 1);
 
   // 마지막 history 항목에 종료 시간 기록
   for (let i = record.history.length - 1; i >= 0; i--) {
