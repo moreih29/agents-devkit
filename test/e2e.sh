@@ -339,6 +339,30 @@ else
   green "SessionStart (multi-session cleanup)" && PASS=$((PASS + 1))
 fi
 
+# --- Gate init 테스트 ---
+echo ""
+echo "=== Init ==="
+
+# 훅 테스트 환경 복원
+rm -rf .lattice/state/sessions/e2e-hook
+mkdir -p .lattice/state/sessions/e2e-hook
+echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .lattice/state/current-session.json
+
+# Gate: UserPromptSubmit (init tag)
+result=$(echo '{"prompt":"[init] 프로젝트 온보딩"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (init tag)" 'Init mode' "$result"
+
+# Gate: UserPromptSubmit (init natural)
+result=$(echo '{"prompt":"온보딩 진행해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (init natural)" 'Init mode' "$result"
+
+# Init should NOT create state files
+if [ -f .lattice/state/sessions/e2e-hook/init.json ]; then
+  red "Init (no state file expected)" && FAIL=$((FAIL + 1))
+else
+  green "Init (no state file)" && PASS=$((PASS + 1))
+fi
+
 # --- Gate consult 테스트 ---
 echo ""
 echo "=== Consult ==="

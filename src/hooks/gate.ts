@@ -90,7 +90,7 @@ function handleStop(): void {
 // --- UserPromptSubmit 이벤트 처리: 키워드 감지 ---
 
 interface KeywordMatch {
-  primitive: 'sustain' | 'parallel' | 'pipeline' | 'consult';
+  primitive: 'sustain' | 'parallel' | 'pipeline' | 'consult' | 'init';
   skill: string;
 }
 
@@ -105,6 +105,7 @@ const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   pipeline: { primitive: 'pipeline', skill: 'lattice:pipeline' },
   cruise:   { primitive: 'pipeline', skill: 'lattice:cruise' },
   consult:  { primitive: 'consult',  skill: 'lattice:consult' },
+  init:     { primitive: 'init',     skill: 'lattice:init' },
 };
 
 const CRUISE_PATTERNS: RegExp[] = [/\bcruise\b/i, /자동으로\s*전부/, /end\s*to\s*end/i];
@@ -125,6 +126,10 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
   {
     patterns: [/\bconsult\b/i, /상담/, /어떻게\s*하면\s*좋을까/, /뭐가\s*좋을까/, /방법을?\s*찾아/],
     match: { primitive: 'consult', skill: 'lattice:consult' },
+  },
+  {
+    patterns: [/\binit\b/i, /온보딩/, /lattice\s*설정/, /프로젝트\s*초기화/],
+    match: { primitive: 'init', skill: 'lattice:init' },
   },
 ];
 
@@ -207,7 +212,21 @@ IMPORTANT: Before finishing, call lat_state_clear({ key: "cruise" }) to deactiva
 
   const match = detectKeywords(prompt);
   if (match) {
-    // consult는 대화형 — 상태 파일 불필요, 컨텍스트 주입만
+    // consult/init는 대화형 — 상태 파일 불필요, 컨텍스트 주입만
+    if (match.primitive === 'init') {
+      respond({
+        continue: true,
+        additionalContext: `[LATTICE] Init mode activated. Follow the init workflow:
+1. SCAN: Read project structure (top-level dirs, config files), CLAUDE.md, README.md, docs/, .claude/, and other .md files. Use git log for recent activity.
+2. TRIAGE: Classify each doc as Essential (→ knowledge/), Useful (→ knowledge/ condensed), Redundant (Lattice handles better), or Outdated (skip).
+3. PROPOSE: Present triage results to user via AskUserQuestion. Ask about CLAUDE.md slimming strategy and which knowledge files to generate.
+4. GENERATE: Create .claude/lattice/knowledge/ files (architecture.md, conventions.md, project-context.md). Backup original CLAUDE.md. Slim CLAUDE.md per user choice.
+5. VERIFY: Confirm generated files are readable via lat_knowledge_read. Report summary.
+IMPORTANT: Always backup before modifying. Never delete without user approval.`,
+      });
+      return;
+    }
+
     if (match.primitive === 'consult') {
       respond({
         continue: true,
