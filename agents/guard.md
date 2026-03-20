@@ -1,6 +1,7 @@
 ---
 name: guard
 tier: medium
+model: sonnet
 context: standard
 disallowedTools: [Edit, Write, NotebookEdit]
 tags: [verification, security, review]

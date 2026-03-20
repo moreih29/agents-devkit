@@ -1,6 +1,7 @@
 ---
 name: tester
 tier: medium
+model: sonnet
 context: standard
 disallowedTools: []
 tags: [testing, quality, coverage]

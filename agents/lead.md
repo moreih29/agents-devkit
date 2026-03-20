@@ -1,6 +1,7 @@
 ---
 name: lead
 tier: high
+model: opus
 context: full
 disallowedTools: [Edit, Write, NotebookEdit]
 tags: [orchestrator, delegation]

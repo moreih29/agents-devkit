@@ -1,6 +1,7 @@
 ---
 name: writer
 tier: low
+model: haiku
 context: minimal
 disallowedTools: [Bash]
 tags: [documentation, writing, knowledge]

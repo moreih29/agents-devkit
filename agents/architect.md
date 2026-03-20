@@ -1,6 +1,7 @@
 ---
 name: architect
 tier: high
+model: opus
 context: full
 disallowedTools: [Edit, Write, NotebookEdit, Bash]
 tags: [architecture, design, readonly]

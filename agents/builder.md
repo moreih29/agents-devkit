@@ -1,6 +1,7 @@
 ---
 name: builder
 tier: medium
+model: sonnet
 context: standard
 disallowedTools: []
 tags: [implementation, coding]

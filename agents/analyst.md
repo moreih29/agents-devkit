@@ -1,6 +1,7 @@
 ---
 name: analyst
 tier: high
+model: opus
 context: full
 disallowedTools: [Edit, Write, NotebookEdit]
 tags: [analysis, research, investigation]

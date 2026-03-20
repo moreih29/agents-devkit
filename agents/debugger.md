@@ -1,6 +1,7 @@
 ---
 name: debugger
 tier: medium
+model: sonnet
 context: standard
 disallowedTools: []
 tags: [debugging, diagnosis, troubleshooting]

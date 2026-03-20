@@ -1,6 +1,7 @@
 ---
 name: reviewer
 tier: high
+model: opus
 context: full
 disallowedTools: [Edit, Write, NotebookEdit]
 tags: [review, code-quality, feedback]

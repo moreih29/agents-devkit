@@ -1,6 +1,7 @@
 ---
 name: strategist
 tier: high
+model: opus
 context: full
 disallowedTools: [Edit, Write, NotebookEdit]
 tags: [planning, strategy, decomposition]

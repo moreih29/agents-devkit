@@ -1,6 +1,7 @@
 ---
 name: finder
 tier: low
+model: haiku
 context: minimal
 disallowedTools: [Edit, Write, NotebookEdit]
 tags: [exploration, search, readonly]
