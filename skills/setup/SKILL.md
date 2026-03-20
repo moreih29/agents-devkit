@@ -34,7 +34,28 @@ AskUserQuestion({
 선택 시 `.nexus/statusline-preset.json`에 `{"preset": "<선택>"}` 저장.
 Skip이면 아무것도 하지 않음 (기본값 standard 유지).
 
-### Step 2: Knowledge Init
+### Step 2: Delegation Enforcement
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "에이전트 위임 강제 수준을 선택하세요.",
+    header: "Delegation",
+    multiSelect: false,
+    options: [
+      { label: "Warn (Recommended)", description: "Write/Edit 시 위임 리마인더 주입. 실행은 허용." },
+      { label: "Strict", description: "Write/Edit 시 도구 차단. 반드시 에이전트에 위임해야 함." },
+      { label: "Off", description: "위임 안내 없음. 자유롭게 직접 작업." },
+      { label: "Skip", description: "위임 강제 설정 건너뛰기 (기본값 warn)" }
+    ]
+  }]
+})
+```
+
+선택 시 `.nexus/config.json`에 `{"delegationEnforcement": "<선택>"}` 저장.
+Skip이면 아무것도 하지 않음 (기본값 warn 유지).
+
+### Step 3: Knowledge Init
 
 ```
 AskUserQuestion({
@@ -53,7 +74,7 @@ AskUserQuestion({
 Yes 선택 시: init 스킬 워크플로우 실행 (SCAN → TRIAGE → PROPOSE → GENERATE → VERIFY).
 Skip 시: 다음 단계로.
 
-### Step 3: Complete
+### Step 4: Complete
 
 설정 완료 메시지 출력:
 - 적용된 설정 요약

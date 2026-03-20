@@ -285,8 +285,9 @@ Key: This is the standalone Plan skill — not the plan stage within auto. Scale
         continue: true,
         additionalContext: `[NEXUS] Setup wizard activated. Guide the user through these steps IN ORDER using AskUserQuestion for each:
 1. STATUSLINE: Ask preset choice (Full recommended / Standard / Minimal / Skip). If chosen, write {"preset":"<choice>"} to .nexus/statusline-preset.json.
-2. INIT: Ask whether to run knowledge init (Yes recommended / Skip). If Yes, run the init workflow (SCAN→TRIAGE→PROPOSE→GENERATE→VERIFY).
-3. COMPLETE: Show summary of applied settings and brief intro to available skills/agents.
+2. DELEGATION: Ask enforcement level (Warn recommended / Strict / Off / Skip). If chosen, write {"delegationEnforcement":"<choice>"} to .nexus/config.json.
+3. INIT: Ask whether to run knowledge init (Yes recommended / Skip). If Yes, run the init workflow (SCAN→TRIAGE→PROPOSE→GENERATE→VERIFY).
+4. COMPLETE: Show summary of applied settings and brief intro to available skills/agents.
 Key: Use AskUserQuestion for every step. Keep it lightweight. Always offer Skip option.`,
       });
       return;
