@@ -254,7 +254,7 @@ IMPORTANT: Always backup before modifying. Never delete without user approval.`
         additionalContext: `[NEXUS] Consult mode activated. Follow the consult workflow:
 1. EXPLORE: Read code (nx_lsp_document_symbols, nx_ast_search for brownfield), knowledge (nx_knowledge_read), context (nx_context). Auto-detect brownfield vs greenfield.
 2. ASSESS: Evaluate 4 dimensions \u2014 [Goal: ?] [Constraints: ?] [Criteria: ?] [Context: ?]. Mark each \u2705/\u26A0\uFE0F/\u274C. If \u22641 unclear \u2192 lightweight mode. If \u22652 unclear \u2192 deep mode.
-3. CLARIFY (if unclear dimensions exist; 1-2 questions in lightweight, extended in deep): Ask ONE question at a time targeting the weakest dimension. Use perspective shifts naturally when needed.
+3. CLARIFY (if unclear dimensions exist; 1-2 questions in lightweight, extended in deep): MUST use AskUserQuestion with concrete options \u2014 never ask as plain text. One question at a time targeting the weakest dimension.
 4. DIVERGE: Generate 2-4 genuinely different approaches with pros/cons/effort.
 5. PROPOSE: Present options via AskUserQuestion with preview for concrete comparisons.
 6. CONVERGE: Elaborate chosen approach, follow-up if needed, produce concrete plan.

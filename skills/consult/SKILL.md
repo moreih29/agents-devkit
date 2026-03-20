@@ -44,10 +44,23 @@ explore → assess → (clarify) → diverge → propose → converge → crysta
 ### Phase 2: Clarify (대화)
 
 **한 번에 하나의 질문** 원칙. 가장 약한 차원을 다음 질문 대상으로 선택.
+**반드시 `AskUserQuestion`을 사용**하여 선택지 형태로 질문. 자유 텍스트 질문 금지.
 
 ```
-❌ "목표가 뭔가요? 제약조건은요? 기존 코드에 영향이?"
-✅ "가장 중요한 목표가 뭔가요?" → (답변 후) → "제약조건이 있나요?"
+❌ 일반 텍스트로 질문: "성능이란 어떤 의미인가요?"
+✅ AskUserQuestion으로 선택지 제시:
+AskUserQuestion({
+  questions: [{
+    question: "어떤 종류의 성능을 의미하나요?",
+    header: "Clarify",
+    multiSelect: false,
+    options: [
+      { label: "응답 속도", description: "훅/MCP 프로세스 스폰 오버헤드" },
+      { label: "토큰 효율성", description: "컨텍스트 소비, 에이전트 호출 비용" },
+      { label: "둘 다", description: "속도와 토큰 효율 모두" }
+    ]
+  }]
+})
 ```
 
 차원별 정성 추적 (숫자 점수 없음):
