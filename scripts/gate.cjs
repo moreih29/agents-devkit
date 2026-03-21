@@ -40,6 +40,18 @@ function ensureDir(dir) {
     (0, import_fs.mkdirSync)(dir, { recursive: true });
   }
 }
+function updateWorkflowPhase(sid, phase) {
+  const workflowPath = (0, import_path.join)(sessionDir(sid), "workflow.json");
+  if (!(0, import_fs.existsSync)(workflowPath)) return;
+  try {
+    const state = JSON.parse((0, import_fs.readFileSync)(workflowPath, "utf-8"));
+    if ((state.mode === "consult" || state.mode === "plan") && state.phase !== phase) {
+      state.phase = phase;
+      (0, import_fs.writeFileSync)(workflowPath, JSON.stringify(state, null, 2));
+    }
+  } catch {
+  }
+}
 
 // src/shared/session.ts
 var import_crypto = require("crypto");
@@ -158,6 +170,17 @@ function handleUserPromptSubmit(event) {
     pass();
     return;
   }
+  const sid = getSessionId();
+  const workflowPath = (0, import_path3.join)(sessionDir(sid), "workflow.json");
+  if ((0, import_fs3.existsSync)(workflowPath)) {
+    try {
+      const state = JSON.parse((0, import_fs3.readFileSync)(workflowPath, "utf-8"));
+      if (state.phase === "waiting") {
+        updateWorkflowPhase(sid, "delegating");
+      }
+    } catch {
+    }
+  }
   const dTag = prompt.match(/\[d\]/i);
   if (dTag) {
     let branch = "unknown";
@@ -188,8 +211,8 @@ IMPORTANT: Always backup before modifying. Never delete without user approval.`
       return;
     }
     if (match.primitive === "consult") {
-      const sid = getSessionId();
-      activateMode("consult", sid, { phase: "explore" });
+      const sid2 = getSessionId();
+      activateMode("consult", sid2, { phase: "exploring" });
       respond({
         continue: true,
         additionalContext: `[NEXUS] Consult mode activated. Follow the consult workflow:
@@ -202,14 +225,13 @@ IMPORTANT: Always backup before modifying. Never delete without user approval.`
 7. CRYSTALLIZE: Finalize plan. If unclear dimensions remain, disclose risks transparently \u2014 but never block the user.
 8. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Execute with delegation (Recommended) / Plan only / Skip.
 Key: One question at a time. Specific choices, not vague "what do you think?". Respect user autonomy.
-PHASE TRACKING: Update phase as you progress: nx_state_write({ key: "workflow", value: { mode: "consult", phase: "<current_phase>" } }). Clear when done: nx_state_clear({ key: "consult" }).
 If a plan directory exists for the current branch, record decisions from user selections in the plan.md file.`
       });
       return;
     }
     if (match.primitive === "plan") {
-      const sid = getSessionId();
-      activateMode("plan", sid, { phase: "analyze" });
+      const sid2 = getSessionId();
+      activateMode("plan", sid2, { phase: "analyzing" });
       respond({
         continue: true,
         additionalContext: `[NEXUS] Plan mode activated. Follow the plan workflow:
@@ -220,7 +242,7 @@ If a plan directory exists for the current branch, record decisions from user se
 5. PERSIST: Save plan to .claude/nexus/plans/{branch}/plan.md. Generate .claude/nexus/plans/{branch}/tasks.json with task list including dependencies.
 6. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Execute with delegation (Recommended) / Plan only / Skip.
 Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Scale determines formality. Small tasks need only a checklist, not a full ADR.
-PHASE TRACKING: Update phase as you progress: nx_state_write({ key: "workflow", value: { mode: "plan", phase: "<current_phase>" } }). Clear when done: nx_state_clear({ key: "plan" }).`
+`
       });
       return;
     }

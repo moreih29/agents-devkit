@@ -1,7 +1,7 @@
 // Pulse 훅: PreToolUse/PostToolUse — Whisper 패턴 컨텍스트 주입 + Guard
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { sessionDir, ensureDir, RUNTIME_ROOT } from '../shared/paths.js';
+import { sessionDir, ensureDir, RUNTIME_ROOT, updateWorkflowPhase } from '../shared/paths.js';
 import { getSessionId } from '../shared/session.js';
 import { join } from 'path';
 
@@ -209,6 +209,11 @@ async function main() {
   if (!existsSync(sessDir)) {
     pass();
     return;
+  }
+
+  // Phase 자동 전환: AskUserQuestion 호출 → waiting
+  if (hookEvent === 'PreToolUse' && toolName === 'AskUserQuestion') {
+    updateWorkflowPhase(sid, 'waiting');
   }
 
   const tracker = loadTracker(sid);

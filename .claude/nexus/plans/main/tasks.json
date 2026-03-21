@@ -1,0 +1,7 @@
+[
+  { "id": "t1", "title": "shared/paths.ts에 updateWorkflowPhase 헬퍼 추가", "status": "todo", "deps": [] },
+  { "id": "t2", "title": "tracker.ts — SubagentStart/Stop에서 phase 자동 갱신", "status": "todo", "deps": ["t1"] },
+  { "id": "t3", "title": "pulse.ts — AskUserQuestion 감지 시 waiting 전환", "status": "todo", "deps": ["t1"] },
+  { "id": "t4", "title": "gate.ts — waiting→delegating 전환 + 지시문 정리", "status": "todo", "deps": ["t1"] },
+  { "id": "t5", "title": "빌드 + E2E 테스트 검증", "status": "todo", "deps": ["t2", "t3", "t4"] }
+]

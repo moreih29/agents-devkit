@@ -40,6 +40,18 @@ function ensureDir(dir) {
     (0, import_fs.mkdirSync)(dir, { recursive: true });
   }
 }
+function updateWorkflowPhase(sid, phase) {
+  const workflowPath = (0, import_path.join)(sessionDir(sid), "workflow.json");
+  if (!(0, import_fs.existsSync)(workflowPath)) return;
+  try {
+    const state = JSON.parse((0, import_fs.readFileSync)(workflowPath, "utf-8"));
+    if ((state.mode === "consult" || state.mode === "plan") && state.phase !== phase) {
+      state.phase = phase;
+      (0, import_fs.writeFileSync)(workflowPath, JSON.stringify(state, null, 2));
+    }
+  } catch {
+  }
+}
 
 // src/shared/session.ts
 var import_crypto = require("crypto");
@@ -223,6 +235,9 @@ async function main() {
   if (!(0, import_fs3.existsSync)(sessDir)) {
     pass();
     return;
+  }
+  if (hookEvent === "PreToolUse" && toolName === "AskUserQuestion") {
+    updateWorkflowPhase(sid, "waiting");
   }
   const tracker = loadTracker(sid);
   const contextLevel = getActiveContextLevel(sid);

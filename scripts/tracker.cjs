@@ -40,6 +40,29 @@ function ensureDir(dir) {
     (0, import_fs.mkdirSync)(dir, { recursive: true });
   }
 }
+function updateWorkflowPhase(sid, phase) {
+  const workflowPath = (0, import_path.join)(sessionDir(sid), "workflow.json");
+  if (!(0, import_fs.existsSync)(workflowPath)) return;
+  try {
+    const state = JSON.parse((0, import_fs.readFileSync)(workflowPath, "utf-8"));
+    if ((state.mode === "consult" || state.mode === "plan") && state.phase !== phase) {
+      state.phase = phase;
+      (0, import_fs.writeFileSync)(workflowPath, JSON.stringify(state, null, 2));
+    }
+  } catch {
+  }
+}
+function getBasePhase(sid) {
+  const workflowPath = (0, import_path.join)(sessionDir(sid), "workflow.json");
+  if (!(0, import_fs.existsSync)(workflowPath)) return null;
+  try {
+    const state = JSON.parse((0, import_fs.readFileSync)(workflowPath, "utf-8"));
+    if (state.mode === "consult") return "exploring";
+    if (state.mode === "plan") return "analyzing";
+  } catch {
+  }
+  return null;
+}
 
 // src/shared/session.ts
 var import_crypto = require("crypto");
@@ -248,6 +271,7 @@ function handleSubagentStart(event) {
   record.active.push(name);
   record.history.push({ name, startedAt: (/* @__PURE__ */ new Date()).toISOString() });
   saveAgents(sid, record);
+  updateWorkflowPhase(sid, "delegating");
   pass();
 }
 function handleSubagentStop(event) {
@@ -267,6 +291,10 @@ function handleSubagentStop(event) {
     }
   }
   saveAgents(sid, record);
+  if (record.active.length === 0) {
+    const base = getBasePhase(sid);
+    if (base) updateWorkflowPhase(sid, base);
+  }
   pass();
 }
 async function main() {

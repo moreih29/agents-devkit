@@ -22099,8 +22099,8 @@ function registerAstTools(server2) {
               }
             }
             if (!isDryRun && newSource !== source) {
-              const { writeFileSync: writeFileSync2 } = require("fs");
-              writeFileSync2(file, newSource);
+              const { writeFileSync: writeFileSync3 } = require("fs");
+              writeFileSync3(file, newSource);
             }
           } catch {
           }

@@ -1,7 +1,7 @@
 // Tracker 훅: SubagentStart/Stop, SessionStart/End — 에이전트/세션 추적
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { existsSync, readFileSync, writeFileSync, readdirSync, rmdirSync, rmSync, statSync } from 'fs';
-import { sessionDir, ensureDir, RUNTIME_ROOT, KNOWLEDGE_ROOT } from '../shared/paths.js';
+import { sessionDir, ensureDir, RUNTIME_ROOT, KNOWLEDGE_ROOT, updateWorkflowPhase, getBasePhase } from '../shared/paths.js';
 import { getSessionId, createSession } from '../shared/session.js';
 import { join } from 'path';
 import { execSync } from 'child_process';
@@ -239,6 +239,9 @@ function handleSubagentStart(event: { agent_name?: string; agent_type?: string }
   record.history.push({ name, startedAt: new Date().toISOString() });
   saveAgents(sid, record);
 
+  // Phase 자동 전환: 에이전트 spawn → delegating
+  updateWorkflowPhase(sid, 'delegating');
+
   pass();
 }
 
@@ -262,6 +265,12 @@ function handleSubagentStop(event: { agent_name?: string; agent_type?: string })
   }
 
   saveAgents(sid, record);
+
+  // Phase 자동 전환: 마지막 에이전트 종료 → base phase로 복귀
+  if (record.active.length === 0) {
+    const base = getBasePhase(sid);
+    if (base) updateWorkflowPhase(sid, base);
+  }
 
   pass();
 }
