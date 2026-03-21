@@ -164,7 +164,7 @@ function triggerBackgroundFetch(): void {
 
 const STALE_THRESHOLD = 300; // 5분 이상 미갱신 시에만 [stale] 표시
 
-function getUsage(): { json: string; stale: boolean } | null {
+function getUsage(): { json: string; stale: boolean; ageSeconds: number } | null {
   const now = Math.floor(Date.now() / 1000);
   let currentTtl = CACHE_TTL_DEFAULT;
   let cachedData = '';
@@ -181,7 +181,7 @@ function getUsage(): { json: string; stale: boolean } | null {
 
       // TTL 이내: 캐시 반환 (fresh)
       if (cacheAge < currentTtl) {
-        return { json: cachedData, stale: false };
+        return { json: cachedData, stale: false, ageSeconds: cacheAge };
       }
     } catch { /* skip */ }
   }
@@ -189,9 +189,9 @@ function getUsage(): { json: string; stale: boolean } | null {
   // TTL 만료: 백그라운드에서 갱신 트리거 (non-blocking)
   triggerBackgroundFetch();
 
-  // stale 캐시가 있으면 즉시 반환 (5분 이상일 때만 [stale] 표시)
+  // stale 캐시가 있으면 즉시 반환 (5분 이상일 때만 stale 표시)
   if (cachedData) {
-    return { json: cachedData, stale: cacheAge >= STALE_THRESHOLD };
+    return { json: cachedData, stale: cacheAge >= STALE_THRESHOLD, ageSeconds: cacheAge };
   }
 
   // 캐시 없음 (최초 실행): 동기 호출 1회 (어쩔 수 없음)
@@ -214,7 +214,7 @@ function getUsage(): { json: string; stale: boolean } | null {
         } catch {
           try { require('fs').unlinkSync(USAGE_CACHE_PATH + '.tmp'); } catch { /* skip */ }
         }
-        return { json: resp, stale: false };
+        return { json: resp, stale: false, ageSeconds: 0 };
       }
     }
   } catch { /* skip */ }
@@ -232,8 +232,8 @@ function extractUtil(json: string, section: string): number {
   return val > 1 ? val : val * 100;
 }
 
-function extractResetInfo(json: string, section: string): { timeStr: string; remaining: string; dayStr: string } {
-  const empty = { timeStr: '', remaining: '', dayStr: '' };
+function extractResetInfo(json: string, section: string): { timeStr: string; remaining: string; remainingCoarse: string; dayStr: string } {
+  const empty = { timeStr: '', remaining: '', remainingCoarse: '', dayStr: '' };
   const sectionMatch = json.match(new RegExp(`"${section}":\\{[^}]*}`));
   if (!sectionMatch) return empty;
   const resetMatch = sectionMatch[0].match(/"resets_at":"([^"]+)"/);
@@ -246,18 +246,22 @@ function extractResetInfo(json: string, section: string): { timeStr: string; rem
     // 남은 시간
     const diffMs = d.getTime() - now.getTime();
     let remaining = '';
+    let remainingCoarse = ''; // d/h 단위만 (7d용)
     if (diffMs > 0) {
       const diffMin = Math.floor(diffMs / 60000);
       const hh = Math.floor(diffMin / 60);
       const mm = diffMin % 60;
       remaining = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
+      const dd = Math.floor(hh / 24);
+      const hhRem = hh % 24;
+      remainingCoarse = dd > 0 ? `${dd}d${hhRem}h` : `${hh}h`;
     }
 
     // 요일 (7d용)
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const dayStr = days[d.getDay()];
 
-    return { timeStr, remaining, dayStr };
+    return { timeStr, remaining, remainingCoarse, dayStr };
   } catch { return empty; }
 }
 
@@ -303,16 +307,25 @@ function buildLine2(): string {
 
   const pct5h = Math.round(extractUtil(usage.json, 'five_hour'));
   const pct7d = Math.round(extractUtil(usage.json, 'seven_day'));
-  const { timeStr: reset5h, remaining: remain5h } = extractResetInfo(usage.json, 'five_hour');
-  const { timeStr: reset7d, remaining: remain7d, dayStr: resetDay } = extractResetInfo(usage.json, 'seven_day');
+  const { remaining: remain5h } = extractResetInfo(usage.json, 'five_hour');
+  const { remainingCoarse: remain7d } = extractResetInfo(usage.json, 'seven_day');
 
   const m5h = coloredMeter('5h', pct5h, BAR_WIDTH);
   const m7d = coloredMeter('7d', pct7d, BAR_WIDTH);
   const r5h = remain5h ? ` ${DIM}${remain5h}${RESET}` : '';
   const r7d = remain7d ? ` ${DIM}${remain7d}${RESET}` : '';
-  const staleTag = usage.stale ? ` \x1b[33m[stale]\x1b[0m` : '';
 
-  return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${staleTag}`;
+  // 캐시 나이 표시 (5분 이상일 때만)
+  let stalePart = '';
+  if (usage.stale) {
+    const ageMin = Math.floor(usage.ageSeconds / 60);
+    const hh = Math.floor(ageMin / 60);
+    const mm = ageMin % 60;
+    const ageStr = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
+    stalePart = ` ${SEP} \x1b[33m↻${ageStr}\x1b[0m`;
+  }
+
+  return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${stalePart}`;
 }
 
 // --- Line 3: 워크플로우 + 에이전트 + 태스크 ---

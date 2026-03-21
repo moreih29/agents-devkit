@@ -136,14 +136,14 @@ function getUsage() {
       cachedData = lines[2] || "";
       cacheAge = now - cachedAt;
       if (cacheAge < currentTtl) {
-        return { json: cachedData, stale: false };
+        return { json: cachedData, stale: false, ageSeconds: cacheAge };
       }
     } catch {
     }
   }
   triggerBackgroundFetch();
   if (cachedData) {
-    return { json: cachedData, stale: cacheAge >= STALE_THRESHOLD };
+    return { json: cachedData, stale: cacheAge >= STALE_THRESHOLD, ageSeconds: cacheAge };
   }
   try {
     let credJson = "";
@@ -169,7 +169,7 @@ ${resp}`;
           } catch {
           }
         }
-        return { json: resp, stale: false };
+        return { json: resp, stale: false, ageSeconds: 0 };
       }
     }
   } catch {
@@ -185,7 +185,7 @@ function extractUtil(json, section) {
   return val > 1 ? val : val * 100;
 }
 function extractResetInfo(json, section) {
-  const empty = { timeStr: "", remaining: "", dayStr: "" };
+  const empty = { timeStr: "", remaining: "", remainingCoarse: "", dayStr: "" };
   const sectionMatch = json.match(new RegExp(`"${section}":\\{[^}]*}`));
   if (!sectionMatch) return empty;
   const resetMatch = sectionMatch[0].match(/"resets_at":"([^"]+)"/);
@@ -196,15 +196,19 @@ function extractResetInfo(json, section) {
     const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     const diffMs = d.getTime() - now.getTime();
     let remaining = "";
+    let remainingCoarse = "";
     if (diffMs > 0) {
       const diffMin = Math.floor(diffMs / 6e4);
       const hh = Math.floor(diffMin / 60);
       const mm = diffMin % 60;
       remaining = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
+      const dd = Math.floor(hh / 24);
+      const hhRem = hh % 24;
+      remainingCoarse = dd > 0 ? `${dd}d${hhRem}h` : `${hh}h`;
     }
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const dayStr = days[d.getDay()];
-    return { timeStr, remaining, dayStr };
+    return { timeStr, remaining, remainingCoarse, dayStr };
   } catch {
     return empty;
   }
@@ -245,14 +249,21 @@ function buildLine2() {
   }
   const pct5h = Math.round(extractUtil(usage.json, "five_hour"));
   const pct7d = Math.round(extractUtil(usage.json, "seven_day"));
-  const { timeStr: reset5h, remaining: remain5h } = extractResetInfo(usage.json, "five_hour");
-  const { timeStr: reset7d, remaining: remain7d, dayStr: resetDay } = extractResetInfo(usage.json, "seven_day");
+  const { remaining: remain5h } = extractResetInfo(usage.json, "five_hour");
+  const { remainingCoarse: remain7d } = extractResetInfo(usage.json, "seven_day");
   const m5h = coloredMeter("5h", pct5h, BAR_WIDTH);
   const m7d = coloredMeter("7d", pct7d, BAR_WIDTH);
   const r5h = remain5h ? ` ${DIM}${remain5h}${RESET}` : "";
   const r7d = remain7d ? ` ${DIM}${remain7d}${RESET}` : "";
-  const staleTag = usage.stale ? ` \x1B[33m[stale]\x1B[0m` : "";
-  return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${staleTag}`;
+  let stalePart = "";
+  if (usage.stale) {
+    const ageMin = Math.floor(usage.ageSeconds / 60);
+    const hh = Math.floor(ageMin / 60);
+    const mm = ageMin % 60;
+    const ageStr = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
+    stalePart = ` ${SEP} \x1B[33m\u21BB${ageStr}\x1B[0m`;
+  }
+  return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${stalePart}`;
 }
 function buildLine3() {
   const sid = getSessionId();
