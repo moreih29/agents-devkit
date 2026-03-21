@@ -96,7 +96,7 @@ function handleSessionStart(): void {
   } catch { /* skip */ }
 
   const branchDir = branch.replace(/\//g, '--');
-  const planDirPath = join(sessionDir(sid), 'plans', branchDir);
+  const planDirPath = join(RUNTIME_ROOT, 'plans', branchDir);
   const hasPlanDir = existsSync(planDirPath);
   const planFile = join(planDirPath, 'plan.md');
   const hasPlan = existsSync(planFile);
@@ -118,7 +118,7 @@ function handleSessionStart(): void {
     respond({
       continue: true,
       additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Mode: planning. Plan directory found. ${codebaseCtx}
-DECISION CAPTURE: You are in multi-turn planning mode. When the user makes decisions (confirmatory expressions like "이걸로 하자", "삭제하자", "이렇게 바꾸자", or [d] tag), record them in .nexus/state/sessions/${sid}/plans/${branchDir}/plan.md under the decisions section.
+DECISION CAPTURE: You are in multi-turn planning mode. When the user makes decisions (confirmatory expressions like "이걸로 하자", "삭제하자", "이렇게 바꾸자", or [d] tag), record them in .nexus/plans/${branchDir}/plan.md under the decisions section.
 When the user says "구현하자" or requests implementation, generate tasks.json from the accumulated decisions.`,
     });
   } else {

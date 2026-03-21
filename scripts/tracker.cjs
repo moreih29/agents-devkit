@@ -151,7 +151,7 @@ function handleSessionStart() {
   } catch {
   }
   const branchDir = branch.replace(/\//g, "--");
-  const planDirPath = (0, import_path3.join)(sessionDir(sid), "plans", branchDir);
+  const planDirPath = (0, import_path3.join)(RUNTIME_ROOT, "plans", branchDir);
   const hasPlanDir = (0, import_fs3.existsSync)(planDirPath);
   const planFile = (0, import_path3.join)(planDirPath, "plan.md");
   const hasPlan = (0, import_fs3.existsSync)(planFile);
@@ -168,7 +168,7 @@ function handleSessionStart() {
     respond({
       continue: true,
       additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Mode: planning. Plan directory found. ${codebaseCtx}
-DECISION CAPTURE: You are in multi-turn planning mode. When the user makes decisions (confirmatory expressions like "\uC774\uAC78\uB85C \uD558\uC790", "\uC0AD\uC81C\uD558\uC790", "\uC774\uB807\uAC8C \uBC14\uAFB8\uC790", or [d] tag), record them in .nexus/state/sessions/${sid}/plans/${branchDir}/plan.md under the decisions section.
+DECISION CAPTURE: You are in multi-turn planning mode. When the user makes decisions (confirmatory expressions like "\uC774\uAC78\uB85C \uD558\uC790", "\uC0AD\uC81C\uD558\uC790", "\uC774\uB807\uAC8C \uBC14\uAFB8\uC790", or [d] tag), record them in .nexus/plans/${branchDir}/plan.md under the decisions section.
 When the user says "\uAD6C\uD604\uD558\uC790" or requests implementation, generate tasks.json from the accumulated decisions.`
     });
   } else {

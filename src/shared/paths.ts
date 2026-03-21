@@ -34,9 +34,9 @@ export function knowledgePath(topic: string): string {
   return join(KNOWLEDGE_ROOT, 'knowledge', `${topic}.md`);
 }
 
-/** 세션별 플랜 디렉토리 (.nexus/state/sessions/{sid}/plans/) */
-export function plansDir(sessionId: string): string {
-  return join(sessionDir(sessionId), 'plans');
+/** 플랜 디렉토리 (.nexus/plans/ — 세션 독립, 로컬 전용) */
+export function plansDir(): string {
+  return join(RUNTIME_ROOT, 'plans');
 }
 
 /** 디렉토리 생성 (재귀) */

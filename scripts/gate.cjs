@@ -191,7 +191,7 @@ function handleUserPromptSubmit(event) {
     const branchDir = branch.replace(/\//g, "--");
     respond({
       continue: true,
-      additionalContext: `[NEXUS] Decision tag detected. Record this decision in the plan.md file under the current session's plans directory (.nexus/state/sessions/{sessionId}/plans/${branchDir}/plan.md).`
+      additionalContext: `[NEXUS] Decision tag detected. Record this decision in .nexus/plans/${branchDir}/plan.md under the decisions section.`
     });
     return;
   }
@@ -246,7 +246,7 @@ Auto-create a feature branch BEFORE planning:
 1. Analyze the user's request to generate a descriptive branch name (e.g., feat/phase-auto-tracking, fix/statusline-bug).
 2. Check existing branches with: git branch --list '<candidate>'. If it exists, append a suffix (-2, -3, etc.).
 3. Run: git checkout -b <branch-name>
-4. Create plan directory: mkdir -p .nexus/state/sessions/{sessionId}/plans/<branch-dir>/ (replace / with -- in branch name).
+4. Create plan directory: mkdir -p .nexus/plans/<branch-dir>/ (replace / with -- in branch name).
 5. Then proceed with the plan workflow. Do NOT ask the user to choose a branch name \u2014 decide it yourself.` : "";
       respond({
         continue: true,
@@ -255,9 +255,9 @@ Auto-create a feature branch BEFORE planning:
 2. DRAFT: Spawn Agent({ subagent_type: "nexus:strategist", prompt: "<full request context>" }) to create initial plan.
 3. REVIEW (medium+): Spawn Agent({ subagent_type: "nexus:architect", prompt: "Review this plan: <strategist output>" }) for structural review.
 4. CRITIQUE (large only): Spawn Agent({ subagent_type: "nexus:reviewer", prompt: "Critique this plan: <architect output>" }). If critical issues, loop back to DRAFT (max 3 iterations).
-5. PERSIST: Save plan to .nexus/state/sessions/{sessionId}/plans/{branch}/plan.md. Generate tasks.json in the same directory with task list including dependencies.
+5. PERSIST (MANDATORY \u2014 do NOT skip): Save plan to .nexus/plans/{branch}/plan.md using Write tool. Generate tasks.json in the same directory with task list. Both files MUST exist before proceeding to step 6.
 6. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Execute with delegation (Recommended) / Plan only / Skip.
-Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Scale determines formality. Small tasks need only a checklist, not a full ADR.
+Key: This is the standalone Plan skill \u2014 not the plan stage within auto. Scale determines formality. Small tasks need only a checklist, not a full ADR. Plans persist across sessions at .nexus/plans/ \u2014 do NOT delete them after merge.
 `
       });
       return;

@@ -346,12 +346,12 @@ function buildLine3() {
     } catch {
     }
   }
-  if (modeDisplay === `\u{1F4A4} idle` && sid) {
+  if (modeDisplay === `\u{1F4A4} idle`) {
     try {
       const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
       if (branch !== "main" && branch !== "master") {
         const branchDir = branch.replace(/\//g, "--");
-        const planDir = (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sid, "plans", branchDir);
+        const planDir = (0, import_path.join)(RUNTIME_ROOT, "plans", branchDir);
         if ((0, import_fs.existsSync)(planDir)) {
           modeDisplay = `\u{1F4CB} planning`;
         }
@@ -359,19 +359,17 @@ function buildLine3() {
     } catch {
     }
   }
-  if (sid) {
-    try {
-      const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-      const branchDir = branch.replace(/\//g, "--");
-      const tasksFile = (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sid, "plans", branchDir, "tasks.json");
-      if ((0, import_fs.existsSync)(tasksFile)) {
-        const tasks = JSON.parse((0, import_fs.readFileSync)(tasksFile, "utf-8"));
-        const total = tasks.length;
-        const done = tasks.filter((t) => t.status === "done").length;
-        taskStr = `${done}/${total}`;
-      }
-    } catch {
+  try {
+    const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    const branchDir = branch.replace(/\//g, "--");
+    const tasksFile = (0, import_path.join)(RUNTIME_ROOT, "plans", branchDir, "tasks.json");
+    if ((0, import_fs.existsSync)(tasksFile)) {
+      const tasks = JSON.parse((0, import_fs.readFileSync)(tasksFile, "utf-8"));
+      const total = tasks.length;
+      const done = tasks.filter((t) => t.status === "done").length;
+      taskStr = `${done}/${total}`;
     }
+  } catch {
   }
   return `${modeDisplay} ${SEP} \u{1F916} ${agentCount} ${SEP} \u{1F4CB} ${taskStr}`;
 }
