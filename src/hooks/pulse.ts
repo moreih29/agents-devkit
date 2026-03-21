@@ -1,6 +1,6 @@
 // Pulse 훅: PreToolUse/PostToolUse — Whisper 패턴 컨텍스트 주입 + Guard
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'fs';
 import { sessionDir, ensureDir, RUNTIME_ROOT, updateWorkflowPhase } from '../shared/paths.js';
 import { getSessionId } from '../shared/session.js';
 import { join } from 'path';
@@ -281,6 +281,28 @@ async function main() {
       if (existsSync(agentsPath)) {
         const record = JSON.parse(readFileSync(agentsPath, 'utf-8'));
         if (record.history?.length > 0) progressParts.push(`agents: ${record.history.length} spawned`);
+      }
+    } catch { /* skip */ }
+
+    // plan tasks.json 갱신 리마인더
+    try {
+      const plansDir = join(RUNTIME_ROOT, 'plans');
+      if (existsSync(plansDir)) {
+        let pendingCount = 0;
+        for (const entry of readdirSync(plansDir, { withFileTypes: true })) {
+          if (!entry.isDirectory()) continue;
+          const tasksPath = join(plansDir, entry.name, 'tasks.json');
+          if (!existsSync(tasksPath)) continue;
+          try {
+            const tasks = JSON.parse(readFileSync(tasksPath, 'utf-8'));
+            if (Array.isArray(tasks)) {
+              pendingCount += tasks.filter((t: { status?: string }) => t.status === 'pending').length;
+            }
+          } catch { /* skip */ }
+        }
+        if (pendingCount > 0) {
+          progressParts.push(`[PLAN] Update tasks.json (${pendingCount} pending) and check off plan.md items as work completes.`);
+        }
       }
     } catch { /* skip */ }
 
