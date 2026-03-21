@@ -234,13 +234,12 @@ Auto-create a feature branch BEFORE planning:
       respond({
         continue: true,
         additionalContext: `[NEXUS] Plan mode activated. Follow the plan workflow:${branchInstruction}
-1. ANALYZE: Analyze the request. Determine scale — small (1-3 files), medium (module-level), large (architecture/security/migration). Auto-escalate to large if request mentions auth, migration, delete, or security.
+1. ANALYZE: Analyze the request. Determine scale — small (single concern, clear intent) or large (multiple concerns / design decisions needed). Auto-escalate to large if request mentions auth, migration, delete, security, or if repeated clarifying questions are needed in the session.
 2. DRAFT: Spawn Agent({ subagent_type: "nexus:strategist", prompt: "<full request context>" }) to create initial plan.
-3. REVIEW (medium+): Spawn Agent({ subagent_type: "nexus:architect", prompt: "Review this plan: <strategist output>" }) for structural review.
-4. CRITIQUE (large only): Spawn Agent({ subagent_type: "nexus:reviewer", prompt: "Critique this plan: <architect output>" }). If critical issues, loop back to DRAFT (max 3 iterations).
-5. PERSIST (MANDATORY — do NOT skip): Save plan to .nexus/plans/{branch}/plan.md using Write tool. Generate tasks.json in the same directory with task list. Both files MUST exist before proceeding to step 6.
-6. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Execute with delegation (Recommended) / Plan only / Skip.
-Key: This is the standalone Plan skill — not the plan stage within auto. Scale determines formality. Small tasks need only a checklist, not a full ADR. Plans persist across sessions at .nexus/plans/ — do NOT delete them after merge.
+3. REVIEW (large only): Spawn Architect for structural review, then Reviewer for critique. If critical issues, loop back to DRAFT (max 3 iterations).
+4. PERSIST (MANDATORY — do NOT skip): Save plan to .nexus/plans/{branch}/plan.md using Write tool. Generate tasks.json in the same directory with task list. Both files MUST exist.
+5. PRESENT: Show plan summary (goal, scope, task count). The user will naturally decide next steps — no question gate needed.
+Key: Scale determines formality — small (checklist, strategist only) vs large (structured plan + review loop). Plans persist across sessions at .nexus/plans/ — do NOT delete them after merge.
 `,
       });
       return;

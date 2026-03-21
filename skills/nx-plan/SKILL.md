@@ -24,16 +24,15 @@ Produces a reviewed plan document via a multi-agent consensus loop, then propose
 
 | 규모 | 기준 | 형식 | 참여자 |
 |------|------|------|--------|
-| 소규모 | 파일 1-3개 변경 | 체크리스트 | Strategist 단독 |
-| 중규모 | 모듈 수준 변경 | 구조화된 실행 계획 | Strategist + Architect |
-| 대규모 | 아키텍처 변경 / 보안 / 마이그레이션 | 전체 ADR + 리스크 분석 | Strategist + Architect + Reviewer (합의 루프) |
+| 소규모 | 단일 관심사, 변경 의도가 명확 | 체크리스트 | Strategist 단독 |
+| 대규모 | 복수 관심사 / 설계 결정 필요 | 구조화된 계획 + 리뷰 | Strategist + Architect + Reviewer (합의 루프) |
 
-고위험 작업 자동 감지: `auth`, `migration`, `delete`, `security` 키워드가 있으면 대규모로 상향.
+고위험 작업 자동 감지: `auth`, `migration`, `delete`, `security` 키워드가 있으면 대규모로 상향. 세션 내 동일 주제 반복 질문 시 대규모로 자동 상향.
 
 ## Workflow
 
 ```
-analyze → draft → [review loop] → persist → execute bridge
+analyze → draft → [review loop] → persist → present
 ```
 
 ### Phase 1: Analyze
@@ -70,32 +69,21 @@ Agent({
 - [ ] 검증: 기존 테스트 통과 확인
 ```
 
-**중규모** — 구조화된 계획:
+**대규모** — 구조화된 계획:
 ```
 ## 목표
-## 변경 범위 (파일 목록)
+## 변경 범위
 ## 단계별 구현
+## 리스크
 ## 테스트 전략
 ## 완료 기준
 ```
 
-**대규모** — ADR 형식:
-```
-## 컨텍스트
-## 결정
-## 대안 비교
-## 변경 범위
-## 리스크 및 완화 방안
-## 단계별 구현
-## 롤백 계획
-## 완료 기준
-```
-
-### Phase 3: Consensus Loop (중규모 이상)
+### Phase 3: Consensus Loop (대규모)
 
 순차 실행 필수 — 병렬화하면 검토 체인이 깨진다.
 
-**중규모: Architect 검토**
+**Architect 검토 → Reviewer 비판 + 반복 (최대 3회)**
 ```
 Agent({
   subagent_type: "nexus:architect",
@@ -105,7 +93,6 @@ Agent({
 
 Architect가 수정 사항을 제안하면 Strategist가 반영해 초안을 갱신한다.
 
-**대규모: Reviewer 비판 + 반복 (최대 3회)**
 ```
 Agent({
   subagent_type: "nexus:reviewer",
@@ -140,40 +127,21 @@ Write({ file_path: "{project_root}/.nexus/plans/{branch-dir}/tasks.json", conten
 브랜치명의 `/`는 `--`로 치환 (예: `fix/foo` → `fix--foo`).
 Both files MUST exist before proceeding to Phase 5.
 
-### Phase 5: Execute Bridge
+### Phase 5: Present
 
-`AskUserQuestion`으로 실행 전환 선택지 제시:
+계획 요약을 보여주고 종료한다. 사용자가 다음 단계를 자연스럽게 결정한다.
 
-```
-AskUserQuestion({
-  questions: [{
-    question: "계획이 준비됐습니다. 어떻게 진행할까요?",
-    header: "Execution",
-    multiSelect: false,
-    options: [
-      {
-        label: "Execute with delegation (Recommended)",
-        description: "위임 방식으로 실행 — 에이전트에게 단계별 구현을 위임",
-        preview: "계획에 따라 각 태스크를 적합한 에이전트에게 위임합니다."
-      },
-      {
-        label: "Plan only",
-        description: "계획 문서만 생성하고 직접 진행",
-        preview: "plans/{branch}/plan.md 저장 완료. 직접 실행하세요."
-      }
-    ]
-  }]
-})
-```
+- 계획의 핵심 항목(목표, 변경 범위, 태스크 수)을 간결히 요약
+- "실행해" → 에이전트 위임, 추가 지시 → 계획 수정, 아무것도 안 함 → 종료
 
 ## Key Principles
 
-1. **규모 먼저 판단** — 소규모 작업에 3자 합의 루프를 돌리지 않는다
+1. **규모 먼저 판단** — 소규모 작업에 합의 루프를 돌리지 않는다
 2. **순차 실행** — Strategist → Architect → Reviewer 순서 고정, 병렬화 금지
 3. **최대 3회 루프** — 합의에 실패해도 미해결 이슈를 명시하고 계속 진행
 4. **컨텍스트 우선** — 코드와 knowledge를 먼저 읽고 계획 수립
-5. **고위험 자동 상향** — 보안/마이그레이션 키워드는 무조건 대규모 처리
-6. **실행 강요 금지** — Manual 선택 시 계획 문서만 저장하고 종료
+5. **고위험 자동 상향** — 보안/마이그레이션 키워드는 무조건 대규모 처리. 세션 내 반복 질문도 대규모로 상향
+6. **실행 강요 금지** — 계획 제시 후 사용자에게 결정을 맡긴다
 
 ## State Management
 
@@ -182,6 +150,5 @@ Plan은 gate.ts에 의해 workflow.json이 자동 생성됩니다 (mode: "plan",
 ## Deactivation
 
 Plan은 자연스럽게 종료된다:
-- Execute Bridge에서 선택 후 → 실행 또는 종료
-- Plan only 선택 시 → 계획 문서 저장 후 종료
+- 계획 요약 제시 후 종료
 - 별도 `nx_state_clear`는 불필요
