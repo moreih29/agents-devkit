@@ -33,11 +33,12 @@ var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
 function getPreset() {
   const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
   if (env === "minimal" || env === "standard" || env === "full") return env;
-  const presetFile = (0, import_path.join)(RUNTIME_ROOT, "statusline-preset.json");
-  if ((0, import_fs.existsSync)(presetFile)) {
+  const configFile = (0, import_path.join)(KNOWLEDGE_ROOT, "config.json");
+  if ((0, import_fs.existsSync)(configFile)) {
     try {
-      const data = JSON.parse((0, import_fs.readFileSync)(presetFile, "utf-8"));
-      if (data.preset === "minimal" || data.preset === "standard" || data.preset === "full") return data.preset;
+      const data = JSON.parse((0, import_fs.readFileSync)(configFile, "utf-8"));
+      const p = data.statuslinePreset;
+      if (p === "minimal" || p === "standard" || p === "full") return p;
     } catch {
     }
   }

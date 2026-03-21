@@ -59,7 +59,7 @@ ctx ██████░░░░ 52% │ API mode │ 🔧 45 tools
 }
 ```
 
-Preset은 `.nexus/statusline-preset.json` (또는 환경변수 `LATTICE_STATUSLINE`):
+Preset은 `.claude/nexus/config.json`의 `statuslinePreset` (또는 환경변수 `NEXUS_STATUSLINE`):
 - `minimal` | `standard` (기본) | `full`
 
 ### CJS vs Shell

@@ -56,7 +56,7 @@ AskUserQuestion({
 })
 ```
 
-선택 시 scope에 따라 `statusline-preset.json`에 `{"preset": "<선택>"}` 저장.
+선택 시 scope에 따라 `config.json`의 `statuslinePreset` 필드에 저장.
 Skip이면 아무것도 하지 않음 (기본값 standard 유지).
 
 ### Step 3: Delegation Enforcement
@@ -187,4 +187,4 @@ Skip 시: 다음 단계로.
 ## State Management
 
 setup은 상태 파일 없이 순차 AskUserQuestion으로 동작.
-설정 결과는 각 단계에서 즉시 파일에 기록 (preset → `statusline-preset.json`).
+설정 결과는 각 단계에서 즉시 `config.json`에 기록.
