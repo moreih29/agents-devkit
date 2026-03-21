@@ -35,11 +35,11 @@ claude plugin install claude-nexus@nexus
 
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
-| **consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 사용자 의도를 파악하고 최적의 접근 방식을 탐색 |
-| **plan** | `[plan]` 또는 "계획 세워" | 다중 에이전트 합의 루프로 검토된 계획 생성 |
-| **init** | `[init]` 또는 "온보딩" | 프로젝트를 Nexus에 온보드 - 기존 문서 스캔하여 지식 생성 |
-| **setup** | `[setup]` 또는 "nexus 설정" | Nexus 대화형 설정 마법사 |
-| **sync** | `[sync]` 또는 "지식 동기화" | 소스 코드와 지식 문서 간 불일치 감지 및 수정 |
+| **nx-consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 사용자 의도를 파악하고 최적의 접근 방식을 탐색 |
+| **nx-plan** | `[plan]` 또는 "계획 세워" | 다중 에이전트 합의 루프로 검토된 계획 생성 |
+| **nx-init** | `[init]` 또는 "온보딩" | 프로젝트를 Nexus에 온보드 - 기존 문서 스캔하여 지식 생성 |
+| **nx-setup** | `[setup]` 또는 "nexus 설정" | Nexus 대화형 설정 마법사 |
+| **nx-sync** | `[sync]` 또는 "지식 동기화" | 소스 코드와 지식 문서 간 불일치 감지 및 수정 |
 
 ## MCP 도구
 
@@ -105,5 +105,8 @@ AST는 `@ast-grep/napi` 필요: `bun install @ast-grep/napi`
 │       ├── agents.json
 │       ├── codebase-profile.json
 │       └── whisper-tracker.json
-└── logs/                   ← 디버깅 로그
+└── plans/                  ← 브랜치별 실행 계획
+    └── {branch}/
+        ├── plan.md
+        └── tasks.json
 ```

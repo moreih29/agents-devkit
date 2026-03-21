@@ -7,7 +7,6 @@
 
 | 이름 | 역할 | tier | context | 비고 |
 |------|------|------|---------|------|
-| **Lead** | 오케스트레이터 | high | full | 직접 코드 안 씀, 위임만 |
 | **Builder** | 코드 구현 | medium | standard | 구현, 리팩토링 |
 | **Finder** | 코드 탐색 | low | minimal | READ-ONLY |
 | **Architect** | 아키텍처 설계 | high | full | READ-ONLY, Bash 제외 |
@@ -38,7 +37,7 @@
 
 | Phase | 에이전트 | 상태 |
 |-------|----------|------|
-| Phase 1 (MVP) | Lead, Builder, Finder, Architect, Guard | 완료 |
+| Phase 1 (MVP) | Builder, Finder, Architect, Guard | 완료 |
 | Phase 2 | + Strategist, Reviewer, Analyst, Debugger | 완료 |
 | Phase 3 | + Tester, Writer (부트스트랩 필요) | 완료 |
 | Phase 4 | + 나머지 (필요성 입증 후) | 미정 |

@@ -177,7 +177,7 @@ AskUserQuestion({
 
 ## State Management
 
-Plan은 상태 파일 없이 동작합니다.
+Plan은 gate.ts에 의해 workflow.json이 자동 생성됩니다 (mode: "plan", phase: "analyzing" 또는 "branch-setup"). 별도 상태 관리 코드는 불필요합니다.
 
 ## Deactivation
 
