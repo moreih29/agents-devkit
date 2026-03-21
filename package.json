@@ -5,6 +5,14 @@
   "description": "Agent orchestration plugin for Claude Code — optimized context injection per role",
   "author": "kih",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moreih29/claude-nexus.git"
+  },
+  "homepage": "https://github.com/moreih29/claude-nexus#readme",
+  "bugs": {
+    "url": "https://github.com/moreih29/claude-nexus/issues"
+  },
   "engines": {
     "node": ">=20"
   },

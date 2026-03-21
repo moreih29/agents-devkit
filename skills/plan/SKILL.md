@@ -45,6 +45,12 @@ analyze → draft → [review loop] → persist → execute bridge
 - 현재 브랜치 확인 (계획 문서 경로에 사용)
 - 불명확한 부분이 있으면 **한 번에 하나의 질문**으로 해소 후 진행
 
+**Branch Guard:** main/master 브랜치에서는 계획 수립 전에 feature 브랜치를 먼저 생성한다.
+1. 사용자 요청을 분석하여 적절한 브랜치명 생성 (예: `feat/setup-recommended-plugins`, `fix/statusline-bug`)
+2. `git checkout -b <branch-name>` 실행
+3. 이후 계획 워크플로우 진행
+계획 문서는 `.claude/nexus/plans/{branch}/`에 저장되므로, main에서의 계획 수립은 허용하지 않는다.
+
 ### Phase 2: Draft (Strategist)
 
 ```

@@ -1,98 +1,53 @@
 # claude-nexus
 
-Claude Code용 에이전트 오케스트레이션 플러그인.
+Claude Code를 위한 에이전트 오케스트레이션 플러그인. 전문화된 에이전트와 스킬을 통해 코드, 분석, 설계, 테스트, 문서화를 체계적으로 관리합니다.
 
 ## 설치
 
 ```bash
-claude plugin marketplace add https://github.com/moreih29/agents-devkit.git
+claude plugin marketplace add https://github.com/moreih29/claude-nexus.git
 claude plugin install claude-nexus@nexus
 ```
 
 ## 에이전트
 
-에이전트는 Claude Code의 Agent 도구로 호출합니다.
+10개의 특화된 에이전트가 각각의 역할을 담당합니다.
 
 | 에이전트 | 호출 | 역할 | 모델 |
 |----------|------|------|------|
 | **Finder** | `nexus:finder` | 코드 탐색, 파일 검색 | haiku |
 | **Builder** | `nexus:builder` | 코드 구현, 리팩토링 | sonnet |
-| **Guard** | `nexus:guard` | 검증, 보안 리뷰, 테스트 | sonnet |
 | **Debugger** | `nexus:debugger` | 디버깅, 원인 분석 | sonnet |
-| **Lead** | `nexus:lead` | 오케스트레이터 (직접 코드 안 씀) | opus |
-| **Architect** | `nexus:architect` | 아키텍처 설계 (READ-ONLY) | opus |
-| **Strategist** | `nexus:strategist` | 계획 수립 (READ-ONLY) | opus |
-| **Reviewer** | `nexus:reviewer` | 코드 리뷰 (READ-ONLY) | opus |
-| **Analyst** | `nexus:analyst` | 심층 분석, 리서치 (READ-ONLY) | opus |
 | **Tester** | `nexus:tester` | 테스트 작성, 커버리지 분석 | sonnet |
-| **Writer** | `nexus:writer` | 문서 작성, knowledge 업데이트 | haiku |
+| **Guard** | `nexus:guard` | 검증, 보안 리뷰 | sonnet |
+| **Writer** | `nexus:writer` | 문서 작성, 지식 관리 | haiku |
+| **Analyst** | `nexus:analyst` | 심층 분석, 리서치 | opus |
+| **Architect** | `nexus:architect` | 아키텍처 설계 (읽기 전용) | opus |
+| **Strategist** | `nexus:strategist` | 계획 수립 (읽기 전용) | opus |
+| **Reviewer** | `nexus:reviewer` | 코드 리뷰 (읽기 전용) | opus |
 
-사용 예시:
-```
-Finder로 이 프로젝트의 API 엔드포인트 전부 찾아줘
-Builder으로 이 함수에 에러 핸들링 추가해줘
-Reviewer로 이번 커밋 리뷰해줘
-```
+## 스킬
 
-## 워크플로우
+대화형 워크플로우를 통해 복잡한 작업을 단계별로 진행합니다.
 
-키워드를 입력하거나 `[태그]`를 사용하면 자동으로 활성화됩니다.
-
-### Nonstop — 멈추지 않고 계속
-
-작업이 완료될 때까지 Claude가 중간에 멈추지 않습니다.
-
-```
-[nonstop] 이 모듈 전체 리팩토링해줘
-nonstop mode on, 테스트 전부 통과할 때까지 계속해
-멈추지 마, 끝까지 해
-```
-
-### Parallel — 병렬 실행
-
-독립적인 태스크를 여러 에이전트에 동시에 배분합니다.
-
-```
-[parallel] README와 LICENSE 동시에 만들어줘
-이 3개 파일 병렬로 리팩토링해
-동시에 처리해줘
-```
-
-### Pipeline — 단계별 순차 실행
-
-정의된 단계를 순서대로 실행합니다.
-
-```
-[pipeline] 분석→구현→테스트 순서로 진행해
-순서대로 해줘
-```
-
-### Auto — 전체 자동화
-
-Pipeline + Nonstop 조합. 분석→계획→구현→검증→리뷰를 한 번에 실행합니다.
-
-```
-[auto] 사용자 인증 모듈을 만들어줘
-auto로 이 버그 고쳐줘
-end to end로 진행해
-```
-
-해제는 자동이거나, 수동으로:
-```
-nx_state_clear({ key: "auto" }) 호출해줘
-```
+| 스킬 | 트리거 | 설명 |
+|------|--------|------|
+| **consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 사용자 의도를 파악하고 최적의 접근 방식을 탐색 |
+| **plan** | `[plan]` 또는 "계획 세워" | 다중 에이전트 합의 루프로 검토된 계획 생성 |
+| **init** | `[init]` 또는 "온보딩" | 프로젝트를 Nexus에 온보드 - 기존 문서 스캔하여 지식 생성 |
+| **setup** | `[setup]` 또는 "nexus 설정" | Nexus 대화형 설정 마법사 |
+| **sync** | `[sync]` 또는 "지식 동기화" | 소스 코드와 지식 문서 간 불일치 감지 및 수정 |
 
 ## MCP 도구
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (8개)
+### Core (4개)
 
 | 도구 | 용도 |
 |------|------|
 | `nx_state_read/write/clear` | 워크플로우 상태 관리 |
 | `nx_knowledge_read/write` | 프로젝트 지식 관리 (git 추적) |
-| `nx_memo_read/write` | 세션/단기 메모 (휘발성) |
 | `nx_context` | 현재 세션 상태 조회 |
 
 ### Code Intelligence (10개)
@@ -111,26 +66,27 @@ Claude가 직접 호출하는 도구입니다.
 | `nx_ast_replace` | AST 패턴 치환 (dryRun 지원) |
 
 LSP는 프로젝트 언어를 자동 감지합니다 (tsconfig.json → TypeScript 등).
-AST는 `@ast-grep/napi` 필요: `npm install @ast-grep/napi`
-
-사용 예시:
-```
-nx_lsp_hover로 src/index.ts 10번줄 5번째 문자 타입 확인해줘
-nx_ast_search로 "async function $NAME($$$)" 패턴 검색해줘
-nx_context 호출해서 현재 상태 확인해줘
-```
+AST는 `@ast-grep/napi` 필요: `bun install @ast-grep/napi`
 
 ## 프로젝트 지식
 
-`.claude/nexus/knowledge/` 디렉토리에 프로젝트 지식을 저장합니다. git으로 추적되어 팀원과 공유됩니다.
+`.claude/nexus/knowledge/` 디렉토리에 팀이 공유하는 장기 프로젝트 지식을 저장합니다. git으로 추적됩니다.
 
 ```
 .claude/nexus/
-├── knowledge/          ← 장기 프로젝트 지식
+├── knowledge/              ← 공유 지식 (git 추적)
 │   ├── architecture.md
+│   ├── agents-catalog.md
 │   ├── conventions.md
-│   └── decisions/      ← 아키텍처 결정 근거
-└── plans/              ← 브랜치별 구현 계획
+│   ├── workflows.md
+│   ├── hook-modules.md
+│   ├── mcp-tools.md
+│   ├── dev-workflow.md
+│   └── decisions/          ← 아키텍처 결정 기록
+├── config.json             ← Nexus 설정
+└── plans/                  ← 브랜치별 구현 계획
+    └── feature--*/
+        └── plan.md
 ```
 
 ## 런타임 상태
@@ -139,7 +95,12 @@ nx_context 호출해서 현재 상태 확인해줘
 
 ```
 .nexus/
-├── state/sessions/     ← 워크플로우 상태
-├── memo/               ← 단기 메모
-└── logs/               ← 디버깅 로그
+├── state/
+│   ├── current-session.json
+│   └── sessions/{sessionId}/
+│       ├── workflow.json
+│       ├── agents.json
+│       ├── codebase-profile.json
+│       └── whisper-tracker.json
+└── logs/                   ← 디버깅 로그
 ```

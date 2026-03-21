@@ -151,7 +151,92 @@ AskUserQuestion({
 
 OMC가 감지되지 않으면 이 단계는 건너뜀.
 
-### Step 6: Knowledge Init
+### Step 6: Recommended Plugins
+
+Before presenting options, check the current `enabledPlugins` in both global (`~/.claude/settings.json`) and project (`.claude/settings.json`) to detect already-installed plugins.
+
+Recommended plugins:
+| Key | Name | Description |
+|-----|------|-------------|
+| `context7@claude-plugins-official` | context7 | 라이브러리 문서 실시간 조회 (Upstash Context7) |
+| `playwright@claude-plugins-official` | playwright | 브라우저 자동화 & E2E 테스트 (Microsoft Playwright) |
+| `skill-creator@claude-plugins-official` | skill-creator | 스킬 생성, 평가, 최적화 도구 |
+
+**Case A: 3개 모두 이미 설치됨**
+
+설치 상태를 알리고 건너뜀:
+```
+"추천 플러그인이 모두 설치되어 있습니다: context7 ✓, playwright ✓, skill-creator ✓"
+```
+
+**Case B: 일부 설치됨**
+
+미설치 항목만 표시. 설치된 항목은 description에 `(설치됨)` 표기:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Nexus 추천 플러그인을 설치할까요? (✓ = 이미 설치됨)",
+    header: "Plugins",
+    multiSelect: false,
+    options: [
+      { label: "Install remaining (Recommended)", description: "미설치 플러그인만 추가 설치" },
+      { label: "Choose", description: "설치할 플러그인을 직접 선택" },
+      { label: "Skip", description: "추천 플러그인 설치 건너뛰기" }
+    ]
+  }]
+})
+```
+
+**Case C: 하나도 설치 안 됨**
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Nexus 추천 플러그인을 설치할까요?",
+    header: "Plugins",
+    multiSelect: false,
+    options: [
+      { label: "Install All (Recommended)", description: "context7 (라이브러리 문서), playwright (브라우저 테스트), skill-creator (스킬 개발) 모두 설치" },
+      { label: "Choose", description: "설치할 플러그인을 직접 선택" },
+      { label: "Skip", description: "추천 플러그인 설치 건너뛰기" }
+    ]
+  }]
+})
+```
+
+**Install All / Install remaining 선택 시:**
+scope에 따른 `settings.json`의 `enabledPlugins`에 미설치 항목만 추가:
+```json
+{
+  "context7@claude-plugins-official": true,
+  "playwright@claude-plugins-official": true,
+  "skill-creator@claude-plugins-official": true
+}
+```
+
+**Choose 선택 시:**
+미설치 항목만 multiSelect 옵션으로 표시. 설치된 항목은 제외:
+```
+AskUserQuestion({
+  questions: [{
+    question: "설치할 플러그인을 선택하세요.",
+    header: "Plugins",
+    multiSelect: true,
+    options: [
+      // 미설치 항목만 동적으로 포함
+      { label: "context7", description: "라이브러리 문서 실시간 조회 (Upstash Context7)" },
+      { label: "playwright", description: "브라우저 자동화 & E2E 테스트 (Microsoft Playwright)" },
+      { label: "skill-creator", description: "스킬 생성, 평가, 최적화 도구" }
+    ]
+  }]
+})
+```
+선택된 플러그인만 `enabledPlugins`에 추가.
+
+**Skip 선택 시:** 다음 단계로 진행.
+
+### Step 7: Knowledge Init
 
 ```
 AskUserQuestion({
@@ -170,7 +255,7 @@ AskUserQuestion({
 Yes 선택 시: init 스킬 워크플로우 실행 (SCAN → TRIAGE → PROPOSE → GENERATE → VERIFY).
 Skip 시: 다음 단계로.
 
-### Step 7: Complete
+### Step 8: Complete
 
 설정 완료 메시지 출력:
 - 적용된 설정 요약
@@ -182,7 +267,7 @@ Skip 시: 다음 단계로.
 1. **모든 단계는 AskUserQuestion** — 자유 텍스트 입력 없음
 2. **경량 모델 사용** — 토큰 소비 최소화
 3. **Skip 옵션 항상 제공** — 강제 없음
-4. **확장 가능한 구조** — 향후 외부 MCP 추천 등 단계 추가 가능
+4. **확장 가능한 구조** — 추천 플러그인 단계 포함, 향후 카테고리 확장 가능
 
 ## State Management
 

@@ -21273,9 +21273,9 @@ var LspClient = class extends import_events.EventEmitter {
       env: { ...process.env, NODE_OPTIONS: "" }
     });
     this.process.unref();
-    this.process.stdin?.unref();
-    this.process.stdout?.unref();
-    this.process.stderr?.unref();
+    this.process.stdin?.unref?.();
+    this.process.stdout?.unref?.();
+    this.process.stderr?.unref?.();
     this.process.stdout.on("data", (chunk) => this.onData(chunk.toString()));
     this.process.on("exit", () => {
       this.initialized = false;

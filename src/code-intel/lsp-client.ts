@@ -32,9 +32,9 @@ export class LspClient extends EventEmitter {
 
     // 부모 프로세스 종료를 막지 않도록 unref
     this.process.unref();
-    this.process.stdin?.unref();
-    this.process.stdout?.unref();
-    this.process.stderr?.unref();
+    (this.process.stdin as any)?.unref?.();
+    (this.process.stdout as any)?.unref?.();
+    (this.process.stderr as any)?.unref?.();
 
     this.process.stdout!.on('data', (chunk: Buffer) => this.onData(chunk.toString()));
     this.process.on('exit', () => { this.initialized = false; this.process = null; });
