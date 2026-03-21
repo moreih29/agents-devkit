@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2 (2026-03-21)
+
+### Fixes
+- statusline 버전을 VERSION 파일 + __dirname 상대경로로 참조
+
 ## 0.3.1 (2026-03-21)
 
 ### Fixes
