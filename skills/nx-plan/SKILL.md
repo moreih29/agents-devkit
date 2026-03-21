@@ -118,16 +118,27 @@ Agent({
 - Reviewer가 승인 → 루프 종료
 - 3회 후 미승인 → 마지막 초안에 미해결 이슈를 명시하고 종료
 
-### Phase 4: Persist
+### Phase 4: Persist (MANDATORY — do NOT skip)
 
-계획 문서를 저장한다.
+계획 문서와 태스크 목록을 반드시 저장한다. 이 단계를 건너뛰면 안 된다.
 
-Write 도구로 직접 저장:
+1. 디렉토리 생성:
 ```
-Write({ file_path: "{project_root}/.nexus/plans/{branch}/plan.md", content: "{final_plan}" })
+Bash({ command: "mkdir -p .nexus/plans/{branch-dir}/" })
 ```
 
-브랜치명을 알 수 없으면 `{task-slug}.md` 형태로 저장.
+2. plan.md 저장:
+```
+Write({ file_path: "{project_root}/.nexus/plans/{branch-dir}/plan.md", content: "{final_plan}" })
+```
+
+3. tasks.json 저장:
+```
+Write({ file_path: "{project_root}/.nexus/plans/{branch-dir}/tasks.json", content: "[{\"id\":1,\"title\":\"...\",\"status\":\"pending\"}, ...]" })
+```
+
+브랜치명의 `/`는 `--`로 치환 (예: `fix/foo` → `fix--foo`).
+Both files MUST exist before proceeding to Phase 5.
 
 ### Phase 5: Execute Bridge
 
