@@ -8,7 +8,7 @@ const PLUGIN_HOME = join(process.env.HOME ?? '~', '.claude/plugins');
 const MARKETPLACE = join(PLUGIN_HOME, 'marketplaces/nexus');
 
 const DIRS = ['.claude-plugin', 'bridge', 'scripts', 'hooks', 'agents', 'skills', 'src'];
-const FILES = ['.mcp.json', 'package.json'];
+const FILES = ['.mcp.json', 'package.json', 'VERSION'];
 
 function syncTo(target, label) {
   if (!existsSync(target)) {

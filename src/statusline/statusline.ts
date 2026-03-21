@@ -105,16 +105,10 @@ const VERSION_CACHE_PATH = join(process.env.HOME || '~', '.claude', '.nexus_vers
 const VERSION_CACHE_TTL = 86400; // 24시간
 
 function getCurrentVersion(): string {
-  const roots = [process.env.CLAUDE_PLUGIN_ROOT, PROJECT_ROOT].filter(Boolean);
-  for (const root of roots) {
-    try {
-      const pluginJson = join(root!, '.claude-plugin', 'plugin.json');
-      if (existsSync(pluginJson)) {
-        const match = readFileSync(pluginJson, 'utf-8').match(/"version"\s*:\s*"([^"]+)"/);
-        if (match) return match[1];
-      }
-    } catch { /* skip */ }
-  }
+  try {
+    const versionFile = join(__dirname, '..', 'VERSION');
+    if (existsSync(versionFile)) return readFileSync(versionFile, 'utf-8').trim();
+  } catch { /* skip */ }
   return '';
 }
 

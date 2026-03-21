@@ -96,6 +96,10 @@ bumpJsonVersion('package.json', newVersion);
 bumpJsonVersion('.claude-plugin/plugin.json', newVersion);
 bumpJsonVersion('.claude-plugin/marketplace.json', newVersion);
 
+// VERSION 파일 (statusline 참조)
+if (!dryRun) writeFileSync('VERSION', newVersion + '\n');
+console.log(`  VERSION: ${currentVersion} → ${newVersion}`);
+
 // --- 3. CHANGELOG 안내 ---
 
 console.log('\n📋 CHANGELOG...');
@@ -143,7 +147,7 @@ console.log(`  ✅ ${testMatch ? testMatch[0] : '테스트 통과'}`);
 // --- 5. 커밋 ---
 
 console.log('\n📦 커밋...');
-run('git add package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json CHANGELOG.md bridge/ scripts/');
+run('git add package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json CHANGELOG.md VERSION bridge/ scripts/');
 run(`git commit -m "release: v${newVersion}"`);
 console.log(`  ✅ release: v${newVersion}`);
 

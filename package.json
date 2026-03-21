@@ -30,7 +30,8 @@
     "scripts",
     "bridge",
     ".claude-plugin",
-    ".mcp.json"
+    ".mcp.json",
+    "VERSION"
   ],
   "devDependencies": {
     "@types/node": "^25.5.0",

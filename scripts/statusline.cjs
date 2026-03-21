@@ -82,16 +82,10 @@ function getSessionId() {
 var VERSION_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".nexus_version_cache");
 var VERSION_CACHE_TTL = 86400;
 function getCurrentVersion() {
-  const roots = [process.env.CLAUDE_PLUGIN_ROOT, PROJECT_ROOT].filter(Boolean);
-  for (const root of roots) {
-    try {
-      const pluginJson = (0, import_path.join)(root, ".claude-plugin", "plugin.json");
-      if ((0, import_fs.existsSync)(pluginJson)) {
-        const match = (0, import_fs.readFileSync)(pluginJson, "utf-8").match(/"version"\s*:\s*"([^"]+)"/);
-        if (match) return match[1];
-      }
-    } catch {
-    }
+  try {
+    const versionFile = (0, import_path.join)(__dirname, "..", "VERSION");
+    if ((0, import_fs.existsSync)(versionFile)) return (0, import_fs.readFileSync)(versionFile, "utf-8").trim();
+  } catch {
   }
   return "";
 }
