@@ -4,7 +4,7 @@
 // - 인자 없으면 커밋 메시지 기반 자동 결정
 // - --dry-run: 실제 배포 없이 시뮬레이션
 
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { execSync } from 'child_process';
 
 const args = process.argv.slice(2);
@@ -175,8 +175,10 @@ try {
 console.log('\n🏷️  GitHub Release...');
 try {
   const releaseNotes = changelogEntry.trim();
-  // gh CLI가 있으면 릴리스 생성
-  run(`gh release create v${newVersion} --title "v${newVersion}" --notes ${JSON.stringify(releaseNotes)}`);
+  const notesFile = '.release-notes.tmp.md';
+  if (!dryRun) writeFileSync(notesFile, releaseNotes);
+  run(`gh release create v${newVersion} --title "v${newVersion}" --notes-file ${notesFile}`);
+  try { unlinkSync(notesFile); } catch { /* skip */ }
   console.log('  ✅ GitHub Release 생성 완료');
 } catch {
   console.log('  ⚠️  gh CLI 없음 — 수동 생성: https://github.com/moreih29/claude-nexus/releases/new');

@@ -196,10 +196,12 @@ check "Gate/UserPromptSubmit (no keyword)" '"continue":true' "$result"
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[d] 이거 결정"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit ([d] tag)" 'Decision tag' "$result"
 
+rm -f .nexus/state/sessions/e2e-hook/whisper-tracker.json
 result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | node scripts/pulse.cjs 2>/dev/null)
 check "Pulse/PreToolUse (Bash)" 'parallel execution' "$result"
 
 # Agent 도구 → 6-section format
+rm -f .nexus/state/sessions/e2e-hook/whisper-tracker.json
 result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Agent"}' | node scripts/pulse.cjs 2>/dev/null)
 check "Pulse/PreToolUse (Agent 6-section)" 'DELEGATION FORMAT' "$result"
 
