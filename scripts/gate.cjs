@@ -106,15 +106,36 @@ function handleStop() {
     } catch {
     }
   }
+  const DEBOUNCE_MS = 3e4;
   const agentsPath = (0, import_path3.join)(sessDir, "agents.json");
   if ((0, import_fs3.existsSync)(agentsPath)) {
     try {
       const record = JSON.parse((0, import_fs3.readFileSync)(agentsPath, "utf-8"));
       if (record.active && record.active.length > 0) {
-        respond({
-          decision: "block",
-          reason: `[AGENTS: ${record.active.join(", ")}] Agents are still working. Wait for completion.`
-        });
+        const stopShownPath = (0, import_path3.join)(sessDir, "stop-shown");
+        let showDetail = true;
+        try {
+          if ((0, import_fs3.existsSync)(stopShownPath)) {
+            const elapsed = Date.now() - (0, import_fs3.statSync)(stopShownPath).mtimeMs;
+            if (elapsed < DEBOUNCE_MS) showDetail = false;
+          }
+        } catch {
+        }
+        if (showDetail) {
+          try {
+            (0, import_fs3.writeFileSync)(stopShownPath, "");
+          } catch {
+          }
+          respond({
+            decision: "block",
+            reason: `[AGENTS: ${record.active.join(", ")}] Agents are still working. Wait for completion.`
+          });
+        } else {
+          respond({
+            decision: "block",
+            reason: `[AGENTS] Still working...`
+          });
+        }
         return;
       }
     } catch {

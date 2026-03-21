@@ -282,6 +282,28 @@ async function main() {
       }
     } catch {
     }
+    try {
+      const plansDir = (0, import_path3.join)(RUNTIME_ROOT, "plans");
+      if ((0, import_fs3.existsSync)(plansDir)) {
+        let pendingCount = 0;
+        for (const entry of (0, import_fs3.readdirSync)(plansDir, { withFileTypes: true })) {
+          if (!entry.isDirectory()) continue;
+          const tasksPath = (0, import_path3.join)(plansDir, entry.name, "tasks.json");
+          if (!(0, import_fs3.existsSync)(tasksPath)) continue;
+          try {
+            const tasks = JSON.parse((0, import_fs3.readFileSync)(tasksPath, "utf-8"));
+            if (Array.isArray(tasks)) {
+              pendingCount += tasks.filter((t) => t.status === "pending").length;
+            }
+          } catch {
+          }
+        }
+        if (pendingCount > 0) {
+          progressParts.push(`[PLAN] Update tasks.json (${pendingCount} pending) and check off plan.md items as work completes.`);
+        }
+      }
+    } catch {
+    }
     filtered.push(progressParts.join(" | "));
   }
   saveTracker(sid, tracker);

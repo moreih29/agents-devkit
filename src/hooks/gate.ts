@@ -1,6 +1,6 @@
 // Gate 훅: Stop (Workflow 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
 import { sessionDir, ensureDir, updateWorkflowPhase } from '../shared/paths.js';
 import { getSessionId } from '../shared/session.js';
 import { join } from 'path';
@@ -46,15 +46,33 @@ function handleStop(): void {
   }
 
   // Check active agents
+  const DEBOUNCE_MS = 30_000;
   const agentsPath = join(sessDir, 'agents.json');
   if (existsSync(agentsPath)) {
     try {
       const record = JSON.parse(readFileSync(agentsPath, 'utf-8'));
       if (record.active && record.active.length > 0) {
-        respond({
-          decision: 'block',
-          reason: `[AGENTS: ${record.active.join(', ')}] Agents are still working. Wait for completion.`,
-        });
+        const stopShownPath = join(sessDir, 'stop-shown');
+        let showDetail = true;
+        try {
+          if (existsSync(stopShownPath)) {
+            const elapsed = Date.now() - statSync(stopShownPath).mtimeMs;
+            if (elapsed < DEBOUNCE_MS) showDetail = false;
+          }
+        } catch { /* default to showDetail = true */ }
+
+        if (showDetail) {
+          try { writeFileSync(stopShownPath, ''); } catch { /* skip */ }
+          respond({
+            decision: 'block',
+            reason: `[AGENTS: ${record.active.join(', ')}] Agents are still working. Wait for completion.`,
+          });
+        } else {
+          respond({
+            decision: 'block',
+            reason: `[AGENTS] Still working...`,
+          });
+        }
         return;
       }
     } catch { /* skip */ }
