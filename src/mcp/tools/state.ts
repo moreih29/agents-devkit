@@ -4,18 +4,25 @@ import { readFile, writeFile, unlink } from 'fs/promises';
 import { statePath, ensureDir, sessionDir } from '../../shared/paths.js';
 import { getSessionId } from '../../shared/session.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { join } from 'path';
+
+const MODE_KEYS = new Set(['auto', 'parallel', 'consult', 'plan', 'workflow']);
 
 export function registerStateTools(server: McpServer): void {
   server.tool(
     'nx_state_read',
-    'Read runtime workflow state (e.g., nonstop, parallel, pipeline)',
+    'Read runtime workflow state (e.g., workflow, parallel)',
     {
-      key: z.string().describe('State key (e.g., "nonstop", "parallel", "pipeline")'),
+      key: z.string().describe('State key (e.g., "workflow", "parallel"). Use "workflow" to read the unified workflow state.'),
       sessionId: z.string().optional().describe('Session ID. Uses current session if omitted.'),
     },
     async ({ key, sessionId }) => {
       const sid = sessionId ?? getSessionId();
-      const path = statePath(sid, key);
+
+      // mode keys all read from workflow.json
+      const path = MODE_KEYS.has(key)
+        ? join(sessionDir(sid), 'workflow.json')
+        : statePath(sid, key);
 
       if (!existsSync(path)) {
         return { content: [{ type: 'text' as const, text: JSON.stringify({ exists: false, key, sessionId: sid }) }] };
@@ -30,7 +37,7 @@ export function registerStateTools(server: McpServer): void {
     'nx_state_write',
     'Write runtime workflow state',
     {
-      key: z.string().describe('State key'),
+      key: z.string().describe('State key. Use "workflow" to write the unified workflow state.'),
       value: z.record(z.unknown()).describe('State value (JSON object)'),
       sessionId: z.string().optional().describe('Session ID. Uses current session if omitted.'),
     },
@@ -39,7 +46,11 @@ export function registerStateTools(server: McpServer): void {
       const dir = sessionDir(sid);
       ensureDir(dir);
 
-      const path = statePath(sid, key);
+      // mode keys all write to workflow.json
+      const path = MODE_KEYS.has(key)
+        ? join(dir, 'workflow.json')
+        : statePath(sid, key);
+
       await writeFile(path, JSON.stringify(value, null, 2));
 
       return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, key, sessionId: sid }) }] };
@@ -50,21 +61,20 @@ export function registerStateTools(server: McpServer): void {
     'nx_state_clear',
     'Clear runtime workflow state',
     {
-      key: z.string().describe('State key to clear'),
+      key: z.string().describe('State key to clear. Mode keys (auto, parallel, consult, plan, workflow) all clear workflow.json.'),
       sessionId: z.string().optional().describe('Session ID. Uses current session if omitted.'),
     },
     async ({ key, sessionId }) => {
       const sid = sessionId ?? getSessionId();
 
-      // auto: pipeline + nonstop 한 번에 해제
-      if (key === 'auto') {
-        const keys = ['pipeline', 'nonstop'];
-        const cleared: string[] = [];
-        for (const k of keys) {
-          const p = statePath(sid, k);
-          if (existsSync(p)) { await unlink(p); cleared.push(k); }
+      // mode keys all clear workflow.json
+      if (MODE_KEYS.has(key)) {
+        const workflowPath = join(sessionDir(sid), 'workflow.json');
+        if (existsSync(workflowPath)) {
+          await unlink(workflowPath);
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true, key, clearedFile: 'workflow.json', sessionId: sid }) }] };
         }
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true, key: 'auto', clearedKeys: cleared, sessionId: sid }) }] };
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: false, key, sessionId: sid, reason: 'not found' }) }] };
       }
 
       const path = statePath(sid, key);

@@ -21046,17 +21046,19 @@ function createSession() {
 }
 
 // src/mcp/tools/state.ts
+var import_path3 = require("path");
+var MODE_KEYS = /* @__PURE__ */ new Set(["auto", "parallel", "consult", "plan", "workflow"]);
 function registerStateTools(server2) {
   server2.tool(
     "nx_state_read",
-    "Read runtime workflow state (e.g., nonstop, parallel, pipeline)",
+    "Read runtime workflow state (e.g., workflow, parallel)",
     {
-      key: external_exports.string().describe('State key (e.g., "nonstop", "parallel", "pipeline")'),
+      key: external_exports.string().describe('State key (e.g., "workflow", "parallel"). Use "workflow" to read the unified workflow state.'),
       sessionId: external_exports.string().optional().describe("Session ID. Uses current session if omitted.")
     },
     async ({ key, sessionId }) => {
       const sid = sessionId ?? getSessionId();
-      const path = statePath(sid, key);
+      const path = MODE_KEYS.has(key) ? (0, import_path3.join)(sessionDir(sid), "workflow.json") : statePath(sid, key);
       if (!(0, import_fs3.existsSync)(path)) {
         return { content: [{ type: "text", text: JSON.stringify({ exists: false, key, sessionId: sid }) }] };
       }
@@ -21068,7 +21070,7 @@ function registerStateTools(server2) {
     "nx_state_write",
     "Write runtime workflow state",
     {
-      key: external_exports.string().describe("State key"),
+      key: external_exports.string().describe('State key. Use "workflow" to write the unified workflow state.'),
       value: external_exports.record(external_exports.unknown()).describe("State value (JSON object)"),
       sessionId: external_exports.string().optional().describe("Session ID. Uses current session if omitted.")
     },
@@ -21076,7 +21078,7 @@ function registerStateTools(server2) {
       const sid = sessionId ?? getSessionId();
       const dir = sessionDir(sid);
       ensureDir(dir);
-      const path = statePath(sid, key);
+      const path = MODE_KEYS.has(key) ? (0, import_path3.join)(dir, "workflow.json") : statePath(sid, key);
       await (0, import_promises.writeFile)(path, JSON.stringify(value, null, 2));
       return { content: [{ type: "text", text: JSON.stringify({ success: true, key, sessionId: sid }) }] };
     }
@@ -21085,22 +21087,18 @@ function registerStateTools(server2) {
     "nx_state_clear",
     "Clear runtime workflow state",
     {
-      key: external_exports.string().describe("State key to clear"),
+      key: external_exports.string().describe("State key to clear. Mode keys (auto, parallel, consult, plan, workflow) all clear workflow.json."),
       sessionId: external_exports.string().optional().describe("Session ID. Uses current session if omitted.")
     },
     async ({ key, sessionId }) => {
       const sid = sessionId ?? getSessionId();
-      if (key === "auto") {
-        const keys = ["pipeline", "nonstop"];
-        const cleared = [];
-        for (const k of keys) {
-          const p = statePath(sid, k);
-          if ((0, import_fs3.existsSync)(p)) {
-            await (0, import_promises.unlink)(p);
-            cleared.push(k);
-          }
+      if (MODE_KEYS.has(key)) {
+        const workflowPath = (0, import_path3.join)(sessionDir(sid), "workflow.json");
+        if ((0, import_fs3.existsSync)(workflowPath)) {
+          await (0, import_promises.unlink)(workflowPath);
+          return { content: [{ type: "text", text: JSON.stringify({ cleared: true, key, clearedFile: "workflow.json", sessionId: sid }) }] };
         }
-        return { content: [{ type: "text", text: JSON.stringify({ cleared: true, key: "auto", clearedKeys: cleared, sessionId: sid }) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ cleared: false, key, sessionId: sid, reason: "not found" }) }] };
       }
       const path = statePath(sid, key);
       if ((0, import_fs3.existsSync)(path)) {
@@ -21115,7 +21113,7 @@ function registerStateTools(server2) {
 // src/mcp/tools/knowledge.ts
 var import_fs4 = require("fs");
 var import_promises2 = require("fs/promises");
-var import_path3 = require("path");
+var import_path4 = require("path");
 var knowledgeCache = /* @__PURE__ */ new Map();
 async function readKnowledgeCached(path) {
   const cached2 = knowledgeCache.get(path);
@@ -21135,7 +21133,7 @@ function registerKnowledgeTools(server2) {
       tags: external_exports.array(external_exports.string()).optional().describe("Filter by tags (searches frontmatter)")
     },
     async ({ topic, tags }) => {
-      const knowledgeDir = (0, import_path3.join)(KNOWLEDGE_ROOT, "knowledge");
+      const knowledgeDir = (0, import_path4.join)(KNOWLEDGE_ROOT, "knowledge");
       if (topic) {
         const path = knowledgePath(topic);
         if (!(0, import_fs4.existsSync)(path)) {
@@ -21150,7 +21148,7 @@ function registerKnowledgeTools(server2) {
       const files = (await (0, import_promises2.readdir)(knowledgeDir)).filter((f) => f.endsWith(".md"));
       const results = [];
       for (const file of files) {
-        const filePath = (0, import_path3.join)(knowledgeDir, file);
+        const filePath = (0, import_path4.join)(knowledgeDir, file);
         const content = await readKnowledgeCached(filePath);
         if (tags && tags.length > 0) {
           const lowerContent = content.toLowerCase();
@@ -21172,7 +21170,7 @@ function registerKnowledgeTools(server2) {
       tags: external_exports.array(external_exports.string()).optional().describe("Tags for searchability")
     },
     async ({ topic, content, tags }) => {
-      const knowledgeDir = (0, import_path3.join)(KNOWLEDGE_ROOT, "knowledge");
+      const knowledgeDir = (0, import_path4.join)(KNOWLEDGE_ROOT, "knowledge");
       ensureDir(knowledgeDir);
       let body = content;
       if (tags && tags.length > 0) {
@@ -21191,6 +21189,7 @@ ${content}`;
 var import_fs5 = require("fs");
 var import_promises3 = require("fs/promises");
 var import_child_process = require("child_process");
+var import_path5 = require("path");
 function getCurrentBranch() {
   try {
     return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8" }).trim();
@@ -21208,18 +21207,14 @@ function registerContextTool(server2) {
       const sessionId = getSessionId();
       const dir = sessionDir(sessionId);
       let activeMode = null;
-      const modes = ["nonstop", "parallel", "pipeline"];
-      for (const mode of modes) {
-        const stateFile = `${dir}/${mode}.json`;
-        if ((0, import_fs5.existsSync)(stateFile)) {
-          try {
-            const data = JSON.parse(await (0, import_promises3.readFile)(stateFile, "utf-8"));
-            if (data.active) {
-              activeMode = mode;
-              break;
-            }
-          } catch {
+      const workflowFile = (0, import_path5.join)(dir, "workflow.json");
+      if ((0, import_fs5.existsSync)(workflowFile)) {
+        try {
+          const data = JSON.parse(await (0, import_promises3.readFile)(workflowFile, "utf-8"));
+          if (data.mode && data.mode !== "idle") {
+            activeMode = data.mode;
           }
+        } catch {
         }
       }
       let agents = [];
@@ -21243,7 +21238,7 @@ function registerContextTool(server2) {
 
 // src/mcp/tools/lsp.ts
 var import_fs7 = require("fs");
-var import_path5 = require("path");
+var import_path7 = require("path");
 var import_url = require("url");
 
 // src/code-intel/lsp-client.ts
@@ -21386,7 +21381,7 @@ var LspClient = class extends import_events.EventEmitter {
 // src/code-intel/detect.ts
 var import_fs6 = require("fs");
 var import_child_process3 = require("child_process");
-var import_path4 = require("path");
+var import_path6 = require("path");
 var LSP_SERVERS = {
   typescript: {
     command: "npx",
@@ -21446,7 +21441,7 @@ var EXT_TO_LANGUAGE = {
 };
 function detectLanguage(projectRoot2) {
   for (const { file, language } of DETECT_FILES) {
-    if ((0, import_fs6.existsSync)((0, import_path4.join)(projectRoot2, file))) {
+    if ((0, import_fs6.existsSync)((0, import_path6.join)(projectRoot2, file))) {
       return language;
     }
   }
@@ -21484,8 +21479,8 @@ var openedFiles = /* @__PURE__ */ new Set();
 function findProjectRoot2() {
   let dir = process.cwd();
   while (dir !== "/") {
-    if ((0, import_fs7.existsSync)((0, import_path5.join)(dir, ".git"))) return dir;
-    dir = (0, import_path5.resolve)(dir, "..");
+    if ((0, import_fs7.existsSync)((0, import_path7.join)(dir, ".git"))) return dir;
+    dir = (0, import_path7.resolve)(dir, "..");
   }
   return process.cwd();
 }
@@ -21497,14 +21492,14 @@ var LANG_CONFIG_FILES = {
 };
 function findLanguageRoot(filePath, language) {
   const root = projectRoot ?? findProjectRoot2();
-  const absPath = (0, import_path5.resolve)(root, filePath);
-  let dir = absPath.includes(".") ? (0, import_path5.resolve)(absPath, "..") : absPath;
+  const absPath = (0, import_path7.resolve)(root, filePath);
+  let dir = absPath.includes(".") ? (0, import_path7.resolve)(absPath, "..") : absPath;
   const configFiles = LANG_CONFIG_FILES[language] ?? [];
   while (dir.length >= root.length) {
     for (const cf of configFiles) {
-      if ((0, import_fs7.existsSync)((0, import_path5.join)(dir, cf))) return dir;
+      if ((0, import_fs7.existsSync)((0, import_path7.join)(dir, cf))) return dir;
     }
-    const parent = (0, import_path5.resolve)(dir, "..");
+    const parent = (0, import_path7.resolve)(dir, "..");
     if (parent === dir) break;
     dir = parent;
   }
@@ -21526,7 +21521,7 @@ async function ensureClientForFile(filePath) {
   return client;
 }
 function ensureFileOpen(lsp, filePath) {
-  const absPath = (0, import_path5.resolve)(projectRoot ?? process.cwd(), filePath);
+  const absPath = (0, import_path7.resolve)(projectRoot ?? process.cwd(), filePath);
   const uri = (0, import_url.pathToFileURL)(absPath).href;
   if (!openedFiles.has(uri)) {
     const text = (0, import_fs7.readFileSync)(absPath, "utf-8");
@@ -21659,14 +21654,14 @@ function registerLspTools(server2) {
         const lsp = await ensureClientForFile(file);
         ensureFileOpen(lsp, file);
         const diagnostics = [];
-        const uri = (0, import_url.pathToFileURL)((0, import_path5.resolve)(projectRoot ?? process.cwd(), file)).href;
+        const uri = (0, import_url.pathToFileURL)((0, import_path7.resolve)(projectRoot ?? process.cwd(), file)).href;
         const handler = (params) => {
           if (params.uri === uri) {
             diagnostics.push(...params.diagnostics);
           }
         };
         lsp.on("textDocument/publishDiagnostics", handler);
-        const text = (0, import_fs7.readFileSync)((0, import_path5.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
+        const text = (0, import_fs7.readFileSync)((0, import_path7.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
         const langId = getLanguageId(file);
         lsp.notify("textDocument/didClose", { textDocument: { uri } });
         openedFiles.delete(uri);
@@ -21769,7 +21764,7 @@ function registerLspTools(server2) {
           if (params.uri === uri) diagnostics.push(...params.diagnostics);
         };
         lsp.on("textDocument/publishDiagnostics", handler);
-        const text = (0, import_fs7.readFileSync)((0, import_path5.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
+        const text = (0, import_fs7.readFileSync)((0, import_path7.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
         const langId = getLanguageId(file);
         lsp.notify("textDocument/didClose", { textDocument: { uri } });
         openedFiles.delete(uri);
@@ -21905,7 +21900,7 @@ function registerLspTools(server2) {
 }
 
 // src/mcp/tools/ast.ts
-var import_path6 = require("path");
+var import_path8 = require("path");
 var import_fs8 = require("fs");
 var astGrep = null;
 var astGrepAvailable = null;
@@ -21919,7 +21914,7 @@ function loadAstGrep() {
   }
   try {
     const projectRoot2 = findProjectRoot3();
-    astGrep = require((0, import_path6.resolve)(projectRoot2, "node_modules", "@ast-grep", "napi"));
+    astGrep = require((0, import_path8.resolve)(projectRoot2, "node_modules", "@ast-grep", "napi"));
     astGrepAvailable = true;
     return true;
   } catch {
@@ -21942,8 +21937,8 @@ var LANG_MAP = {
 function findProjectRoot3() {
   let dir = process.cwd();
   while (dir !== "/") {
-    if ((0, import_fs8.existsSync)((0, import_path6.resolve)(dir, ".git"))) return dir;
-    dir = (0, import_path6.resolve)(dir, "..");
+    if ((0, import_fs8.existsSync)((0, import_path8.resolve)(dir, ".git"))) return dir;
+    dir = (0, import_path8.resolve)(dir, "..");
   }
   return process.cwd();
 }
@@ -21953,7 +21948,7 @@ function collectFiles(dir, ext, maxDepth = 5, depth = 0) {
   try {
     for (const entry of (0, import_fs8.readdirSync)(dir, { withFileTypes: true })) {
       if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist") continue;
-      const full = (0, import_path6.resolve)(dir, entry.name);
+      const full = (0, import_path8.resolve)(dir, entry.name);
       if (entry.isDirectory()) {
         files.push(...collectFiles(full, ext, maxDepth, depth + 1));
       } else if (entry.name.endsWith(`.${ext}`)) {
@@ -21988,7 +21983,7 @@ function registerAstTools(server2) {
       }
       try {
         const root = findProjectRoot3();
-        const targetPath = searchPath ? (0, import_path6.resolve)(root, searchPath) : root;
+        const targetPath = searchPath ? (0, import_path8.resolve)(root, searchPath) : root;
         let lang = language?.toLowerCase() ?? "typescript";
         const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
         const astLang = LANG_MAP[ext];
@@ -22055,7 +22050,7 @@ function registerAstTools(server2) {
       const isDryRun = dryRun ?? true;
       try {
         const root = findProjectRoot3();
-        const targetPath = searchPath ? (0, import_path6.resolve)(root, searchPath) : root;
+        const targetPath = searchPath ? (0, import_path8.resolve)(root, searchPath) : root;
         let lang = language?.toLowerCase() ?? "typescript";
         const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
         const astLang = LANG_MAP[ext];
@@ -22120,120 +22115,6 @@ function registerAstTools(server2) {
   );
 }
 
-// src/mcp/tools/task.ts
-var import_fs9 = require("fs");
-var import_promises4 = require("fs/promises");
-var import_path7 = require("path");
-var import_crypto2 = require("crypto");
-var TASKS_DIR = (0, import_path7.join)(KNOWLEDGE_ROOT, "tasks");
-async function loadTask(id) {
-  const path = (0, import_path7.join)(TASKS_DIR, `${id}.json`);
-  if (!(0, import_fs9.existsSync)(path)) return null;
-  try {
-    return JSON.parse(await (0, import_promises4.readFile)(path, "utf-8"));
-  } catch {
-    return null;
-  }
-}
-async function saveTask(task) {
-  ensureDir(TASKS_DIR);
-  await (0, import_promises4.writeFile)((0, import_path7.join)(TASKS_DIR, `${task.id}.json`), JSON.stringify(task, null, 2));
-}
-async function loadAllTasks() {
-  if (!(0, import_fs9.existsSync)(TASKS_DIR)) return [];
-  const tasks = [];
-  for (const file of (await (0, import_promises4.readdir)(TASKS_DIR)).filter((f) => f.endsWith(".json"))) {
-    try {
-      tasks.push(JSON.parse(await (0, import_promises4.readFile)((0, import_path7.join)(TASKS_DIR, file), "utf-8")));
-    } catch {
-    }
-  }
-  return tasks.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
-function registerTaskTools(server2) {
-  server2.tool(
-    "nx_task_create",
-    "Create a task for tracking work across sessions",
-    {
-      title: external_exports.string().describe("Task title"),
-      description: external_exports.string().optional().describe("Detailed description"),
-      tags: external_exports.array(external_exports.string()).optional().describe("Tags for filtering")
-    },
-    async ({ title, description, tags }) => {
-      const task = {
-        id: (0, import_crypto2.randomUUID)().slice(0, 8),
-        title,
-        status: "todo",
-        description,
-        tags,
-        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      await saveTask(task);
-      return { content: [{ type: "text", text: JSON.stringify({ success: true, task }) }] };
-    }
-  );
-  server2.tool(
-    "nx_task_list",
-    "List tasks with optional filtering by status or tags",
-    {
-      status: external_exports.enum(["todo", "in_progress", "done", "blocked"]).optional().describe("Filter by status"),
-      tags: external_exports.array(external_exports.string()).optional().describe("Filter by tags (any match)")
-    },
-    async ({ status, tags }) => {
-      let tasks = await loadAllTasks();
-      if (status) tasks = tasks.filter((t) => t.status === status);
-      if (tags && tags.length > 0) {
-        tasks = tasks.filter((t) => t.tags?.some((tag) => tags.includes(tag)));
-      }
-      return { content: [{ type: "text", text: JSON.stringify({ count: tasks.length, tasks }) }] };
-    }
-  );
-  server2.tool(
-    "nx_task_update",
-    "Update a task (status, title, description, tags)",
-    {
-      id: external_exports.string().describe("Task ID"),
-      status: external_exports.enum(["todo", "in_progress", "done", "blocked"]).optional().describe("New status"),
-      title: external_exports.string().optional().describe("New title"),
-      description: external_exports.string().optional().describe("New description"),
-      tags: external_exports.array(external_exports.string()).optional().describe("New tags (replaces existing)")
-    },
-    async ({ id, status, title, description, tags }) => {
-      const task = await loadTask(id);
-      if (!task) {
-        return { content: [{ type: "text", text: JSON.stringify({ success: false, error: "Task not found", id }) }] };
-      }
-      if (status) task.status = status;
-      if (title) task.title = title;
-      if (description !== void 0) task.description = description;
-      if (tags) task.tags = tags;
-      task.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-      if (status === "done") task.completedAt = (/* @__PURE__ */ new Date()).toISOString();
-      await saveTask(task);
-      return { content: [{ type: "text", text: JSON.stringify({ success: true, task }) }] };
-    }
-  );
-  server2.tool(
-    "nx_task_summary",
-    "Get task summary: counts by status + in-progress list",
-    {},
-    async () => {
-      const tasks = await loadAllTasks();
-      const counts = { todo: 0, in_progress: 0, done: 0, blocked: 0 };
-      for (const t of tasks) counts[t.status]++;
-      const inProgress = tasks.filter((t) => t.status === "in_progress").map((t) => ({ id: t.id, title: t.title, tags: t.tags }));
-      const blocked = tasks.filter((t) => t.status === "blocked").map((t) => ({ id: t.id, title: t.title, tags: t.tags }));
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ total: tasks.length, counts, inProgress, blocked })
-        }]
-      };
-    }
-  );
-}
-
 // src/mcp/server.ts
 var server = new McpServer({
   name: "nx",
@@ -22245,7 +22126,6 @@ registerKnowledgeTools(server);
 registerContextTool(server);
 registerLspTools(server);
 registerAstTools(server);
-registerTaskTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

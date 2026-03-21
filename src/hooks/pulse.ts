@@ -1,7 +1,7 @@
 // Pulse 훅: PreToolUse/PostToolUse — Whisper 패턴 컨텍스트 주입 + Guard
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { sessionDir, ensureDir, statePath, RUNTIME_ROOT } from '../shared/paths.js';
+import { sessionDir, ensureDir, RUNTIME_ROOT } from '../shared/paths.js';
 import { getSessionId } from '../shared/session.js';
 import { join } from 'path';
 
@@ -38,7 +38,6 @@ const AGENT_CONTEXT_LEVELS: Record<string, ContextLevel> = {
   builder: 'standard',
   guard: 'standard',
   debugger: 'standard',
-  lead: 'full',
   architect: 'full',
   strategist: 'full',
   reviewer: 'full',
@@ -88,6 +87,24 @@ function isAllowedPath(filePath: string): boolean {
   return ALLOWED_PATHS.some(p => filePath.includes(p));
 }
 
+function getCurrentMode(sid: string): string | null {
+  const workflowPath = join(sessionDir(sid), 'workflow.json');
+  if (!existsSync(workflowPath)) return null;
+  try {
+    const state = JSON.parse(readFileSync(workflowPath, 'utf-8'));
+    return state.mode ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function isDelegationEnforcementApplicable(sid: string): boolean {
+  const mode = getCurrentMode(sid);
+  // enforcement only applies when idle (no active workflow mode)
+  if (mode === 'auto' || mode === 'parallel' || mode === 'consult' || mode === 'plan') return false;
+  return true;
+}
+
 // --- Context Messages ---
 
 interface ContextMessage {
@@ -119,47 +136,43 @@ function buildMessages(toolName: string, hookEvent: string, sid: string, toolInp
     });
   }
 
-  // Workflow: Nonstop 리마인더
-  const sustainPath = statePath(sid, 'nonstop');
-  if (existsSync(sustainPath)) {
+  // Workflow: workflow.json에서 상태 읽기
+  const workflowPath = join(sessionDir(sid), 'workflow.json');
+  if (existsSync(workflowPath)) {
     try {
-      const state = JSON.parse(readFileSync(sustainPath, 'utf-8'));
-      if (state.active) {
-        messages.push({
-          key: 'workflow:sustain_active',
-          priority: 'workflow',
-          text: `[SUSTAIN ${state.currentIteration ?? 0}/${state.maxIterations ?? 100}] Nonstop mode is active. Continue working until the task is complete.`,
-        });
-      }
-    } catch { /* skip */ }
-  }
+      const state = JSON.parse(readFileSync(workflowPath, 'utf-8'));
 
-  // Workflow: Pipeline 리마인더
-  const pipelinePath = statePath(sid, 'pipeline');
-  if (existsSync(pipelinePath)) {
-    try {
-      const state = JSON.parse(readFileSync(pipelinePath, 'utf-8'));
-      if (state.active) {
-        const stageInfo = state.currentStage
-          ? `${state.currentStage} (${(state.currentStageIndex ?? 0) + 1}/${state.totalStages ?? '?'})`
-          : 'initializing';
+      // Auto mode: nonstop 리마인더
+      if (state.mode === 'auto' && state.nonstop?.active) {
+        messages.push({
+          key: 'workflow:nonstop_active',
+          priority: 'workflow',
+          text: `[NONSTOP ${state.nonstop.iteration ?? 0}/${state.nonstop.max ?? 100}] Auto mode (nonstop) is active. Continue working until the task is complete.`,
+        });
+
+        // 80% 근접 경고
+        if (state.nonstop.iteration >= (state.nonstop.max ?? 100) * 0.8) {
+          messages.push({
+            key: 'recovery:nonstop_limit',
+            priority: 'safety',
+            text: `[WARNING] Nonstop ${state.nonstop.iteration}/${state.nonstop.max}에 근접. 작업이 막혀있다면: 1) 현재 접근 방식을 재검토하세요. 2) nx_state_clear({ key: "auto" })로 해제 후 다른 전략을 시도하세요.`,
+          });
+        }
+      }
+
+      // Auto mode: pipeline stage 리마인더
+      if (state.mode === 'auto' && state.phase) {
         messages.push({
           key: 'workflow:pipeline_active',
           priority: 'workflow',
-          text: `[PIPELINE stage: ${stageInfo}] Pipeline is active. Complete the current stage, then advance to the next.`,
+          text: `[AUTO stage: ${state.phase}] Auto pipeline is active. Complete the current stage, then advance to the next.`,
         });
       }
-    } catch { /* skip */ }
-  }
 
-  // Workflow: Parallel 리마인더
-  const parallelPath = statePath(sid, 'parallel');
-  if (existsSync(parallelPath)) {
-    try {
-      const state = JSON.parse(readFileSync(parallelPath, 'utf-8'));
-      if (state.active) {
-        const completed = state.completedCount ?? 0;
-        const total = state.totalCount ?? 0;
+      // Parallel mode 리마인더
+      if (state.mode === 'parallel' && state.parallel) {
+        const completed = state.parallel.completedCount ?? 0;
+        const total = state.parallel.totalCount ?? 0;
         messages.push({
           key: 'workflow:parallel_active',
           priority: 'workflow',
@@ -169,60 +182,19 @@ function buildMessages(toolName: string, hookEvent: string, sid: string, toolInp
     } catch { /* skip */ }
   }
 
-  // Delegation enforcement: Write/Edit 도구 사용 시 위임 리마인더
+  // Delegation enforcement: Write/Edit 도구 사용 시 위임 강제
   if (hookEvent === 'PreToolUse' && /^(Write|Edit|write|edit)$/.test(toolName)) {
     const enforcement = getDelegationEnforcement();
-    if (enforcement !== 'off') {
-      const filePath = toolInput?.file_path ?? '';
+    if (enforcement !== 'off' && isDelegationEnforcementApplicable(sid)) {
+      const filePath = (toolInput?.file_path ?? '') as string;
       if (filePath && !isAllowedPath(filePath)) {
-        const routingPath = join(sessionDir(sid), 'routing.json');
-        if (existsSync(routingPath)) {
-          try {
-            const routing = JSON.parse(readFileSync(routingPath, 'utf-8'));
-            const agent = routing.agent ?? 'unknown';
-            messages.push({
-              key: 'delegation:routing_active',
-              priority: 'safety',
-              text: `[NEXUS DELEGATION REMINDER] Routing directed delegation to nexus:${agent}. Use Agent({ subagent_type: "nexus:${agent}", prompt: "<task>" }) instead of editing files directly.`,
-            });
-          } catch { /* skip */ }
-        } else {
-          messages.push({
-            key: 'delegation:write_edit_hint',
-            priority: 'guidance',
-            text: '[NEXUS] Consider delegating implementation to an agent. See routing suggestions.',
-          });
-        }
+        messages.push({
+          key: 'delegation:enforce',
+          priority: 'safety',
+          text: '[NEXUS DELEGATION] You are editing source files directly. Consider delegating to a specialized agent: Builder (implementation), Debugger (bug fixes), Tester (test writing). Use Agent({ subagent_type: \'nexus:<agent>\', prompt: \'<task>\' }).',
+        });
       }
     }
-  }
-
-  // 오류 복구 가이드: nonstop iteration이 80% 이상이면 경고
-  if (existsSync(sustainPath)) {
-    try {
-      const state = JSON.parse(readFileSync(sustainPath, 'utf-8'));
-      if (state.active && state.currentIteration >= (state.maxIterations ?? 100) * 0.8) {
-        messages.push({
-          key: 'recovery:sustain_limit',
-          priority: 'safety',
-          text: `[WARNING] Nonstop iteration ${state.currentIteration}/${state.maxIterations}에 근접. 작업이 막혀있다면: 1) 현재 접근 방식을 재검토하세요. 2) nx_state_clear({ key: "nonstop" })로 해제 후 다른 전략을 시도하세요.`,
-        });
-      }
-    } catch { /* skip */ }
-  }
-
-  // 오류 복구 가이드: pipeline에서 같은 stage에 오래 머물면 경고
-  if (existsSync(pipelinePath)) {
-    try {
-      const state = JSON.parse(readFileSync(pipelinePath, 'utf-8'));
-      if (state.active && state.currentIteration >= 10) {
-        messages.push({
-          key: 'recovery:pipeline_stuck',
-          priority: 'safety',
-          text: `[WARNING] Pipeline "${state.currentStage ?? 'unknown'}" 단계에서 ${state.currentIteration}회 반복 중. 막혀있다면: 1) 현재 단계를 skip하고 다음으로 진행하세요. 2) nx_state_clear({ key: "pipeline" })로 해제하세요.`,
-        });
-      }
-    } catch { /* skip */ }
   }
 
   return messages;
@@ -277,9 +249,9 @@ async function main() {
     // 워크플로우 메시지는 상태가 변경된 경우에만 주입
     if (msg.priority === 'workflow' && !workflowChanged) continue;
 
-    // 중복 방지: MAX_REPEAT 초과 시 건너뜀 (routing_active safety는 매번 주입)
+    // 중복 방지: MAX_REPEAT 초과 시 건너뜀 (delegation:enforce safety는 매번 주입)
     const count = tracker.injections[msg.key] ?? 0;
-    if (count >= MAX_REPEAT && msg.key !== 'delegation:routing_active') continue;
+    if (count >= MAX_REPEAT && msg.key !== 'delegation:enforce') continue;
 
     tracker.injections[msg.key] = count + 1;
     filtered.push(msg.text);
@@ -292,14 +264,15 @@ async function main() {
 
     // 워크플로우 상태
     try {
-      const sustainP = statePath(sid, 'nonstop');
-      const pipelineP = statePath(sid, 'pipeline');
-      if (existsSync(pipelineP) && existsSync(sustainP)) {
-        const p = JSON.parse(readFileSync(pipelineP, 'utf-8'));
-        if (p.active && p.currentStage) progressParts.push(`auto: ${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? '?'}`);
-      } else if (existsSync(sustainP)) {
-        const s = JSON.parse(readFileSync(sustainP, 'utf-8'));
-        if (s.active) progressParts.push(`nonstop: ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
+      const workflowPath = join(sessionDir(sid), 'workflow.json');
+      if (existsSync(workflowPath)) {
+        const w = JSON.parse(readFileSync(workflowPath, 'utf-8'));
+        if (w.mode === 'auto') {
+          if (w.phase) progressParts.push(`auto: ${w.phase}`);
+          if (w.nonstop?.active) progressParts.push(`nonstop: ${w.nonstop.iteration ?? 0}/${w.nonstop.max ?? 100}`);
+        } else if (w.mode === 'parallel' && w.parallel) {
+          progressParts.push(`parallel: ${w.parallel.completedCount ?? 0}/${w.parallel.totalCount ?? 0}`);
+        }
       }
     } catch { /* skip */ }
 
@@ -318,12 +291,11 @@ async function main() {
   saveTracker(sid, tracker);
 
   // strict 모드: delegation 경고가 포함된 Write/Edit를 차단
-  const hasDelegationWarning = messages.some(m => m.key === 'delegation:routing_active');
+  const hasDelegationWarning = messages.some(m => m.key === 'delegation:enforce');
   if (hasDelegationWarning && getDelegationEnforcement() === 'strict') {
-    const routingMsg = messages.find(m => m.key === 'delegation:routing_active');
     respond({
       decision: 'block',
-      reason: routingMsg?.text ?? '[NEXUS] Direct file editing is blocked while delegation routing is active.',
+      reason: '[NEXUS] Direct file editing is blocked. Delegate to a specialized agent.',
     });
     return;
   }

@@ -94,45 +94,8 @@ function buildLine1() {
     gitPart = dirty ? `${branch} (${dirty})` : branch;
   } catch {
   }
-  const now = /* @__PURE__ */ new Date();
-  const timeStr = `${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  let sessionTime = "";
-  const transcriptPath = getVal("transcript_path");
-  if (transcriptPath && (0, import_fs.existsSync)(transcriptPath)) {
-    try {
-      const mtime = (0, import_fs.statSync)(transcriptPath).mtime;
-      const firstLine = (0, import_fs.readFileSync)(transcriptPath, "utf-8").split("\n")[0];
-      const tsMatch = firstLine.match(/"timestamp"\s*:\s*"([^"]+)"/);
-      if (tsMatch) {
-        const start = new Date(tsMatch[1]);
-        const elapsed = Math.floor((now.getTime() - start.getTime()) / 1e3);
-        const hh = Math.floor(elapsed / 3600);
-        const mm = Math.floor(elapsed % 3600 / 60);
-        sessionTime = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
-      }
-    } catch {
-    }
-  }
-  const timePart = sessionTime ? `${DIM}${timeStr} (${sessionTime})${RESET}` : `${DIM}${timeStr}${RESET}`;
-  let version = "";
-  try {
-    const pkgPath = (0, import_path.join)(PROJECT_ROOT, "node_modules", "claude-nexus", "package.json");
-    const pluginPkgPath = (0, import_path.join)(__dirname, "..", "package.json");
-    const localPkgPath = (0, import_path.join)(PROJECT_ROOT, "package.json");
-    for (const p of [pkgPath, pluginPkgPath, localPkgPath]) {
-      if ((0, import_fs.existsSync)(p)) {
-        const pkg = JSON.parse((0, import_fs.readFileSync)(p, "utf-8"));
-        if (pkg.name === "claude-nexus" && pkg.version) {
-          version = pkg.version;
-          break;
-        }
-      }
-    }
-  } catch {
-  }
-  const versionStr = version ? ` ${DIM}v${version}${RESET}` : "";
-  const nexusTag = `\x1B[38;5;141m\u25C6Nexus${RESET}${versionStr}`;
-  return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
+  const nexusTag = `\x1B[38;5;141m\u25C6Nexus${RESET}`;
+  return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart}`;
 }
 var USAGE_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".usage_cache");
 var CACHE_TTL_DEFAULT = 60;
@@ -287,65 +250,47 @@ function buildLine2() {
   const staleTag = usage.stale ? ` \x1B[33m[stale]\x1B[0m` : "";
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${staleTag}`;
 }
-function normalizeAgentName(name) {
-  return name.replace(/^(nexus|claude-nexus):/, "");
-}
 function buildLine3() {
   const sid = getSessionId();
-  const workflowParts = [];
-  let agentStr = "";
-  let taskStr = "";
+  let modeDisplay = `\u{1F4A4} idle`;
+  let agentCount = 0;
+  let taskStr = "0/0";
   if (sid) {
     const sessDir = (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sid);
-    const nonstopPath = (0, import_path.join)(sessDir, "nonstop.json");
-    const pipelinePath = (0, import_path.join)(sessDir, "pipeline.json");
-    const parallelPath = (0, import_path.join)(sessDir, "parallel.json");
-    let nonstopActive = false;
+    const workflowPath = (0, import_path.join)(sessDir, "workflow.json");
     try {
-      if ((0, import_fs.existsSync)(nonstopPath)) {
-        const s = JSON.parse((0, import_fs.readFileSync)(nonstopPath, "utf-8"));
-        if (s.active) {
-          nonstopActive = true;
-          workflowParts.push(`\u25B6 nonstop ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
-        }
-      }
-    } catch {
-    }
-    try {
-      if ((0, import_fs.existsSync)(pipelinePath)) {
-        const p = JSON.parse((0, import_fs.readFileSync)(pipelinePath, "utf-8"));
-        if (p.active) {
-          const stage = p.currentStage ? `${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? "?"}` : "init";
-          if (nonstopActive) {
-            workflowParts.length = 0;
-            workflowParts.push(`\u25B6 auto (${stage})`);
-          } else {
-            workflowParts.push(`\u25B6 pipeline (${stage})`);
+      if ((0, import_fs.existsSync)(workflowPath)) {
+        const wf = JSON.parse((0, import_fs.readFileSync)(workflowPath, "utf-8"));
+        const mode = wf.mode ?? "idle";
+        const phase = wf.phase ?? "";
+        const parallel = wf.parallel;
+        if (mode === "auto") {
+          let autoStr = "\u{1F680} auto";
+          if (phase) {
+            const taskProgress = wf.taskProgress;
+            if (taskProgress && typeof taskProgress.current === "number" && typeof taskProgress.total === "number") {
+              autoStr += `: ${phase} (${taskProgress.current}/${taskProgress.total})`;
+            } else {
+              autoStr += `: ${phase}`;
+            }
           }
+          if (parallel && (parallel.total ?? 0) > 0) {
+            autoStr += ` \u26A1${parallel.completed ?? 0}/${parallel.total}`;
+          }
+          modeDisplay = autoStr;
+        } else if (mode === "parallel") {
+          const comp = parallel?.completed ?? 0;
+          const total = parallel?.total ?? 0;
+          modeDisplay = total > 0 ? `\u26A1 parallel ${comp}/${total}` : `\u26A1 parallel`;
+        } else if (mode === "consult") {
+          modeDisplay = phase ? `\u{1F4AC} consult: ${phase}` : `\u{1F4AC} consult`;
+        } else if (mode === "plan") {
+          modeDisplay = phase ? `\u{1F4CB} plan: ${phase}` : `\u{1F4CB} plan`;
+        } else if (mode === "idle") {
+          modeDisplay = `\u{1F4A4} idle`;
+        } else {
+          modeDisplay = `\u{1F4A4} idle`;
         }
-      }
-    } catch {
-    }
-    try {
-      if ((0, import_fs.existsSync)(parallelPath)) {
-        const p = JSON.parse((0, import_fs.readFileSync)(parallelPath, "utf-8"));
-        if (p.active && (p.totalCount ?? 0) > 0) workflowParts.push(`\u{1F500} parallel ${p.completedCount ?? 0}/${p.totalCount}`);
-      }
-    } catch {
-    }
-    try {
-      const consultPath = (0, import_path.join)(sessDir, "consult.json");
-      if ((0, import_fs.existsSync)(consultPath)) {
-        const c = JSON.parse((0, import_fs.readFileSync)(consultPath, "utf-8"));
-        if (c.active) workflowParts.push(`\u{1F4AC} consult (${c.phase ?? "?"})`);
-      }
-    } catch {
-    }
-    try {
-      const planPath = (0, import_path.join)(sessDir, "plan.json");
-      if ((0, import_fs.existsSync)(planPath)) {
-        const p = JSON.parse((0, import_fs.readFileSync)(planPath, "utf-8"));
-        if (p.active) workflowParts.push(`\u{1F4CB} plan (${p.phase ?? "?"})`);
       }
     } catch {
     }
@@ -354,47 +299,35 @@ function buildLine3() {
       if ((0, import_fs.existsSync)(agentsPath)) {
         const record = JSON.parse((0, import_fs.readFileSync)(agentsPath, "utf-8"));
         const active = record.active ?? [];
-        if (active.length > 0) {
-          const counts = {};
-          for (const a of active) {
-            const n = normalizeAgentName(a);
-            counts[n] = (counts[n] ?? 0) + 1;
-          }
-          agentStr = Object.entries(counts).map(([name, count]) => count > 1 ? `${name}\xD7${count}` : name).join(" ");
-        }
+        agentCount = active.length;
       }
     } catch {
     }
   }
-  const tasksDir = (0, import_path.join)(KNOWLEDGE_ROOT, "tasks");
-  try {
-    if ((0, import_fs.existsSync)(tasksDir)) {
-      const files = (0, import_fs.readdirSync)(tasksDir).filter((f) => f.endsWith(".json"));
-      let inProgress = 0, todo = 0;
-      for (const file of files) {
-        try {
-          const task = JSON.parse((0, import_fs.readFileSync)((0, import_path.join)(tasksDir, file), "utf-8"));
-          if (task.status === "in_progress") inProgress++;
-          else if (task.status === "todo") todo++;
-        } catch {
-        }
+  if (modeDisplay === `\u{1F4A4} idle`) {
+    try {
+      const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+      const branchDir = branch.replace(/\//g, "--");
+      const planDir = (0, import_path.join)(KNOWLEDGE_ROOT, "plans", branchDir);
+      if ((0, import_fs.existsSync)(planDir)) {
+        modeDisplay = `\u{1F4CB} planning`;
       }
-      const tp = [];
-      if (inProgress > 0) tp.push(`${inProgress} active`);
-      if (todo > 0) tp.push(`${todo} todo`);
-      if (tp.length > 0) taskStr = tp.join(", ");
+    } catch {
+    }
+  }
+  try {
+    const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    const branchDir = branch.replace(/\//g, "--");
+    const tasksFile = (0, import_path.join)(KNOWLEDGE_ROOT, "plans", branchDir, "tasks.json");
+    if ((0, import_fs.existsSync)(tasksFile)) {
+      const tasks = JSON.parse((0, import_fs.readFileSync)(tasksFile, "utf-8"));
+      const total = tasks.length;
+      const done = tasks.filter((t) => t.status === "done").length;
+      taskStr = `${done}/${total}`;
     }
   } catch {
   }
-  const parts = [];
-  if (workflowParts.length > 0) {
-    parts.push(workflowParts.join(" "));
-  } else {
-    parts.push(`${DIM}\u2014 idle${RESET}`);
-  }
-  parts.push(`\u{1F916} ${agentStr || "0"}`);
-  parts.push(`\u{1F4DD} ${taskStr || "0"}`);
-  return parts.join(` ${SEP} `);
+  return `${modeDisplay} ${SEP} \u{1F916} ${agentCount} ${SEP} \u{1F4CB} ${taskStr}`;
 }
 function main() {
   const preset = getPreset();

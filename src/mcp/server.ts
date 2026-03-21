@@ -5,7 +5,6 @@ import { registerKnowledgeTools } from './tools/knowledge.js';
 import { registerContextTool } from './tools/context.js';
 import { registerLspTools } from './tools/lsp.js';
 import { registerAstTools } from './tools/ast.js';
-import { registerTaskTools } from './tools/task.js';
 
 const server = new McpServer({
   name: 'nx',
@@ -17,7 +16,6 @@ registerKnowledgeTools(server);
 registerContextTool(server);
 registerLspTools(server);
 registerAstTools(server);
-registerTaskTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();

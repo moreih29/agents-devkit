@@ -1,0 +1,17 @@
+{
+  "tasks": [
+    { "id": "t1", "title": "Lead 에이전트 삭제 및 참조 제거", "status": "done" },
+    { "id": "t2", "title": "force 접두사 파싱 제거", "status": "done" },
+    { "id": "t3", "title": "Init 키워드 자연어 감지 제거", "status": "done" },
+    { "id": "t4", "title": "SessionStart 위임 가이드라인 삭제", "status": "done" },
+    { "id": "t5", "title": "적응형 라우팅 시스템 제거", "status": "done" },
+    { "id": "t7", "title": "SUSTAIN → NONSTOP 이름 통일", "status": "done" },
+    { "id": "t8", "title": "프리미티브 키워드 오탐 방지 강화", "status": "done" },
+    { "id": "t9", "title": "plans/tasks 구조 통합 + 기존 태스크 시스템 제거", "status": "done" },
+    { "id": "t10", "title": "모드 기반 워크플로우 모델 구현", "status": "done" },
+    { "id": "t6", "title": "Pulse delegation enforcement 재설계", "status": "done" },
+    { "id": "t11", "title": "상태라인 3줄 모드 기반 재설계", "status": "done" },
+    { "id": "t12", "title": "결정 캡처 + 멀티턴 워크플로우 구현", "status": "done" },
+    { "id": "t13", "title": "E2E 테스트 업데이트 + 통합 검증", "status": "done" }
+  ]
+}

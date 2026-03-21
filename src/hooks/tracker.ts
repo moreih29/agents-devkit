@@ -45,29 +45,28 @@ function handleSessionStart(): void {
   let branch = 'unknown';
   try { branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim(); } catch { /* skip */ }
 
-  const planFile = join(KNOWLEDGE_ROOT, 'plans', `${branch.replace(/\//g, '--')}.md`);
+  const branchDir = branch.replace(/\//g, '--');
+  const planFile = join(KNOWLEDGE_ROOT, 'plans', `${branchDir}.md`);
   const hasPlan = existsSync(planFile);
+  const planDirPath = join(KNOWLEDGE_ROOT, 'plans', branchDir);
+  const hasPlanDir = existsSync(planDirPath);
 
-  // 완료된 task 중 7일 이상 경과한 것 삭제
-  const tasksPath = join(KNOWLEDGE_ROOT, 'tasks');
-  if (existsSync(tasksPath)) {
-    const DONE_TTL = 7 * 86400000; // 7일
-    for (const file of readdirSync(tasksPath).filter((f) => f.endsWith('.json'))) {
-      try {
-        const task = JSON.parse(readFileSync(join(tasksPath, file), 'utf-8'));
-        if (task.status === 'done' && task.completedAt) {
-          if (Date.now() - new Date(task.completedAt).getTime() > DONE_TTL) {
-            unlinkSync(join(tasksPath, file));
-          }
-        }
-      } catch { /* skip */ }
-    }
+  const workflowPath = join(sessionDir(sid), 'workflow.json');
+  const hasWorkflow = existsSync(workflowPath);
+
+  if (hasPlanDir && !hasWorkflow) {
+    respond({
+      continue: true,
+      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Mode: planning. Plan directory found.
+DECISION CAPTURE: You are in multi-turn planning mode. When the user makes decisions (confirmatory expressions like "이걸로 하자", "삭제하자", "이렇게 바꾸자", or [d] tag), record them in .claude/nexus/plans/${branchDir}/plan.md under the decisions section.
+When the user says "구현하자" or requests implementation, generate tasks.json from the accumulated decisions.`,
+    });
+  } else {
+    respond({
+      continue: true,
+      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? 'found' : 'none'}.`,
+    });
   }
-
-  respond({
-    continue: true,
-    additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? 'found' : 'none'}. When [NEXUS] routing context is injected, delegate to the recommended agent via Agent({ subagent_type: "nexus:<agent>", prompt: "<task>" }). Handle directly: single-file lookups, simple questions, trivial edits. Delegate: multi-file changes, debugging, reviews, tests, analysis. NEVER pass a 'model' parameter when calling Agent(). Each agent's definition determines its model.`,
-  });
 }
 
 // --- Session End ---
@@ -182,12 +181,6 @@ function handleSubagentStart(event: { agent_name?: string; agent_type?: string }
   record.history.push({ name, startedAt: new Date().toISOString() });
   saveAgents(sid, record);
 
-  // 위임이 시작되었으므로 routing.json 해제
-  const routingPath = join(sessionDir(sid), 'routing.json');
-  if (existsSync(routingPath)) {
-    try { unlinkSync(routingPath); } catch { /* skip */ }
-  }
-
   pass();
 }
 
@@ -218,17 +211,17 @@ function handleSubagentStop(event: { agent_name?: string; agent_type?: string })
   pass();
 }
 
-/** SubagentStop 시 parallel.json의 해당 에이전트 태스크를 자동 완료 처리 */
+/** SubagentStop 시 workflow.json의 parallel 태스크를 자동 완료 처리 */
 function updateParallelOnAgentStop(sid: string, agentName: string): void {
-  const path = join(sessionDir(sid), 'parallel.json');
+  const path = join(sessionDir(sid), 'workflow.json');
   if (!existsSync(path)) return;
 
   try {
     const state = JSON.parse(readFileSync(path, 'utf-8'));
-    if (!state.active || !Array.isArray(state.tasks)) return;
+    if (state.mode !== 'parallel' || !state.parallel || !Array.isArray(state.parallel.tasks)) return;
 
     let updated = false;
-    for (const task of state.tasks) {
+    for (const task of state.parallel.tasks) {
       // running 상태인 해당 에이전트의 태스크를 done으로 변경
       if (task.agent === agentName && task.status === 'running') {
         task.status = 'done';
@@ -238,11 +231,11 @@ function updateParallelOnAgentStop(sid: string, agentName: string): void {
     }
 
     if (updated) {
-      state.completedCount = state.tasks.filter((t: { status: string }) => t.status === 'done').length;
+      state.parallel.completedCount = state.parallel.tasks.filter((t: { status: string }) => t.status === 'done').length;
       writeFileSync(path, JSON.stringify(state, null, 2));
 
       // 모든 태스크 완료 시 자동 해제
-      if (state.completedCount >= state.totalCount && state.totalCount > 0) {
+      if (state.parallel.completedCount >= state.parallel.totalCount && state.parallel.totalCount > 0) {
         try { unlinkSync(path); } catch { /* skip */ }
       }
     }
