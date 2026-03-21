@@ -1,5 +1,5 @@
 ---
-name: init
+name: nx-init
 description: Onboard a project to Nexus — auto-generate knowledge from existing docs.
 triggers: ["init", "온보딩", "프로젝트 초기화"]
 ---
@@ -10,7 +10,7 @@ Onboard Nexus into an existing project — scan, triage, and restructure project
 ## Trigger
 - User says: "init", "온보딩", "nexus 설정", "프로젝트 초기화"
 - Explicit tag: `[init]`
-- Direct invocation: `/nexus:init`
+- Direct invocation: `/nexus:nx-init`
 
 ## What It Does
 

@@ -1,5 +1,5 @@
 ---
-name: sync
+name: nx-sync
 description: Detect and fix inconsistencies between Nexus source code and knowledge documents.
 triggers: ["sync", "sync knowledge", "지식 동기화", "문서 동기화"]
 ---

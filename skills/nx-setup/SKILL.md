@@ -1,5 +1,5 @@
 ---
-name: setup
+name: nx-setup
 description: Interactive project setup wizard for Nexus configuration.
 triggers: ["setup", "nexus 설정", "nexus 세팅"]
 ---
@@ -10,7 +10,7 @@ Interactive project setup wizard — configure Nexus for a new project with mini
 ## Trigger
 - User says: "setup", "nexus 설정", "nexus 세팅", "setup nexus"
 - Explicit tag: `[setup]`
-- Direct invocation: `/nexus:setup`
+- Direct invocation: `/nexus:nx-setup`
 
 ## What It Does
 
@@ -116,11 +116,11 @@ Agents use structured responses: Context → Plan → Implementation → Verific
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| consult | [consult] | Interactive discovery — understand intent before executing |
-| plan | [plan] | Generate structured implementation plan |
-| init | [init] | Onboard project — generate knowledge from existing docs |
-| setup | [setup] | Configure Nexus interactively |
-| sync | [sync] | Sync knowledge docs with source files |
+| nx-consult | [consult] | Interactive discovery — understand intent before executing |
+| nx-plan | [plan] | Generate structured implementation plan |
+| nx-init | [init] | Onboard project — generate knowledge from existing docs |
+| nx-setup | [setup] | Configure Nexus interactively |
+| nx-sync | [sync] | Sync knowledge docs with source files |
 <!-- NEXUS:END -->
 ```
 
@@ -198,7 +198,7 @@ AskUserQuestion({
     multiSelect: false,
     options: [
       { label: "Yes (Recommended)", description: "기존 문서(README, CLAUDE.md 등)를 분석해 .claude/nexus/knowledge/ 생성" },
-      { label: "Skip", description: "나중에 /nexus:init으로 직접 실행" }
+      { label: "Skip", description: "나중에 /nexus:nx-init으로 직접 실행" }
     ]
   }]
 })

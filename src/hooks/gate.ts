@@ -71,24 +71,24 @@ interface KeywordMatch {
 }
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
-  consult:  { primitive: 'consult',  skill: 'nexus:consult' },
-  init:     { primitive: 'init',     skill: 'nexus:init' },
-  plan:     { primitive: 'plan',     skill: 'nexus:plan' },
-  setup:    { primitive: 'setup',   skill: 'nexus:setup' },
+  consult:  { primitive: 'consult',  skill: 'nexus:nx-consult' },
+  init:     { primitive: 'init',     skill: 'nexus:nx-init' },
+  plan:     { primitive: 'plan',     skill: 'nexus:nx-plan' },
+  setup:    { primitive: 'setup',   skill: 'nexus:nx-setup' },
 };
 
 const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
   {
     patterns: [/\bconsult\b/i, /상담/, /어떻게\s*하면\s*좋을까/, /뭐가\s*좋을까/, /방법을?\s*찾아/],
-    match: { primitive: 'consult', skill: 'nexus:consult' },
+    match: { primitive: 'consult', skill: 'nexus:nx-consult' },
   },
   {
     patterns: [/계획\s*(세워|짜|수립)/, /\bplan\b/i, /구현\s*계획/, /설계해/, /어떻게\s*구현/, /plan\s*this/i],
-    match: { primitive: 'plan', skill: 'nexus:plan' },
+    match: { primitive: 'plan', skill: 'nexus:nx-plan' },
   },
   {
     patterns: [/\bsetup\b/i, /nexus\s*설정/, /nexus\s*세팅/, /setup\s*nexus/i],
-    match: { primitive: 'setup', skill: 'nexus:setup' },
+    match: { primitive: 'setup', skill: 'nexus:nx-setup' },
   },
 ];
 
@@ -186,7 +186,7 @@ IMPORTANT: Always backup before modifying. Never delete without user approval.`,
 6. CONVERGE: Elaborate chosen approach, follow-up if needed, produce concrete plan.
 7. CRYSTALLIZE: Finalize plan. If unclear dimensions remain, disclose risks transparently — but never block the user.
 8. EXECUTE BRIDGE: Offer options via AskUserQuestion: Execute (Recommended) / Plan only / Skip.
-   When the user chooses "Execute" or "Plan only", MUST invoke the plan skill: use Skill({ skill: "claude-nexus:plan" }). Pass the converged approach summary as args. The plan skill handles both planning and execution handoff.
+   When the user chooses "Execute" or "Plan only", MUST invoke the plan skill: use Skill({ skill: "claude-nexus:nx-plan" }). Pass the converged approach summary as args. The plan skill handles both planning and execution handoff.
    "Skip" ends the consult without further action.
 Key: One question at a time. Specific choices, not vague "what do you think?". Respect user autonomy.
 If a plan directory exists for the current branch, record decisions from user selections in the plan.md file.`,
