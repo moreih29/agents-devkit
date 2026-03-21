@@ -101,6 +101,54 @@ function getSessionId(): string | null {
 
 // --- Line 1: 모델 + 프로젝트 + 브랜치 + 시간 ---
 
+const VERSION_CACHE_PATH = join(process.env.HOME || '~', '.claude', '.nexus_version_cache');
+const VERSION_CACHE_TTL = 86400; // 24시간
+
+function getCurrentVersion(): string {
+  try {
+    const pluginJson = join(PROJECT_ROOT, '.claude-plugin', 'plugin.json');
+    if (existsSync(pluginJson)) {
+      const match = readFileSync(pluginJson, 'utf-8').match(/"version"\s*:\s*"([^"]+)"/);
+      if (match) return match[1];
+    }
+  } catch { /* skip */ }
+  return '';
+}
+
+function checkUpdateAvailable(currentVersion: string): boolean {
+  if (!currentVersion) return false;
+  const now = Math.floor(Date.now() / 1000);
+
+  // 캐시 읽기
+  if (existsSync(VERSION_CACHE_PATH)) {
+    try {
+      const lines = readFileSync(VERSION_CACHE_PATH, 'utf-8').split('\n');
+      const cachedAt = parseInt(lines[0]);
+      const latestVersion = lines[1]?.trim() || '';
+      if (now - cachedAt < VERSION_CACHE_TTL && latestVersion) {
+        return latestVersion !== currentVersion && latestVersion > currentVersion;
+      }
+    } catch { /* skip */ }
+  }
+
+  // 백그라운드에서 최신 버전 확인
+  try {
+    const script = `RESP=$(curl -s --max-time 3 "https://api.github.com/repos/moreih29/claude-nexus/releases/latest" 2>/dev/null); VER=$(echo "$RESP" | grep -o '"tag_name":"[^"]*"' | sed 's/"tag_name":"v\\{0,1\\}//;s/"//'); [ -n "$VER" ] && printf '%s\\n%s\\n' "$(date +%s)" "$VER" > "${VERSION_CACHE_PATH}.tmp" && mv "${VERSION_CACHE_PATH}.tmp" "${VERSION_CACHE_PATH}"`;
+    require('child_process').spawn('sh', ['-c', script], { stdio: 'ignore', detached: true }).unref();
+  } catch { /* skip */ }
+
+  // stale 캐시가 있으면 사용
+  if (existsSync(VERSION_CACHE_PATH)) {
+    try {
+      const lines = readFileSync(VERSION_CACHE_PATH, 'utf-8').split('\n');
+      const latestVersion = lines[1]?.trim() || '';
+      if (latestVersion) return latestVersion !== currentVersion && latestVersion > currentVersion;
+    } catch { /* skip */ }
+  }
+
+  return false;
+}
+
 function buildLine1(): string {
   const model = getVal('display_name') || 'unknown';
   const modelLower = model.toLowerCase();
@@ -120,7 +168,12 @@ function buildLine1(): string {
     gitPart = dirty ? `${branch} (${dirty})` : branch;
   } catch { /* skip */ }
 
-  const nexusTag = `\x1b[38;5;141m◆Nexus${RESET}`;
+  // Nexus 버전 + 업데이트 확인
+  const version = getCurrentVersion();
+  const updateAvailable = version ? checkUpdateAvailable(version) : false;
+  const versionStr = version ? ` v${version}` : '';
+  const updateTag = updateAvailable ? ` \x1b[33m↑${RESET}` : '';
+  const nexusTag = `\x1b[38;5;141m◆Nexus${versionStr}${RESET}${updateTag}`;
 
   return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1b[36m${project}${RESET} ${SEP} ${gitPart}`;
 }
@@ -312,8 +365,8 @@ function buildLine2(): string {
 
   const m5h = coloredMeter('5h', pct5h, BAR_WIDTH);
   const m7d = coloredMeter('7d', pct7d, BAR_WIDTH);
-  const r5h = remain5h ? ` ${DIM}${remain5h}${RESET}` : '';
-  const r7d = remain7d ? ` ${DIM}${remain7d}${RESET}` : '';
+  const r5h = remain5h ? ` ${DIM}↻${remain5h}${RESET}` : '';
+  const r7d = remain7d ? ` ${DIM}↻${remain7d}${RESET}` : '';
 
   // 캐시 나이 표시 (5분 이상일 때만)
   let stalePart = '';
@@ -322,7 +375,7 @@ function buildLine2(): string {
     const hh = Math.floor(ageMin / 60);
     const mm = ageMin % 60;
     const ageStr = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
-    stalePart = ` ${SEP} \x1b[33m↻${ageStr}\x1b[0m`;
+    stalePart = ` ${SEP} \x1b[33m${ageStr} ago\x1b[0m`;
   }
 
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${stalePart}`;

@@ -79,6 +79,48 @@ function getSessionId() {
     return null;
   }
 }
+var VERSION_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".nexus_version_cache");
+var VERSION_CACHE_TTL = 86400;
+function getCurrentVersion() {
+  try {
+    const pluginJson = (0, import_path.join)(PROJECT_ROOT, ".claude-plugin", "plugin.json");
+    if ((0, import_fs.existsSync)(pluginJson)) {
+      const match = (0, import_fs.readFileSync)(pluginJson, "utf-8").match(/"version"\s*:\s*"([^"]+)"/);
+      if (match) return match[1];
+    }
+  } catch {
+  }
+  return "";
+}
+function checkUpdateAvailable(currentVersion) {
+  if (!currentVersion) return false;
+  const now = Math.floor(Date.now() / 1e3);
+  if ((0, import_fs.existsSync)(VERSION_CACHE_PATH)) {
+    try {
+      const lines = (0, import_fs.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
+      const cachedAt = parseInt(lines[0]);
+      const latestVersion = lines[1]?.trim() || "";
+      if (now - cachedAt < VERSION_CACHE_TTL && latestVersion) {
+        return latestVersion !== currentVersion && latestVersion > currentVersion;
+      }
+    } catch {
+    }
+  }
+  try {
+    const script = `RESP=$(curl -s --max-time 3 "https://api.github.com/repos/moreih29/claude-nexus/releases/latest" 2>/dev/null); VER=$(echo "$RESP" | grep -o '"tag_name":"[^"]*"' | sed 's/"tag_name":"v\\{0,1\\}//;s/"//'); [ -n "$VER" ] && printf '%s\\n%s\\n' "$(date +%s)" "$VER" > "${VERSION_CACHE_PATH}.tmp" && mv "${VERSION_CACHE_PATH}.tmp" "${VERSION_CACHE_PATH}"`;
+    require("child_process").spawn("sh", ["-c", script], { stdio: "ignore", detached: true }).unref();
+  } catch {
+  }
+  if ((0, import_fs.existsSync)(VERSION_CACHE_PATH)) {
+    try {
+      const lines = (0, import_fs.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
+      const latestVersion = lines[1]?.trim() || "";
+      if (latestVersion) return latestVersion !== currentVersion && latestVersion > currentVersion;
+    } catch {
+    }
+  }
+  return false;
+}
 function buildLine1() {
   const model = getVal("display_name") || "unknown";
   const modelLower = model.toLowerCase();
@@ -95,7 +137,11 @@ function buildLine1() {
     gitPart = dirty ? `${branch} (${dirty})` : branch;
   } catch {
   }
-  const nexusTag = `\x1B[38;5;141m\u25C6Nexus${RESET}`;
+  const version = getCurrentVersion();
+  const updateAvailable = version ? checkUpdateAvailable(version) : false;
+  const versionStr = version ? ` v${version}` : "";
+  const updateTag = updateAvailable ? ` \x1B[33m\u2191${RESET}` : "";
+  const nexusTag = `\x1B[38;5;141m\u25C6Nexus${versionStr}${RESET}${updateTag}`;
   return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart}`;
 }
 var USAGE_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".usage_cache");
@@ -253,15 +299,15 @@ function buildLine2() {
   const { remainingCoarse: remain7d } = extractResetInfo(usage.json, "seven_day");
   const m5h = coloredMeter("5h", pct5h, BAR_WIDTH);
   const m7d = coloredMeter("7d", pct7d, BAR_WIDTH);
-  const r5h = remain5h ? ` ${DIM}${remain5h}${RESET}` : "";
-  const r7d = remain7d ? ` ${DIM}${remain7d}${RESET}` : "";
+  const r5h = remain5h ? ` ${DIM}\u21BB${remain5h}${RESET}` : "";
+  const r7d = remain7d ? ` ${DIM}\u21BB${remain7d}${RESET}` : "";
   let stalePart = "";
   if (usage.stale) {
     const ageMin = Math.floor(usage.ageSeconds / 60);
     const hh = Math.floor(ageMin / 60);
     const mm = ageMin % 60;
     const ageStr = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
-    stalePart = ` ${SEP} \x1B[33m\u21BB${ageStr}\x1B[0m`;
+    stalePart = ` ${SEP} \x1B[33m${ageStr} ago\x1B[0m`;
   }
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${stalePart}`;
 }
