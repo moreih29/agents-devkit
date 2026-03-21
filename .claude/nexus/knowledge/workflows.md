@@ -1,3 +1,4 @@
+<!-- tags: workflows, skills, gate -->
 # Nexus 워크플로우 시스템
 
 ## 실행 모델
@@ -36,7 +37,7 @@
 
 ### Sync (지식 동기화)
 - **기능**: 소스 코드와 knowledge 문서 간 불일치 탐지 및 수정
-- **키워드**: sync, sync knowledge, 지식 동기화
+- **직접 호출만 지원**: `/nexus:nx-sync` (gate.ts의 자동 감지 없음)
 
 ## Stop 차단
 
