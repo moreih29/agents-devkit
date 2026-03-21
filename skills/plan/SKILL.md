@@ -7,7 +7,7 @@ triggers: ["plan", "계획 세워", "설계해", "어떻게 구현", "plan this"
 
 Structured planning workflow — produce a concrete, reviewed plan before execution begins.
 
-> This is a standalone Plan skill, not the plan stage within auto. Auto's plan stage is a lightweight internal step; this skill runs a full consensus loop and persists a plan document.
+> This skill runs a full consensus loop and persists a plan document.
 
 ## Trigger
 - User says: "plan", "계획 세워", "계획 짜", "설계해", "어떻게 구현", "구현 계획", "plan this"
@@ -135,17 +135,12 @@ AskUserQuestion({
     multiSelect: false,
     options: [
       {
-        label: "Auto (Recommended)",
-        description: "전체 자동화 — 구현→검증→리뷰",
-        preview: "auto 스킬이 인계받아 계획대로 실행합니다."
+        label: "Execute with delegation (Recommended)",
+        description: "위임 방식으로 실행 — 에이전트에게 단계별 구현을 위임",
+        preview: "계획에 따라 각 태스크를 적합한 에이전트에게 위임합니다."
       },
       {
-        label: "Pipeline",
-        description: "단계별 확인 후 다음으로",
-        preview: "각 단계에서 결과를 확인하고 승인 후 진행합니다."
-      },
-      {
-        label: "Manual",
+        label: "Plan only",
         description: "계획 문서만 생성하고 직접 진행",
         preview: ".claude/nexus/plans/{branch}.md 저장 완료. 직접 실행하세요."
       }
@@ -170,6 +165,6 @@ Plan은 상태 파일 없이 동작합니다.
 ## Deactivation
 
 Plan은 자연스럽게 종료된다:
-- Execute Bridge에서 선택 후 → auto/pipeline이 인계
-- Manual 선택 시 → 계획 문서 저장 후 종료
+- Execute Bridge에서 선택 후 → 실행 또는 종료
+- Plan only 선택 시 → 계획 문서 저장 후 종료
 - 별도 `nx_state_clear`는 불필요

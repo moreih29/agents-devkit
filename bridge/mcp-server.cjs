@@ -21047,13 +21047,13 @@ function createSession() {
 
 // src/mcp/tools/state.ts
 var import_path3 = require("path");
-var MODE_KEYS = /* @__PURE__ */ new Set(["auto", "parallel", "consult", "plan", "workflow"]);
+var MODE_KEYS = /* @__PURE__ */ new Set(["consult", "plan", "workflow"]);
 function registerStateTools(server2) {
   server2.tool(
     "nx_state_read",
-    "Read runtime workflow state (e.g., workflow, parallel)",
+    "Read runtime workflow state (e.g., workflow, consult, plan)",
     {
-      key: external_exports.string().describe('State key (e.g., "workflow", "parallel"). Use "workflow" to read the unified workflow state.'),
+      key: external_exports.string().describe('State key (e.g., "workflow", "consult", "plan"). Use "workflow" to read the unified workflow state.'),
       sessionId: external_exports.string().optional().describe("Session ID. Uses current session if omitted.")
     },
     async ({ key, sessionId }) => {
@@ -21087,7 +21087,7 @@ function registerStateTools(server2) {
     "nx_state_clear",
     "Clear runtime workflow state",
     {
-      key: external_exports.string().describe("State key to clear. Mode keys (auto, parallel, consult, plan, workflow) all clear workflow.json."),
+      key: external_exports.string().describe("State key to clear. Mode keys (consult, plan, workflow) all clear workflow.json."),
       sessionId: external_exports.string().optional().describe("Session ID. Uses current session if omitted.")
     },
     async ({ key, sessionId }) => {
@@ -21200,7 +21200,7 @@ function getCurrentBranch() {
 function registerContextTool(server2) {
   server2.tool(
     "nx_context",
-    "Get aggregated context status: active mode, agents, session, branch",
+    "Get aggregated context status: active mode, agents, session, branch, codebase profile",
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {},
     async () => {
@@ -21225,11 +21225,21 @@ function registerContextTool(server2) {
         } catch {
         }
       }
+      let codebaseType = null;
+      const profileFile = (0, import_path5.join)(dir, "codebase-profile.json");
+      if ((0, import_fs5.existsSync)(profileFile)) {
+        try {
+          const profile = JSON.parse(await (0, import_promises3.readFile)(profileFile, "utf-8"));
+          codebaseType = profile.type ?? null;
+        } catch {
+        }
+      }
       const result = {
         sessionId,
         branch: getCurrentBranch(),
         activeMode,
-        agents
+        agents,
+        codebaseType
       };
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }

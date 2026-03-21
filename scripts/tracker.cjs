@@ -86,14 +86,45 @@ function saveAgents(sid, record) {
   ensureDir(dir);
   (0, import_fs3.writeFileSync)((0, import_path3.join)(dir, "agents.json"), JSON.stringify(record, null, 2));
 }
+function analyzeCodebase(cwd) {
+  let fileCount = 0;
+  try {
+    const entries = (0, import_fs3.readdirSync)(cwd);
+    fileCount = entries.length;
+  } catch {
+  }
+  const has = (names) => names.some((n) => (0, import_fs3.existsSync)((0, import_path3.join)(cwd, n)));
+  const hasLinter = has([".eslintrc", ".eslintrc.js", ".eslintrc.json", ".eslintrc.yml", ".eslintrc.yaml", "eslint.config.js", "eslint.config.ts", "eslint.config.mjs", ".prettierrc", ".prettierrc.js", ".prettierrc.json", ".prettierrc.yml"]);
+  const hasTests = has(["test", "tests", "__tests__", "spec"]);
+  const hasCI = has([".github", ".circleci"]);
+  const hasSrc = has(["src"]);
+  let type;
+  let description;
+  if (fileCount < 20 && !hasLinter && !hasTests) {
+    type = "greenfield";
+    description = "Few files, no established patterns yet";
+  } else if (hasLinter && hasTests && hasCI) {
+    type = "disciplined";
+    description = "Has linter, tests, and CI \u2014 follow existing conventions strictly";
+  } else if (hasSrc) {
+    type = "transitional";
+    description = "Has src/ but missing some tooling \u2014 introduce patterns incrementally";
+  } else {
+    type = "legacy";
+    description = "Large codebase without modern tooling \u2014 be conservative with changes";
+  }
+  return { type, description, hasLinter, hasTests, hasCI, hasSrc, fileCount };
+}
 function handleSessionStart() {
   cleanupAllSessionStates();
   const sid = createSession();
   const dir = sessionDir(sid);
   ensureDir(dir);
   let branch = "unknown";
+  let cwd = process.cwd();
   try {
     branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8" }).trim();
+    cwd = (0, import_child_process.execSync)("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
   } catch {
   }
   const branchDir = branch.replace(/\//g, "--");
@@ -103,17 +134,23 @@ function handleSessionStart() {
   const hasPlanDir = (0, import_fs3.existsSync)(planDirPath);
   const workflowPath = (0, import_path3.join)(sessionDir(sid), "workflow.json");
   const hasWorkflow = (0, import_fs3.existsSync)(workflowPath);
+  const profile = analyzeCodebase(cwd);
+  try {
+    (0, import_fs3.writeFileSync)((0, import_path3.join)(dir, "codebase-profile.json"), JSON.stringify(profile, null, 2));
+  } catch {
+  }
+  const codebaseCtx = `Codebase: ${profile.type}. ${profile.description}`;
   if (hasPlanDir && !hasWorkflow) {
     respond({
       continue: true,
-      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Mode: planning. Plan directory found.
+      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Mode: planning. Plan directory found. ${codebaseCtx}
 DECISION CAPTURE: You are in multi-turn planning mode. When the user makes decisions (confirmatory expressions like "\uC774\uAC78\uB85C \uD558\uC790", "\uC0AD\uC81C\uD558\uC790", "\uC774\uB807\uAC8C \uBC14\uAFB8\uC790", or [d] tag), record them in .claude/nexus/plans/${branchDir}/plan.md under the decisions section.
 When the user says "\uAD6C\uD604\uD558\uC790" or requests implementation, generate tasks.json from the accumulated decisions.`
     });
   } else {
     respond({
       continue: true,
-      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? "found" : "none"}.`
+      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? "found" : "none"}. ${codebaseCtx}`
     });
   }
 }
@@ -230,35 +267,7 @@ function handleSubagentStop(event) {
     }
   }
   saveAgents(sid, record);
-  updateParallelOnAgentStop(sid, name);
   pass();
-}
-function updateParallelOnAgentStop(sid, agentName) {
-  const path = (0, import_path3.join)(sessionDir(sid), "workflow.json");
-  if (!(0, import_fs3.existsSync)(path)) return;
-  try {
-    const state = JSON.parse((0, import_fs3.readFileSync)(path, "utf-8"));
-    if (state.mode !== "parallel" || !state.parallel || !Array.isArray(state.parallel.tasks)) return;
-    let updated = false;
-    for (const task of state.parallel.tasks) {
-      if (task.agent === agentName && task.status === "running") {
-        task.status = "done";
-        updated = true;
-        break;
-      }
-    }
-    if (updated) {
-      state.parallel.completedCount = state.parallel.tasks.filter((t) => t.status === "done").length;
-      (0, import_fs3.writeFileSync)(path, JSON.stringify(state, null, 2));
-      if (state.parallel.completedCount >= state.parallel.totalCount && state.parallel.totalCount > 0) {
-        try {
-          (0, import_fs3.unlinkSync)(path);
-        } catch {
-        }
-      }
-    }
-  } catch {
-  }
 }
 async function main() {
   const input = await readStdin();

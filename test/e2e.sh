@@ -120,18 +120,26 @@ CI_PID=$!
 
 echo "=== MCP 도구 ==="
 
-result=$(mcp_call "nx_state_write" '{"key":"test-nonstop","value":{"active":true,"maxIterations":10,"currentIteration":0},"sessionId":"e2e-test"}')
+result=$(mcp_call "nx_state_write" '{"key":"test-key","value":{"active":true,"count":5},"sessionId":"e2e-test"}')
 check "nx_state_write" '"success":true' "$result"
 
-result=$(mcp_call "nx_state_read" '{"key":"test-nonstop","sessionId":"e2e-test"}')
+result=$(mcp_call "nx_state_read" '{"key":"test-key","sessionId":"e2e-test"}')
 check "nx_state_read" '"exists":true' "$result"
 check "nx_state_read (active)" '"active":true' "$result"
 
-result=$(mcp_call "nx_state_clear" '{"key":"test-nonstop","sessionId":"e2e-test"}')
+result=$(mcp_call "nx_state_clear" '{"key":"test-key","sessionId":"e2e-test"}')
 check "nx_state_clear" '"cleared":true' "$result"
 
-result=$(mcp_call "nx_state_read" '{"key":"test-nonstop","sessionId":"e2e-test"}')
+result=$(mcp_call "nx_state_read" '{"key":"test-key","sessionId":"e2e-test"}')
 check "nx_state_read (cleared)" '"exists":false' "$result"
+
+# MODE_KEYS: consult → workflow.json
+result=$(mcp_call "nx_state_write" '{"key":"consult","value":{"mode":"consult","phase":"explore"},"sessionId":"e2e-test"}')
+check "nx_state_write (consult key)" '"success":true' "$result"
+
+result=$(mcp_call "nx_state_clear" '{"key":"consult","sessionId":"e2e-test"}')
+check "nx_state_clear (consult → workflow.json)" '"clearedFile"' "$result"
+check "nx_state_clear (consult cleared)" '"cleared":true' "$result"
 
 result=$(mcp_call "nx_knowledge_read" '{"topic":"architecture"}')
 check "nx_knowledge_read" 'Nexus' "$result"
@@ -150,38 +158,55 @@ echo "=== 훅 ==="
 mkdir -p .nexus/state/sessions/e2e-hook
 echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
 
+# Stop: no workflow, no agents → pass
+rm -f .nexus/state/sessions/e2e-hook/workflow.json .nexus/state/sessions/e2e-hook/agents.json
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/Stop (no nonstop)" '"continue":true' "$result"
+check "Gate/Stop (no workflow no agents)" '"continue":true' "$result"
 
-echo '{"mode":"auto","nonstop":{"active":true,"iteration":2,"max":10},"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
-echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
+# Stop: workflow with consult + phase → block
+echo '{"mode":"consult","phase":"clarify","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/Stop (nonstop active)" '"decision":"block"' "$result"
-check "Gate/Stop (nonstop format)" 'NONSTOP' "$result"
+check "Gate/Stop (consult active)" '"decision":"block"' "$result"
+check "Gate/Stop (consult phase shown)" 'CONSULT' "$result"
+rm -f .nexus/state/sessions/e2e-hook/workflow.json
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[nonstop] src/hooks/gate.ts 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (nonstop tag)" 'auto mode ACTIVATED' "$result"
+# Stop: workflow without phase → pass (idle workflow)
+echo '{"mode":"consult","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
+result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/Stop (idle workflow no phase)" '"continue":true' "$result"
+rm -f .nexus/state/sessions/e2e-hook/workflow.json
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이거 병렬로 처리해줘"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (parallel)" 'parallel mode ACTIVATED' "$result"
+# Stop: agents.json with active agents → block
+echo '{"active":["builder"],"history":[]}' > .nexus/state/sessions/e2e-hook/agents.json
+result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/Stop (agents active)" '"decision":"block"' "$result"
+check "Gate/Stop (agents shown)" 'AGENTS' "$result"
+rm -f .nexus/state/sessions/e2e-hook/agents.json
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[pipeline] src/hooks/gate.ts 자동으로 진행"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (pipeline tag)" 'auto mode ACTIVATED' "$result"
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"nonstop 에러 수정해"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (nonstop mention in error context)" '"continue":true' "$result"
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[auto] src/hooks/gate.ts 수정"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (auto tag in error)" 'auto mode ACTIVATED' "$result"
+# Stop: plan workflow + phase → block
+echo '{"mode":"plan","phase":"draft","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
+result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/Stop (plan active)" '"decision":"block"' "$result"
+rm -f .nexus/state/sessions/e2e-hook/workflow.json
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (no keyword)" '"continue":true' "$result"
 
+# [d] 태그 감지
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[d] 이거 결정"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit ([d] tag)" 'Decision tag' "$result"
+
 result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | node scripts/pulse.cjs 2>/dev/null)
 check "Pulse/PreToolUse (Bash)" 'parallel execution' "$result"
 
+# Agent 도구 → 6-section format
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Agent"}' | node scripts/pulse.cjs 2>/dev/null)
+check "Pulse/PreToolUse (Agent 6-section)" 'DELEGATION FORMAT' "$result"
+
+# SessionStart → Codebase: in additionalContext
 result=$(echo '{"hook_event_name":"SessionStart"}' | node scripts/tracker.cjs 2>/dev/null)
 check "Tracker/SessionStart" 'NEXUS.*Session' "$result"
+check "Tracker/SessionStart (codebase)" 'Codebase:' "$result"
 
 result=$(echo '{"hook_event_name":"SubagentStart","agent_type":"builder"}' | node scripts/tracker.cjs 2>/dev/null)
 check "Tracker/SubagentStart" '"continue":true' "$result"
@@ -206,87 +231,18 @@ else
   red "Tracker/SubagentStop (splice one) — expected >=1, got: $active_count" && FAIL=$((FAIL + 1))
 fi
 
-# --- Phase 2 훅 ---
+# --- Failure Recovery ---
 echo ""
-echo "=== Phase 2 훅 ==="
+echo "=== Failure Recovery ==="
 
 rm -rf .nexus/state/sessions/e2e-hook
 mkdir -p .nexus/state/sessions/e2e-hook
 echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
 
-echo '{"mode":"parallel","parallel":{"tasks":[{"id":"t1","status":"running"},{"id":"t2","status":"pending"}],"completedCount":0,"totalCount":2},"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
-result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/Stop (parallel active)" '"decision":"block"' "$result"
-check "Gate/Stop (parallel progress)" 'PARALLEL 0/2' "$result"
-
-echo '{"mode":"parallel","parallel":{"tasks":[],"completedCount":0,"totalCount":0},"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
-result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/Stop (parallel no tasks)" '"continue":true' "$result"
-
-echo '{"mode":"parallel","parallel":{"tasks":[{"id":"t1","status":"done"},{"id":"t2","status":"done"}],"completedCount":2,"totalCount":2},"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
-result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/Stop (parallel all done)" '"continue":true' "$result"
-rm -f .nexus/state/sessions/e2e-hook/workflow.json
-
-echo '{"mode":"auto","phase":"implement","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
-result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/Stop (pipeline active)" '"decision":"block"' "$result"
-check "Gate/Stop (pipeline stage info)" 'AUTO stage' "$result"
-rm -f .nexus/state/sessions/e2e-hook/workflow.json
-
-rm -f .nexus/state/sessions/e2e-hook/workflow.json
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"auto으로 src/hooks/gate.ts 리팩토링 진행해"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (auto)" 'auto mode ACTIVATED' "$result"
-[ -f .nexus/state/sessions/e2e-hook/workflow.json ] && green "Gate/auto (workflow.json created)" && PASS=$((PASS + 1)) || (red "Gate/auto (workflow.json missing)" && FAIL=$((FAIL + 1)))
-rm -f .nexus/state/sessions/e2e-hook/workflow.json
-
-mcp_call "nx_state_write" '{"key":"workflow","value":{"mode":"auto","nonstop":{"active":true},"phase":"analyze"},"sessionId":"e2e-auto"}' > /dev/null
-result=$(mcp_call "nx_state_clear" '{"key":"auto","sessionId":"e2e-auto"}')
-check "MCP nx_state_clear (auto)" '"cleared":true' "$result"
-check "MCP nx_state_clear (auto file)" '"clearedFile"' "$result"
-
-rm -f .nexus/state/sessions/e2e-hook/whisper-tracker.json
-
-echo '{"mode":"auto","phase":"verify","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
+echo '{"mode":"plan","phase":"implement","failures":[{"attempt":1,"error":"TypeScript compile failed"}],"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
 result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Read"}' | node scripts/pulse.cjs 2>/dev/null)
-check "Pulse/PreToolUse (pipeline)" 'AUTO stage' "$result"
+check "Pulse/PreToolUse (failure recovery)" 'RECOVERY' "$result"
 rm -f .nexus/state/sessions/e2e-hook/workflow.json
-
-echo '{"mode":"parallel","parallel":{"completedCount":1,"totalCount":3},"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
-result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Read"}' | node scripts/pulse.cjs 2>/dev/null)
-check "Pulse/PreToolUse (parallel)" 'PARALLEL 1/3 done' "$result"
-rm -f .nexus/state/sessions/e2e-hook/workflow.json
-
-# --- Tracker-Parallel 연동 ---
-echo ""
-echo "=== Tracker-Parallel 연동 ==="
-
-rm -rf .nexus/state/sessions/e2e-hook
-mkdir -p .nexus/state/sessions/e2e-hook
-echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
-
-echo '{"mode":"parallel","parallel":{"tasks":[{"id":"t1","description":"task1","agent":"builder","status":"running"},{"id":"t2","description":"task2","agent":"builder","status":"running"}],"completedCount":0,"totalCount":2},"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
-
-result=$(echo '{"hook_event_name":"SubagentStop","agent_type":"builder"}' | node scripts/tracker.cjs 2>/dev/null)
-check "Tracker/SubagentStop (parallel update)" '"continue":true' "$result"
-
-if [ -f .nexus/state/sessions/e2e-hook/workflow.json ]; then
-  completed=$(python3 -c "import json; print(json.load(open('.nexus/state/sessions/e2e-hook/workflow.json')).get('parallel',{}).get('completedCount',0))")
-  if [ "$completed" = "1" ]; then
-    green "Parallel auto-update (1/2 done)" && PASS=$((PASS + 1))
-  else
-    red "Parallel auto-update — expected 1, got $completed" && FAIL=$((FAIL + 1))
-  fi
-else
-  red "Parallel auto-update (file missing)" && FAIL=$((FAIL + 1))
-fi
-
-result=$(echo '{"hook_event_name":"SubagentStop","agent_type":"builder"}' | node scripts/tracker.cjs 2>/dev/null)
-if [ -f .nexus/state/sessions/e2e-hook/workflow.json ]; then
-  red "Parallel auto-clear (file should be deleted)" && FAIL=$((FAIL + 1))
-else
-  green "Parallel auto-clear (all done)" && PASS=$((PASS + 1))
-fi
 
 # --- Pulse 컨텍스트 수준 ---
 echo ""
@@ -316,7 +272,7 @@ echo ""
 echo "=== 세션 상태 정리 ==="
 
 mkdir -p .nexus/state/sessions/e2e-prev
-echo '{"mode":"auto","nonstop":{"active":true},"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-prev/workflow.json
+echo '{"mode":"consult","phase":"clarify","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-prev/workflow.json
 echo '{"sessionId":"e2e-prev","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
 
 result=$(echo '{"hook_event_name":"SessionStart"}' | node scripts/tracker.cjs 2>/dev/null)
@@ -330,7 +286,7 @@ fi
 
 NEW_SID=$(cat .nexus/state/current-session.json | grep -o '"sessionId":"[^"]*"' | sed 's/"sessionId":"//;s/"//')
 mkdir -p ".nexus/state/sessions/${NEW_SID}"
-echo '{"mode":"auto","nonstop":{"active":true},"startedAt":"2026-01-01T00:00:00Z"}' > ".nexus/state/sessions/${NEW_SID}/workflow.json"
+echo '{"mode":"plan","phase":"draft","startedAt":"2026-01-01T00:00:00Z"}' > ".nexus/state/sessions/${NEW_SID}/workflow.json"
 result=$(echo '{"hook_event_name":"SessionEnd"}' | node scripts/tracker.cjs 2>/dev/null)
 check "Tracker/SessionEnd (cleanup)" '"continue":true' "$result"
 
@@ -341,8 +297,8 @@ else
 fi
 
 mkdir -p .nexus/state/sessions/e2e-old1 .nexus/state/sessions/e2e-old2
-echo '{"mode":"auto","nonstop":{"active":true},"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-old1/workflow.json
-echo '{"mode":"parallel","parallel":{"tasks":[]},"startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-old2/workflow.json
+echo '{"mode":"consult","phase":"clarify","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-old1/workflow.json
+echo '{"mode":"plan","phase":"draft","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-old2/workflow.json
 echo '{"sessionId":"e2e-old1","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
 result=$(echo '{"hook_event_name":"SessionStart"}' | node scripts/tracker.cjs 2>/dev/null)
 if [ -d .nexus/state/sessions/e2e-old1 ] || [ -d .nexus/state/sessions/e2e-old2 ]; then
@@ -439,16 +395,6 @@ check "Plan (consensus - architect)" 'architect' "$result"
 check "Plan (EXECUTE BRIDGE)" 'EXECUTE BRIDGE' "$result"
 check "Plan (scale detection)" 'small' "$result"
 
-# --- Pre-Execution Gate ---
-echo ""
-echo "=== Pre-Execution Gate ==="
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"auto 해줘"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate (vague auto → plan suggestion)" 'plan' "$result"
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"auto으로 src/hooks/gate.ts 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate (concrete auto → activated)" 'ACTIVATED' "$result"
-
 # --- 위임 강제 ---
 echo ""
 echo "=== 위임 강제 ==="
@@ -469,14 +415,25 @@ else
   green "Pulse/delegation (allowed path OK)" && PASS=$((PASS + 1))
 fi
 
-# auto 모드 활성(workflow.json mode:auto)이면 위임 강제 비활성
-echo '{"mode":"auto","phase":"implement","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
+# consult 모드 활성(workflow.json mode:consult + phase)이면 위임 강제 비활성
+echo '{"mode":"consult","phase":"clarify","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
 rm -f .nexus/state/sessions/e2e-hook/whisper-tracker.json
 result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/foo.ts"}}' | node scripts/pulse.cjs 2>/dev/null)
 if echo "$result" | grep -q 'DELEGATION'; then
-  red "Pulse/delegation (auto mode should skip enforcement)" && FAIL=$((FAIL + 1))
+  red "Pulse/delegation (consult mode should skip enforcement)" && FAIL=$((FAIL + 1))
 else
-  green "Pulse/delegation (auto mode skips enforcement)" && PASS=$((PASS + 1))
+  green "Pulse/delegation (consult mode skips enforcement)" && PASS=$((PASS + 1))
+fi
+rm -f .nexus/state/sessions/e2e-hook/workflow.json
+
+# plan 모드 활성이면 위임 강제 비활성
+echo '{"mode":"plan","phase":"draft","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
+rm -f .nexus/state/sessions/e2e-hook/whisper-tracker.json
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/foo.ts"}}' | node scripts/pulse.cjs 2>/dev/null)
+if echo "$result" | grep -q 'DELEGATION'; then
+  red "Pulse/delegation (plan mode should skip enforcement)" && FAIL=$((FAIL + 1))
+else
+  green "Pulse/delegation (plan mode skips enforcement)" && PASS=$((PASS + 1))
 fi
 rm -f .nexus/state/sessions/e2e-hook/workflow.json
 
@@ -496,7 +453,7 @@ fi
 rm -f "$CI_RESULT"
 
 # Cleanup — 테스트 세션 제거 + 원본 세션 복원
-rm -rf .nexus/state/sessions/e2e-hook .nexus/state/sessions/e2e-auto .nexus/state/sessions/e2e-test .nexus/state/sessions/e2e-prev .nexus/state/sessions/e2e-old1 .nexus/state/sessions/e2e-old2 2>/dev/null
+rm -rf .nexus/state/sessions/e2e-hook .nexus/state/sessions/e2e-test .nexus/state/sessions/e2e-prev .nexus/state/sessions/e2e-old1 .nexus/state/sessions/e2e-old2 2>/dev/null
 if [ -n "$ORIG_SESSION" ]; then
   echo "$ORIG_SESSION" > .nexus/state/current-session.json
 else

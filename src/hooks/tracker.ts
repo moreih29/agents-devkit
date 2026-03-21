@@ -1,6 +1,6 @@
 // Tracker 훅: SubagentStart/Stop, SessionStart/End — 에이전트/세션 추적
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync, rmdirSync, rmSync, statSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, readdirSync, rmdirSync, rmSync, statSync } from 'fs';
 import { sessionDir, ensureDir, RUNTIME_ROOT, KNOWLEDGE_ROOT } from '../shared/paths.js';
 import { getSessionId, createSession } from '../shared/session.js';
 import { join } from 'path';
@@ -33,6 +33,52 @@ function saveAgents(sid: string, record: AgentRecord): void {
 
 // --- Session Start ---
 
+type CodebaseType = 'disciplined' | 'transitional' | 'legacy' | 'greenfield';
+
+interface CodebaseProfile {
+  type: CodebaseType;
+  description: string;
+  hasLinter: boolean;
+  hasTests: boolean;
+  hasCI: boolean;
+  hasSrc: boolean;
+  fileCount: number;
+}
+
+function analyzeCodebase(cwd: string): CodebaseProfile {
+  let fileCount = 0;
+  try {
+    const entries = readdirSync(cwd);
+    fileCount = entries.length;
+  } catch { /* skip */ }
+
+  const has = (names: string[]): boolean => names.some(n => existsSync(join(cwd, n)));
+
+  const hasLinter = has(['.eslintrc', '.eslintrc.js', '.eslintrc.json', '.eslintrc.yml', '.eslintrc.yaml', 'eslint.config.js', 'eslint.config.ts', 'eslint.config.mjs', '.prettierrc', '.prettierrc.js', '.prettierrc.json', '.prettierrc.yml']);
+  const hasTests = has(['test', 'tests', '__tests__', 'spec']);
+  const hasCI = has(['.github', '.circleci']);
+  const hasSrc = has(['src']);
+
+  let type: CodebaseType;
+  let description: string;
+
+  if (fileCount < 20 && !hasLinter && !hasTests) {
+    type = 'greenfield';
+    description = 'Few files, no established patterns yet';
+  } else if (hasLinter && hasTests && hasCI) {
+    type = 'disciplined';
+    description = 'Has linter, tests, and CI — follow existing conventions strictly';
+  } else if (hasSrc) {
+    type = 'transitional';
+    description = 'Has src/ but missing some tooling — introduce patterns incrementally';
+  } else {
+    type = 'legacy';
+    description = 'Large codebase without modern tooling — be conservative with changes';
+  }
+
+  return { type, description, hasLinter, hasTests, hasCI, hasSrc, fileCount };
+}
+
 function handleSessionStart(): void {
   // 모든 세션의 잔존 워크플로우 상태 정리 (resume, 비정상 종료, 벤치마크 잔존 등 방어)
   cleanupAllSessionStates();
@@ -43,7 +89,11 @@ function handleSessionStart(): void {
 
   // 현재 브랜치의 plan 존재 확인
   let branch = 'unknown';
-  try { branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim(); } catch { /* skip */ }
+  let cwd = process.cwd();
+  try {
+    branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+    cwd = execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
+  } catch { /* skip */ }
 
   const branchDir = branch.replace(/\//g, '--');
   const planFile = join(KNOWLEDGE_ROOT, 'plans', `${branchDir}.md`);
@@ -54,17 +104,25 @@ function handleSessionStart(): void {
   const workflowPath = join(sessionDir(sid), 'workflow.json');
   const hasWorkflow = existsSync(workflowPath);
 
+  // Codebase analysis
+  const profile = analyzeCodebase(cwd);
+  try {
+    writeFileSync(join(dir, 'codebase-profile.json'), JSON.stringify(profile, null, 2));
+  } catch { /* skip */ }
+
+  const codebaseCtx = `Codebase: ${profile.type}. ${profile.description}`;
+
   if (hasPlanDir && !hasWorkflow) {
     respond({
       continue: true,
-      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Mode: planning. Plan directory found.
+      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Mode: planning. Plan directory found. ${codebaseCtx}
 DECISION CAPTURE: You are in multi-turn planning mode. When the user makes decisions (confirmatory expressions like "이걸로 하자", "삭제하자", "이렇게 바꾸자", or [d] tag), record them in .claude/nexus/plans/${branchDir}/plan.md under the decisions section.
 When the user says "구현하자" or requests implementation, generate tasks.json from the accumulated decisions.`,
     });
   } else {
     respond({
       continue: true,
-      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? 'found' : 'none'}.`,
+      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? 'found' : 'none'}. ${codebaseCtx}`,
     });
   }
 }
@@ -205,41 +263,7 @@ function handleSubagentStop(event: { agent_name?: string; agent_type?: string })
 
   saveAgents(sid, record);
 
-  // Parallel 상태 자동 연동: 에이전트 완료 시 해당 태스크 done 처리
-  updateParallelOnAgentStop(sid, name);
-
   pass();
-}
-
-/** SubagentStop 시 workflow.json의 parallel 태스크를 자동 완료 처리 */
-function updateParallelOnAgentStop(sid: string, agentName: string): void {
-  const path = join(sessionDir(sid), 'workflow.json');
-  if (!existsSync(path)) return;
-
-  try {
-    const state = JSON.parse(readFileSync(path, 'utf-8'));
-    if (state.mode !== 'parallel' || !state.parallel || !Array.isArray(state.parallel.tasks)) return;
-
-    let updated = false;
-    for (const task of state.parallel.tasks) {
-      // running 상태인 해당 에이전트의 태스크를 done으로 변경
-      if (task.agent === agentName && task.status === 'running') {
-        task.status = 'done';
-        updated = true;
-        break; // 한 번에 하나만 완료 (동일 에이전트 복수 태스크 시 순차)
-      }
-    }
-
-    if (updated) {
-      state.parallel.completedCount = state.parallel.tasks.filter((t: { status: string }) => t.status === 'done').length;
-      writeFileSync(path, JSON.stringify(state, null, 2));
-
-      // 모든 태스크 완료 시 자동 해제
-      if (state.parallel.completedCount >= state.parallel.totalCount && state.parallel.totalCount > 0) {
-        try { unlinkSync(path); } catch { /* skip */ }
-      }
-    }
-  } catch { /* skip */ }
 }
 
 // --- Main ---

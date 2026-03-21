@@ -263,26 +263,7 @@ function buildLine3() {
         const wf = JSON.parse((0, import_fs.readFileSync)(workflowPath, "utf-8"));
         const mode = wf.mode ?? "idle";
         const phase = wf.phase ?? "";
-        const parallel = wf.parallel;
-        if (mode === "auto") {
-          let autoStr = "\u{1F680} auto";
-          if (phase) {
-            const taskProgress = wf.taskProgress;
-            if (taskProgress && typeof taskProgress.current === "number" && typeof taskProgress.total === "number") {
-              autoStr += `: ${phase} (${taskProgress.current}/${taskProgress.total})`;
-            } else {
-              autoStr += `: ${phase}`;
-            }
-          }
-          if (parallel && (parallel.total ?? 0) > 0) {
-            autoStr += ` \u26A1${parallel.completed ?? 0}/${parallel.total}`;
-          }
-          modeDisplay = autoStr;
-        } else if (mode === "parallel") {
-          const comp = parallel?.completed ?? 0;
-          const total = parallel?.total ?? 0;
-          modeDisplay = total > 0 ? `\u26A1 parallel ${comp}/${total}` : `\u26A1 parallel`;
-        } else if (mode === "consult") {
+        if (mode === "consult") {
           modeDisplay = phase ? `\u{1F4AC} consult: ${phase}` : `\u{1F4AC} consult`;
         } else if (mode === "plan") {
           modeDisplay = phase ? `\u{1F4CB} plan: ${phase}` : `\u{1F4CB} plan`;

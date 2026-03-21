@@ -101,7 +101,7 @@ function getCurrentMode(sid: string): string | null {
 function isDelegationEnforcementApplicable(sid: string): boolean {
   const mode = getCurrentMode(sid);
   // enforcement only applies when idle (no active workflow mode)
-  if (mode === 'auto' || mode === 'parallel' || mode === 'consult' || mode === 'plan') return false;
+  if (mode === 'consult' || mode === 'plan') return false;
   return true;
 }
 
@@ -136,48 +136,41 @@ function buildMessages(toolName: string, hookEvent: string, sid: string, toolInp
     });
   }
 
-  // Workflow: workflow.json에서 상태 읽기
+  // 6-Section delegation format — Agent() 호출 시 주입
+  if (hookEvent === 'PreToolUse' && toolName === 'Agent') {
+    messages.push({
+      key: 'Agent:six_section_format',
+      priority: 'guidance',
+      text: `[NEXUS DELEGATION FORMAT] Structure your agent prompt with these 6 sections:
+1. TASK: Exact work item
+2. EXPECTED OUTCOME: Files changed, behavior verified
+3. REQUIRED TOOLS: Tools the agent should use
+4. MUST DO: Mandatory requirements
+5. MUST NOT DO: Prohibited actions
+6. CONTEXT: Background info, dependencies, related files`,
+    });
+  }
+
+  // Failure recovery — workflow.json에 failures 존재 시 복구 가이던스
   const workflowPath = join(sessionDir(sid), 'workflow.json');
   if (existsSync(workflowPath)) {
     try {
       const state = JSON.parse(readFileSync(workflowPath, 'utf-8'));
-
-      // Auto mode: nonstop 리마인더
-      if (state.mode === 'auto' && state.nonstop?.active) {
-        messages.push({
-          key: 'workflow:nonstop_active',
-          priority: 'workflow',
-          text: `[NONSTOP ${state.nonstop.iteration ?? 0}/${state.nonstop.max ?? 100}] Auto mode (nonstop) is active. Continue working until the task is complete.`,
-        });
-
-        // 80% 근접 경고
-        if (state.nonstop.iteration >= (state.nonstop.max ?? 100) * 0.8) {
+      if (Array.isArray(state.failures) && state.failures.length > 0) {
+        const count = state.failures.length;
+        if (count < 3) {
           messages.push({
-            key: 'recovery:nonstop_limit',
+            key: 'recovery:failure_detected',
+            priority: 'workflow',
+            text: `[RECOVERY ${count}/3] Previous attempt failed. Analyze the failure, adjust approach, and retry. After 3 failures, stop and report to user.`,
+          });
+        } else {
+          messages.push({
+            key: 'recovery:max_failures',
             priority: 'safety',
-            text: `[WARNING] Nonstop ${state.nonstop.iteration}/${state.nonstop.max}에 근접. 작업이 막혀있다면: 1) 현재 접근 방식을 재검토하세요. 2) nx_state_clear({ key: "auto" })로 해제 후 다른 전략을 시도하세요.`,
+            text: `[RECOVERY ${count}/3] Maximum retry limit reached. STOP retrying. Report failures to the user and ask for guidance.`,
           });
         }
-      }
-
-      // Auto mode: pipeline stage 리마인더
-      if (state.mode === 'auto' && state.phase) {
-        messages.push({
-          key: 'workflow:pipeline_active',
-          priority: 'workflow',
-          text: `[AUTO stage: ${state.phase}] Auto pipeline is active. Complete the current stage, then advance to the next.`,
-        });
-      }
-
-      // Parallel mode 리마인더
-      if (state.mode === 'parallel' && state.parallel) {
-        const completed = state.parallel.completedCount ?? 0;
-        const total = state.parallel.totalCount ?? 0;
-        messages.push({
-          key: 'workflow:parallel_active',
-          priority: 'workflow',
-          text: `[PARALLEL ${completed}/${total} done] Parallel tasks are active. Ensure all tasks complete before finishing.`,
-        });
       }
     } catch { /* skip */ }
   }
@@ -261,20 +254,6 @@ async function main() {
   const PROGRESS_INTERVAL = 20;
   if (tracker.toolCallCount > 0 && tracker.toolCallCount % PROGRESS_INTERVAL === 0) {
     const progressParts: string[] = [`[PROGRESS ${tracker.toolCallCount} tools]`];
-
-    // 워크플로우 상태
-    try {
-      const workflowPath = join(sessionDir(sid), 'workflow.json');
-      if (existsSync(workflowPath)) {
-        const w = JSON.parse(readFileSync(workflowPath, 'utf-8'));
-        if (w.mode === 'auto') {
-          if (w.phase) progressParts.push(`auto: ${w.phase}`);
-          if (w.nonstop?.active) progressParts.push(`nonstop: ${w.nonstop.iteration ?? 0}/${w.nonstop.max ?? 100}`);
-        } else if (w.mode === 'parallel' && w.parallel) {
-          progressParts.push(`parallel: ${w.parallel.completedCount ?? 0}/${w.parallel.totalCount ?? 0}`);
-        }
-      }
-    } catch { /* skip */ }
 
     // 에이전트 이력 수
     try {

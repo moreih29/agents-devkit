@@ -18,7 +18,27 @@ Step-by-step wizard using `AskUserQuestion` at each step. Designed for minimal t
 
 ## Steps
 
-### Step 1: Statusline Preset
+### Step 1: Scope Selection
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Nexus 설정을 어느 범위에 적용할까요?",
+    header: "Scope",
+    multiSelect: false,
+    options: [
+      { label: "User (Global)", description: "모든 프로젝트에 적용 (~/.claude/CLAUDE.md, ~/.nexus/config.json)" },
+      { label: "Project", description: "이 프로젝트에만 적용 (CLAUDE.md, .nexus/config.json)" }
+    ]
+  }]
+})
+```
+
+선택에 따라 이후 모든 파일 쓰기 경로가 결정됨:
+- User: `~/.claude/CLAUDE.md`, `~/.nexus/config.json`
+- Project: `./CLAUDE.md`, `./.nexus/config.json`
+
+### Step 2: Statusline Preset
 
 ```
 AskUserQuestion({
@@ -36,10 +56,10 @@ AskUserQuestion({
 })
 ```
 
-선택 시 `.nexus/statusline-preset.json`에 `{"preset": "<선택>"}` 저장.
+선택 시 scope에 따라 `statusline-preset.json`에 `{"preset": "<선택>"}` 저장.
 Skip이면 아무것도 하지 않음 (기본값 standard 유지).
 
-### Step 2: Delegation Enforcement
+### Step 3: Delegation Enforcement
 
 ```
 AskUserQuestion({
@@ -57,31 +77,81 @@ AskUserQuestion({
 })
 ```
 
-선택 시 `.nexus/config.json`에 `{"delegationEnforcement": "<선택>"}` 저장.
+선택 시 scope에 따라 `config.json`에 `{"delegationEnforcement": "<선택>"}` 저장.
 Skip이면 아무것도 하지 않음 (기본값 warn 유지).
 
-### Step 3: Auto Mode
+### Step 4: CLAUDE.md Delegation Table
+
+Generate the Nexus section in CLAUDE.md using `<!-- NEXUS:START -->` / `<!-- NEXUS:END -->` markers.
+
+If a Nexus section already exists, replace the content between markers. Content outside the markers is preserved unchanged.
+
+Write location depends on scope selected in Step 1.
+
+Section content (in English):
+
+```markdown
+<!-- NEXUS:START -->
+## Nexus Agent Orchestration
+
+**Default: DELEGATE** — route code work, analysis, and multi-file changes to agents.
+
+### Agent Routing
+
+| Task | Agent |
+|------|-------|
+| Code implementation, edits | executor |
+| Architecture, design decisions | architect |
+| Debugging, tracing issues | debugger |
+| Code review, quality check | code-reviewer |
+| Test writing, coverage | test-engineer |
+| Research, documentation | document-specialist |
+| Planning, decomposition | planner |
+
+### 6-Section Response Format
+
+Agents use structured responses: Context → Plan → Implementation → Verification → Risks → Next Steps.
+
+### Skills
+
+| Skill | Trigger | Purpose |
+|-------|---------|---------|
+| consult | [consult] | Interactive discovery — understand intent before executing |
+| plan | [plan] | Generate structured implementation plan |
+| init | [init] | Onboard project — generate knowledge from existing docs |
+| setup | [setup] | Configure Nexus interactively |
+| sync | [sync] | Sync knowledge docs with source files |
+<!-- NEXUS:END -->
+```
+
+### Step 5: OMC Conflict Detection
+
+Check if the omc or oh-my-claudecode plugin is active:
+- Look for `oh-my-claudecode` or `omc` in `.claude/settings.json` plugins list
+- Look for OMC configuration in `~/.claude/CLAUDE.md`
+
+If found:
 
 ```
 AskUserQuestion({
   questions: [{
-    question: "Auto Mode를 켤까요?",
-    header: "Auto Mode",
+    question: "oh-my-claudecode (OMC) 플러그인이 감지되었습니다. Nexus와 충돌할 수 있습니다.",
+    header: "OMC Conflict",
     multiSelect: false,
     options: [
-      { label: "Off (Recommended)", description: "필요할 때만 [auto] 키워드로 직접 활성화" },
-      { label: "On", description: "모든 작업에 자동으로 에이전트 파이프라인 적용 (분석→계획→구현→검증→리뷰)" },
-      { label: "Skip", description: "Auto Mode 설정 건너뛰기 (기본값 off)" }
+      { label: "Disable OMC", description: ".claude/settings.json에서 OMC 비활성화. Nexus만 사용." },
+      { label: "Keep Both", description: "두 플러그인을 함께 유지. 충돌 위험은 사용자 책임." }
     ]
   }]
 })
 ```
 
-선택 시 `.nexus/config.json`에 `{"autoMode": true/false}` 추가.
-- On: 키워드 없어도 매 프롬프트에서 auto 파이프라인 활성화 (Pre-Execution Gate는 유지)
-- Off/Skip: 기본 동작 ([auto] 키워드 시에만 활성화)
+- Disable OMC 선택 시: `.claude/settings.json`의 plugins 배열에서 omc/oh-my-claudecode 항목 제거
+- Keep Both 선택 시: 경고 메모만 남기고 진행
 
-### Step 4: Knowledge Init
+OMC가 감지되지 않으면 이 단계는 건너뜀.
+
+### Step 6: Knowledge Init
 
 ```
 AskUserQuestion({
@@ -100,7 +170,7 @@ AskUserQuestion({
 Yes 선택 시: init 스킬 워크플로우 실행 (SCAN → TRIAGE → PROPOSE → GENERATE → VERIFY).
 Skip 시: 다음 단계로.
 
-### Step 5: Complete
+### Step 7: Complete
 
 설정 완료 메시지 출력:
 - 적용된 설정 요약
@@ -117,4 +187,4 @@ Skip 시: 다음 단계로.
 ## State Management
 
 setup은 상태 파일 없이 순차 AskUserQuestion으로 동작.
-설정 결과는 각 단계에서 즉시 파일에 기록 (preset → `.nexus/statusline-preset.json`).
+설정 결과는 각 단계에서 즉시 파일에 기록 (preset → `statusline-preset.json`).

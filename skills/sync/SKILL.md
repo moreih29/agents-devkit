@@ -25,12 +25,11 @@ For each agent file:
   - disallowedTools (READ-ONLY indicator)
 ```
 
-**Skills** — Glob `skills/*/SKILL.md`, read each file's trigger section:
+**Skills** — Glob `skills/*/SKILL.md`, read each file's trigger section (5 skills: consult, plan, init, setup, sync):
 ```
 For each skill:
   - name (directory name)
   - trigger keywords
-  - which primitives it uses (nonstop, parallel, pipeline, or combination)
 ```
 
 **Hooks** — Read `src/hooks/gate.ts` and `src/hooks/pulse.ts`:
@@ -39,7 +38,6 @@ From gate.ts:
   - EXPLICIT_TAGS keys (what keywords are detected)
   - NATURAL_PATTERNS (what natural language triggers exist)
   - handleStop() checks (which primitives block Stop, in what order)
-  - Any composite modes (like auto = pipeline + nonstop)
 
 From pulse.ts:
   - What workflow states are injected as context
@@ -67,14 +65,12 @@ Check each category for inconsistencies:
 
 **Skills:**
 - Skill directory exists in `skills/` but not in architecture.md skill table
-- Skill uses primitives not reflected in workflows.md
 - Skill listed in docs but no corresponding directory in `skills/`
 
 **Hooks:**
 - Gate keyword detected in gate.ts but not documented in hook-modules.md
 - Gate Stop check order in code doesn't match hook-modules.md description
 - Pulse context injection in code not reflected in hook-modules.md
-- Composite mode (e.g., auto) exists in gate.ts but not in docs
 
 **Phase Status:**
 - agents-catalog.md phase status doesn't match which agents actually have files
@@ -91,10 +87,10 @@ Output the results as a structured report:
 - [MISMATCH] agents/finder.md has tier=low but architecture.md says medium
 
 #### Skills (X issues)
-- [MISSING IN DOCS] skills/auto/ exists but not in workflows.md composite section
+- [MISSING IN DOCS] skills/sync/ exists but not in architecture.md skill table
 
 #### Hooks (X issues)
-- [MISSING IN DOCS] gate.ts detects "auto" keyword but hook-modules.md doesn't mention it
+- [MISSING IN DOCS] gate.ts detects "consult" keyword but hook-modules.md doesn't mention it
 
 #### Phase Status (X issues)
 - [OUTDATED] agents-catalog.md shows Phase 2 as "planned" but all 4 agents are implemented
