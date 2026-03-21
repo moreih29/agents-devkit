@@ -415,26 +415,18 @@ else
   green "Pulse/delegation (allowed path OK)" && PASS=$((PASS + 1))
 fi
 
-# consult 모드 활성(workflow.json mode:consult + phase)이면 위임 강제 비활성
+# consult 모드에서도 위임 강제 동작 (메인 에이전트가 소스 직접 수정 시 리마인더)
 echo '{"mode":"consult","phase":"clarify","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
 rm -f .nexus/state/sessions/e2e-hook/whisper-tracker.json
 result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/foo.ts"}}' | node scripts/pulse.cjs 2>/dev/null)
-if echo "$result" | grep -q 'DELEGATION'; then
-  red "Pulse/delegation (consult mode should skip enforcement)" && FAIL=$((FAIL + 1))
-else
-  green "Pulse/delegation (consult mode skips enforcement)" && PASS=$((PASS + 1))
-fi
+check "Pulse/delegation (consult mode enforces)" 'DELEGATION' "$result"
 rm -f .nexus/state/sessions/e2e-hook/workflow.json
 
-# plan 모드 활성이면 위임 강제 비활성
+# plan 모드에서도 위임 강제 동작
 echo '{"mode":"plan","phase":"draft","startedAt":"2026-01-01T00:00:00Z"}' > .nexus/state/sessions/e2e-hook/workflow.json
 rm -f .nexus/state/sessions/e2e-hook/whisper-tracker.json
 result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/foo.ts"}}' | node scripts/pulse.cjs 2>/dev/null)
-if echo "$result" | grep -q 'DELEGATION'; then
-  red "Pulse/delegation (plan mode should skip enforcement)" && FAIL=$((FAIL + 1))
-else
-  green "Pulse/delegation (plan mode skips enforcement)" && PASS=$((PASS + 1))
-fi
+check "Pulse/delegation (plan mode enforces)" 'DELEGATION' "$result"
 rm -f .nexus/state/sessions/e2e-hook/workflow.json
 
 # ============================================================================
