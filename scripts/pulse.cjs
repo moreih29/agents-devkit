@@ -140,21 +140,6 @@ var ALLOWED_PATHS = [".nexus/", ".claude/nexus/", ".claude/settings", "CLAUDE.md
 function isAllowedPath(filePath) {
   return ALLOWED_PATHS.some((p) => filePath.includes(p));
 }
-function getCurrentMode(sid) {
-  const workflowPath = (0, import_path3.join)(sessionDir(sid), "workflow.json");
-  if (!(0, import_fs3.existsSync)(workflowPath)) return null;
-  try {
-    const state = JSON.parse((0, import_fs3.readFileSync)(workflowPath, "utf-8"));
-    return state.mode ?? null;
-  } catch {
-    return null;
-  }
-}
-function isDelegationEnforcementApplicable(sid) {
-  const mode = getCurrentMode(sid);
-  if (mode === "consult" || mode === "plan") return false;
-  return true;
-}
 function isContext7Available() {
   const paths = [
     (0, import_path3.join)(process.cwd(), ".claude", "settings.json"),
@@ -239,7 +224,7 @@ function buildMessages(toolName, hookEvent, sid, toolInput) {
   }
   if (hookEvent === "PreToolUse" && /^(Write|Edit|write|edit)$/.test(toolName)) {
     const enforcement = getDelegationEnforcement();
-    if (enforcement !== "off" && isDelegationEnforcementApplicable(sid)) {
+    if (enforcement !== "off") {
       const filePath = toolInput?.file_path ?? "";
       if (filePath && !isAllowedPath(filePath)) {
         messages.push({

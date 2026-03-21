@@ -1,1 +1,1 @@
-{"delegationEnforcement": "warn", "statuslinePreset": "full"}
+{"delegationEnforcement": "strict", "statuslinePreset": "full"}

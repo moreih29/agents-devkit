@@ -87,24 +87,6 @@ function isAllowedPath(filePath: string): boolean {
   return ALLOWED_PATHS.some(p => filePath.includes(p));
 }
 
-function getCurrentMode(sid: string): string | null {
-  const workflowPath = join(sessionDir(sid), 'workflow.json');
-  if (!existsSync(workflowPath)) return null;
-  try {
-    const state = JSON.parse(readFileSync(workflowPath, 'utf-8'));
-    return state.mode ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function isDelegationEnforcementApplicable(sid: string): boolean {
-  const mode = getCurrentMode(sid);
-  // enforcement only applies when idle (no active workflow mode)
-  if (mode === 'consult' || mode === 'plan') return false;
-  return true;
-}
-
 // --- Plugin Detection ---
 
 function isContext7Available(): boolean {
@@ -211,7 +193,7 @@ function buildMessages(toolName: string, hookEvent: string, sid: string, toolInp
   // Delegation enforcement: Write/Edit 도구 사용 시 위임 강제
   if (hookEvent === 'PreToolUse' && /^(Write|Edit|write|edit)$/.test(toolName)) {
     const enforcement = getDelegationEnforcement();
-    if (enforcement !== 'off' && isDelegationEnforcementApplicable(sid)) {
+    if (enforcement !== 'off') {
       const filePath = (toolInput?.file_path ?? '') as string;
       if (filePath && !isAllowedPath(filePath)) {
         messages.push({
