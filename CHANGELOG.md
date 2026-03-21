@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0 (2026-03-21)
+
+### Features
+- 스킬 디렉토리에 nx- 접두사 적용 — 플러그인 네임스페이스 충돌 방지
+- 배포 자동화 스크립트 (release.mjs)
+- context7 조건부 주입 + setup 추천 플러그인 정리
+- statusline 버전 표시 + 사용량 남은시간 ↻ + 캐시 나이 ago 표기
+
+### Refactoring
+- dev-sync에서 불필요한 cache 동기화 제거
+- plans 저장 경로를 세션 로컬로 이동
+- 스킬 nx- 접두사 통일 + dev-sync 격리 + consult→plan 연결 강화
+
+### Fixes
+- 위임 강제를 모든 모드에서 동작하도록 변경 + 테스트 업데이트
+- delegationEnforcement strict 전환 + pulse 미사용 함수 제거
+- dev-sync에 cache 경로 동기화 추가
+- nx-plan SKILL.md PERSIST 단계 강화 — MANDATORY + tasks.json 추가
+- plans 경로를 세션 독립으로 이동 + PERSIST 강제
+- statusline stale → ↻Xm 캐시 나이 표시 + 7d 남은 시간 d/h 단위로 축약
+- plan 스킬 main 브랜치 자동 생성 — 사용자 선택 대신 자동 결정
+- statusline line2 개선 — 프로그레스바 축소 + 리셋시간 정리 + stale 조건 완화
+
+### Other
+- revert: 스킬 nx- 접두사 제거 — 디렉토리명 원복
+
 ## 0.2.0 (2026-03-21)
 
 ### Features
