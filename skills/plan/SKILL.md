@@ -12,7 +12,7 @@ Structured planning workflow — produce a concrete, reviewed plan before execut
 ## Trigger
 - User says: "plan", "계획 세워", "계획 짜", "설계해", "어떻게 구현", "구현 계획", "plan this"
 - Explicit tag: `[plan]`
-- Direct invocation: `/nexus:nx-plan`
+- Direct invocation: `/nexus:plan`
 
 ## What It Does
 

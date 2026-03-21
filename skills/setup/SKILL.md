@@ -10,7 +10,7 @@ Interactive project setup wizard — configure Nexus for a new project with mini
 ## Trigger
 - User says: "setup", "nexus 설정", "nexus 세팅", "setup nexus"
 - Explicit tag: `[setup]`
-- Direct invocation: `/nexus:nx-setup`
+- Direct invocation: `/nexus:setup`
 
 ## What It Does
 
@@ -198,7 +198,7 @@ AskUserQuestion({
     multiSelect: false,
     options: [
       { label: "Yes (Recommended)", description: "기존 문서(README, CLAUDE.md 등)를 분석해 .claude/nexus/knowledge/ 생성" },
-      { label: "Skip", description: "나중에 /nexus:nx-init으로 직접 실행" }
+      { label: "Skip", description: "나중에 /nexus:init으로 직접 실행" }
     ]
   }]
 })
