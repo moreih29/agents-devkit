@@ -15,7 +15,7 @@
 
 ### 3. Init 키워드 감지 제거
 - Gate의 자연어 패턴(`/\binit\b/`, `/온보딩/`, `/프로젝트\s*초기화/`)에서 init 제거
-- Init은 명시적 스킬 호출(`/nexus:init` 또는 setup 위자드 내)에서만 동작
+- Init은 명시적 스킬 호출(`/nexus:nx-init` 또는 setup 위자드 내)에서만 동작
 - **이유**: "init 변수" 등 오탐 가능성 + PRIMITIVE_NAMES에 오탐 방지도 누락되어 있었음
 
 ### 4. SessionStart 위임 가이드라인 삭제

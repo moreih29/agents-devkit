@@ -34,9 +34,9 @@ Agents use structured responses: Context → Plan → Implementation → Verific
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| consult | [consult] | Interactive discovery — understand intent before executing |
-| plan | [plan] | Generate structured implementation plan |
-| init | [init] | Onboard project — generate knowledge from existing docs |
-| setup | [setup] | Configure Nexus interactively |
-| sync | [sync] | Sync knowledge docs with source files |
+| nx-consult | [consult] | Interactive discovery — understand intent before executing |
+| nx-plan | [plan] | Generate structured implementation plan |
+| nx-init | [init] | Onboard project — generate knowledge from existing docs |
+| nx-setup | [setup] | Configure Nexus interactively |
+| nx-sync | [sync] | Sync knowledge docs with source files |
 <!-- NEXUS:END -->

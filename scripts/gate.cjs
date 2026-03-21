@@ -123,23 +123,23 @@ function handleStop() {
   pass();
 }
 var EXPLICIT_TAGS = {
-  consult: { primitive: "consult", skill: "nexus:consult" },
-  init: { primitive: "init", skill: "nexus:init" },
-  plan: { primitive: "plan", skill: "nexus:plan" },
-  setup: { primitive: "setup", skill: "nexus:setup" }
+  consult: { primitive: "consult", skill: "nexus:nx-consult" },
+  init: { primitive: "init", skill: "nexus:nx-init" },
+  plan: { primitive: "plan", skill: "nexus:nx-plan" },
+  setup: { primitive: "setup", skill: "nexus:nx-setup" }
 };
 var NATURAL_PATTERNS = [
   {
     patterns: [/\bconsult\b/i, /상담/, /어떻게\s*하면\s*좋을까/, /뭐가\s*좋을까/, /방법을?\s*찾아/],
-    match: { primitive: "consult", skill: "nexus:consult" }
+    match: { primitive: "consult", skill: "nexus:nx-consult" }
   },
   {
     patterns: [/계획\s*(세워|짜|수립)/, /\bplan\b/i, /구현\s*계획/, /설계해/, /어떻게\s*구현/, /plan\s*this/i],
-    match: { primitive: "plan", skill: "nexus:plan" }
+    match: { primitive: "plan", skill: "nexus:nx-plan" }
   },
   {
     patterns: [/\bsetup\b/i, /nexus\s*설정/, /nexus\s*세팅/, /setup\s*nexus/i],
-    match: { primitive: "setup", skill: "nexus:setup" }
+    match: { primitive: "setup", skill: "nexus:nx-setup" }
   }
 ];
 var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
@@ -223,7 +223,9 @@ IMPORTANT: Always backup before modifying. Never delete without user approval.`
 5. PROPOSE: Present options via AskUserQuestion with preview for concrete comparisons.
 6. CONVERGE: Elaborate chosen approach, follow-up if needed, produce concrete plan.
 7. CRYSTALLIZE: Finalize plan. If unclear dimensions remain, disclose risks transparently \u2014 but never block the user.
-8. EXECUTE BRIDGE: Offer 2-3 options via AskUserQuestion: Execute with delegation (Recommended) / Plan only / Skip.
+8. EXECUTE BRIDGE: Offer options via AskUserQuestion: Execute (Recommended) / Plan only / Skip.
+   When the user chooses "Execute" or "Plan only", MUST invoke the nx-plan skill: use Skill({ skill: "claude-nexus:nx-plan" }). Pass the converged approach summary as args. The plan skill handles both planning and execution handoff.
+   "Skip" ends the consult without further action.
 Key: One question at a time. Specific choices, not vague "what do you think?". Respect user autonomy.
 If a plan directory exists for the current branch, record decisions from user selections in the plan.md file.`
       });
@@ -237,15 +239,14 @@ If a plan directory exists for the current branch, record decisions from user se
       }
       const onMain = currentBranch === "main" || currentBranch === "master";
       const sid2 = getSessionId();
-      if (!onMain) {
-        activateMode("plan", sid2, { phase: "analyzing" });
-      }
+      activateMode("plan", sid2, { phase: onMain ? "branch-setup" : "analyzing" });
       const branchInstruction = onMain ? `
-IMPORTANT: You are on the ${currentBranch} branch. Before planning, create a feature branch:
-1. Analyze the user's request to generate a descriptive branch name (e.g., feat/phase-auto-tracking, fix/statusline-bug).
-2. Run: git checkout -b <branch-name>
-3. Then proceed with the plan workflow.
-Plans are stored under .claude/nexus/plans/{branch}/ \u2014 planning on main is not allowed.` : "";
+IMPORTANT: You are on the ${currentBranch} branch. Planning on main is NOT allowed.
+MUST create a feature branch first using AskUserQuestion:
+1. Analyze the user's request to generate 2-3 descriptive branch name candidates.
+2. Present candidates via AskUserQuestion (e.g., "feat/phase-auto-tracking", "fix/statusline-bug").
+3. After user selects, run: git checkout -b <selected-branch-name>
+4. Only then proceed with the plan workflow. Do NOT skip this step.` : "";
       respond({
         continue: true,
         additionalContext: `[NEXUS] Plan mode activated. Follow the plan workflow:${branchInstruction}
