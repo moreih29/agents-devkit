@@ -205,11 +205,12 @@ If a plan directory exists for the current branch, record decisions from user se
 
       const branchInstruction = onMain
         ? `\nIMPORTANT: You are on the ${currentBranch} branch. Planning on main is NOT allowed.
-MUST create a feature branch first using AskUserQuestion:
-1. Analyze the user's request to generate 2-3 descriptive branch name candidates.
-2. Present candidates via AskUserQuestion (e.g., "feat/phase-auto-tracking", "fix/statusline-bug").
-3. After user selects, run: git checkout -b <selected-branch-name>
-4. Only then proceed with the plan workflow. Do NOT skip this step.`
+Auto-create a feature branch BEFORE planning:
+1. Analyze the user's request to generate a descriptive branch name (e.g., feat/phase-auto-tracking, fix/statusline-bug).
+2. Check existing branches with: git branch --list '<candidate>'. If it exists, append a suffix (-2, -3, etc.).
+3. Run: git checkout -b <branch-name>
+4. Create plan directory: mkdir -p .claude/nexus/plans/<branch-dir>/ (replace / with -- in branch name).
+5. Then proceed with the plan workflow. Do NOT ask the user to choose a branch name — decide it yourself.`
         : '';
 
       respond({
