@@ -34,9 +34,9 @@ export function knowledgePath(topic: string): string {
   return join(KNOWLEDGE_ROOT, 'knowledge', `${topic}.md`);
 }
 
-/** 메모 디렉토리 */
-export function memoDir(): string {
-  return join(RUNTIME_ROOT, 'memo');
+/** 플랜 디렉토리 */
+export function plansDir(): string {
+  return join(KNOWLEDGE_ROOT, 'plans');
 }
 
 /** 디렉토리 생성 (재귀) */

@@ -96,27 +96,26 @@ function handleSessionStart() {
     branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8" }).trim();
   } catch {
   }
-  const planFile = (0, import_path3.join)(KNOWLEDGE_ROOT, "plans", `${branch.replace(/\//g, "--")}.md`);
+  const branchDir = branch.replace(/\//g, "--");
+  const planFile = (0, import_path3.join)(KNOWLEDGE_ROOT, "plans", `${branchDir}.md`);
   const hasPlan = (0, import_fs3.existsSync)(planFile);
-  const tasksPath = (0, import_path3.join)(KNOWLEDGE_ROOT, "tasks");
-  if ((0, import_fs3.existsSync)(tasksPath)) {
-    const DONE_TTL = 7 * 864e5;
-    for (const file of (0, import_fs3.readdirSync)(tasksPath).filter((f) => f.endsWith(".json"))) {
-      try {
-        const task = JSON.parse((0, import_fs3.readFileSync)((0, import_path3.join)(tasksPath, file), "utf-8"));
-        if (task.status === "done" && task.completedAt) {
-          if (Date.now() - new Date(task.completedAt).getTime() > DONE_TTL) {
-            (0, import_fs3.unlinkSync)((0, import_path3.join)(tasksPath, file));
-          }
-        }
-      } catch {
-      }
-    }
+  const planDirPath = (0, import_path3.join)(KNOWLEDGE_ROOT, "plans", branchDir);
+  const hasPlanDir = (0, import_fs3.existsSync)(planDirPath);
+  const workflowPath = (0, import_path3.join)(sessionDir(sid), "workflow.json");
+  const hasWorkflow = (0, import_fs3.existsSync)(workflowPath);
+  if (hasPlanDir && !hasWorkflow) {
+    respond({
+      continue: true,
+      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Mode: planning. Plan directory found.
+DECISION CAPTURE: You are in multi-turn planning mode. When the user makes decisions (confirmatory expressions like "\uC774\uAC78\uB85C \uD558\uC790", "\uC0AD\uC81C\uD558\uC790", "\uC774\uB807\uAC8C \uBC14\uAFB8\uC790", or [d] tag), record them in .claude/nexus/plans/${branchDir}/plan.md under the decisions section.
+When the user says "\uAD6C\uD604\uD558\uC790" or requests implementation, generate tasks.json from the accumulated decisions.`
+    });
+  } else {
+    respond({
+      continue: true,
+      additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? "found" : "none"}.`
+    });
   }
-  respond({
-    continue: true,
-    additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Plan: ${hasPlan ? "found" : "none"}. When [NEXUS] routing context is injected, delegate to the recommended agent via Agent({ subagent_type: "nexus:<agent>", prompt: "<task>" }). Handle directly: single-file lookups, simple questions, trivial edits. Delegate: multi-file changes, debugging, reviews, tests, analysis. NEVER pass a 'model' parameter when calling Agent(). Each agent's definition determines its model.`
-  });
 }
 function handleSessionEnd() {
   const sid = getSessionId();
@@ -212,13 +211,6 @@ function handleSubagentStart(event) {
   record.active.push(name);
   record.history.push({ name, startedAt: (/* @__PURE__ */ new Date()).toISOString() });
   saveAgents(sid, record);
-  const routingPath = (0, import_path3.join)(sessionDir(sid), "routing.json");
-  if ((0, import_fs3.existsSync)(routingPath)) {
-    try {
-      (0, import_fs3.unlinkSync)(routingPath);
-    } catch {
-    }
-  }
   pass();
 }
 function handleSubagentStop(event) {
@@ -242,13 +234,13 @@ function handleSubagentStop(event) {
   pass();
 }
 function updateParallelOnAgentStop(sid, agentName) {
-  const path = (0, import_path3.join)(sessionDir(sid), "parallel.json");
+  const path = (0, import_path3.join)(sessionDir(sid), "workflow.json");
   if (!(0, import_fs3.existsSync)(path)) return;
   try {
     const state = JSON.parse((0, import_fs3.readFileSync)(path, "utf-8"));
-    if (!state.active || !Array.isArray(state.tasks)) return;
+    if (state.mode !== "parallel" || !state.parallel || !Array.isArray(state.parallel.tasks)) return;
     let updated = false;
-    for (const task of state.tasks) {
+    for (const task of state.parallel.tasks) {
       if (task.agent === agentName && task.status === "running") {
         task.status = "done";
         updated = true;
@@ -256,9 +248,9 @@ function updateParallelOnAgentStop(sid, agentName) {
       }
     }
     if (updated) {
-      state.completedCount = state.tasks.filter((t) => t.status === "done").length;
+      state.parallel.completedCount = state.parallel.tasks.filter((t) => t.status === "done").length;
       (0, import_fs3.writeFileSync)(path, JSON.stringify(state, null, 2));
-      if (state.completedCount >= state.totalCount && state.totalCount > 0) {
+      if (state.parallel.completedCount >= state.parallel.totalCount && state.parallel.totalCount > 0) {
         try {
           (0, import_fs3.unlinkSync)(path);
         } catch {

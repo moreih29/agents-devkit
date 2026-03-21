@@ -8,3 +8,4 @@ dist/
 *.tgz
 test/fixtures/rust/target/
 test/fixtures/rust/Cargo.lock
+.DS_Store

@@ -4,6 +4,7 @@ import { readFile } from 'fs/promises';
 import { sessionDir } from '../../shared/paths.js';
 import { getSessionId } from '../../shared/session.js';
 import { execSync } from 'child_process';
+import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 /** 현재 git 브랜치명 */
@@ -25,21 +26,17 @@ export function registerContextTool(server: McpServer): void {
       const sessionId = getSessionId();
       const dir = sessionDir(sessionId);
 
-      // 활성 모드 감지
+      // 활성 모드 감지: workflow.json에서 직접 읽기
       let activeMode: string | null = null;
-      const modes = ['nonstop', 'parallel', 'pipeline'];
-      for (const mode of modes) {
-        const stateFile = `${dir}/${mode}.json`;
-        if (existsSync(stateFile)) {
-          try {
-            const data = JSON.parse(await readFile(stateFile, 'utf-8'));
-            if (data.active) {
-              activeMode = mode;
-              break;
-            }
-          } catch {
-            // skip
+      const workflowFile = join(dir, 'workflow.json');
+      if (existsSync(workflowFile)) {
+        try {
+          const data = JSON.parse(await readFile(workflowFile, 'utf-8'));
+          if (data.mode && data.mode !== 'idle') {
+            activeMode = data.mode;
           }
+        } catch {
+          // skip
         }
       }
 

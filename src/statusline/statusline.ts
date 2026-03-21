@@ -2,7 +2,7 @@
 // Nexus 상태라인 — Claude Code statusLine.command로 실행
 // stdin: Claude Code가 제공하는 JSON (display_name, used_percentage, cwd, transcript_path 등)
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
@@ -119,46 +119,9 @@ function buildLine1(): string {
     gitPart = dirty ? `${branch} (${dirty})` : branch;
   } catch { /* skip */ }
 
-  // 시간
-  const now = new Date();
-  const timeStr = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const nexusTag = `\x1b[38;5;141m◆Nexus${RESET}`;
 
-  let sessionTime = '';
-  const transcriptPath = getVal('transcript_path');
-  if (transcriptPath && existsSync(transcriptPath)) {
-    try {
-      const mtime = statSync(transcriptPath).mtime;
-      // 파일 첫 줄의 timestamp로 세션 시작 시간 추정
-      const firstLine = readFileSync(transcriptPath, 'utf-8').split('\n')[0];
-      const tsMatch = firstLine.match(/"timestamp"\s*:\s*"([^"]+)"/);
-      if (tsMatch) {
-        const start = new Date(tsMatch[1]);
-        const elapsed = Math.floor((now.getTime() - start.getTime()) / 1000);
-        const hh = Math.floor(elapsed / 3600);
-        const mm = Math.floor((elapsed % 3600) / 60);
-        sessionTime = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
-      }
-    } catch { /* skip */ }
-  }
-
-  const timePart = sessionTime ? `${DIM}${timeStr} (${sessionTime})${RESET}` : `${DIM}${timeStr}${RESET}`;
-  // 버전 읽기
-  let version = '';
-  try {
-    const pkgPath = join(PROJECT_ROOT, 'node_modules', 'claude-nexus', 'package.json');
-    const pluginPkgPath = join(__dirname, '..', 'package.json');
-    const localPkgPath = join(PROJECT_ROOT, 'package.json');
-    for (const p of [pkgPath, pluginPkgPath, localPkgPath]) {
-      if (existsSync(p)) {
-        const pkg = JSON.parse(readFileSync(p, 'utf-8'));
-        if (pkg.name === 'claude-nexus' && pkg.version) { version = pkg.version; break; }
-      }
-    }
-  } catch { /* skip */ }
-  const versionStr = version ? ` ${DIM}v${version}${RESET}` : '';
-  const nexusTag = `\x1b[38;5;141m◆Nexus${RESET}${versionStr}`;
-
-  return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1b[36m${project}${RESET} ${SEP} ${gitPart} ${SEP} ${timePart}`;
+  return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1b[36m${project}${RESET} ${SEP} ${gitPart}`;
 }
 
 // --- Line 2: 컨텍스트 + 사용량 ---
@@ -347,7 +310,7 @@ function buildLine2(): string {
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${staleTag}`;
 }
 
-// --- Line 3: 워크플로우 + 에이전트 + 태스크 + 도구 ---
+// --- Line 3: 워크플로우 + 에이전트 + 태스크 ---
 
 function normalizeAgentName(name: string): string {
   return name.replace(/^(nexus|claude-nexus):/, '');
@@ -355,112 +318,89 @@ function normalizeAgentName(name: string): string {
 
 function buildLine3(): string {
   const sid = getSessionId();
-  const workflowParts: string[] = [];
-  let agentStr = '';
-  let taskStr = '';
+  let modeDisplay = `💤 idle`;
+  let agentCount = 0;
+  let taskStr = '0/0';
 
   if (sid) {
     const sessDir = join(RUNTIME_ROOT, 'state', 'sessions', sid);
 
-    // 워크플로우 상태
-    const nonstopPath = join(sessDir, 'nonstop.json');
-    const pipelinePath = join(sessDir, 'pipeline.json');
-    const parallelPath = join(sessDir, 'parallel.json');
-
-    let nonstopActive = false;
+    // workflow.json에서 모드 정보 읽기
+    const workflowPath = join(sessDir, 'workflow.json');
     try {
-      if (existsSync(nonstopPath)) {
-        const s = JSON.parse(readFileSync(nonstopPath, 'utf-8'));
-        if (s.active) { nonstopActive = true; workflowParts.push(`▶ nonstop ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`); }
-      }
-    } catch { /* skip */ }
+      if (existsSync(workflowPath)) {
+        const wf = JSON.parse(readFileSync(workflowPath, 'utf-8'));
+        const mode: string = wf.mode ?? 'idle';
+        const phase: string = wf.phase ?? '';
+        const parallel = wf.parallel;
 
-    try {
-      if (existsSync(pipelinePath)) {
-        const p = JSON.parse(readFileSync(pipelinePath, 'utf-8'));
-        if (p.active) {
-          const stage = p.currentStage ? `${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? '?'}` : 'init';
-          if (nonstopActive) {
-            workflowParts.length = 0;
-            workflowParts.push(`▶ auto (${stage})`);
-          } else {
-            workflowParts.push(`▶ pipeline (${stage})`);
+        if (mode === 'auto') {
+          let autoStr = '🚀 auto';
+          if (phase) {
+            const taskProgress = wf.taskProgress;
+            if (taskProgress && typeof taskProgress.current === 'number' && typeof taskProgress.total === 'number') {
+              autoStr += `: ${phase} (${taskProgress.current}/${taskProgress.total})`;
+            } else {
+              autoStr += `: ${phase}`;
+            }
           }
+          if (parallel && (parallel.total ?? 0) > 0) {
+            autoStr += ` ⚡${parallel.completed ?? 0}/${parallel.total}`;
+          }
+          modeDisplay = autoStr;
+        } else if (mode === 'parallel') {
+          const comp = parallel?.completed ?? 0;
+          const total = parallel?.total ?? 0;
+          modeDisplay = total > 0 ? `⚡ parallel ${comp}/${total}` : `⚡ parallel`;
+        } else if (mode === 'consult') {
+          modeDisplay = phase ? `💬 consult: ${phase}` : `💬 consult`;
+        } else if (mode === 'plan') {
+          modeDisplay = phase ? `📋 plan: ${phase}` : `📋 plan`;
+        } else if (mode === 'idle') {
+          modeDisplay = `💤 idle`;
+        } else {
+          modeDisplay = `💤 idle`;
         }
       }
     } catch { /* skip */ }
 
-    try {
-      if (existsSync(parallelPath)) {
-        const p = JSON.parse(readFileSync(parallelPath, 'utf-8'));
-        if (p.active && (p.totalCount ?? 0) > 0) workflowParts.push(`🔀 parallel ${p.completedCount ?? 0}/${p.totalCount}`);
-      }
-    } catch { /* skip */ }
-
-    // 대화형 워크플로우 (consult/plan)
-    try {
-      const consultPath = join(sessDir, 'consult.json');
-      if (existsSync(consultPath)) {
-        const c = JSON.parse(readFileSync(consultPath, 'utf-8'));
-        if (c.active) workflowParts.push(`💬 consult (${c.phase ?? '?'})`);
-      }
-    } catch { /* skip */ }
-
-    try {
-      const planPath = join(sessDir, 'plan.json');
-      if (existsSync(planPath)) {
-        const p = JSON.parse(readFileSync(planPath, 'utf-8'));
-        if (p.active) workflowParts.push(`📋 plan (${p.phase ?? '?'})`);
-      }
-    } catch { /* skip */ }
-
-    // 에이전트
+    // 에이전트 수
     try {
       const agentsPath = join(sessDir, 'agents.json');
       if (existsSync(agentsPath)) {
         const record = JSON.parse(readFileSync(agentsPath, 'utf-8'));
         const active: string[] = record.active ?? [];
-        if (active.length > 0) {
-          const counts: Record<string, number> = {};
-          for (const a of active) { const n = normalizeAgentName(a); counts[n] = (counts[n] ?? 0) + 1; }
-          agentStr = Object.entries(counts).map(([name, count]) => count > 1 ? `${name}×${count}` : name).join(' ');
-        }
+        agentCount = active.length;
       }
     } catch { /* skip */ }
-
   }
 
-  // 태스크 현황
-  const tasksDir = join(KNOWLEDGE_ROOT, 'tasks');
-  try {
-    if (existsSync(tasksDir)) {
-      const files = readdirSync(tasksDir).filter(f => f.endsWith('.json'));
-      let inProgress = 0, todo = 0;
-      for (const file of files) {
-        try {
-          const task = JSON.parse(readFileSync(join(tasksDir, file), 'utf-8'));
-          if (task.status === 'in_progress') inProgress++;
-          else if (task.status === 'todo') todo++;
-        } catch { /* skip */ }
+  // planning 모드 감지: workflow.json 없고 plans/{branch} 디렉토리가 존재
+  if (modeDisplay === `💤 idle`) {
+    try {
+      const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+      const branchDir = branch.replace(/\//g, '--');
+      const planDir = join(KNOWLEDGE_ROOT, 'plans', branchDir);
+      if (existsSync(planDir)) {
+        modeDisplay = `📋 planning`;
       }
-      const tp: string[] = [];
-      if (inProgress > 0) tp.push(`${inProgress} active`);
-      if (todo > 0) tp.push(`${todo} todo`);
-      if (tp.length > 0) taskStr = tp.join(', ');
+    } catch { /* skip */ }
+  }
+
+  // 태스크 현황 (브랜치별 plans/{branch}/tasks.json)
+  try {
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    const branchDir = branch.replace(/\//g, '--');
+    const tasksFile = join(KNOWLEDGE_ROOT, 'plans', branchDir, 'tasks.json');
+    if (existsSync(tasksFile)) {
+      const tasks: Array<{ status: string }> = JSON.parse(readFileSync(tasksFile, 'utf-8'));
+      const total = tasks.length;
+      const done = tasks.filter(t => t.status === 'done').length;
+      taskStr = `${done}/${total}`;
     }
   } catch { /* skip */ }
 
-  // 조합: 항상 기본값 표시
-  const parts: string[] = [];
-  if (workflowParts.length > 0) {
-    parts.push(workflowParts.join(' '));
-  } else {
-    parts.push(`${DIM}— idle${RESET}`);
-  }
-  parts.push(`🤖 ${agentStr || '0'}`);
-  parts.push(`📝 ${taskStr || '0'}`);
-
-  return parts.join(` ${SEP} `);
+  return `${modeDisplay} ${SEP} 🤖 ${agentCount} ${SEP} 📋 ${taskStr}`;
 }
 
 // --- 메인 ---

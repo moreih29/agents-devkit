@@ -35,9 +35,6 @@ var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
 function sessionDir(sessionId) {
   return (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sessionId);
 }
-function statePath(sessionId, key) {
-  return (0, import_path.join)(sessionDir(sessionId), `${key}.json`);
-}
 function ensureDir(dir) {
   if (!(0, import_fs.existsSync)(dir)) {
     (0, import_fs.mkdirSync)(dir, { recursive: true });
@@ -90,7 +87,6 @@ var AGENT_CONTEXT_LEVELS = {
   builder: "standard",
   guard: "standard",
   debugger: "standard",
-  lead: "full",
   architect: "full",
   strategist: "full",
   reviewer: "full",
@@ -132,6 +128,21 @@ var ALLOWED_PATHS = [".nexus/", ".claude/nexus/", ".claude/settings", "CLAUDE.md
 function isAllowedPath(filePath) {
   return ALLOWED_PATHS.some((p) => filePath.includes(p));
 }
+function getCurrentMode(sid) {
+  const workflowPath = (0, import_path3.join)(sessionDir(sid), "workflow.json");
+  if (!(0, import_fs3.existsSync)(workflowPath)) return null;
+  try {
+    const state = JSON.parse((0, import_fs3.readFileSync)(workflowPath, "utf-8"));
+    return state.mode ?? null;
+  } catch {
+    return null;
+  }
+}
+function isDelegationEnforcementApplicable(sid) {
+  const mode = getCurrentMode(sid);
+  if (mode === "auto" || mode === "parallel" || mode === "consult" || mode === "plan") return false;
+  return true;
+}
 var MAX_REPEAT = 1;
 var ADAPTIVE_THRESHOLD = 60;
 function buildMessages(toolName, hookEvent, sid, toolInput) {
@@ -150,42 +161,34 @@ function buildMessages(toolName, hookEvent, sid, toolInput) {
       text: "Read multiple files in parallel when possible for faster analysis."
     });
   }
-  const sustainPath = statePath(sid, "nonstop");
-  if ((0, import_fs3.existsSync)(sustainPath)) {
+  const workflowPath = (0, import_path3.join)(sessionDir(sid), "workflow.json");
+  if ((0, import_fs3.existsSync)(workflowPath)) {
     try {
-      const state = JSON.parse((0, import_fs3.readFileSync)(sustainPath, "utf-8"));
-      if (state.active) {
+      const state = JSON.parse((0, import_fs3.readFileSync)(workflowPath, "utf-8"));
+      if (state.mode === "auto" && state.nonstop?.active) {
         messages.push({
-          key: "workflow:sustain_active",
+          key: "workflow:nonstop_active",
           priority: "workflow",
-          text: `[SUSTAIN ${state.currentIteration ?? 0}/${state.maxIterations ?? 100}] Nonstop mode is active. Continue working until the task is complete.`
+          text: `[NONSTOP ${state.nonstop.iteration ?? 0}/${state.nonstop.max ?? 100}] Auto mode (nonstop) is active. Continue working until the task is complete.`
         });
+        if (state.nonstop.iteration >= (state.nonstop.max ?? 100) * 0.8) {
+          messages.push({
+            key: "recovery:nonstop_limit",
+            priority: "safety",
+            text: `[WARNING] Nonstop ${state.nonstop.iteration}/${state.nonstop.max}\uC5D0 \uADFC\uC811. \uC791\uC5C5\uC774 \uB9C9\uD600\uC788\uB2E4\uBA74: 1) \uD604\uC7AC \uC811\uADFC \uBC29\uC2DD\uC744 \uC7AC\uAC80\uD1A0\uD558\uC138\uC694. 2) nx_state_clear({ key: "auto" })\uB85C \uD574\uC81C \uD6C4 \uB2E4\uB978 \uC804\uB7B5\uC744 \uC2DC\uB3C4\uD558\uC138\uC694.`
+          });
+        }
       }
-    } catch {
-    }
-  }
-  const pipelinePath = statePath(sid, "pipeline");
-  if ((0, import_fs3.existsSync)(pipelinePath)) {
-    try {
-      const state = JSON.parse((0, import_fs3.readFileSync)(pipelinePath, "utf-8"));
-      if (state.active) {
-        const stageInfo = state.currentStage ? `${state.currentStage} (${(state.currentStageIndex ?? 0) + 1}/${state.totalStages ?? "?"})` : "initializing";
+      if (state.mode === "auto" && state.phase) {
         messages.push({
           key: "workflow:pipeline_active",
           priority: "workflow",
-          text: `[PIPELINE stage: ${stageInfo}] Pipeline is active. Complete the current stage, then advance to the next.`
+          text: `[AUTO stage: ${state.phase}] Auto pipeline is active. Complete the current stage, then advance to the next.`
         });
       }
-    } catch {
-    }
-  }
-  const parallelPath = statePath(sid, "parallel");
-  if ((0, import_fs3.existsSync)(parallelPath)) {
-    try {
-      const state = JSON.parse((0, import_fs3.readFileSync)(parallelPath, "utf-8"));
-      if (state.active) {
-        const completed = state.completedCount ?? 0;
-        const total = state.totalCount ?? 0;
+      if (state.mode === "parallel" && state.parallel) {
+        const completed = state.parallel.completedCount ?? 0;
+        const total = state.parallel.totalCount ?? 0;
         messages.push({
           key: "workflow:parallel_active",
           priority: "workflow",
@@ -197,55 +200,15 @@ function buildMessages(toolName, hookEvent, sid, toolInput) {
   }
   if (hookEvent === "PreToolUse" && /^(Write|Edit|write|edit)$/.test(toolName)) {
     const enforcement = getDelegationEnforcement();
-    if (enforcement !== "off") {
+    if (enforcement !== "off" && isDelegationEnforcementApplicable(sid)) {
       const filePath = toolInput?.file_path ?? "";
       if (filePath && !isAllowedPath(filePath)) {
-        const routingPath = (0, import_path3.join)(sessionDir(sid), "routing.json");
-        if ((0, import_fs3.existsSync)(routingPath)) {
-          try {
-            const routing = JSON.parse((0, import_fs3.readFileSync)(routingPath, "utf-8"));
-            const agent = routing.agent ?? "unknown";
-            messages.push({
-              key: "delegation:routing_active",
-              priority: "safety",
-              text: `[NEXUS DELEGATION REMINDER] Routing directed delegation to nexus:${agent}. Use Agent({ subagent_type: "nexus:${agent}", prompt: "<task>" }) instead of editing files directly.`
-            });
-          } catch {
-          }
-        } else {
-          messages.push({
-            key: "delegation:write_edit_hint",
-            priority: "guidance",
-            text: "[NEXUS] Consider delegating implementation to an agent. See routing suggestions."
-          });
-        }
-      }
-    }
-  }
-  if ((0, import_fs3.existsSync)(sustainPath)) {
-    try {
-      const state = JSON.parse((0, import_fs3.readFileSync)(sustainPath, "utf-8"));
-      if (state.active && state.currentIteration >= (state.maxIterations ?? 100) * 0.8) {
         messages.push({
-          key: "recovery:sustain_limit",
+          key: "delegation:enforce",
           priority: "safety",
-          text: `[WARNING] Nonstop iteration ${state.currentIteration}/${state.maxIterations}\uC5D0 \uADFC\uC811. \uC791\uC5C5\uC774 \uB9C9\uD600\uC788\uB2E4\uBA74: 1) \uD604\uC7AC \uC811\uADFC \uBC29\uC2DD\uC744 \uC7AC\uAC80\uD1A0\uD558\uC138\uC694. 2) nx_state_clear({ key: "nonstop" })\uB85C \uD574\uC81C \uD6C4 \uB2E4\uB978 \uC804\uB7B5\uC744 \uC2DC\uB3C4\uD558\uC138\uC694.`
+          text: "[NEXUS DELEGATION] You are editing source files directly. Consider delegating to a specialized agent: Builder (implementation), Debugger (bug fixes), Tester (test writing). Use Agent({ subagent_type: 'nexus:<agent>', prompt: '<task>' })."
         });
       }
-    } catch {
-    }
-  }
-  if ((0, import_fs3.existsSync)(pipelinePath)) {
-    try {
-      const state = JSON.parse((0, import_fs3.readFileSync)(pipelinePath, "utf-8"));
-      if (state.active && state.currentIteration >= 10) {
-        messages.push({
-          key: "recovery:pipeline_stuck",
-          priority: "safety",
-          text: `[WARNING] Pipeline "${state.currentStage ?? "unknown"}" \uB2E8\uACC4\uC5D0\uC11C ${state.currentIteration}\uD68C \uBC18\uBCF5 \uC911. \uB9C9\uD600\uC788\uB2E4\uBA74: 1) \uD604\uC7AC \uB2E8\uACC4\uB97C skip\uD558\uACE0 \uB2E4\uC74C\uC73C\uB85C \uC9C4\uD589\uD558\uC138\uC694. 2) nx_state_clear({ key: "pipeline" })\uB85C \uD574\uC81C\uD558\uC138\uC694.`
-        });
-      }
-    } catch {
     }
   }
   return messages;
@@ -277,7 +240,7 @@ async function main() {
     if (contextLevel === "minimal" && msg.priority !== "safety" && msg.priority !== "workflow") continue;
     if (msg.priority === "workflow" && !workflowChanged) continue;
     const count = tracker.injections[msg.key] ?? 0;
-    if (count >= MAX_REPEAT && msg.key !== "delegation:routing_active") continue;
+    if (count >= MAX_REPEAT && msg.key !== "delegation:enforce") continue;
     tracker.injections[msg.key] = count + 1;
     filtered.push(msg.text);
   }
@@ -285,14 +248,15 @@ async function main() {
   if (tracker.toolCallCount > 0 && tracker.toolCallCount % PROGRESS_INTERVAL === 0) {
     const progressParts = [`[PROGRESS ${tracker.toolCallCount} tools]`];
     try {
-      const sustainP = statePath(sid, "nonstop");
-      const pipelineP = statePath(sid, "pipeline");
-      if ((0, import_fs3.existsSync)(pipelineP) && (0, import_fs3.existsSync)(sustainP)) {
-        const p = JSON.parse((0, import_fs3.readFileSync)(pipelineP, "utf-8"));
-        if (p.active && p.currentStage) progressParts.push(`auto: ${p.currentStage} ${(p.currentStageIndex ?? 0) + 1}/${p.totalStages ?? "?"}`);
-      } else if ((0, import_fs3.existsSync)(sustainP)) {
-        const s = JSON.parse((0, import_fs3.readFileSync)(sustainP, "utf-8"));
-        if (s.active) progressParts.push(`nonstop: ${s.currentIteration ?? 0}/${s.maxIterations ?? 100}`);
+      const workflowPath = (0, import_path3.join)(sessionDir(sid), "workflow.json");
+      if ((0, import_fs3.existsSync)(workflowPath)) {
+        const w = JSON.parse((0, import_fs3.readFileSync)(workflowPath, "utf-8"));
+        if (w.mode === "auto") {
+          if (w.phase) progressParts.push(`auto: ${w.phase}`);
+          if (w.nonstop?.active) progressParts.push(`nonstop: ${w.nonstop.iteration ?? 0}/${w.nonstop.max ?? 100}`);
+        } else if (w.mode === "parallel" && w.parallel) {
+          progressParts.push(`parallel: ${w.parallel.completedCount ?? 0}/${w.parallel.totalCount ?? 0}`);
+        }
       }
     } catch {
     }
@@ -307,12 +271,11 @@ async function main() {
     filtered.push(progressParts.join(" | "));
   }
   saveTracker(sid, tracker);
-  const hasDelegationWarning = messages.some((m) => m.key === "delegation:routing_active");
+  const hasDelegationWarning = messages.some((m) => m.key === "delegation:enforce");
   if (hasDelegationWarning && getDelegationEnforcement() === "strict") {
-    const routingMsg = messages.find((m) => m.key === "delegation:routing_active");
     respond({
       decision: "block",
-      reason: routingMsg?.text ?? "[NEXUS] Direct file editing is blocked while delegation routing is active."
+      reason: "[NEXUS] Direct file editing is blocked. Delegate to a specialized agent."
     });
     return;
   }
