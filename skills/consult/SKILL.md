@@ -15,7 +15,7 @@ Interactive discovery workflow — understand the user's real intent, explore op
 ## What It Does
 
 A structured conversation loop that **discovers** the best approach rather than immediately executing.
-Unlike auto which runs autonomously, consult keeps the user in the loop at every decision point.
+Consult keeps the user in the loop at every decision point.
 
 ## Adaptive Depth
 
@@ -123,12 +123,11 @@ AskUserQuestion({
 
 ### Phase 7: Execute Bridge
 
-수렴 후 실행 전환 시 `AskUserQuestion`으로 2-3 선택지:
+수렴 후 실행 전환 시 `AskUserQuestion`으로 선택지:
 ```
 options:
-  - "Auto로 전체 자동화 (Recommended)" — 분석→계획→구현→검증→리뷰
-  - "Pipeline으로 단계별 진행" — 각 단계에서 확인 후 다음으로
-  - "계획만 정리하고 직접 진행" — 계획 문서 생성 후 종료
+  - "Execute with delegation (Recommended)" — Nexus가 에이전트에 위임하여 실행
+  - "Plan only" — 계획 문서 생성 후 종료
 ```
 
 ## Key Principles
@@ -161,6 +160,6 @@ Consult는 상태 파일 없이 동작합니다.
 ## Deactivation
 
 Consult는 자연스럽게 종료됩니다:
-- 실행으로 전환 시 → auto/pipeline이 인계
+- 실행으로 전환 시 → 에이전트 위임으로 인계
 - 계획만 정리 시 → 메모에 기록하고 종료
 - 별도 `nx_state_clear`는 불필요

@@ -1,10 +1,11 @@
 // 빌드 산출물 + 변경 파일을 플러그인 캐시에 동기화
-import { cpSync, existsSync } from 'fs';
+import { cpSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
+const version = JSON.parse(readFileSync('.claude-plugin/plugin.json', 'utf-8')).version ?? '0.1.0';
 const CACHE = join(
   process.env.HOME ?? '~',
-  '.claude/plugins/cache/nexus/claude-nexus/0.1.0'
+  `.claude/plugins/cache/nexus/claude-nexus/${version}`
 );
 
 if (!existsSync(CACHE)) {

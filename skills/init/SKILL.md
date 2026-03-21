@@ -194,7 +194,3 @@ If nexus knowledge already exists, `[init]` should:
 3. If yes: backup existing knowledge to `.claude/nexus/knowledge/backup-{date}/`
 4. Re-run full workflow
 
-## Gate Integration
-
-Gate detects `[init]` tag and "온보딩" keyword → injects init skill context.
-Init does NOT use nonstop/pipeline — it's an interactive one-shot process like consult.

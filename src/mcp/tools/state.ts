@@ -6,14 +6,14 @@ import { getSessionId } from '../../shared/session.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { join } from 'path';
 
-const MODE_KEYS = new Set(['auto', 'parallel', 'consult', 'plan', 'workflow']);
+const MODE_KEYS = new Set(['consult', 'plan', 'workflow']);
 
 export function registerStateTools(server: McpServer): void {
   server.tool(
     'nx_state_read',
-    'Read runtime workflow state (e.g., workflow, parallel)',
+    'Read runtime workflow state (e.g., workflow, consult, plan)',
     {
-      key: z.string().describe('State key (e.g., "workflow", "parallel"). Use "workflow" to read the unified workflow state.'),
+      key: z.string().describe('State key (e.g., "workflow", "consult", "plan"). Use "workflow" to read the unified workflow state.'),
       sessionId: z.string().optional().describe('Session ID. Uses current session if omitted.'),
     },
     async ({ key, sessionId }) => {
@@ -61,7 +61,7 @@ export function registerStateTools(server: McpServer): void {
     'nx_state_clear',
     'Clear runtime workflow state',
     {
-      key: z.string().describe('State key to clear. Mode keys (auto, parallel, consult, plan, workflow) all clear workflow.json.'),
+      key: z.string().describe('State key to clear. Mode keys (consult, plan, workflow) all clear workflow.json.'),
       sessionId: z.string().optional().describe('Session ID. Uses current session if omitted.'),
     },
     async ({ key, sessionId }) => {

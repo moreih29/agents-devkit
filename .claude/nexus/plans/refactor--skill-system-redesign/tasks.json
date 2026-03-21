@@ -1,0 +1,23 @@
+{
+  "tasks": [
+    { "id": "t1", "title": "nonstop/pipeline/auto/parallel 스킬 삭제", "status": "done" },
+    { "id": "t2a", "title": "gate.ts — auto/parallel/nonstop/pipeline 감지 로직 제거", "status": "done" },
+    { "id": "t2b", "title": "gate.ts — handleStop 재설계", "status": "done" },
+    { "id": "t2c", "title": "gate.ts — handleUserPromptSubmit 정리 + [d]", "status": "done" },
+    { "id": "t3a", "title": "pulse.ts — 워크플로우 리마인더 제거", "status": "done" },
+    { "id": "t3b", "title": "pulse.ts — 6-Section 주입 추가", "status": "done" },
+    { "id": "t4", "title": "tracker.ts — parallel 제거 + 코드베이스 분석", "status": "done" },
+    { "id": "t5", "title": "pulse.ts — 실패 복구 메커니즘", "status": "done" },
+    { "id": "t6", "title": "state.ts — MODE_KEYS 축소", "status": "done" },
+    { "id": "t7", "title": "context.ts — 코드베이스 프로필", "status": "done" },
+    { "id": "t8", "title": "statusline.ts — auto/parallel 표시 제거", "status": "done" },
+    { "id": "t9", "title": "setup SKILL.md 재설계", "status": "done" },
+    { "id": "t10", "title": "gate.ts — setup 주입 업데이트", "status": "done" },
+    { "id": "t11", "title": "consult SKILL.md 업데이트", "status": "done" },
+    { "id": "t12", "title": "plan SKILL.md + gate plan 주입", "status": "done" },
+    { "id": "t13", "title": "init/sync SKILL.md 업데이트", "status": "done" },
+    { "id": "t14", "title": "knowledge 문서 업데이트", "status": "done" },
+    { "id": "t15", "title": "E2E 테스트 재작성", "status": "done" },
+    { "id": "t16", "title": "빌드 + 검증", "status": "done" }
+  ]
+}

@@ -19,7 +19,7 @@ function getCurrentBranch(): string {
 export function registerContextTool(server: McpServer): void {
   server.tool(
     'nx_context',
-    'Get aggregated context status: active mode, agents, session, branch',
+    'Get aggregated context status: active mode, agents, session, branch, codebase profile',
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {} as Record<string, z.ZodType>,
     async () => {
@@ -51,11 +51,24 @@ export function registerContextTool(server: McpServer): void {
         }
       }
 
+      // 코드베이스 프로파일
+      let codebaseType: string | null = null;
+      const profileFile = join(dir, 'codebase-profile.json');
+      if (existsSync(profileFile)) {
+        try {
+          const profile = JSON.parse(await readFile(profileFile, 'utf-8'));
+          codebaseType = profile.type ?? null;
+        } catch {
+          // skip
+        }
+      }
+
       const result = {
         sessionId,
         branch: getCurrentBranch(),
         activeMode,
         agents,
+        codebaseType,
       };
 
       return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
