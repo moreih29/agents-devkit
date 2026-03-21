@@ -375,12 +375,12 @@ function buildLine3(): string {
   }
 
   // planning 모드 감지: workflow.json 없고 plans/{branch} 디렉토리가 존재 (main/master 제외)
-  if (modeDisplay === `💤 idle`) {
+  if (modeDisplay === `💤 idle` && sid) {
     try {
       const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
       if (branch !== 'main' && branch !== 'master') {
         const branchDir = branch.replace(/\//g, '--');
-        const planDir = join(KNOWLEDGE_ROOT, 'plans', branchDir);
+        const planDir = join(RUNTIME_ROOT, 'state', 'sessions', sid, 'plans', branchDir);
         if (existsSync(planDir)) {
           modeDisplay = `📋 planning`;
         }
@@ -388,18 +388,20 @@ function buildLine3(): string {
     } catch { /* skip */ }
   }
 
-  // 태스크 현황 (브랜치별 plans/{branch}/tasks.json)
-  try {
-    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-    const branchDir = branch.replace(/\//g, '--');
-    const tasksFile = join(KNOWLEDGE_ROOT, 'plans', branchDir, 'tasks.json');
-    if (existsSync(tasksFile)) {
-      const tasks: Array<{ status: string }> = JSON.parse(readFileSync(tasksFile, 'utf-8'));
-      const total = tasks.length;
-      const done = tasks.filter(t => t.status === 'done').length;
-      taskStr = `${done}/${total}`;
-    }
-  } catch { /* skip */ }
+  // 태스크 현황 (세션별 plans/{branch}/tasks.json)
+  if (sid) {
+    try {
+      const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+      const branchDir = branch.replace(/\//g, '--');
+      const tasksFile = join(RUNTIME_ROOT, 'state', 'sessions', sid, 'plans', branchDir, 'tasks.json');
+      if (existsSync(tasksFile)) {
+        const tasks: Array<{ status: string }> = JSON.parse(readFileSync(tasksFile, 'utf-8'));
+        const total = tasks.length;
+        const done = tasks.filter(t => t.status === 'done').length;
+        taskStr = `${done}/${total}`;
+      }
+    } catch { /* skip */ }
+  }
 
   return `${modeDisplay} ${SEP} 🤖 ${agentCount} ${SEP} 📋 ${taskStr}`;
 }

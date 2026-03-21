@@ -49,7 +49,7 @@ analyze → draft → [review loop] → persist → execute bridge
 1. 사용자 요청을 분석하여 적절한 브랜치명 생성 (예: `feat/setup-recommended-plugins`, `fix/statusline-bug`)
 2. `git checkout -b <branch-name>` 실행
 3. 이후 계획 워크플로우 진행
-계획 문서는 `.claude/nexus/plans/{branch}/`에 저장되므로, main에서의 계획 수립은 허용하지 않는다.
+계획 문서는 `.nexus/state/sessions/{sessionId}/plans/{branch}/`에 저장되므로, main에서의 계획 수립은 허용하지 않는다.
 
 ### Phase 2: Draft (Strategist)
 
@@ -124,7 +124,7 @@ Agent({
 
 Write 도구로 직접 저장:
 ```
-Write({ file_path: "{project_root}/.claude/nexus/plans/{branch}.md", content: "{final_plan}" })
+Write({ file_path: "{project_root}/.nexus/state/sessions/{sessionId}/plans/{branch}/plan.md", content: "{final_plan}" })
 ```
 
 브랜치명을 알 수 없으면 `{task-slug}.md` 형태로 저장.
@@ -148,7 +148,7 @@ AskUserQuestion({
       {
         label: "Plan only",
         description: "계획 문서만 생성하고 직접 진행",
-        preview: ".claude/nexus/plans/{branch}.md 저장 완료. 직접 실행하세요."
+        preview: "plans/{branch}/plan.md 저장 완료. 직접 실행하세요."
       }
     ]
   }]

@@ -163,7 +163,7 @@ project-context.md:
 
 ## Nexus
 - 프로젝트 지식: `.claude/nexus/knowledge/` 참조
-- 브랜치 계획: `.claude/nexus/plans/` 참조
+- 브랜치 계획: `.nexus/state/sessions/{sessionId}/plans/` (로컬 세션별)
 - 원본 CLAUDE.md: `.claude/nexus/knowledge/original-claude-md.md`
 ```
 
