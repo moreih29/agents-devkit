@@ -155,6 +155,27 @@ function isDelegationEnforcementApplicable(sid) {
   if (mode === "consult" || mode === "plan") return false;
   return true;
 }
+function isContext7Available() {
+  const paths = [
+    (0, import_path3.join)(process.cwd(), ".claude", "settings.json"),
+    (0, import_path3.join)(process.env.HOME || "~", ".claude", "settings.json")
+  ];
+  for (const p of paths) {
+    try {
+      if ((0, import_fs3.existsSync)(p)) {
+        const settings = JSON.parse((0, import_fs3.readFileSync)(p, "utf-8"));
+        if (settings.enabledPlugins?.["context7@claude-plugins-official"] === true) return true;
+      }
+    } catch {
+    }
+  }
+  return false;
+}
+var _context7Cached = null;
+function hasContext7() {
+  if (_context7Cached === null) _context7Cached = isContext7Available();
+  return _context7Cached;
+}
 var MAX_REPEAT = 1;
 var ADAPTIVE_THRESHOLD = 60;
 function buildMessages(toolName, hookEvent, sid, toolInput) {
@@ -185,6 +206,13 @@ function buildMessages(toolName, hookEvent, sid, toolInput) {
 5. MUST NOT DO: Prohibited actions
 6. CONTEXT: Background info, dependencies, related files`
     });
+    if (hasContext7()) {
+      messages.push({
+        key: "Agent:context7_hint",
+        priority: "guidance",
+        text: "[CONTEXT7] Library docs available via MCP: resolve-library-id \u2192 query-docs. Use when working with external libraries/frameworks to check up-to-date API usage, examples, and best practices."
+      });
+    }
   }
   const workflowPath = (0, import_path3.join)(sessionDir(sid), "workflow.json");
   if ((0, import_fs3.existsSync)(workflowPath)) {

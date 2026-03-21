@@ -105,6 +105,31 @@ function isDelegationEnforcementApplicable(sid: string): boolean {
   return true;
 }
 
+// --- Plugin Detection ---
+
+function isContext7Available(): boolean {
+  // 프로젝트 또는 글로벌 settings에서 context7 플러그인 활성화 확인
+  const paths = [
+    join(process.cwd(), '.claude', 'settings.json'),
+    join(process.env.HOME || '~', '.claude', 'settings.json'),
+  ];
+  for (const p of paths) {
+    try {
+      if (existsSync(p)) {
+        const settings = JSON.parse(readFileSync(p, 'utf-8'));
+        if (settings.enabledPlugins?.['context7@claude-plugins-official'] === true) return true;
+      }
+    } catch { /* skip */ }
+  }
+  return false;
+}
+
+let _context7Cached: boolean | null = null;
+function hasContext7(): boolean {
+  if (_context7Cached === null) _context7Cached = isContext7Available();
+  return _context7Cached;
+}
+
 // --- Context Messages ---
 
 interface ContextMessage {
@@ -149,6 +174,14 @@ function buildMessages(toolName: string, hookEvent: string, sid: string, toolInp
 5. MUST NOT DO: Prohibited actions
 6. CONTEXT: Background info, dependencies, related files`,
     });
+    // context7 플러그인이 설치된 경우, 에이전트에게 라이브러리 문서 조회 힌트 주입
+    if (hasContext7()) {
+      messages.push({
+        key: 'Agent:context7_hint',
+        priority: 'guidance',
+        text: '[CONTEXT7] Library docs available via MCP: resolve-library-id → query-docs. Use when working with external libraries/frameworks to check up-to-date API usage, examples, and best practices.',
+      });
+    }
   }
 
   // Failure recovery — workflow.json에 failures 존재 시 복구 가이던스

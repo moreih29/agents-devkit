@@ -151,88 +151,40 @@ AskUserQuestion({
 
 OMC가 감지되지 않으면 이 단계는 건너뜀.
 
-### Step 6: Recommended Plugins
+### Step 6: Recommended Plugin
 
-Before presenting options, check the current `enabledPlugins` in both global (`~/.claude/settings.json`) and project (`.claude/settings.json`) to detect already-installed plugins.
+Check if `context7@claude-plugins-official` is in `enabledPlugins` (global or project settings.json).
 
-Recommended plugins:
-| Key | Name | Description |
-|-----|------|-------------|
-| `context7@claude-plugins-official` | context7 | 라이브러리 문서 실시간 조회 (Upstash Context7) |
-| `playwright@claude-plugins-official` | playwright | 브라우저 자동화 & E2E 테스트 (Microsoft Playwright) |
-| `skill-creator@claude-plugins-official` | skill-creator | 스킬 생성, 평가, 최적화 도구 |
-
-**Case A: 3개 모두 이미 설치됨**
+**이미 설치됨:**
 
 설치 상태를 알리고 건너뜀:
 ```
-"추천 플러그인이 모두 설치되어 있습니다: context7 ✓, playwright ✓, skill-creator ✓"
+"추천 플러그인이 설치되어 있습니다: context7 ✓"
 ```
 
-**Case B: 일부 설치됨**
-
-미설치 항목만 표시. 설치된 항목은 description에 `(설치됨)` 표기:
+**미설치:**
 
 ```
 AskUserQuestion({
   questions: [{
-    question: "Nexus 추천 플러그인을 설치할까요? (✓ = 이미 설치됨)",
-    header: "Plugins",
+    question: "context7 플러그인을 설치할까요? 에이전트가 라이브러리 문서를 실시간 조회할 수 있습니다.",
+    header: "Plugin",
     multiSelect: false,
     options: [
-      { label: "Install remaining (Recommended)", description: "미설치 플러그인만 추가 설치" },
-      { label: "Choose", description: "설치할 플러그인을 직접 선택" },
+      { label: "Install (Recommended)", description: "context7 — 라이브러리 문서 실시간 조회 (Upstash Context7)" },
       { label: "Skip", description: "추천 플러그인 설치 건너뛰기" }
     ]
   }]
 })
 ```
 
-**Case C: 하나도 설치 안 됨**
-
-```
-AskUserQuestion({
-  questions: [{
-    question: "Nexus 추천 플러그인을 설치할까요?",
-    header: "Plugins",
-    multiSelect: false,
-    options: [
-      { label: "Install All (Recommended)", description: "context7 (라이브러리 문서), playwright (브라우저 테스트), skill-creator (스킬 개발) 모두 설치" },
-      { label: "Choose", description: "설치할 플러그인을 직접 선택" },
-      { label: "Skip", description: "추천 플러그인 설치 건너뛰기" }
-    ]
-  }]
-})
-```
-
-**Install All / Install remaining 선택 시:**
-scope에 따른 `settings.json`의 `enabledPlugins`에 미설치 항목만 추가:
+**Install 선택 시:**
+scope에 따른 `settings.json`의 `enabledPlugins`에 추가:
 ```json
 {
-  "context7@claude-plugins-official": true,
-  "playwright@claude-plugins-official": true,
-  "skill-creator@claude-plugins-official": true
+  "context7@claude-plugins-official": true
 }
 ```
-
-**Choose 선택 시:**
-미설치 항목만 multiSelect 옵션으로 표시. 설치된 항목은 제외:
-```
-AskUserQuestion({
-  questions: [{
-    question: "설치할 플러그인을 선택하세요.",
-    header: "Plugins",
-    multiSelect: true,
-    options: [
-      // 미설치 항목만 동적으로 포함
-      { label: "context7", description: "라이브러리 문서 실시간 조회 (Upstash Context7)" },
-      { label: "playwright", description: "브라우저 자동화 & E2E 테스트 (Microsoft Playwright)" },
-      { label: "skill-creator", description: "스킬 생성, 평가, 최적화 도구" }
-    ]
-  }]
-})
-```
-선택된 플러그인만 `enabledPlugins`에 추가.
 
 **Skip 선택 시:** 다음 단계로 진행.
 
