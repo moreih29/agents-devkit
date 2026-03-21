@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 (2026-03-21)
+
+### Fixes
+- statusline 버전 표시 CLAUDE_PLUGIN_ROOT fallback + 릴리즈 노트 개행 깨짐 수정
+
 ## 0.3.0 (2026-03-21)
 
 ### Features
