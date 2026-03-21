@@ -357,14 +357,16 @@ function buildLine3(): string {
     } catch { /* skip */ }
   }
 
-  // planning 모드 감지: workflow.json 없고 plans/{branch} 디렉토리가 존재
+  // planning 모드 감지: workflow.json 없고 plans/{branch} 디렉토리가 존재 (main/master 제외)
   if (modeDisplay === `💤 idle`) {
     try {
       const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-      const branchDir = branch.replace(/\//g, '--');
-      const planDir = join(KNOWLEDGE_ROOT, 'plans', branchDir);
-      if (existsSync(planDir)) {
-        modeDisplay = `📋 planning`;
+      if (branch !== 'main' && branch !== 'master') {
+        const branchDir = branch.replace(/\//g, '--');
+        const planDir = join(KNOWLEDGE_ROOT, 'plans', branchDir);
+        if (existsSync(planDir)) {
+          modeDisplay = `📋 planning`;
+        }
       }
     } catch { /* skip */ }
   }

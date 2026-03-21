@@ -289,10 +289,12 @@ function buildLine3() {
   if (modeDisplay === `\u{1F4A4} idle`) {
     try {
       const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-      const branchDir = branch.replace(/\//g, "--");
-      const planDir = (0, import_path.join)(KNOWLEDGE_ROOT, "plans", branchDir);
-      if ((0, import_fs.existsSync)(planDir)) {
-        modeDisplay = `\u{1F4CB} planning`;
+      if (branch !== "main" && branch !== "master") {
+        const branchDir = branch.replace(/\//g, "--");
+        const planDir = (0, import_path.join)(KNOWLEDGE_ROOT, "plans", branchDir);
+        if ((0, import_fs.existsSync)(planDir)) {
+          modeDisplay = `\u{1F4CB} planning`;
+        }
       }
     } catch {
     }

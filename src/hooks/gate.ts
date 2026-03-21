@@ -193,11 +193,27 @@ If a plan directory exists for the current branch, record decisions from user se
     }
 
     if (match.primitive === 'plan') {
+      // main/master 브랜치에서는 feature 브랜치 생성 먼저 유도
+      let currentBranch = 'unknown';
+      try { currentBranch = require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim(); } catch {}
+      const onMain = currentBranch === 'main' || currentBranch === 'master';
+
       const sid = getSessionId();
-      activateMode('plan', sid, { phase: 'analyzing' });
+      if (!onMain) {
+        activateMode('plan', sid, { phase: 'analyzing' });
+      }
+
+      const branchInstruction = onMain
+        ? `\nIMPORTANT: You are on the ${currentBranch} branch. Before planning, create a feature branch:
+1. Analyze the user's request to generate a descriptive branch name (e.g., feat/phase-auto-tracking, fix/statusline-bug).
+2. Run: git checkout -b <branch-name>
+3. Then proceed with the plan workflow.
+Plans are stored under .claude/nexus/plans/{branch}/ — planning on main is not allowed.`
+        : '';
+
       respond({
         continue: true,
-        additionalContext: `[NEXUS] Plan mode activated. Follow the plan workflow:
+        additionalContext: `[NEXUS] Plan mode activated. Follow the plan workflow:${branchInstruction}
 1. ANALYZE: Analyze the request. Determine scale — small (1-3 files), medium (module-level), large (architecture/security/migration). Auto-escalate to large if request mentions auth, migration, delete, or security.
 2. DRAFT: Spawn Agent({ subagent_type: "nexus:strategist", prompt: "<full request context>" }) to create initial plan.
 3. REVIEW (medium+): Spawn Agent({ subagent_type: "nexus:architect", prompt: "Review this plan: <strategist output>" }) for structural review.

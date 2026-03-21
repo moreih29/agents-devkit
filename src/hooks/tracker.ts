@@ -112,7 +112,9 @@ function handleSessionStart(): void {
 
   const codebaseCtx = `Codebase: ${profile.type}. ${profile.description}`;
 
-  if (hasPlanDir && !hasWorkflow) {
+  const isMainBranch = branch === 'main' || branch === 'master';
+
+  if (hasPlanDir && !hasWorkflow && !isMainBranch) {
     respond({
       continue: true,
       additionalContext: `[NEXUS] Session ${sid} started. Branch: ${branch}. Mode: planning. Plan directory found. ${codebaseCtx}
