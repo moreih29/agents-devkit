@@ -5,6 +5,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
+import { getCurrentVersion } from '../shared/version';
 
 // --- 입력 파싱 ---
 
@@ -103,14 +104,6 @@ function getSessionId(): string | null {
 
 const VERSION_CACHE_PATH = join(process.env.HOME || '~', '.claude', '.nexus_version_cache');
 const VERSION_CACHE_TTL = 86400; // 24시간
-
-function getCurrentVersion(): string {
-  try {
-    const versionFile = join(__dirname, '..', 'VERSION');
-    if (existsSync(versionFile)) return readFileSync(versionFile, 'utf-8').trim();
-  } catch { /* skip */ }
-  return '';
-}
 
 function checkUpdateAvailable(currentVersion: string): boolean {
   if (!currentVersion) return false;

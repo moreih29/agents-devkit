@@ -1,5 +1,8 @@
 # claude-nexus
 
+[![npm version](https://img.shields.io/npm/v/claude-nexus)](https://www.npmjs.com/package/claude-nexus)
+[![license](https://img.shields.io/badge/license-MIT-blue)](https://github.com/moreih29/claude-nexus/blob/main/LICENSE)
+
 Claude Code를 위한 에이전트 오케스트레이션 플러그인. 전문화된 에이전트와 스킬을 통해 코드, 분석, 설계, 테스트, 문서화를 체계적으로 관리합니다.
 
 ## 설치

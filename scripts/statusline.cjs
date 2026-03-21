@@ -2,12 +2,27 @@
 "use strict";
 
 // src/statusline/statusline.ts
+var import_fs2 = require("fs");
+var import_path2 = require("path");
+var import_child_process = require("child_process");
+
+// src/shared/version.ts
 var import_fs = require("fs");
 var import_path = require("path");
-var import_child_process = require("child_process");
+function getCurrentVersion() {
+  try {
+    const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+    const versionFile = pluginRoot ? (0, import_path.join)(pluginRoot, "VERSION") : (0, import_path.join)(__dirname, "..", "VERSION");
+    if ((0, import_fs.existsSync)(versionFile)) return (0, import_fs.readFileSync)(versionFile, "utf-8").trim();
+  } catch {
+  }
+  return "";
+}
+
+// src/statusline/statusline.ts
 var input = "";
 try {
-  input = (0, import_fs.readFileSync)(0, "utf-8");
+  input = (0, import_fs2.readFileSync)(0, "utf-8");
 } catch {
 }
 function getVal(key) {
@@ -22,21 +37,21 @@ function findProjectRoot() {
   const cwd = getVal("cwd") || process.cwd();
   let dir = cwd;
   while (dir !== "/") {
-    if ((0, import_fs.existsSync)((0, import_path.join)(dir, ".git"))) return dir;
-    dir = (0, import_path.join)(dir, "..");
+    if ((0, import_fs2.existsSync)((0, import_path2.join)(dir, ".git"))) return dir;
+    dir = (0, import_path2.join)(dir, "..");
   }
   return cwd;
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".nexus");
-var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
+var RUNTIME_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".nexus");
+var KNOWLEDGE_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".claude", "nexus");
 function getPreset() {
   const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
   if (env === "minimal" || env === "standard" || env === "full") return env;
-  const configFile = (0, import_path.join)(KNOWLEDGE_ROOT, "config.json");
-  if ((0, import_fs.existsSync)(configFile)) {
+  const configFile = (0, import_path2.join)(KNOWLEDGE_ROOT, "config.json");
+  if ((0, import_fs2.existsSync)(configFile)) {
     try {
-      const data = JSON.parse((0, import_fs.readFileSync)(configFile, "utf-8"));
+      const data = JSON.parse((0, import_fs2.readFileSync)(configFile, "utf-8"));
       const p = data.statuslinePreset;
       if (p === "minimal" || p === "standard" || p === "full") return p;
     } catch {
@@ -71,30 +86,22 @@ function coloredMeter(label, pct, width) {
   return `${DIM}${label}${RESET} ${color}${bar} ${pctStr}${RESET}`;
 }
 function getSessionId() {
-  const sessionFile = (0, import_path.join)(RUNTIME_ROOT, "state", "current-session.json");
-  if (!(0, import_fs.existsSync)(sessionFile)) return null;
+  const sessionFile = (0, import_path2.join)(RUNTIME_ROOT, "state", "current-session.json");
+  if (!(0, import_fs2.existsSync)(sessionFile)) return null;
   try {
-    return JSON.parse((0, import_fs.readFileSync)(sessionFile, "utf-8")).sessionId ?? null;
+    return JSON.parse((0, import_fs2.readFileSync)(sessionFile, "utf-8")).sessionId ?? null;
   } catch {
     return null;
   }
 }
-var VERSION_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".nexus_version_cache");
+var VERSION_CACHE_PATH = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".nexus_version_cache");
 var VERSION_CACHE_TTL = 86400;
-function getCurrentVersion() {
-  try {
-    const versionFile = (0, import_path.join)(__dirname, "..", "VERSION");
-    if ((0, import_fs.existsSync)(versionFile)) return (0, import_fs.readFileSync)(versionFile, "utf-8").trim();
-  } catch {
-  }
-  return "";
-}
 function checkUpdateAvailable(currentVersion) {
   if (!currentVersion) return false;
   const now = Math.floor(Date.now() / 1e3);
-  if ((0, import_fs.existsSync)(VERSION_CACHE_PATH)) {
+  if ((0, import_fs2.existsSync)(VERSION_CACHE_PATH)) {
     try {
-      const lines = (0, import_fs.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
+      const lines = (0, import_fs2.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
       const cachedAt = parseInt(lines[0]);
       const latestVersion = lines[1]?.trim() || "";
       if (now - cachedAt < VERSION_CACHE_TTL && latestVersion) {
@@ -108,9 +115,9 @@ function checkUpdateAvailable(currentVersion) {
     require("child_process").spawn("sh", ["-c", script], { stdio: "ignore", detached: true }).unref();
   } catch {
   }
-  if ((0, import_fs.existsSync)(VERSION_CACHE_PATH)) {
+  if ((0, import_fs2.existsSync)(VERSION_CACHE_PATH)) {
     try {
-      const lines = (0, import_fs.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
+      const lines = (0, import_fs2.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
       const latestVersion = lines[1]?.trim() || "";
       if (latestVersion) return latestVersion !== currentVersion && latestVersion > currentVersion;
     } catch {
@@ -141,7 +148,7 @@ function buildLine1() {
   const nexusTag = `\x1B[38;5;141m\u25C6Nexus${versionStr}${RESET}${updateTag}`;
   return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart}`;
 }
-var USAGE_CACHE_PATH = (0, import_path.join)(process.env.HOME || "~", ".claude", ".usage_cache");
+var USAGE_CACHE_PATH = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".usage_cache");
 var CACHE_TTL_DEFAULT = 60;
 function triggerBackgroundFetch() {
   try {
@@ -149,7 +156,7 @@ function triggerBackgroundFetch() {
     if (process.platform === "darwin") {
       tokenCmd = `TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null | grep -o '"accessToken":"[^"]*"' | sed 's/"accessToken":"//;s/"//')`;
     } else {
-      const credFile = (0, import_path.join)(process.env.HOME || "~", ".claude", ".credentials.json");
+      const credFile = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".credentials.json");
       tokenCmd = `TOKEN=$(grep -o '"accessToken":"[^"]*"' "${credFile}" 2>/dev/null | sed 's/"accessToken":"//;s/"//')`;
     }
     const script = `
@@ -171,9 +178,9 @@ function getUsage() {
   let currentTtl = CACHE_TTL_DEFAULT;
   let cachedData = "";
   let cacheAge = 0;
-  if ((0, import_fs.existsSync)(USAGE_CACHE_PATH)) {
+  if ((0, import_fs2.existsSync)(USAGE_CACHE_PATH)) {
     try {
-      const lines = (0, import_fs.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
+      const lines = (0, import_fs2.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
       const cachedAt = parseInt(lines[0]);
       currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
       cachedData = lines[2] || "";
@@ -193,8 +200,8 @@ function getUsage() {
     if (process.platform === "darwin") {
       credJson = (0, import_child_process.execSync)('security find-generic-password -s "Claude Code-credentials" -w', { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
     } else {
-      const credFile = (0, import_path.join)(process.env.HOME || "~", ".claude", ".credentials.json");
-      if ((0, import_fs.existsSync)(credFile)) credJson = (0, import_fs.readFileSync)(credFile, "utf-8");
+      const credFile = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".credentials.json");
+      if ((0, import_fs2.existsSync)(credFile)) credJson = (0, import_fs2.readFileSync)(credFile, "utf-8");
     }
     const tokenMatch = credJson.match(/"accessToken"\s*:\s*"([^"]+)"/);
     if (tokenMatch) {
@@ -314,11 +321,11 @@ function buildLine3() {
   let agentCount = 0;
   let taskStr = "0/0";
   if (sid) {
-    const sessDir = (0, import_path.join)(RUNTIME_ROOT, "state", "sessions", sid);
-    const workflowPath = (0, import_path.join)(sessDir, "workflow.json");
+    const sessDir = (0, import_path2.join)(RUNTIME_ROOT, "state", "sessions", sid);
+    const workflowPath = (0, import_path2.join)(sessDir, "workflow.json");
     try {
-      if ((0, import_fs.existsSync)(workflowPath)) {
-        const wf = JSON.parse((0, import_fs.readFileSync)(workflowPath, "utf-8"));
+      if ((0, import_fs2.existsSync)(workflowPath)) {
+        const wf = JSON.parse((0, import_fs2.readFileSync)(workflowPath, "utf-8"));
         const mode = wf.mode ?? "idle";
         const phase = wf.phase ?? "";
         if (mode === "consult") {
@@ -334,9 +341,9 @@ function buildLine3() {
     } catch {
     }
     try {
-      const agentsPath = (0, import_path.join)(sessDir, "agents.json");
-      if ((0, import_fs.existsSync)(agentsPath)) {
-        const record = JSON.parse((0, import_fs.readFileSync)(agentsPath, "utf-8"));
+      const agentsPath = (0, import_path2.join)(sessDir, "agents.json");
+      if ((0, import_fs2.existsSync)(agentsPath)) {
+        const record = JSON.parse((0, import_fs2.readFileSync)(agentsPath, "utf-8"));
         const active = record.active ?? [];
         agentCount = active.length;
       }
@@ -348,8 +355,8 @@ function buildLine3() {
       const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
       if (branch !== "main" && branch !== "master") {
         const branchDir = branch.replace(/\//g, "--");
-        const planDir = (0, import_path.join)(RUNTIME_ROOT, "plans", branchDir);
-        if ((0, import_fs.existsSync)(planDir)) {
+        const planDir = (0, import_path2.join)(RUNTIME_ROOT, "plans", branchDir);
+        if ((0, import_fs2.existsSync)(planDir)) {
           modeDisplay = `\u{1F4CB} planning`;
         }
       }
@@ -359,9 +366,9 @@ function buildLine3() {
   try {
     const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
     const branchDir = branch.replace(/\//g, "--");
-    const tasksFile = (0, import_path.join)(RUNTIME_ROOT, "plans", branchDir, "tasks.json");
-    if ((0, import_fs.existsSync)(tasksFile)) {
-      const tasks = JSON.parse((0, import_fs.readFileSync)(tasksFile, "utf-8"));
+    const tasksFile = (0, import_path2.join)(RUNTIME_ROOT, "plans", branchDir, "tasks.json");
+    if ((0, import_fs2.existsSync)(tasksFile)) {
+      const tasks = JSON.parse((0, import_fs2.readFileSync)(tasksFile, "utf-8"));
       const total = tasks.length;
       const done = tasks.filter((t) => t.status === "done").length;
       taskStr = `${done}/${total}`;

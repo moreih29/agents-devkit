@@ -397,6 +397,15 @@ check "Plan (consensus - architect)" 'architect' "$result"
 check "Plan (EXECUTE BRIDGE)" 'EXECUTE BRIDGE' "$result"
 check "Plan (scale detection)" 'small' "$result"
 
+# --- Statusline ---
+echo ""
+echo "=== Statusline ==="
+
+STATUSLINE_VERSION=$(cat VERSION 2>/dev/null | tr -d '[:space:]')
+statusline_out=$(echo '{"display_name":"claude-sonnet","used_percentage":10}' | node scripts/statusline.cjs 2>/dev/null)
+check "Statusline/version (vX.Y.Z present)" "v${STATUSLINE_VERSION}" "$statusline_out"
+check "Statusline/nexus tag" "Nexus" "$statusline_out"
+
 # --- 위임 강제 ---
 echo ""
 echo "=== 위임 강제 ==="
