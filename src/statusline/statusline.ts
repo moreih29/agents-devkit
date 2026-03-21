@@ -162,10 +162,13 @@ function triggerBackgroundFetch(): void {
   } catch { /* skip */ }
 }
 
+const STALE_THRESHOLD = 300; // 5분 이상 미갱신 시에만 [stale] 표시
+
 function getUsage(): { json: string; stale: boolean } | null {
   const now = Math.floor(Date.now() / 1000);
   let currentTtl = CACHE_TTL_DEFAULT;
   let cachedData = '';
+  let cacheAge = 0;
 
   // 캐시 읽기 (여러 세션이 같은 캐시 공유)
   if (existsSync(USAGE_CACHE_PATH)) {
@@ -174,9 +177,10 @@ function getUsage(): { json: string; stale: boolean } | null {
       const cachedAt = parseInt(lines[0]);
       currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
       cachedData = lines[2] || '';
+      cacheAge = now - cachedAt;
 
       // TTL 이내: 캐시 반환 (fresh)
-      if (now - cachedAt < currentTtl) {
+      if (cacheAge < currentTtl) {
         return { json: cachedData, stale: false };
       }
     } catch { /* skip */ }
@@ -185,9 +189,9 @@ function getUsage(): { json: string; stale: boolean } | null {
   // TTL 만료: 백그라운드에서 갱신 트리거 (non-blocking)
   triggerBackgroundFetch();
 
-  // stale 캐시가 있으면 즉시 반환
+  // stale 캐시가 있으면 즉시 반환 (5분 이상일 때만 [stale] 표시)
   if (cachedData) {
-    return { json: cachedData, stale: true };
+    return { json: cachedData, stale: cacheAge >= STALE_THRESHOLD };
   }
 
   // 캐시 없음 (최초 실행): 동기 호출 1회 (어쩔 수 없음)
@@ -276,7 +280,7 @@ function fetchApiCost(adminKey: string): number | null {
 }
 
 function buildLine2(): string {
-  const BAR_WIDTH = 7;
+  const BAR_WIDTH = 6;
   const ctxPct = Math.round(getNum('used_percentage'));
   const ctx = coloredMeter('ctx', ctxPct, BAR_WIDTH);
 
@@ -304,8 +308,8 @@ function buildLine2(): string {
 
   const m5h = coloredMeter('5h', pct5h, BAR_WIDTH);
   const m7d = coloredMeter('7d', pct7d, BAR_WIDTH);
-  const r5h = reset5h ? ` ${DIM}~${reset5h}${remain5h ? ` (${remain5h})` : ''}${RESET}` : '';
-  const r7d = reset7d ? ` ${DIM}~${resetDay ? `${resetDay} ` : ''}${reset7d}${remain7d ? ` (${remain7d})` : ''}${RESET}` : '';
+  const r5h = remain5h ? ` ${DIM}${remain5h}${RESET}` : '';
+  const r7d = remain7d ? ` ${DIM}${remain7d}${RESET}` : '';
   const staleTag = usage.stale ? ` \x1b[33m[stale]\x1b[0m` : '';
 
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${staleTag}`;

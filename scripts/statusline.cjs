@@ -122,17 +122,20 @@ function triggerBackgroundFetch() {
   } catch {
   }
 }
+var STALE_THRESHOLD = 300;
 function getUsage() {
   const now = Math.floor(Date.now() / 1e3);
   let currentTtl = CACHE_TTL_DEFAULT;
   let cachedData = "";
+  let cacheAge = 0;
   if ((0, import_fs.existsSync)(USAGE_CACHE_PATH)) {
     try {
       const lines = (0, import_fs.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
       const cachedAt = parseInt(lines[0]);
       currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
       cachedData = lines[2] || "";
-      if (now - cachedAt < currentTtl) {
+      cacheAge = now - cachedAt;
+      if (cacheAge < currentTtl) {
         return { json: cachedData, stale: false };
       }
     } catch {
@@ -140,7 +143,7 @@ function getUsage() {
   }
   triggerBackgroundFetch();
   if (cachedData) {
-    return { json: cachedData, stale: true };
+    return { json: cachedData, stale: cacheAge >= STALE_THRESHOLD };
   }
   try {
     let credJson = "";
@@ -223,7 +226,7 @@ function fetchApiCost(adminKey) {
   }
 }
 function buildLine2() {
-  const BAR_WIDTH = 7;
+  const BAR_WIDTH = 6;
   const ctxPct = Math.round(getNum("used_percentage"));
   const ctx = coloredMeter("ctx", ctxPct, BAR_WIDTH);
   if (isApiMode()) {
@@ -246,8 +249,8 @@ function buildLine2() {
   const { timeStr: reset7d, remaining: remain7d, dayStr: resetDay } = extractResetInfo(usage.json, "seven_day");
   const m5h = coloredMeter("5h", pct5h, BAR_WIDTH);
   const m7d = coloredMeter("7d", pct7d, BAR_WIDTH);
-  const r5h = reset5h ? ` ${DIM}~${reset5h}${remain5h ? ` (${remain5h})` : ""}${RESET}` : "";
-  const r7d = reset7d ? ` ${DIM}~${resetDay ? `${resetDay} ` : ""}${reset7d}${remain7d ? ` (${remain7d})` : ""}${RESET}` : "";
+  const r5h = remain5h ? ` ${DIM}${remain5h}${RESET}` : "";
+  const r7d = remain7d ? ` ${DIM}${remain7d}${RESET}` : "";
   const staleTag = usage.stale ? ` \x1B[33m[stale]\x1B[0m` : "";
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${staleTag}`;
 }
