@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 (2026-03-22)
+
+### Features
+- [sub] 경량 실행 스킬 + setup 보완 + sync 정합성 수정
+
 ## 0.4.0 (2026-03-22)
 
 ### Features
