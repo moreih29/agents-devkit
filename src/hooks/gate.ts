@@ -80,13 +80,14 @@ function handlePreToolUse(event: Record<string, unknown>): void {
 // --- UserPromptSubmit 이벤트 처리: 키워드 감지 ---
 
 interface KeywordMatch {
-  primitive: 'consult' | 'team';
+  primitive: 'consult' | 'team' | 'sub';
   skill: string;
 }
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   consult: { primitive: 'consult', skill: 'nexus:nx-consult' },
   team:    { primitive: 'team',    skill: 'nexus:nx-team' },
+  sub:     { primitive: 'sub',     skill: 'nexus:nx-sub' },
 };
 
 const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
@@ -159,6 +160,26 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
 3. PROPOSE: Present 2-3 genuinely different approaches with pros/cons/effort via AskUserQuestion.
 4. CONVERGE: Summarize the chosen direction. Do NOT execute. Consult is advisory only.
 Key: No execution. User decides next steps. [d] tags can record decisions during consult.`,
+      });
+      return;
+    }
+
+    if (match.primitive === 'sub') {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] Sub mode activated. Lightweight execution — you handle analysis directly.
+
+RULES:
+1. You ARE allowed to use analysis and code tools (Read, Grep, LSP, AST, etc.) — unlike team mode.
+2. Analyze the request yourself. Do NOT spawn Analyst or Architect.
+3. If the task requires 4+ subtasks or cross-cutting concerns, STOP and suggest [team] to the user.
+4. Spawn Builder subagents via Agent({ subagent_type: "nexus:builder" }) WITHOUT team_name (direct spawn, no team).
+   Do NOT use TeamCreate or team_name — sub mode has no team.
+5. Guard: spawn if changed files >= 3, or modified module has existing tests, or verification is warranted.
+6. No tasks.json, no Gate Stop, no archive. Report results directly to the user.
+7. Use TodoWrite after analysis to create a checklist of tasks (status: "pending"). Update each to "completed" after Builder finishes.
+
+Workflow: analyze → TodoWrite (create checklist) → spawn builders (direct spawn) → update TodoWrite → (conditional) verify → report to user.`,
       });
       return;
     }

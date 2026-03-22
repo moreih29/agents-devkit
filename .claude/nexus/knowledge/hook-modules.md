@@ -34,7 +34,8 @@ Memory 모듈은 MCP 도구(`nx_*`)이므로 hooks.json에 등록하지 않음.
 
 감지 우선순위:
 1. 결정 태그 (`[d]`) → LLM이 decisions.json에 캡처하도록 지시
-2. 스킬 키워드 (`[consult]`/`[team]` 및 자연어) → 스킬 호출 지시
+2. 스킬 키워드 (`[consult]`/`[team]`/`[sub]` 및 자연어) → 스킬 호출 지시
+   - `[sub]`는 명시적 태그만 지원 (자연어 감지 없음)
 
 ## Phase별 최적화
 

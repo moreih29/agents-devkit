@@ -25,15 +25,15 @@ AskUserQuestion({
     header: "Scope",
     multiSelect: false,
     options: [
-      { label: "User (Global)", description: "모든 프로젝트에 적용 (~/.claude/CLAUDE.md, 환경변수 NEXUS_STATUSLINE)" },
-      { label: "Project", description: "이 프로젝트에만 적용 (CLAUDE.md, .claude/nexus/config.json)" }
+      { label: "User (Global)", description: "모든 프로젝트에 적용 (~/.claude/CLAUDE.md, ~/.claude/settings.json 상태라인)" },
+      { label: "Project", description: "이 프로젝트에만 적용 (CLAUDE.md, .claude/settings.local.json, .claude/nexus/config.json)" }
     ]
   }]
 })
 ```
 
 선택에 따라 이후 모든 파일 쓰기 경로가 결정됨:
-- User: `~/.claude/CLAUDE.md`, 환경변수 `NEXUS_STATUSLINE`
+- User: `~/.claude/CLAUDE.md`, `~/.claude/settings.json` (상태라인 래퍼)
 - Project: `./CLAUDE.md`, `./.claude/nexus/config.json`
 
 ### Step 2: Statusline Preset
@@ -68,24 +68,25 @@ chmod +x ~/.claude/hooks/nexus-statusline.sh
 
 **(1) User scope:**
 - 래퍼 스크립트 생성 (위 단계 실행)
-- `~/.claude/settings.json`에 statusLine 설정 추가:
+- `~/.claude/settings.json`에 `statusLine` 필드가 **없으면**: statusLine 설정 바로 추가:
   ```json
   { "statusLine": { "type": "command", "command": "bash $HOME/.claude/hooks/nexus-statusline.sh" } }
   ```
-- 이미 statusLine 설정이 있으면 교체 여부를 Step 4 (OMC Conflict Detection)에서 처리
+- `~/.claude/settings.json`에 `statusLine` 필드가 **이미 있으면**: 래퍼만 생성하고 settings.json은 수정하지 않음 — Step 4의 "OMC Statusline 공존 처리"에서 교체/유지 여부를 결정
 
 **(2) Project scope:**
 - 래퍼 스크립트 생성 (위 단계 실행)
-- `.claude/settings.local.json`에 statusLine 설정 추가:
+- `.claude/settings.local.json`에 `statusLine` 필드가 **없으면**: statusLine 설정 바로 추가:
   ```json
   { "statusLine": { "type": "command", "command": "bash $HOME/.claude/hooks/nexus-statusline.sh" } }
   ```
+- `.claude/settings.local.json`에 `statusLine` 필드가 **이미 있으면**: 래퍼만 생성하고 settings.local.json은 수정하지 않음 — Step 4의 "OMC Statusline 공존 처리"에서 교체/유지 여부를 결정
 - `.claude/nexus/config.json`의 `statuslinePreset` 필드에도 선택값 저장 (기존 유지)
 
 **(3) Skip:**
 - 래퍼 생성도, settings.json 수정도 하지 않음.
 
-### Step 3: CLAUDE.md Delegation Table
+### Step 3: CLAUDE.md Nexus Section
 
 Generate the Nexus section in CLAUDE.md using `<!-- NEXUS:START -->` / `<!-- NEXUS:END -->` markers.
 
@@ -93,7 +94,7 @@ If a Nexus section already exists, replace the content between markers. Content 
 
 Write location depends on scope selected in Step 1.
 
-Section content (in English):
+Section content:
 
 ```markdown
 <!-- NEXUS:START -->
@@ -121,9 +122,10 @@ Section content (in English):
 |-------|---------|---------|
 | nx-consult | [consult] | Interactive discovery — understand intent before executing |
 | nx-team | [team] | Team-driven planning with tasks.json, nonstop execution |
+| nx-sub | [sub] | Lightweight execution — Lead analyzes directly, spawns Builder subagents |
 | nx-init | /nexus:nx-init | Onboard project — generate knowledge from existing docs |
 | nx-setup | /nexus:nx-setup | Configure Nexus interactively |
-| nx-sync | [sync] | Sync knowledge docs with source files |
+| nx-sync | /nexus:nx-sync | Sync knowledge docs with source files |
 
 ### Tags
 
@@ -131,6 +133,7 @@ Section content (in English):
 |-----|---------|
 | [consult] | 상담 — 실행 전 의도 파악 |
 | [team] | team mode — 계획 생성 및 nonstop 실행 |
+| [sub] | 경량 실행 — Lead 직접 분석 + Builder direct spawn |
 | [d] | 결정 기록 (nx_decision_add 호출) |
 <!-- NEXUS:END -->
 ```
@@ -164,9 +167,12 @@ OMC가 감지되지 않으면 이 단계는 건너뜀.
 
 **OMC Statusline 공존 처리:**
 
-OMC 감지 여부와 무관하게, 다음 조건 중 하나라도 해당하면 기존 statusline 설정으로 판단:
+Step 2에서 settings.json 수정을 보류한 경우(기존 statusLine이 감지되어 래퍼만 생성한 경우)에만 실행.
+Step 2에서 statusLine 설정을 이미 적용했으면 이 하위 단계는 건너뜀.
+
+구체적으로, Step 2 실행 시점에 다음 조건 중 하나라도 해당하면 기존 statusline 설정이 있는 것으로 판단:
 - `~/.claude/hooks/statusline.sh` 파일이 존재
-- 또는 `~/.claude/settings.json`에 `statusLine` 설정이 이미 존재
+- 또는 scope에 따른 settings.json(`~/.claude/settings.json` 또는 `.claude/settings.local.json`)에 `statusLine` 필드가 이미 존재
 
 감지 시:
 
@@ -184,8 +190,8 @@ AskUserQuestion({
 })
 ```
 
-- Replace (Recommended) 선택: Step 2의 래퍼 생성 + settings.json의 statusLine을 Nexus 래퍼로 교체
-- Keep Existing 선택: `~/.claude/hooks/nexus-statusline.sh` 래퍼는 생성하되, settings.json의 statusLine은 기존 설정을 유지 (사용자가 나중에 수동 전환 가능)
+- Replace (Recommended) 선택: scope에 따른 settings.json의 statusLine을 Nexus 래퍼로 교체 (래퍼 스크립트는 Step 2에서 이미 생성됨)
+- Keep Existing 선택: settings.json의 statusLine은 기존 설정을 유지 (래퍼 스크립트는 Step 2에서 이미 생성됨 — 사용자가 나중에 수동 전환 가능)
 
 기존 statusline 설정이 감지되지 않으면 이 하위 단계는 건너뜀.
 
@@ -217,14 +223,17 @@ AskUserQuestion({
 ```
 
 **Install 선택 시:**
-scope에 따른 `settings.json`의 `enabledPlugins`에 추가:
+scope에 따른 settings.json (`~/.claude/settings.json` 또는 `.claude/settings.local.json`)의 `enabledPlugins`에 추가:
 ```json
 {
   "context7@claude-plugins-official": true
 }
 ```
+Claude Code가 다음 세션 시작 시 자동으로 플러그인을 설치합니다.
 
 **Skip 선택 시:** 다음 단계로 진행.
+
+참고: `enabledPlugins`에 추가하면 Claude Code가 다음 세션 시작 시 자동으로 플러그인을 설치합니다.
 
 ### Step 6: Knowledge Init
 
@@ -250,12 +259,12 @@ Skip 시: 다음 단계로.
 설정 완료 메시지 출력:
 - 적용된 설정 요약
 - 사용 가능한 스킬/에이전트 간략 소개
-- "시작하려면 작업을 말하거나 [consult]로 상담하세요"
+- "시작하려면 작업을 말하거나 [consult]로 상담, [team]으로 팀 실행, [sub]로 경량 실행하세요"
 
 ## Key Principles
 
 1. **모든 단계는 AskUserQuestion** — 자유 텍스트 입력 없음
-2. **경량 모델 사용** — 토큰 소비 최소화
+2. **토큰 최소화** — 각 단계를 구체적 선택지로 한정하여 불필요한 탐색 방지
 3. **Skip 옵션 항상 제공** — 강제 없음
 4. **확장 가능한 구조** — 추천 플러그인 단계 포함, 향후 카테고리 확장 가능
 

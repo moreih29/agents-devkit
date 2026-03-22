@@ -87,7 +87,8 @@ function handlePreToolUse(event) {
 }
 var EXPLICIT_TAGS = {
   consult: { primitive: "consult", skill: "nexus:nx-consult" },
-  team: { primitive: "team", skill: "nexus:nx-team" }
+  team: { primitive: "team", skill: "nexus:nx-team" },
+  sub: { primitive: "sub", skill: "nexus:nx-sub" }
 };
 var NATURAL_PATTERNS = [
   {
@@ -146,6 +147,25 @@ function handleUserPromptSubmit(event) {
 3. PROPOSE: Present 2-3 genuinely different approaches with pros/cons/effort via AskUserQuestion.
 4. CONVERGE: Summarize the chosen direction. Do NOT execute. Consult is advisory only.
 Key: No execution. User decides next steps. [d] tags can record decisions during consult.`
+      });
+      return;
+    }
+    if (match.primitive === "sub") {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] Sub mode activated. Lightweight execution \u2014 you handle analysis directly.
+
+RULES:
+1. You ARE allowed to use analysis and code tools (Read, Grep, LSP, AST, etc.) \u2014 unlike team mode.
+2. Analyze the request yourself. Do NOT spawn Analyst or Architect.
+3. If the task requires 4+ subtasks or cross-cutting concerns, STOP and suggest [team] to the user.
+4. Spawn Builder subagents via Agent({ subagent_type: "nexus:builder" }) WITHOUT team_name (direct spawn, no team).
+   Do NOT use TeamCreate or team_name \u2014 sub mode has no team.
+5. Guard: spawn if changed files >= 3, or modified module has existing tests, or verification is warranted.
+6. No tasks.json, no Gate Stop, no archive. Report results directly to the user.
+7. Use TodoWrite after analysis to create a checklist of tasks (status: "pending"). Update each to "completed" after Builder finishes.
+
+Workflow: analyze \u2192 TodoWrite (create checklist) \u2192 spawn builders (direct spawn) \u2192 update TodoWrite \u2192 (conditional) verify \u2192 report to user.`
       });
       return;
     }

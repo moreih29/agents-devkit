@@ -18,14 +18,21 @@
 - **결정 캡처**: `[d]` 태그로 아키텍처 결정 명시 → nx_decision_add로 decisions.json에 기록
 - 워크플로우: Intake(Lead) → Analyze(Analyst) → Plan(Analyst+Architect 합의) → Execute(Builder/Guard) → Complete(Lead)
 
+### Sub (경량 실행)
+- **기능**: Lead가 직접 분석 후 Builder 서브에이전트를 direct spawn. 합의 루프/tasks.json/Gate Stop 없음. 1-3개 태스크 수준 단순 작업 전용
+- **키워드**: [sub] 태그만 (자연어 감지 없음)
+- **단계**: Analyze(Lead 직접) → Spawn(Builder direct spawn) → Verify(조건부 Guard) → Done
+- **Guard 조건**: 변경 파일 3개 이상, 기존 테스트 모듈 수정, 또는 Lead 판단
+- **복잡도 가드**: 4+ 서브태스크 또는 cross-cutting concerns → [team] 전환 제안
+
 ### Init (온보딩)
 - **기능**: 기존 프로젝트에 Nexus 도입 시 기존 문서를 트리아지하여 knowledge 자동 생성
-- **키워드**: init, 온보딩, nexus 설정, 프로젝트 초기화
+- **직접 호출만 지원**: `/nexus:nx-init` (gate.ts의 자동 감지 없음)
 - 워크플로우: SCAN → TRIAGE → PROPOSE → GENERATE → VERIFY
 
 ### Setup (설정)
 - **기능**: 플러그인 초기 설정 (hooks.json 등록, MCP 설정)
-- **키워드**: setup, nexus setup, 플러그인 설정
+- **직접 호출만 지원**: `/nexus:nx-setup` (gate.ts의 자동 감지 없음)
 
 ### Sync (지식 동기화)
 - **기능**: 소스 코드와 knowledge 문서 간 불일치 탐지 및 수정
@@ -72,4 +79,5 @@
 Gate가 UserPromptSubmit에서 감지하는 키워드 우선순위:
 
 1. 결정 태그 (`[d]`) → LLM이 nx_decision_add로 decisions.json에 캡처
-2. 스킬 키워드 (`[consult]`/`[team]` 및 자연어) → 스킬 호출 지시
+2. 스킬 키워드 (`[consult]`/`[team]`/`[sub]` 및 자연어) → 스킬 호출 지시
+   - `[sub]`는 명시적 태그만 지원 (자연어 감지 없음)
