@@ -4,18 +4,18 @@
 
 ### 1. 마켓플레이스 등록
 ```bash
-claude plugin marketplace add https://github.com/moreih29/agents-devkit.git
+claude plugin marketplace add https://github.com/moreih29/claude-nexus.git
 ```
 
 ### 2. 플러그인 설치
 ```bash
 claude plugin install claude-nexus@nexus
 ```
-→ 캐시 위치: `~/.claude/plugins/cache/nexus/claude-nexus/0.1.0/`
+→ 캐시 위치: `~/.claude/plugins/cache/nexus/claude-nexus/{version}/`
 
 ### 3. 개발 프로젝트 빌드
 ```bash
-cd ~/workspaces/projects/agents-devkit
+cd ~/workspaces/areas/claude-nexus
 bun install
 bun run dev   # build + 캐시 동기화
 ```
@@ -33,9 +33,9 @@ EOF
 ```
 
 ### 5. 개발 프로젝트 설정
-`agents-devkit/.claude/settings.local.json`에 아래 추가 (프로젝트 내 .mcp.json 중복 방지):
+`claude-nexus/.claude/settings.local.json`에 아래 추가 (프로젝트 내 .mcp.json 중복 방지):
 ```json
-{ "disabledMcpjsonServers": ["lat"] }
+{ "disabledMcpjsonServers": ["nx"] }
 ```
 
 ## 개발 사이클

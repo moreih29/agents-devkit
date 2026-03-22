@@ -117,7 +117,7 @@ claude-nexus/
 | Sub | 실행형 | Lead 직접 분석 + Builder direct spawn. 합의/tasks.json 없음. 1-3 태스크 경량 실행 |
 | Init | 온보딩 | 기존 프로젝트에 Nexus 도입 시 knowledge 자동 생성 |
 | Setup | 유틸리티 | 플러그인 초기 설정 |
-| Sync | 유틸리티 | 소스 코드와 knowledge 문서 간 불일치 탐지 및 수정 |
+| Sync | 유틸리티 | git diff 기반 소스 변경점 감지, knowledge drift 탐지 및 수정 (STALE/MISSING/ORPHAN) |
 
 ## 참조 문서
 

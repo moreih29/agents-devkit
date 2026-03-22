@@ -35,7 +35,9 @@
 - **직접 호출만 지원**: `/nexus:nx-setup` (gate.ts의 자동 감지 없음)
 
 ### Sync (지식 동기화)
-- **기능**: 소스 코드와 knowledge 문서 간 불일치 탐지 및 수정
+- **기능**: git diff 기반 소스 변경점 감지 → knowledge 문서 drift 탐지 및 수정 (STALE/MISSING/ORPHAN)
+- **Prerequisites**: git repository 필수, `.claude/nexus/knowledge/`에 파일 2개 이상
+- **단계**: Phase 0(Context Detection) → 1(Detect Changes) → 2(Scan Knowledge) → 3(Compare & Report) → 4(Apply Fixes)
 - **직접 호출만 지원**: `/nexus:nx-sync` (gate.ts의 자동 감지 없음)
 
 ## Stop 차단

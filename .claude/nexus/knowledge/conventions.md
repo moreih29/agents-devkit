@@ -38,9 +38,8 @@ tags: [tag1, tag2]
 
 ## 설정 파일
 
-- 프로젝트: `.nexus/config.json`
-- 사용자: `~/.claude/nexus.jsonc`
-- 검증: Zod strict 모드 (오타 에러 발생)
+- 프로젝트 statusline preset: `.claude/nexus/config.json` (`statuslinePreset` 필드)
+- 사용자 statusline: `~/.claude/settings.json`의 `statusLine` 설정 (래퍼 스크립트)
 
 ## 커밋 메시지
 

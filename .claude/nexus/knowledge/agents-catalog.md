@@ -23,7 +23,7 @@
 | 이름 | 제거 이유 |
 |------|-----------|
 | Finder | built-in Explore로 대체 |
-| Strategist | Lead가 직접 계획 수립 |
+| Strategist | Analyst가 분석+태스크 소유, Lead는 조율만 |
 | Writer | 메인이 직접 작성 |
 
 ### Phase 4 후보 (미구현)
@@ -43,5 +43,5 @@
 5. **document-specialist 제거**: Analyst + 메인이 직접 커버.
 6. **scientist 제거**: Analyst가 데이터 분석/리서치 포함.
 7. **Finder 제거**: Claude Code built-in Explore 기능으로 대체.
-8. **Strategist 제거**: Lead가 직접 Team 스킬로 초안 작성.
+8. **Strategist 제거**: Analyst가 분석+태스크 소유. Lead는 조율+사용자 소통만.
 9. **Writer 제거**: 메인 컨텍스트에서 직접 문서 작성.
