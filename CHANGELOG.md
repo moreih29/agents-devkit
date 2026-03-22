@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0 (2026-03-22)
+
+### Features
+- nx-sync 범용 재설계 + knowledge 정합성 수정
+
 ## 0.5.0 (2026-03-22)
 
 ### Features
