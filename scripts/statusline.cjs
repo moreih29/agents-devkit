@@ -47,17 +47,17 @@ var RUNTIME_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".nexus");
 var KNOWLEDGE_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".claude", "nexus");
 function getPreset() {
   const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
-  if (env === "minimal" || env === "standard" || env === "full") return env;
+  if (env === "minimal" || env === "full") return env;
   const configFile = (0, import_path2.join)(KNOWLEDGE_ROOT, "config.json");
   if ((0, import_fs2.existsSync)(configFile)) {
     try {
       const data = JSON.parse((0, import_fs2.readFileSync)(configFile, "utf-8"));
       const p = data.statuslinePreset;
-      if (p === "minimal" || p === "standard" || p === "full") return p;
+      if (p === "minimal" || p === "full") return p;
     } catch {
     }
   }
-  return "standard";
+  return "full";
 }
 var RESET = "\x1B[0m";
 var BOLD = "\x1B[1m";
@@ -84,15 +84,6 @@ function coloredMeter(label, pct, width) {
   const bar = makeBar(pct, width);
   const pctStr = `${Math.round(pct)}%`;
   return `${DIM}${label}${RESET} ${color}${bar} ${pctStr}${RESET}`;
-}
-function getSessionId() {
-  const sessionFile = (0, import_path2.join)(RUNTIME_ROOT, "state", "current-session.json");
-  if (!(0, import_fs2.existsSync)(sessionFile)) return null;
-  try {
-    return JSON.parse((0, import_fs2.readFileSync)(sessionFile, "utf-8")).sessionId ?? null;
-  } catch {
-    return null;
-  }
 }
 var VERSION_CACHE_PATH = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".nexus_version_cache");
 var VERSION_CACHE_TTL = 86400;
@@ -315,77 +306,24 @@ function buildLine2() {
   }
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${stalePart}`;
 }
-function buildLine3() {
-  const sid = getSessionId();
-  let modeDisplay = `\u{1F4A4} idle`;
-  let agentCount = 0;
-  let taskStr = "0/0";
-  if (sid) {
-    const sessDir = (0, import_path2.join)(RUNTIME_ROOT, "state", "sessions", sid);
-    const workflowPath = (0, import_path2.join)(sessDir, "workflow.json");
-    try {
-      if ((0, import_fs2.existsSync)(workflowPath)) {
-        const wf = JSON.parse((0, import_fs2.readFileSync)(workflowPath, "utf-8"));
-        const mode = wf.mode ?? "idle";
-        const phase = wf.phase ?? "";
-        if (mode === "consult") {
-          modeDisplay = phase ? `\u{1F4AC} consult: ${phase}` : `\u{1F4AC} consult`;
-        } else if (mode === "plan") {
-          modeDisplay = phase ? `\u{1F4CB} plan: ${phase}` : `\u{1F4CB} plan`;
-        } else if (mode === "idle") {
-          modeDisplay = `\u{1F4A4} idle`;
-        } else {
-          modeDisplay = `\u{1F4A4} idle`;
-        }
-      }
-    } catch {
-    }
-    try {
-      const agentsPath = (0, import_path2.join)(sessDir, "agents.json");
-      if ((0, import_fs2.existsSync)(agentsPath)) {
-        const record = JSON.parse((0, import_fs2.readFileSync)(agentsPath, "utf-8"));
-        const active = record.active ?? [];
-        agentCount = active.length;
-      }
-    } catch {
-    }
-  }
-  if (modeDisplay === `\u{1F4A4} idle`) {
-    try {
-      const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-      if (branch !== "main" && branch !== "master") {
-        const branchDir = branch.replace(/\//g, "--");
-        const planDir = (0, import_path2.join)(RUNTIME_ROOT, "plans", branchDir);
-        if ((0, import_fs2.existsSync)(planDir)) {
-          modeDisplay = `\u{1F4CB} planning`;
-        }
-      }
-    } catch {
-    }
-  }
+function getTaskPrefix() {
+  const tasksPath = (0, import_path2.join)(RUNTIME_ROOT, "tasks.json");
+  if (!(0, import_fs2.existsSync)(tasksPath)) return `\u{1F4CB} 0/0 ${SEP} `;
   try {
-    const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-    const branchDir = branch.replace(/\//g, "--");
-    const tasksFile = (0, import_path2.join)(RUNTIME_ROOT, "plans", branchDir, "tasks.json");
-    if ((0, import_fs2.existsSync)(tasksFile)) {
-      const tasks = JSON.parse((0, import_fs2.readFileSync)(tasksFile, "utf-8"));
-      const total = tasks.length;
-      const done = tasks.filter((t) => t.status === "done").length;
-      taskStr = `${done}/${total}`;
-    }
+    const data = JSON.parse((0, import_fs2.readFileSync)(tasksPath, "utf-8"));
+    const tasks = data.tasks ?? [];
+    const total = tasks.length;
+    const done = tasks.filter((t) => t.status === "completed").length;
+    return `\u{1F4CB} ${done}/${total} ${SEP} `;
   } catch {
+    return `\u{1F4CB} 0/0 ${SEP} `;
   }
-  return `${modeDisplay} ${SEP} \u{1F916} ${agentCount} ${SEP} \u{1F4CB} ${taskStr}`;
 }
 function main() {
   const preset = getPreset();
   const lines = [buildLine1()];
-  if (preset === "standard" || preset === "full") {
-    lines.push(buildLine2());
-  }
   if (preset === "full") {
-    const line3 = buildLine3();
-    lines.push(line3 || `${DIM}\u2014 idle${RESET}`);
+    lines.push(`${getTaskPrefix()}${buildLine2()}`);
   }
   process.stdout.write(lines.join("\n") + "\n");
 }

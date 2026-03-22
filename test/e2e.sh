@@ -76,9 +76,9 @@ CI_RESULT=$(mktemp)
   if command -v npx &>/dev/null; then
     INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}'
     NOTIF='{"jsonrpc":"2.0","method":"notifications/initialized"}'
-    LSP1='{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"nx_lsp_hover","arguments":{"file":"src/shared/session.ts","line":9,"character":17}}}'
+    LSP1='{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"nx_lsp_hover","arguments":{"file":"src/shared/paths.ts","line":5,"character":17}}}'
     LSP2='{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"nx_lsp_goto_definition","arguments":{"file":"src/hooks/gate.ts","line":4,"character":40}}}'
-    LSP3='{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nx_lsp_find_references","arguments":{"file":"src/shared/session.ts","line":9,"character":17}}}'
+    LSP3='{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nx_lsp_find_references","arguments":{"file":"src/shared/paths.ts","line":5,"character":17}}}'
     lsp_results=$(echo -e "$INIT\n$NOTIF\n$LSP1\n$LSP2\n$LSP3" | node "$MCP" 2>/dev/null)
     lsp_hover=$(echo "$lsp_results" | grep '"id":2')
     lsp_goto=$(echo "$lsp_results" | grep '"id":3')
@@ -128,14 +128,11 @@ check "nx_knowledge_read (list)" '"topics"' "$result"
 
 result=$(mcp_call "nx_context" '{}')
 check "nx_context" '"branch"' "$result"
-check "nx_context (sessionId)" '"sessionId"' "$result"
+check "nx_context (branch)" '"branch"' "$result"
 
 # --- 훅 테스트 ---
 echo ""
 echo "=== 훅 ==="
-
-mkdir -p .nexus/state/sessions/e2e-hook
-echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
 
 # Stop: tasks.json 없음 → pass
 rm -f .nexus/tasks.json
@@ -166,10 +163,6 @@ check "Gate/UserPromptSubmit ([d] tag)" 'Decision tag' "$result"
 echo ""
 echo "=== Consult ==="
 
-rm -rf .nexus/state/sessions/e2e-hook
-mkdir -p .nexus/state/sessions/e2e-hook
-echo '{"sessionId":"e2e-hook","createdAt":"2026-01-01T00:00:00Z"}' > .nexus/state/current-session.json
-
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[consult] 어떤 구조가 좋을까"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (consult tag)" 'Consult mode' "$result"
 
@@ -181,22 +174,22 @@ check "Consult (EXPLORE step)" 'EXPLORE' "$result"
 check "Consult (brownfield)" 'brownfield' "$result"
 check "Consult (advisory only)" 'advisory only' "$result"
 
-# --- Plan ---
+# --- Team ---
 echo ""
-echo "=== Plan ==="
+echo "=== Team ==="
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] API 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (plan tag)" 'Plan mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[team] API 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (team tag)" 'Team mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"계획 세워줘 게이트 훅 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (plan natural)" 'Plan mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"팀 구성해서 게이트 훅 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (team natural)" 'Team mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"어떻게 구현할지 계획 짜줘"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (plan natural 2)" 'Plan mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"team this"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (team natural 2)" 'Team mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Plan (nx_task_add)" 'nx_task_add' "$result"
-check "Plan (tasks.json)" 'tasks.json' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[team] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
+check "Team (nx_task_add)" 'nx_task_add' "$result"
+check "Team (tasks.json)" 'tasks.json' "$result"
 
 # --- Statusline ---
 echo ""

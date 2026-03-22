@@ -20,7 +20,7 @@ function handleStop(): void {
     if (pending.length > 0) {
       respond({
         decision: 'block',
-        reason: `[PLAN] ${pending.length} tasks remaining. Continue working on pending tasks. Use nx_task_update to mark completed tasks.`,
+        reason: `[TEAM] ${pending.length} tasks remaining. Continue working on pending tasks. Use nx_task_update to mark completed tasks.`,
       });
       return;
     }
@@ -37,16 +37,55 @@ function handleStop(): void {
   }
 }
 
+// --- PreToolUse 이벤트 처리: Agent 직접 호출 차단 ---
+
+function handlePreToolUse(event: Record<string, unknown>): void {
+  const toolName = (event.tool_name ?? '') as string;
+
+  // Agent tool만 체크
+  if (toolName !== 'Agent') {
+    pass();
+    return;
+  }
+
+  const toolInput = event.tool_input as Record<string, unknown> | undefined;
+
+  // Explore agent는 항상 허용
+  if (toolInput?.subagent_type === 'Explore') {
+    pass();
+    return;
+  }
+
+  // team_name이 있으면 TeamCreate 기반 teammate 생성 — 허용
+  if (toolInput?.team_name) {
+    pass();
+    return;
+  }
+
+  // .nexus/tasks.json 존재 = team 모드 활성
+  const tasksPath = join(process.cwd(), '.nexus', 'tasks.json');
+  if (!existsSync(tasksPath)) {
+    pass();
+    return;
+  }
+
+  // team 모드에서 Agent() 직접 호출 차단
+  respond({
+    decision: 'block',
+    reason: '[TEAM] Direct Agent() calls are blocked in team mode. Use TeamCreate + TaskCreate to spawn teammates, or SendMessage to communicate with existing teammates.',
+  });
+}
+
 // --- UserPromptSubmit 이벤트 처리: 키워드 감지 ---
 
 interface KeywordMatch {
-  primitive: 'consult' | 'plan';
+  primitive: 'consult' | 'team';
   skill: string;
 }
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   consult: { primitive: 'consult', skill: 'nexus:nx-consult' },
-  plan:    { primitive: 'plan',    skill: 'nexus:nx-plan' },
+  team:    { primitive: 'team',    skill: 'nexus:nx-team' },
 };
 
 const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
@@ -55,14 +94,14 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
     match: { primitive: 'consult', skill: 'nexus:nx-consult' },
   },
   {
-    patterns: [/계획\s*(세워|짜|수립)/, /\bplan\b/i, /구현\s*계획/, /설계해/, /어떻게\s*구현/, /plan\s*this/i],
-    match: { primitive: 'plan', skill: 'nexus:nx-plan' },
+    patterns: [/팀\s*(구성|으로)/, /\bteam\b/i, /team\s*this/i],
+    match: { primitive: 'team', skill: 'nexus:nx-team' },
   },
 ];
 
 // 프리미티브 이름이 에러/버그 맥락에서 언급되면 활성화가 아닌 "대화" — 오탐 방지
 const ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-const PRIMITIVE_NAMES = /\b(plan|consult)\b/i;
+const PRIMITIVE_NAMES = /\b(team|consult)\b/i;
 
 /** 프리미티브 이름이 에러/버그 맥락과 함께 등장하거나, 단순 질문/인용 맥락인지 판별 */
 function isPrimitiveMention(prompt: string): boolean {
@@ -70,13 +109,13 @@ function isPrimitiveMention(prompt: string): boolean {
   if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
   // 질문 맥락: "plan이 뭐야", "what is consult" 등
   if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  // 인용 맥락: `plan`, "consult"
-  if (/[`"'](?:plan|consult)[`"']/i.test(prompt)) return true;
+  // 인용 맥락: `team`, "consult"
+  if (/[`"'](?:team|consult)[`"']/i.test(prompt)) return true;
   return false;
 }
 
 function detectKeywords(prompt: string): KeywordMatch | null {
-  // 1차: 명시적 태그 [consult], [plan] — 항상 확정
+  // 1차: 명시적 태그 [consult], [team] — 항상 확정
   const tagMatch = prompt.match(/\[(\w+)\]/);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
@@ -123,32 +162,26 @@ Key: No execution. User decides next steps. [d] tags can record decisions during
       return;
     }
 
-    if (match.primitive === 'plan') {
-      // main/master 브랜치에서는 feature 브랜치 생성 먼저 유도
-      let currentBranch = 'unknown';
-      try { currentBranch = require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim(); } catch {}
-      const onMain = currentBranch === 'main' || currentBranch === 'master';
-
-      const branchInstruction = onMain
-        ? `\nIMPORTANT: You are on the ${currentBranch} branch. Planning on main is NOT allowed.
-Auto-create a feature branch BEFORE planning:
-1. Analyze the user's request to generate a descriptive branch name (e.g., feat/phase-auto-tracking, fix/statusline-bug).
-2. Check existing branches with: git branch --list '<candidate>'. If it exists, append a suffix (-2, -3, etc.).
-3. Run: git checkout -b <branch-name>
-4. Create plan directory: mkdir -p .nexus/plans/<branch-dir>/ (replace / with -- in branch name).
-5. Then proceed with the plan workflow. Do NOT ask the user to choose a branch name — decide it yourself.`
-        : '';
-
+    if (match.primitive === 'team') {
+      const branchInstruction = '';
       respond({
         continue: true,
-        additionalContext: `[NEXUS] Plan mode activated. Follow the plan workflow:${branchInstruction}
-1. ANALYZE: Determine what needs to be done. If unclear, ask 1-2 clarifying questions via AskUserQuestion.
-2. DRAFT: Write the plan yourself (do NOT delegate to Strategist). If decisions.json exists, read it for context.
-3. REVIEW (large tasks only): Spawn Architect for structural review, then Reviewer for critique.
+        additionalContext: `[NEXUS] Team mode activated. Follow the team workflow:${branchInstruction}
+IMPORTANT: Direct Agent() calls are BLOCKED in team mode. You MUST use TeamCreate + TaskCreate.
+
+1. ANALYZE: Determine what needs to be done. If unclear, ask 1-2 clarifying questions via AskUserQuestion. If decisions.json exists, read it for context.
+2. DRAFT: Write the plan yourself.
+3. REVIEW: Use TeamCreate to create a team, then use TaskCreate to add Architect and Reviewer as teammates for plan review.
 4. PERSIST: Use nx_task_add() to create tasks in .nexus/tasks.json. Each task needs title, context, and optional deps.
-5. EXECUTE: For small tasks, use subagents. For large tasks, use TeamCreate + TaskCreate for Agent Teams.
-Key: Gate Stop will block until all tasks are completed. Use nx_task_update() to mark progress.
-`,
+5. EXECUTE: Use TaskCreate to add Builder, Debugger, Tester, Guard as teammates. Assign tasks via TaskUpdate with owner parameter.
+6. VERIFY: Guard teammate verifies completed work. Use nx_task_update() to mark task progress.
+
+Example team setup:
+  TeamCreate({ team_name: "project-x", description: "..." })
+  TaskCreate({ team_name: "project-x", subagent_type: "nexus:architect", name: "architect", prompt: "..." })
+  TaskCreate({ team_name: "project-x", subagent_type: "nexus:builder", name: "builder", prompt: "..." })
+
+Key: Gate Stop blocks until all nx_task tasks are completed. Use nx_task_update() to mark progress. nx_plan_archive() to finish.`,
       });
       return;
     }
@@ -163,10 +196,13 @@ async function main() {
   const input = await readStdin();
   const event = JSON.parse(input);
   // Claude Code는 hook_event_name을 보내지 않을 수 있음.
-  // UserPromptSubmit은 prompt 필드가 있고, Stop은 없음.
+  // PreToolUse는 tool_name 필드가 있고, UserPromptSubmit은 prompt 필드가 있고, Stop은 없음.
+  const hasToolName = 'tool_name' in event;
   const hasPrompt = 'prompt' in event || 'user_prompt' in event;
 
-  if (hasPrompt) {
+  if (hasToolName) {
+    handlePreToolUse(event);
+  } else if (hasPrompt) {
     handleUserPromptSubmit(event);
   } else {
     handleStop();

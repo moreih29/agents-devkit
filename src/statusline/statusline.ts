@@ -41,20 +41,20 @@ const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
 
 // --- Preset ---
 
-type Preset = 'minimal' | 'standard' | 'full';
+type Preset = 'minimal' | 'full';
 
 function getPreset(): Preset {
   const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
-  if (env === 'minimal' || env === 'standard' || env === 'full') return env;
+  if (env === 'minimal' || env === 'full') return env;
   const configFile = join(KNOWLEDGE_ROOT, 'config.json');
   if (existsSync(configFile)) {
     try {
       const data = JSON.parse(readFileSync(configFile, 'utf-8'));
       const p = data.statuslinePreset;
-      if (p === 'minimal' || p === 'standard' || p === 'full') return p;
+      if (p === 'minimal' || p === 'full') return p;
     } catch { /* skip */ }
   }
-  return 'standard';
+  return 'full';
 }
 
 // --- 색상 ---
@@ -88,16 +88,6 @@ function coloredMeter(label: string, pct: number, width: number): string {
   const bar = makeBar(pct, width);
   const pctStr = `${Math.round(pct)}%`;
   return `${DIM}${label}${RESET} ${color}${bar} ${pctStr}${RESET}`;
-}
-
-// --- 세션 ID ---
-
-function getSessionId(): string | null {
-  const sessionFile = join(RUNTIME_ROOT, 'state', 'current-session.json');
-  if (!existsSync(sessionFile)) return null;
-  try {
-    return JSON.parse(readFileSync(sessionFile, 'utf-8')).sessionId ?? null;
-  } catch { return null; }
 }
 
 // --- Line 1: 모델 + 프로젝트 + 브랜치 + 시간 ---
@@ -371,80 +361,18 @@ function buildLine2(): string {
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${stalePart}`;
 }
 
-// --- Line 3: 워크플로우 + 에이전트 + 태스크 ---
+// --- 태스크 프리픽스 (Line 2 앞에 붙음) ---
 
-function normalizeAgentName(name: string): string {
-  return name.replace(/^(nexus|claude-nexus):/, '');
-}
-
-function buildLine3(): string {
-  const sid = getSessionId();
-  let modeDisplay = `💤 idle`;
-  let agentCount = 0;
-  let taskStr = '0/0';
-
-  if (sid) {
-    const sessDir = join(RUNTIME_ROOT, 'state', 'sessions', sid);
-
-    // workflow.json에서 모드 정보 읽기
-    const workflowPath = join(sessDir, 'workflow.json');
-    try {
-      if (existsSync(workflowPath)) {
-        const wf = JSON.parse(readFileSync(workflowPath, 'utf-8'));
-        const mode: string = wf.mode ?? 'idle';
-        const phase: string = wf.phase ?? '';
-
-        if (mode === 'consult') {
-          modeDisplay = phase ? `💬 consult: ${phase}` : `💬 consult`;
-        } else if (mode === 'plan') {
-          modeDisplay = phase ? `📋 plan: ${phase}` : `📋 plan`;
-        } else if (mode === 'idle') {
-          modeDisplay = `💤 idle`;
-        } else {
-          modeDisplay = `💤 idle`;
-        }
-      }
-    } catch { /* skip */ }
-
-    // 에이전트 수
-    try {
-      const agentsPath = join(sessDir, 'agents.json');
-      if (existsSync(agentsPath)) {
-        const record = JSON.parse(readFileSync(agentsPath, 'utf-8'));
-        const active: string[] = record.active ?? [];
-        agentCount = active.length;
-      }
-    } catch { /* skip */ }
-  }
-
-  // planning 모드 감지: workflow.json 없고 plans/{branch} 디렉토리가 존재 (main/master 제외)
-  if (modeDisplay === `💤 idle`) {
-    try {
-      const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-      if (branch !== 'main' && branch !== 'master') {
-        const branchDir = branch.replace(/\//g, '--');
-        const planDir = join(RUNTIME_ROOT, 'plans', branchDir);
-        if (existsSync(planDir)) {
-          modeDisplay = `📋 planning`;
-        }
-      }
-    } catch { /* skip */ }
-  }
-
-  // 태스크 현황 (브랜치별 plans/{branch}/tasks.json)
+function getTaskPrefix(): string {
+  const tasksPath = join(RUNTIME_ROOT, 'tasks.json');
+  if (!existsSync(tasksPath)) return `📋 0/0 ${SEP} `;
   try {
-    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-    const branchDir = branch.replace(/\//g, '--');
-    const tasksFile = join(RUNTIME_ROOT, 'plans', branchDir, 'tasks.json');
-    if (existsSync(tasksFile)) {
-      const tasks: Array<{ status: string }> = JSON.parse(readFileSync(tasksFile, 'utf-8'));
-      const total = tasks.length;
-      const done = tasks.filter(t => t.status === 'done').length;
-      taskStr = `${done}/${total}`;
-    }
-  } catch { /* skip */ }
-
-  return `${modeDisplay} ${SEP} 🤖 ${agentCount} ${SEP} 📋 ${taskStr}`;
+    const data = JSON.parse(readFileSync(tasksPath, 'utf-8'));
+    const tasks: Array<{ status: string }> = data.tasks ?? [];
+    const total = tasks.length;
+    const done = tasks.filter(t => t.status === 'completed').length;
+    return `📋 ${done}/${total} ${SEP} `;
+  } catch { return `📋 0/0 ${SEP} `; }
 }
 
 // --- 메인 ---
@@ -453,13 +381,8 @@ function main() {
   const preset = getPreset();
   const lines: string[] = [buildLine1()];
 
-  if (preset === 'standard' || preset === 'full') {
-    lines.push(buildLine2());
-  }
-
   if (preset === 'full') {
-    const line3 = buildLine3();
-    lines.push(line3 || `${DIM}— idle${RESET}`);
+    lines.push(`${getTaskPrefix()}${buildLine2()}`);
   }
 
   process.stdout.write(lines.join('\n') + '\n');

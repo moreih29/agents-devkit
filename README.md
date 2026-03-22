@@ -33,7 +33,7 @@ claude plugin install claude-nexus@nexus
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
 | **nx-consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 4단계 상담(Explore→Clarify→Propose→Converge) — 실행 전 의도 파악 |
-| **nx-plan** | `[plan]` 또는 "계획 세워" | v2 Team-driven, tasks.json 중심으로 계획 생성 및 nonstop 실행 |
+| **nx-team** | `[team]` 또는 "계획 세워" | v2 Team-driven, tasks.json 중심으로 계획 생성 및 nonstop 실행 |
 | **nx-init** | `[init]` 또는 "온보딩" | 프로젝트를 Nexus에 온보드 - 기존 문서 스캔하여 지식 생성 |
 | **nx-setup** | `[setup]` 또는 "nexus 설정" | Nexus 대화형 설정 마법사 |
 | **nx-sync** | `[sync]` 또는 "지식 동기화" | 소스 코드와 지식 문서 간 불일치 감지 및 수정 |

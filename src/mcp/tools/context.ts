@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
-import { sessionDir, RUNTIME_ROOT } from '../../shared/paths.js';
-import { getSessionId } from '../../shared/session.js';
+import { RUNTIME_ROOT } from '../../shared/paths.js';
 import { execSync } from 'child_process';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -23,21 +22,18 @@ export function registerContextTool(server: McpServer): void {
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {} as Record<string, z.ZodType>,
     async () => {
-      const sessionId = getSessionId();
-      const dir = sessionDir(sessionId);
-
       // 활성 모드 감지: tasks.json에서 읽기
-      let planStatus: { activeMode: 'plan'; goal: string; tasksSummary: { total: number; completed: number; pending: number } } | { activeMode: null } = { activeMode: null };
+      let teamStatus: { activeMode: 'team'; goal: string; tasksSummary: { total: number; completed: number; pending: number } } | { activeMode: null } = { activeMode: null };
       const tasksFile = join(RUNTIME_ROOT, 'tasks.json');
       if (existsSync(tasksFile)) {
         try {
           const data = JSON.parse(await readFile(tasksFile, 'utf-8'));
           const tasks: Array<{ status?: string }> = Array.isArray(data.tasks) ? data.tasks : [];
           const total = tasks.length;
-          const completed = tasks.filter((t) => t.status === 'done').length;
+          const completed = tasks.filter((t) => t.status === 'completed').length;
           const pending = total - completed;
-          planStatus = {
-            activeMode: 'plan',
+          teamStatus = {
+            activeMode: 'team',
             goal: data.goal ?? '',
             tasksSummary: { total, completed, pending },
           };
@@ -46,23 +42,9 @@ export function registerContextTool(server: McpServer): void {
         }
       }
 
-      // 코드베이스 프로파일
-      let codebaseType: string | null = null;
-      const profileFile = join(dir, 'codebase-profile.json');
-      if (existsSync(profileFile)) {
-        try {
-          const profile = JSON.parse(await readFile(profileFile, 'utf-8'));
-          codebaseType = profile.type ?? null;
-        } catch {
-          // skip
-        }
-      }
-
       const result = {
-        sessionId,
         branch: getCurrentBranch(),
-        ...planStatus,
-        codebaseType,
+        ...teamStatus,
       };
 
       return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -131,6 +131,23 @@ export function registerTaskTools(server: McpServer): void {
       await writeTasks(data);
 
       return { content: [{ type: 'text' as const, text: JSON.stringify({ task }) }] };
+    }
+  );
+
+  server.tool(
+    'nx_task_clear',
+    'Delete .nexus/tasks.json to abort the current plan and release the nonstop block',
+    {},
+    async () => {
+      if (!existsSync(TASKS_PATH)) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: false, reason: 'tasks.json not found' }) }] };
+      }
+      try {
+        unlinkSync(TASKS_PATH);
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true }) }] };
+      } catch (e) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: false, reason: String(e) }) }] };
+      }
     }
   );
 }

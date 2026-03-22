@@ -33,7 +33,7 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
 | nx-consult | [consult] | 4-step consultation (Explore→Clarify→Propose→Converge) — understand intent before executing |
-| nx-plan | [plan] | Team-driven planning with tasks.json, nonstop execution |
+| nx-team | [team] | Team-driven planning with tasks.json, nonstop execution |
 | nx-init | [init] | Onboard project — generate knowledge from existing docs |
 | nx-setup | [setup] | Configure Nexus interactively |
 | nx-sync | [sync] | Sync knowledge docs with source files |
@@ -43,6 +43,6 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 | Tag | Purpose |
 |-----|---------|
 | [consult] | 상담 — 실행 전 의도 파악 |
-| [plan] | 계획 생성 및 nonstop 실행 |
+| [team] | team mode — 계획 생성 및 nonstop 실행 |
 | [d] | 결정 기록 (nx_decision_add 호출) |
 <!-- NEXUS:END -->

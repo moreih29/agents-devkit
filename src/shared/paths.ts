@@ -1,5 +1,5 @@
 import { resolve, join } from 'path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 
 /** 프로젝트 루트 (.git이 있는 디렉토리) */
 function findProjectRoot(): string {
@@ -19,11 +19,6 @@ export const RUNTIME_ROOT = join(PROJECT_ROOT, '.nexus');
 /** .claude/nexus/ — git 추적, 공유 지식 */
 export const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
 
-/** 세션별 상태 디렉토리 */
-export function sessionDir(sessionId: string): string {
-  return join(RUNTIME_ROOT, 'state', 'sessions', sessionId);
-}
-
 /** 지식 파일 경로 */
 export function knowledgePath(topic: string): string {
   return join(KNOWLEDGE_ROOT, 'knowledge', `${topic}.md`);
@@ -34,18 +29,5 @@ export function ensureDir(dir: string): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
-}
-
-/** workflow.json의 phase를 갱신 (consult/plan 모드일 때만) */
-export function updateWorkflowPhase(sid: string, phase: string): void {
-  const workflowPath = join(sessionDir(sid), 'workflow.json');
-  if (!existsSync(workflowPath)) return;
-  try {
-    const state = JSON.parse(readFileSync(workflowPath, 'utf-8'));
-    if ((state.mode === 'consult' || state.mode === 'plan') && state.phase !== phase) {
-      state.phase = phase;
-      writeFileSync(workflowPath, JSON.stringify(state, null, 2));
-    }
-  } catch { /* skip */ }
 }
 

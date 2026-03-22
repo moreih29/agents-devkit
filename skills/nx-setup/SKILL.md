@@ -47,8 +47,7 @@ AskUserQuestion({
     header: "Statusline",
     multiSelect: false,
     options: [
-      { label: "Full (Recommended)", description: "3줄: 모델+브랜치, 사용량, 워크플로우+에이전트+태스크" },
-      { label: "Standard", description: "2줄: 모델+브랜치, 사용량" },
+      { label: "Full (Recommended)", description: "2줄: 모델+브랜치, 태스크+사용량" },
       { label: "Minimal", description: "1줄: 모델+브랜치만" },
       { label: "Skip", description: "상태라인 설정 건너뛰기" }
     ]
@@ -57,7 +56,7 @@ AskUserQuestion({
 ```
 
 선택 시 scope에 따라 `config.json`의 `statuslinePreset` 필드에 저장.
-Skip이면 아무것도 하지 않음 (기본값 standard 유지).
+Skip이면 아무것도 하지 않음 (기본값 full 유지).
 
 ### Step 3: Delegation Enforcement
 
