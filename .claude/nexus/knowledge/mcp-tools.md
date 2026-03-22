@@ -1,13 +1,6 @@
 # Nexus MCP 도구 API
 
-## Core 도구 (12개, 항상 활성)
-
-### 상태 관리 (런타임, `.nexus/state/`)
-```typescript
-nx_state_read({ key: "nonstop", sessionId: "..." })
-nx_state_write({ key: "nonstop", value: { active: true, ... }, sessionId: "..." })
-nx_state_clear({ key: "nonstop", sessionId: "..." })
-```
+## Core 도구 (항상 활성)
 
 ### 프로젝트 지식 (git 추적, `.claude/nexus/knowledge/`)
 ```typescript
@@ -41,7 +34,29 @@ nx_memo_read({
 ### 컨텍스트 상태 통합 조회
 ```typescript
 nx_context()
-// → { activeMode, agents, contextUsageEstimate, sessionId, branch }
+// → { sessionId, branch, pendingTasks, recentDecisions }
+```
+
+### 태스크 관리 (`.nexus/tasks.json`)
+```typescript
+nx_task_list({ status?: "pending" | "completed" })
+nx_task_add({ title: "인증 모듈 구현", description?: "...", tags?: ["auth"] })
+nx_task_update({ id: "eaba793e", status?: "completed" | "cancelled", title?, description?, tags? })
+```
+
+### 결정 관리 (`.nexus/decisions.json`)
+```typescript
+nx_decision_add({
+  title: "JWT 대신 세션 쿠키 사용",
+  rationale: "SSR 환경에서 쿠키가 더 자연스럽다",
+  tags: ["auth", "security"]
+})
+```
+
+### 계획 아카이브 (`.nexus/plans/`)
+```typescript
+nx_plan_archive()
+// 현재 tasks.json을 .nexus/plans/NN-title.md로 아카이브하고 tasks.json 초기화
 ```
 
 ## 구분 기준
@@ -50,18 +65,10 @@ nx_context()
 |------|------|-----------|
 | "팀원도 알아야 하는가?" | `nx_knowledge_write` | `.claude/nexus/` (git) |
 | "이 세션/며칠만 기억하면 되는가?" | `nx_memo_write` | `.nexus/` (gitignore) |
-| "런타임 워크플로우 상태인가?" | `nx_state_write` | `.nexus/state/` (gitignore) |
+| "현재 작업 태스크인가?" | `nx_task_add/update` | `.nexus/tasks.json` |
+| "아키텍처 결정인가?" | `nx_decision_add` | `.nexus/decisions.json` |
 
-### 태스크 관리 (프로젝트 로컬, `.nexus/tasks/`)
-```typescript
-nx_task_create({ title: "인증 모듈 구현", description?: "...", tags?: ["auth"] })
-nx_task_list({ status?: "in_progress", tags?: ["auth"] })
-nx_task_update({ id: "eaba793e", status?: "done", title?, description?, tags? })
-nx_task_summary()
-// → { total, counts: { todo, in_progress, done, blocked }, inProgress, blocked }
-```
-
-## Code Intelligence (lat 서버 통합)
+## Code Intelligence (nx 서버 통합)
 
 ### LSP 도구
 `nx_lsp_hover`, `nx_lsp_goto_definition`, `nx_lsp_find_references`, `nx_lsp_diagnostics`, `nx_lsp_rename`, `nx_lsp_code_actions`, `nx_lsp_document_symbols`, `nx_lsp_workspace_symbols`

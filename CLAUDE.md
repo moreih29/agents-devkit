@@ -16,27 +16,33 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 
 ### Agent Routing
 
+병렬 작업이나 다른 관점이 필요할 때 에이전트를 활용하라.
+
 | Task | Agent |
 |------|-------|
-| Code implementation, edits | executor |
+| Code implementation, edits | builder |
 | Architecture, design decisions | architect |
 | Debugging, tracing issues | debugger |
-| Code review, quality check | code-reviewer |
-| Test writing, coverage | test-engineer |
-| Research, documentation | document-specialist |
-| Planning, decomposition | planner |
-
-### 6-Section Response Format
-
-Agents use structured responses: Context → Plan → Implementation → Verification → Risks → Next Steps.
+| Code review, quality check | reviewer |
+| Test writing, coverage | tester |
+| Deep analysis, research | analyst |
+| Validation, security review | guard |
 
 ### Skills
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| nx-consult | [consult] | Interactive discovery — understand intent before executing |
-| nx-plan | [plan] | Generate structured implementation plan |
+| nx-consult | [consult] | 4-step consultation (Explore→Clarify→Propose→Converge) — understand intent before executing |
+| nx-plan | [plan] | Team-driven planning with tasks.json, nonstop execution |
 | nx-init | [init] | Onboard project — generate knowledge from existing docs |
 | nx-setup | [setup] | Configure Nexus interactively |
 | nx-sync | [sync] | Sync knowledge docs with source files |
+
+### Tags
+
+| Tag | Purpose |
+|-----|---------|
+| [consult] | 상담 — 실행 전 의도 파악 |
+| [plan] | 계획 생성 및 nonstop 실행 |
+| [d] | 결정 기록 (nx_decision_add 호출) |
 <!-- NEXUS:END -->

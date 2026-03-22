@@ -1,98 +1,52 @@
-// Gate 훅: Stop (Workflow 차단) + UserPromptSubmit (키워드 감지)
+// Gate 훅: Stop (Task 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
-import { sessionDir, ensureDir, updateWorkflowPhase } from '../shared/paths.js';
-import { getSessionId } from '../shared/session.js';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-
-// --- Workflow State ---
-
-interface WorkflowState {
-  mode: 'consult' | 'plan' | 'idle';
-  phase?: string;
-  startedAt: string;
-}
-
-function activateMode(mode: string, sid: string, extra?: Partial<WorkflowState>): void {
-  const dir = sessionDir(sid);
-  ensureDir(dir);
-  const state: WorkflowState = {
-    mode: mode as WorkflowState['mode'],
-    startedAt: new Date().toISOString(),
-    ...extra,
-  };
-  writeFileSync(join(dir, 'workflow.json'), JSON.stringify(state, null, 2));
-}
 
 // --- Stop 이벤트 처리 ---
 
 function handleStop(): void {
-  const sid = getSessionId();
-  const sessDir = sessionDir(sid);
-
-  // Check active workflow mode
-  const workflowPath = join(sessDir, 'workflow.json');
-  if (existsSync(workflowPath)) {
-    try {
-      const state = JSON.parse(readFileSync(workflowPath, 'utf-8'));
-      if ((state.mode === 'consult' || state.mode === 'plan') && state.phase) {
-        respond({
-          decision: 'block',
-          reason: `[${state.mode.toUpperCase()}: ${state.phase}] Workflow is active. Complete the current phase or clear with nx_state_clear({ key: "${state.mode}" }).`,
-        });
-        return;
-      }
-    } catch { /* skip */ }
+  const tasksPath = join(process.cwd(), '.nexus', 'tasks.json');
+  if (!existsSync(tasksPath)) {
+    pass();
+    return;
   }
 
-  // Check active agents
-  const DEBOUNCE_MS = 30_000;
-  const agentsPath = join(sessDir, 'agents.json');
-  if (existsSync(agentsPath)) {
-    try {
-      const record = JSON.parse(readFileSync(agentsPath, 'utf-8'));
-      if (record.active && record.active.length > 0) {
-        const stopShownPath = join(sessDir, 'stop-shown');
-        let showDetail = true;
-        try {
-          if (existsSync(stopShownPath)) {
-            const elapsed = Date.now() - statSync(stopShownPath).mtimeMs;
-            if (elapsed < DEBOUNCE_MS) showDetail = false;
-          }
-        } catch { /* default to showDetail = true */ }
+  try {
+    const data = JSON.parse(readFileSync(tasksPath, 'utf-8'));
+    const tasks = data.tasks ?? [];
+    const pending = tasks.filter((t: { status: string }) => t.status !== 'completed');
 
-        if (showDetail) {
-          try { writeFileSync(stopShownPath, ''); } catch { /* skip */ }
-          respond({
-            decision: 'block',
-            reason: `[AGENTS: ${record.active.join(', ')}] Agents are still working. Wait for completion.`,
-          });
-        } else {
-          respond({
-            decision: 'block',
-            reason: `[AGENTS] Still working...`,
-          });
-        }
-        return;
-      }
-    } catch { /* skip */ }
+    if (pending.length > 0) {
+      respond({
+        decision: 'block',
+        reason: `[PLAN] ${pending.length} tasks remaining. Continue working on pending tasks. Use nx_task_update to mark completed tasks.`,
+      });
+      return;
+    }
+
+    // all completed → archive 지시
+    respond({
+      continue: true,
+      additionalContext: '[NEXUS] All tasks completed. Run nx_plan_archive() to archive this plan, then report results to the user.',
+    });
+    return;
+  } catch {
+    pass();
+    return;
   }
-
-  pass();
 }
 
 // --- UserPromptSubmit 이벤트 처리: 키워드 감지 ---
 
 interface KeywordMatch {
-  primitive: 'consult' | 'init' | 'plan' | 'setup';
+  primitive: 'consult' | 'plan';
   skill: string;
 }
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
-  consult:  { primitive: 'consult',  skill: 'nexus:nx-consult' },
-  init:     { primitive: 'init',     skill: 'nexus:nx-init' },
-  plan:     { primitive: 'plan',     skill: 'nexus:nx-plan' },
-  setup:    { primitive: 'setup',   skill: 'nexus:nx-setup' },
+  consult: { primitive: 'consult', skill: 'nexus:nx-consult' },
+  plan:    { primitive: 'plan',    skill: 'nexus:nx-plan' },
 };
 
 const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
@@ -104,15 +58,11 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
     patterns: [/계획\s*(세워|짜|수립)/, /\bplan\b/i, /구현\s*계획/, /설계해/, /어떻게\s*구현/, /plan\s*this/i],
     match: { primitive: 'plan', skill: 'nexus:nx-plan' },
   },
-  {
-    patterns: [/\bsetup\b/i, /nexus\s*설정/, /nexus\s*세팅/, /setup\s*nexus/i],
-    match: { primitive: 'setup', skill: 'nexus:nx-setup' },
-  },
 ];
 
 // 프리미티브 이름이 에러/버그 맥락에서 언급되면 활성화가 아닌 "대화" — 오탐 방지
 const ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-const PRIMITIVE_NAMES = /\b(plan|setup|init|consult)\b/i;
+const PRIMITIVE_NAMES = /\b(plan|consult)\b/i;
 
 /** 프리미티브 이름이 에러/버그 맥락과 함께 등장하거나, 단순 질문/인용 맥락인지 판별 */
 function isPrimitiveMention(prompt: string): boolean {
@@ -120,13 +70,13 @@ function isPrimitiveMention(prompt: string): boolean {
   if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
   // 질문 맥락: "plan이 뭐야", "what is consult" 등
   if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  // 인용 맥락: `plan`, "consult", 'setup'
-  if (/[`"'](?:plan|setup|init|consult)[`"']/i.test(prompt)) return true;
+  // 인용 맥락: `plan`, "consult"
+  if (/[`"'](?:plan|consult)[`"']/i.test(prompt)) return true;
   return false;
 }
 
 function detectKeywords(prompt: string): KeywordMatch | null {
-  // 1차: 명시적 태그 [consult], [plan] 등 — 항상 확정
+  // 1차: 명시적 태그 [consult], [plan] — 항상 확정
   const tagMatch = prompt.match(/\[(\w+)\]/);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
@@ -148,66 +98,27 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const prompt = (event.prompt ?? event.user_prompt ?? '') as string;
   if (!prompt) { pass(); return; }
 
-  // Phase 자동 전환: waiting → delegating (사용자가 응답함)
-  const sid = getSessionId();
-  const workflowPath = join(sessionDir(sid), 'workflow.json');
-  if (existsSync(workflowPath)) {
-    try {
-      const state = JSON.parse(readFileSync(workflowPath, 'utf-8'));
-      if (state.phase === 'waiting') {
-        updateWorkflowPhase(sid, 'delegating');
-      }
-    } catch { /* skip */ }
-  }
-
-  // [d] 결정 태그 감지 — plan 디렉토리 존재 시 결정 기록 지시
+  // [d] 결정 태그 감지
   const dTag = prompt.match(/\[d\]/i);
   if (dTag) {
-    let branch = 'unknown';
-    try { branch = require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim(); } catch {}
-    const branchDir = branch.replace(/\//g, '--');
     respond({
       continue: true,
-      additionalContext: `[NEXUS] Decision tag detected. Record this decision in .nexus/plans/${branchDir}/plan.md under the decisions section.`,
+      additionalContext: '[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.',
     });
     return;
   }
 
   const match = detectKeywords(prompt);
   if (match) {
-    // init는 대화형 — 상태 파일 불필요, 컨텍스트 주입만
-    if (match.primitive === 'init') {
-      respond({
-        continue: true,
-        additionalContext: `[NEXUS] Init mode activated. Follow the init workflow:
-1. SCAN: Read project structure (top-level dirs, config files), CLAUDE.md, README.md, docs/, .claude/, and other .md files. Use git log for recent activity.
-2. TRIAGE: Classify each doc as Essential (→ knowledge/), Useful (→ knowledge/ condensed), Redundant (Nexus handles better), or Outdated (skip).
-3. PROPOSE: Present triage results to user via AskUserQuestion. Ask about CLAUDE.md slimming strategy and which knowledge files to generate.
-4. GENERATE: Create .claude/nexus/knowledge/ files (architecture.md, conventions.md, project-context.md). Backup original CLAUDE.md. Slim CLAUDE.md per user choice.
-5. VERIFY: Confirm generated files are readable via nx_knowledge_read. Report summary.
-IMPORTANT: Always backup before modifying. Never delete without user approval.`,
-      });
-      return;
-    }
-
     if (match.primitive === 'consult') {
-      const sid = getSessionId();
-      activateMode('consult', sid, { phase: 'exploring' });
       respond({
         continue: true,
         additionalContext: `[NEXUS] Consult mode activated. Follow the consult workflow:
-1. EXPLORE: Read code (nx_lsp_document_symbols, nx_ast_search for brownfield), knowledge (nx_knowledge_read), context (nx_context). Auto-detect brownfield vs greenfield.
-2. ASSESS: Evaluate 4 dimensions — [Goal: ?] [Constraints: ?] [Criteria: ?] [Context: ?]. Mark each ✅/⚠️/❌. If ≤1 unclear → lightweight mode. If ≥2 unclear → deep mode.
-3. CLARIFY (if unclear dimensions exist; 1-2 questions in lightweight, extended in deep): MUST use AskUserQuestion with concrete options — never ask as plain text. One question at a time targeting the weakest dimension.
-4. DIVERGE: Generate 2-4 genuinely different approaches with pros/cons/effort.
-5. PROPOSE: Present options via AskUserQuestion with preview for concrete comparisons.
-6. CONVERGE: Elaborate chosen approach, follow-up if needed, produce concrete plan.
-7. CRYSTALLIZE: Finalize plan. If unclear dimensions remain, disclose risks transparently — but never block the user.
-8. EXECUTE BRIDGE: Offer options via AskUserQuestion: Execute (Recommended) / Plan only / Skip.
-   When the user chooses "Execute" or "Plan only", MUST invoke the plan skill: use Skill({ skill: "claude-nexus:nx-plan" }). Pass the converged approach summary as args. The plan skill handles both planning and execution handoff.
-   "Skip" ends the consult without further action.
-Key: One question at a time. Specific choices, not vague "what do you think?". Respect user autonomy.
-If a plan directory exists for the current branch, record decisions from user selections in the plan.md file.`,
+1. EXPLORE: Read code and knowledge first. Auto-detect brownfield vs greenfield.
+2. CLARIFY: Use AskUserQuestion with concrete options. One question at a time. 1-2 rounds max.
+3. PROPOSE: Present 2-3 genuinely different approaches with pros/cons/effort via AskUserQuestion.
+4. CONVERGE: Summarize the chosen direction. Do NOT execute. Consult is advisory only.
+Key: No execution. User decides next steps. [d] tags can record decisions during consult.`,
       });
       return;
     }
@@ -217,9 +128,6 @@ If a plan directory exists for the current branch, record decisions from user se
       let currentBranch = 'unknown';
       try { currentBranch = require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim(); } catch {}
       const onMain = currentBranch === 'main' || currentBranch === 'master';
-
-      const sid = getSessionId();
-      activateMode('plan', sid, { phase: onMain ? 'branch-setup' : 'analyzing' });
 
       const branchInstruction = onMain
         ? `\nIMPORTANT: You are on the ${currentBranch} branch. Planning on main is NOT allowed.
@@ -234,29 +142,13 @@ Auto-create a feature branch BEFORE planning:
       respond({
         continue: true,
         additionalContext: `[NEXUS] Plan mode activated. Follow the plan workflow:${branchInstruction}
-1. ANALYZE: Analyze the request. Determine scale — small (single concern, clear intent) or large (multiple concerns / design decisions needed). Auto-escalate to large if request mentions auth, migration, delete, security, or if repeated clarifying questions are needed in the session.
-2. DRAFT: Spawn Agent({ subagent_type: "nexus:strategist", prompt: "<full request context>" }) to create initial plan.
-3. REVIEW (large only): Spawn Architect for structural review, then Reviewer for critique. If critical issues, loop back to DRAFT (max 3 iterations).
-4. PERSIST (MANDATORY — do NOT skip): Save plan to .nexus/plans/{branch}/plan.md using Write tool. Generate tasks.json in the same directory with task list. Both files MUST exist.
-5. PRESENT: Show plan summary (goal, scope, task count). The user will naturally decide next steps — no question gate needed.
-Key: Scale determines formality — small (checklist, strategist only) vs large (structured plan + review loop). Plans persist across sessions at .nexus/plans/ — do NOT delete them after merge.
+1. ANALYZE: Determine what needs to be done. If unclear, ask 1-2 clarifying questions via AskUserQuestion.
+2. DRAFT: Write the plan yourself (do NOT delegate to Strategist). If decisions.json exists, read it for context.
+3. REVIEW (large tasks only): Spawn Architect for structural review, then Reviewer for critique.
+4. PERSIST: Use nx_task_add() to create tasks in .nexus/tasks.json. Each task needs title, context, and optional deps.
+5. EXECUTE: For small tasks, use subagents. For large tasks, use TeamCreate + TaskCreate for Agent Teams.
+Key: Gate Stop will block until all tasks are completed. Use nx_task_update() to mark progress.
 `,
-      });
-      return;
-    }
-
-    if (match.primitive === 'setup') {
-      respond({
-        continue: true,
-        additionalContext: `[NEXUS] Setup wizard activated. Guide the user through these steps IN ORDER using AskUserQuestion for each:
-1. SCOPE: Ask configuration scope — User (all projects, ~/.claude/CLAUDE.md) or Project (this project only, CLAUDE.md). This determines write paths for all subsequent steps.
-2. STATUSLINE: Ask preset choice (Full recommended / Standard / Minimal / Skip).
-3. DELEGATION: Ask enforcement level (Warn recommended / Strict / Off / Skip).
-4. CLAUDE.MD: Generate Nexus delegation section in CLAUDE.md using <!-- NEXUS:START --> / <!-- NEXUS:END --> markers. Content in English: delegation rules, agent routing table, 6-Section format guide, skill list. Preserve existing content outside markers.
-5. OMC CHECK: Check if oh-my-claudecode (omc) plugin is active. If found, warn about conflicts and offer: Disable omc (recommended) / Keep both / Skip. If Disable chosen, set {"enabledPlugins":{"omc":false}} in .claude/settings.json.
-6. INIT: Ask whether to run knowledge init (Yes recommended / Skip).
-7. COMPLETE: Show summary of applied settings.
-Key: Use AskUserQuestion for every step. Always offer Skip option.`,
       });
       return;
     }

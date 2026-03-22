@@ -19,8 +19,8 @@
 ### 코드
 - 팩토리 함수: `createXXX()` 패턴 (omo에서 채택)
 - 타입 export: barrel pattern (`index.ts`)
-- 에이전트 이름: 소문자 (lead, builder, finder 등)
-- MCP 도구: `nx_` 접두사 (`nx_state_read`, `nx_knowledge_write` 등)
+- 에이전트 이름: 소문자 (lead, builder, architect 등)
+- MCP 도구: `nx_` 접두사 (`nx_knowledge_write`, `nx_task_add` 등)
 
 ## 에이전트 정의 포맷
 
@@ -82,12 +82,8 @@ export const nexusConfigSchema = z.object({
     disabledTools: z.array(z.string()).optional(),
   })).default({}),
   disabledModules: z.array(
-    z.enum(['gate', 'pulse', 'memory', 'tracker', 'guard'])
+    z.enum(['gate', 'memory'])
   ).default([]),
-  whisper: z.object({
-    maxRepeat: z.number().default(3),
-    adaptiveThreshold: z.number().default(60),
-  }).default({}),
   codeIntel: z.object({
     lsp: z.boolean().default(false),
     ast: z.boolean().default(false),
@@ -107,7 +103,7 @@ export const nexusConfigSchema = z.object({
     "agents",          // 마크다운 에이전트 정의
     "skills",          // 워크플로우 스킬
     "hooks",           // hooks.json
-    "scripts",         // Gate, Pulse, Tracker CJS 스크립트
+    "scripts",         // Gate CJS 스크립트
     "bridge",          // MCP 서버 CJS 번들
     ".claude-plugin",  // 플러그인 매니페스트
     ".mcp.json"        // MCP 서버 설정

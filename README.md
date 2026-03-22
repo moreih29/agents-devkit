@@ -14,20 +14,17 @@ claude plugin install claude-nexus@nexus
 
 ## 에이전트
 
-10개의 특화된 에이전트가 각각의 역할을 담당합니다.
+7개의 특화된 에이전트가 각각의 역할을 담당합니다.
 
 | 에이전트 | 호출 | 역할 | 모델 |
 |----------|------|------|------|
-| **Finder** | `nexus:finder` | 코드 탐색, 파일 검색 | haiku |
+| **Architect** | `nexus:architect` | 아키텍처 설계 (읽기 전용) | opus |
+| **Reviewer** | `nexus:reviewer` | 코드 리뷰 (읽기 전용) | opus |
+| **Analyst** | `nexus:analyst` | 심층 분석, 리서치 | opus |
 | **Builder** | `nexus:builder` | 코드 구현, 리팩토링 | sonnet |
 | **Debugger** | `nexus:debugger` | 디버깅, 원인 분석 | sonnet |
-| **Tester** | `nexus:tester` | 테스트 작성, 커버리지 분석 | sonnet |
 | **Guard** | `nexus:guard` | 검증, 보안 리뷰 | sonnet |
-| **Writer** | `nexus:writer` | 문서 작성, 지식 관리 | haiku |
-| **Analyst** | `nexus:analyst` | 심층 분석, 리서치 | opus |
-| **Architect** | `nexus:architect` | 아키텍처 설계 (읽기 전용) | opus |
-| **Strategist** | `nexus:strategist` | 계획 수립 (읽기 전용) | opus |
-| **Reviewer** | `nexus:reviewer` | 코드 리뷰 (읽기 전용) | opus |
+| **Tester** | `nexus:tester` | 테스트 작성, 커버리지 분석 | sonnet |
 
 ## 스킬
 
@@ -35,8 +32,8 @@ claude plugin install claude-nexus@nexus
 
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
-| **nx-consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 사용자 의도를 파악하고 최적의 접근 방식을 탐색 |
-| **nx-plan** | `[plan]` 또는 "계획 세워" | 다중 에이전트 합의 루프로 검토된 계획 생성 |
+| **nx-consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 4단계 상담(Explore→Clarify→Propose→Converge) — 실행 전 의도 파악 |
+| **nx-plan** | `[plan]` 또는 "계획 세워" | v2 Team-driven, tasks.json 중심으로 계획 생성 및 nonstop 실행 |
 | **nx-init** | `[init]` 또는 "온보딩" | 프로젝트를 Nexus에 온보드 - 기존 문서 스캔하여 지식 생성 |
 | **nx-setup** | `[setup]` 또는 "nexus 설정" | Nexus 대화형 설정 마법사 |
 | **nx-sync** | `[sync]` 또는 "지식 동기화" | 소스 코드와 지식 문서 간 불일치 감지 및 수정 |
@@ -45,13 +42,15 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (4개)
+### Core (7개)
 
 | 도구 | 용도 |
 |------|------|
-| `nx_state_read/write/clear` | 워크플로우 상태 관리 |
 | `nx_knowledge_read/write` | 프로젝트 지식 관리 (git 추적) |
 | `nx_context` | 현재 세션 상태 조회 |
+| `nx_task_list/add/update` | tasks.json 기반 태스크 관리 |
+| `nx_decision_add` | 아키텍처 결정 기록 |
+| `nx_plan_archive` | 완료된 계획 아카이브 |
 
 ### Code Intelligence (10개)
 
@@ -70,6 +69,15 @@ Claude가 직접 호출하는 도구입니다.
 
 LSP는 프로젝트 언어를 자동 감지합니다 (tsconfig.json → TypeScript 등).
 AST는 `@ast-grep/napi` 필요: `bun install @ast-grep/napi`
+
+## Hook
+
+Gate 단일 모듈로 동작합니다 (v2에서 3개 → 1개로 통합).
+
+| 이벤트 | 역할 |
+|--------|------|
+| `UserPromptSubmit` | 프롬프트 전처리 및 컨텍스트 주입 |
+| `Stop` | 세션 종료 후처리 |
 
 ## 프로젝트 지식
 
@@ -94,17 +102,10 @@ AST는 `@ast-grep/napi` 필요: `bun install @ast-grep/napi`
 
 ## 런타임 상태
 
-`.nexus/` 디렉토리에 세션별 상태가 저장됩니다. gitignore 대상입니다.
+`.nexus/` 디렉토리에 브랜치별 계획이 저장됩니다. gitignore 대상입니다.
 
 ```
 .nexus/
-├── state/
-│   ├── current-session.json
-│   └── sessions/{sessionId}/
-│       ├── workflow.json
-│       ├── agents.json
-│       ├── codebase-profile.json
-│       └── whisper-tracker.json
 └── plans/                  ← 브랜치별 실행 계획
     └── {branch}/
         ├── plan.md

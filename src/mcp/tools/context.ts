@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
-import { sessionDir } from '../../shared/paths.js';
+import { sessionDir, RUNTIME_ROOT } from '../../shared/paths.js';
 import { getSessionId } from '../../shared/session.js';
 import { execSync } from 'child_process';
 import { join } from 'path';
@@ -26,26 +26,21 @@ export function registerContextTool(server: McpServer): void {
       const sessionId = getSessionId();
       const dir = sessionDir(sessionId);
 
-      // 활성 모드 감지: workflow.json에서 직접 읽기
-      let activeMode: string | null = null;
-      const workflowFile = join(dir, 'workflow.json');
-      if (existsSync(workflowFile)) {
+      // 활성 모드 감지: tasks.json에서 읽기
+      let planStatus: { activeMode: 'plan'; goal: string; tasksSummary: { total: number; completed: number; pending: number } } | { activeMode: null } = { activeMode: null };
+      const tasksFile = join(RUNTIME_ROOT, 'tasks.json');
+      if (existsSync(tasksFile)) {
         try {
-          const data = JSON.parse(await readFile(workflowFile, 'utf-8'));
-          if (data.mode && data.mode !== 'idle') {
-            activeMode = data.mode;
-          }
-        } catch {
-          // skip
-        }
-      }
-
-      // 활성 에이전트 목록
-      let agents: string[] = [];
-      const agentsFile = `${dir}/agents.json`;
-      if (existsSync(agentsFile)) {
-        try {
-          agents = JSON.parse(await readFile(agentsFile, 'utf-8')).active ?? [];
+          const data = JSON.parse(await readFile(tasksFile, 'utf-8'));
+          const tasks: Array<{ status?: string }> = Array.isArray(data.tasks) ? data.tasks : [];
+          const total = tasks.length;
+          const completed = tasks.filter((t) => t.status === 'done').length;
+          const pending = total - completed;
+          planStatus = {
+            activeMode: 'plan',
+            goal: data.goal ?? '',
+            tasksSummary: { total, completed, pending },
+          };
         } catch {
           // skip
         }
@@ -66,8 +61,7 @@ export function registerContextTool(server: McpServer): void {
       const result = {
         sessionId,
         branch: getCurrentBranch(),
-        activeMode,
-        agents,
+        ...planStatus,
         codebaseType,
       };
 

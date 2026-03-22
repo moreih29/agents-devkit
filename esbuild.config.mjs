@@ -18,7 +18,7 @@ await build({
 });
 
 // 훅 스크립트 번들
-const hooks = ['gate', 'pulse', 'tracker'];
+const hooks = ['gate'];
 await Promise.all(
   hooks.map((name) =>
     build({
@@ -36,4 +36,4 @@ await build({
   outfile: 'scripts/statusline.cjs',
 });
 
-console.log('Build complete: bridge/mcp-server.cjs, scripts/{gate,pulse,tracker,statusline}.cjs');
+console.log('Build complete: bridge/mcp-server.cjs, scripts/{gate,statusline}.cjs');

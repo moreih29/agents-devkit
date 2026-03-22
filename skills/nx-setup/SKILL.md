@@ -121,6 +121,16 @@ Agents use structured responses: Context → Plan → Implementation → Verific
 | nx-init | [init] | Onboard project — generate knowledge from existing docs |
 | nx-setup | [setup] | Configure Nexus interactively |
 | nx-sync | [sync] | Sync knowledge docs with source files |
+
+## Nexus Agents
+병렬 작업이나 다른 관점이 필요할 때 에이전트를 활용하라.
+
+- 리뷰/비판 필요 → Architect, Reviewer
+- 병렬 구현 → Builder, Debugger, Tester
+- 검증 → Guard
+- 리서치 → Analyst
+
+단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.
 <!-- NEXUS:END -->
 ```
 

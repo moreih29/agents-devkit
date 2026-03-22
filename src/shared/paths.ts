@@ -24,19 +24,9 @@ export function sessionDir(sessionId: string): string {
   return join(RUNTIME_ROOT, 'state', 'sessions', sessionId);
 }
 
-/** 상태 파일 경로 */
-export function statePath(sessionId: string, key: string): string {
-  return join(sessionDir(sessionId), `${key}.json`);
-}
-
 /** 지식 파일 경로 */
 export function knowledgePath(topic: string): string {
   return join(KNOWLEDGE_ROOT, 'knowledge', `${topic}.md`);
-}
-
-/** 플랜 디렉토리 (.nexus/plans/ — 세션 독립, 로컬 전용) */
-export function plansDir(): string {
-  return join(RUNTIME_ROOT, 'plans');
 }
 
 /** 디렉토리 생성 (재귀) */
@@ -59,14 +49,3 @@ export function updateWorkflowPhase(sid: string, phase: string): void {
   } catch { /* skip */ }
 }
 
-/** 현재 워크플로우의 base phase 반환 (consult→exploring, plan→analyzing) */
-export function getBasePhase(sid: string): string | null {
-  const workflowPath = join(sessionDir(sid), 'workflow.json');
-  if (!existsSync(workflowPath)) return null;
-  try {
-    const state = JSON.parse(readFileSync(workflowPath, 'utf-8'));
-    if (state.mode === 'consult') return 'exploring';
-    if (state.mode === 'plan') return 'analyzing';
-  } catch { /* skip */ }
-  return null;
-}

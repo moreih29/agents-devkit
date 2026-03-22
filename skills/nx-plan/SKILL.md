@@ -1,13 +1,11 @@
 ---
 name: nx-plan
-description: Structured planning with multi-agent consensus loop and adaptive formality.
+description: Plan-driven orchestration with task lifecycle and nonstop execution.
 triggers: ["plan", "계획 세워", "설계해", "어떻게 구현", "plan this"]
 ---
 # Plan
 
-Structured planning workflow — produce a concrete, reviewed plan before execution begins.
-
-> This skill runs a full consensus loop and persists a plan document.
+계획을 수립하고, 태스크를 생성하고, 완료할 때까지 실행한다.
 
 ## Trigger
 - User says: "plan", "계획 세워", "계획 짜", "설계해", "어떻게 구현", "구현 계획", "plan this"
@@ -16,23 +14,12 @@ Structured planning workflow — produce a concrete, reviewed plan before execut
 
 ## What It Does
 
-Produces a reviewed plan document via a multi-agent consensus loop, then proposes an execution path. Unlike consult (which discovers the best approach through dialogue), plan assumes the goal is understood and focuses on *how* to get there.
-
-## Adaptive Formality
-
-규모를 먼저 판단한다. 오버엔지니어링하지 않는다.
-
-| 규모 | 기준 | 형식 | 참여자 |
-|------|------|------|--------|
-| 소규모 | 단일 관심사, 변경 의도가 명확 | 체크리스트 | Strategist 단독 |
-| 대규모 | 복수 관심사 / 설계 결정 필요 | 구조화된 계획 + 리뷰 | Strategist + Architect + Reviewer (합의 루프) |
-
-고위험 작업 자동 감지: `auth`, `migration`, `delete`, `security` 키워드가 있으면 대규모로 상향. 세션 내 동일 주제 반복 질문 시 대규모로 자동 상향.
+목표를 분석 → 계획 초안 작성 → (대규모: 리뷰) → tasks.json 생성 → 실행. Gate Stop이 pending tasks를 감시하여 모든 태스크 완료까지 nonstop.
 
 ## Workflow
 
 ```
-analyze → draft → [review loop] → persist → present
+analyze → (clarify) → draft → (review) → persist → execute
 ```
 
 ### Phase 1: Analyze
@@ -40,26 +27,23 @@ analyze → draft → [review loop] → persist → present
 요청을 분석해 규모를 판단한다.
 
 - `nx_knowledge_read`, `nx_context`로 프로젝트 컨텍스트 파악
+- `decisions.json`이 있으면 참고 (`.nexus/decisions.json`)
 - 기존 코드가 있으면 `nx_lsp_document_symbols`, `nx_ast_search`로 현황 파악
-- 현재 브랜치 확인 (계획 문서 경로에 사용)
-- 불명확한 부분이 있으면 **한 번에 하나의 질문**으로 해소 후 진행
+- 불명확하면 **AskUserQuestion 1-2회**로 해소 후 진행
+
+| 규모 | 기준 |
+|------|------|
+| 소규모 | 단일 관심사, 변경 의도가 명확 |
+| 대규모 | 복수 관심사 / 설계 결정 필요, 또는 `auth`/`migration`/`delete`/`security` 키워드 포함 |
 
 **Branch Guard:** main/master 브랜치에서는 계획 수립 전에 feature 브랜치를 먼저 생성한다.
-1. 사용자 요청을 분석하여 적절한 브랜치명 생성 (예: `feat/setup-recommended-plugins`, `fix/statusline-bug`)
+1. 사용자 요청을 분석하여 적절한 브랜치명 생성 (예: `feat/add-login`, `fix/null-crash`)
 2. `git checkout -b <branch-name>` 실행
 3. 이후 계획 워크플로우 진행
-계획 문서는 `.nexus/plans/{branch}/`에 저장되므로, main에서의 계획 수립은 허용하지 않는다.
 
-### Phase 2: Draft (Strategist)
+### Phase 2: Draft
 
-```
-Agent({
-  subagent_type: "nexus:strategist",
-  prompt: "다음 작업에 대한 구현 계획 초안을 작성하라. [규모 수준 명시]\n\n요청: {request}\n\n컨텍스트: {context}"
-})
-```
-
-출력 형식은 규모에 맞게:
+Lead(메인)이 직접 계획 초안을 작성한다. Strategist 에이전트를 쓰지 않는다.
 
 **소규모** — 체크리스트:
 ```
@@ -79,76 +63,67 @@ Agent({
 ## 완료 기준
 ```
 
-### Phase 3: Consensus Loop (대규모)
+### Phase 3: Review (대규모만)
 
 순차 실행 필수 — 병렬화하면 검토 체인이 깨진다.
 
-**Architect 검토 → Reviewer 비판 + 반복 (최대 3회)**
+**Step 1 — Architect (teammate):** 구조적 관점 검토 (인터페이스 설계, 의존성, 확장성)
 ```
-Agent({
-  subagent_type: "nexus:architect",
-  prompt: "다음 계획 초안을 구조적 관점에서 검토하라. 인터페이스 설계, 의존성, 확장성 문제를 중심으로.\n\n초안: {draft}"
-})
+TeamCreate → TaskCreate(Architect): "다음 계획 초안을 구조적 관점에서 검토하라.\n\n초안: {draft}"
 ```
 
-Architect가 수정 사항을 제안하면 Strategist가 반영해 초안을 갱신한다.
-
+**Step 2 — Reviewer (teammate):** 비판적 검토, 누락/과잉 지적
 ```
-Agent({
-  subagent_type: "nexus:reviewer",
-  prompt: "다음 계획을 비판적으로 검토하라. 누락된 리스크, 과잉 복잡도, 잘못된 가정을 지적하라.\n\n계획: {draft}"
-})
+TaskCreate(Reviewer): "다음 계획을 비판적으로 검토하라. 누락된 리스크, 과잉 복잡도, 잘못된 가정을 지적하라.\n\n계획: {draft}"
 ```
 
-반복 판단 기준:
-- Reviewer가 수정 필요라고 판단 → Strategist 재작성 → 루프 재시작
-- Reviewer가 승인 → 루프 종료
-- 3회 후 미승인 → 마지막 초안에 미해결 이슈를 명시하고 종료
+두 검토 결과를 반영해 Lead가 초안을 수정한다.
 
 ### Phase 4: Persist (MANDATORY — do NOT skip)
 
-계획 문서와 태스크 목록을 반드시 저장한다. 이 단계를 건너뛰면 안 된다.
+`nx_task_add()`로 각 태스크를 `.nexus/tasks.json`에 등록한다.
 
-1. 디렉토리 생성:
-```
-Bash({ command: "mkdir -p .nexus/plans/{branch-dir}/" })
-```
+각 태스크 필드:
+- `title`: 작업 제목
+- `context`: 구현에 필요한 맥락
+- `deps` (optional): 선행 태스크 ID 목록
 
-2. plan.md 저장:
-```
-Write({ file_path: "{project_root}/.nexus/plans/{branch-dir}/plan.md", content: "{final_plan}" })
-```
+Gate Stop이 이 파일을 감시 → 등록 즉시 nonstop 시작.
 
-3. tasks.json 저장:
-```
-Write({ file_path: "{project_root}/.nexus/plans/{branch-dir}/tasks.json", content: "[{\"id\":1,\"title\":\"...\",\"status\":\"pending\"}, ...]" })
-```
+`decisions.json`에 남길 중요한 설계 결정이 있으면 이 단계에서 함께 기록한다.
 
-브랜치명의 `/`는 `--`로 치환 (예: `fix/foo` → `fix--foo`).
-Both files MUST exist before proceeding to Phase 5.
+### Phase 5: Execute
 
-### Phase 5: Present
+**소규모:**
+- 서브에이전트(Builder, Debugger 등)를 위임해 각 태스크 실행
+- 완료 시 `nx_task_update()`로 상태를 `completed`로 표시
 
-계획 요약을 보여주고 종료한다. 사용자가 다음 단계를 자연스럽게 결정한다.
+**대규모:**
+- `TeamCreate`로 팀 구성
+- `TaskCreate`로 teammate에 태스크 할당
+- Teammate들이 작업 → `TaskCompleted` hook으로 Guard 검증
+- `TeammateIdle` hook으로 유휴 방지
 
-- 계획의 핵심 항목(목표, 변경 범위, 태스크 수)을 간결히 요약
-- "실행해" → 에이전트 위임, 추가 지시 → 계획 수정, 아무것도 안 함 → 종료
+### Completion
+
+Gate Stop이 all tasks completed를 감지하면 아카이브를 지시한다.
+
+1. `nx_plan_archive()` 호출 → `.nexus/plans/NN-title.md` 생성
+2. `tasks.json` + `decisions.json` 삭제
+3. 자연스럽게 종료
 
 ## Key Principles
 
-1. **규모 먼저 판단** — 소규모 작업에 합의 루프를 돌리지 않는다
-2. **순차 실행** — Strategist → Architect → Reviewer 순서 고정, 병렬화 금지
-3. **최대 3회 루프** — 합의에 실패해도 미해결 이슈를 명시하고 계속 진행
-4. **컨텍스트 우선** — 코드와 knowledge를 먼저 읽고 계획 수립
-5. **고위험 자동 상향** — 보안/마이그레이션 키워드는 무조건 대규모 처리. 세션 내 반복 질문도 대규모로 상향
-6. **실행 강요 금지** — 계획 제시 후 사용자에게 결정을 맡긴다
+1. **Lead가 직접 계획** — 컨텍스트 손실 방지, Strategist 에이전트 없음
+2. **tasks.json이 유일한 상태** — 이 파일로 모든 것 추적, 별도 plan.md 없음
+3. **Gate Stop nonstop** — pending 태스크가 있으면 종료 불가
+4. **대규모만 팀** — 소규모에 과잉 비용 방지
+5. **Architect + Reviewer = 다른 관점** — 대규모만, 순차 실행
 
 ## State Management
 
-Plan은 gate.ts에 의해 workflow.json이 자동 생성됩니다 (mode: "plan", phase: "analyzing" 또는 "branch-setup"). 별도 상태 관리 코드는 불필요합니다.
+`.nexus/tasks.json` — `nx_task_add`/`nx_task_update` MCP tool로 관리. Gate Stop이 감시. 별도 workflow.json 없음.
 
 ## Deactivation
 
-Plan은 자연스럽게 종료된다:
-- 계획 요약 제시 후 종료
-- 별도 `nx_state_clear`는 불필요
+All tasks completed → `nx_plan_archive()` → 자연스럽게 종료. 별도 `nx_state_clear`는 불필요.
