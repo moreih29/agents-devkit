@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0 (2026-03-22)
+
+### Features
+- Nexus v2 — setup/team 스킬 재정의 + statusline 래퍼
+- Nexus v2 — Team-driven orchestration redesign
+- Nexus v2 — Team-driven orchestration redesign
+- plan tasks 갱신 리마인더 + stop 훅 debounce
+- README 배지 + VERSION 유틸 추출 + statusline E2E 테스트 추가
+
+### Fixes
+- plan 스킬 범위 판단 2단계화 + Execute Bridge 제거
+
+### Other
+- merge: fix/plan-scope-and-gate → main
+- merge: fix/plan-tracking-and-stop-debounce → main
+- merge: docs/readme-update → main
+- merge: test/plan-skill-validation → main
+
 ## 0.3.2 (2026-03-21)
 
 ### Fixes
