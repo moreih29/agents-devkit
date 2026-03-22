@@ -13,10 +13,10 @@
 - **단계**: Explore → Clarify → Propose → Converge
 
 ### Team (계획)
-- **기능**: Lead가 직접 초안 작성. tasks.json 중심으로 태스크 관리. 항상 Agent Teams 활용
-- **키워드**: team, 계획 세워/짜/수립, 설계해, 어떻게 구현, plan this
+- **기능**: Lead가 팀을 구성하고 사용자 소통을 담당. Analyst가 심층 분석 + 태스크 소유. Analyst ↔ Architect 합의 기반 계획. tasks.json 중심으로 태스크 관리. Agent Teams 활용
+- **키워드**: team, team this, 팀 구성/으로
 - **결정 캡처**: `[d]` 태그로 아키텍처 결정 명시 → nx_decision_add로 decisions.json에 기록
-- 워크플로우: analyze → draft → persist(tasks.json) → [review loop] → execute bridge
+- 워크플로우: Intake(Lead) → Analyze(Analyst) → Plan(Analyst+Architect 합의) → Execute(Builder/Guard) → Complete(Lead)
 
 ### Init (온보딩)
 - **기능**: 기존 프로젝트에 Nexus 도입 시 기존 문서를 트리아지하여 knowledge 자동 생성
@@ -36,11 +36,11 @@
 `.nexus/tasks.json`에 pending 태스크가 있으면 Stop을 차단:
 
 ```javascript
-// tasks.json에 pending 태스크가 있으면 block
-{ "decision": "block", "reason": "[TASKS] 3 tasks still pending. Complete tasks or archive with nx_plan_archive()." }
+// tasks.json에 pending 태스크가 있으면 — continue:true + 리마인더
+{ "continue": true, "additionalContext": "[NEXUS] N tasks remaining in tasks.json. Complete all tasks before stopping." }
 
-// 모든 태스크 완료 시
-{ "decision": "block", "reason": "[TASKS] All tasks completed. Archive the plan with nx_plan_archive()." }
+// 모든 태스크 완료 시 — continue:true + 아카이브 지시
+{ "continue": true, "additionalContext": "[NEXUS] All tasks completed. Run nx_plan_archive() to archive this plan, then report results to the user." }
 ```
 
 ## 에이전트 위임 형식 (6-Section)
@@ -71,7 +71,5 @@
 
 Gate가 UserPromptSubmit에서 감지하는 키워드 우선순위:
 
-1. 스킬 키워드 (`[consult]`/`[team]`/`[init]`/`[setup]` 및 자연어) → 스킬 호출 지시
-2. 결정 태그 (`[d]`) → LLM이 nx_decision_add로 decisions.json에 캡처
-3. 태스크 자연어 ("진행중인 작업", "다음 할 일", "작업 현황") → nx_task_* 호출 안내
-4. 적응형 라우팅 → 요청 카테고리 분류 → 에이전트 위임 지시
+1. 결정 태그 (`[d]`) → LLM이 nx_decision_add로 decisions.json에 캡처
+2. 스킬 키워드 (`[consult]`/`[team]` 및 자연어) → 스킬 호출 지시

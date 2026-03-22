@@ -2,10 +2,10 @@
 
 // src/shared/hook-io.ts
 function readStdin() {
-  return new Promise((resolve) => {
+  return new Promise((resolve2) => {
     let data = "";
     process.stdin.on("data", (chunk) => data += chunk);
-    process.stdin.on("end", () => resolve(data));
+    process.stdin.on("end", () => resolve2(data));
   });
 }
 function respond(obj) {
@@ -15,23 +15,38 @@ function pass() {
   respond({ continue: true });
 }
 
-// src/hooks/gate.ts
-var import_fs = require("fs");
+// src/shared/paths.ts
 var import_path = require("path");
+var import_fs = require("fs");
+function findProjectRoot() {
+  let dir = process.cwd();
+  while (dir !== "/") {
+    if ((0, import_fs.existsSync)((0, import_path.join)(dir, ".git"))) return dir;
+    dir = (0, import_path.resolve)(dir, "..");
+  }
+  return process.cwd();
+}
+var PROJECT_ROOT = findProjectRoot();
+var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path.join)(PROJECT_ROOT, ".nexus");
+var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
+
+// src/hooks/gate.ts
+var import_fs2 = require("fs");
+var import_path2 = require("path");
 function handleStop() {
-  const tasksPath = (0, import_path.join)(process.cwd(), ".nexus", "tasks.json");
-  if (!(0, import_fs.existsSync)(tasksPath)) {
+  const tasksPath = (0, import_path2.join)(RUNTIME_ROOT, "tasks.json");
+  if (!(0, import_fs2.existsSync)(tasksPath)) {
     pass();
     return;
   }
   try {
-    const data = JSON.parse((0, import_fs.readFileSync)(tasksPath, "utf-8"));
+    const data = JSON.parse((0, import_fs2.readFileSync)(tasksPath, "utf-8"));
     const tasks = data.tasks ?? [];
     const pending = tasks.filter((t) => t.status !== "completed");
     if (pending.length > 0) {
       respond({
-        decision: "block",
-        reason: `[TEAM] ${pending.length} tasks remaining. Continue working on pending tasks. Use nx_task_update to mark completed tasks.`
+        continue: true,
+        additionalContext: `[NEXUS] ${pending.length} tasks remaining in tasks.json. Complete all tasks before stopping.`
       });
       return;
     }
@@ -60,8 +75,8 @@ function handlePreToolUse(event) {
     pass();
     return;
   }
-  const tasksPath = (0, import_path.join)(process.cwd(), ".nexus", "tasks.json");
-  if (!(0, import_fs.existsSync)(tasksPath)) {
+  const tasksPath = (0, import_path2.join)(RUNTIME_ROOT, "tasks.json");
+  if (!(0, import_fs2.existsSync)(tasksPath)) {
     pass();
     return;
   }
@@ -135,25 +150,34 @@ Key: No execution. User decides next steps. [d] tags can record decisions during
       return;
     }
     if (match.primitive === "team") {
-      const branchInstruction = "";
       respond({
         continue: true,
-        additionalContext: `[NEXUS] Team mode activated. Follow the team workflow:${branchInstruction}
-IMPORTANT: Direct Agent() calls are BLOCKED in team mode. You MUST use TeamCreate + TaskCreate.
+        additionalContext: `[NEXUS] Team mode activated. Follow the team workflow:
+CRITICAL RULES \u2014 VIOLATION OF THESE IS A SYSTEM ERROR:
+1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).
+2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY Analyst can create/modify tasks.
+3. Lead MUST NEVER write code, edit files, or create plans. ALL work goes through teammates.
+4. Lead uses ONLY orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion). No analysis or code tools.
+5. If you need tasks created, tell Analyst via SendMessage. Do NOT call nx_task_add yourself \u2014 even with a caller parameter.
 
-1. ANALYZE: Determine what needs to be done. If unclear, ask 1-2 clarifying questions via AskUserQuestion. If decisions.json exists, read it for context.
-2. DRAFT: Write the plan yourself.
-3. REVIEW: Use TeamCreate to create a team, then use TaskCreate to add Architect and Reviewer as teammates for plan review.
-4. PERSIST: Use nx_task_add() to create tasks in .nexus/tasks.json. Each task needs title, context, and optional deps.
-5. EXECUTE: Use TaskCreate to add Builder, Debugger, Tester, Guard as teammates. Assign tasks via TaskUpdate with owner parameter.
-6. VERIFY: Guard teammate verifies completed work. Use nx_task_update() to mark task progress.
+1. INTAKE: Summarize user request/context. Branch Guard (create feature branch if on main/master). TeamCreate + spawn Analyst and Architect simultaneously via Agent({ team_name: ... }).
+2. ANALYZE+PLAN: Analyst investigates using nx_knowledge_read, nx_context, LSP, AST tools. If unclear, Analyst sends question to Lead via SendMessage \u2014 Lead forwards to user via AskUserQuestion, then relays answer back to Analyst. Analyst and Architect then enter consensus loop (Analyst \u2194 Architect via SendMessage). Analyst finalizes tasks via nx_task_add() after consensus.
+3. PERSIST: Analyst registers all tasks in tasks.json via nx_task_add(). Gate Stop watches this file \u2014 nonstop execution begins immediately.
+4. EXECUTE: Assign tasks \u2014 reuse idle teammates first (SendMessage to assign new work), spawn new teammates only if all are busy.
+   - Any teammate can be spawned in parallel (e.g. builder-1, builder-2, guard-1, guard-2) when workload demands it.
+   - Builder calls nx_task_update(id, "completed") when done, then SendMessage to Analyst to report completion.
+   - Guard validates each task result, then SendMessage to Analyst with the result (pass or issues found).
+   - On issues found, Guard reports to Analyst via SendMessage. Analyst updates tasks (nx_task_add or nx_task_update).
+   - Debugger is for errors only \u2014 spawn on demand when a teammate hits a blocking issue.
+5. COMPLETE: When all tasks done, call nx_plan_archive().
 
-Example team setup:
-  TeamCreate({ team_name: "project-x", description: "..." })
-  TaskCreate({ team_name: "project-x", subagent_type: "nexus:architect", name: "architect", prompt: "..." })
-  TaskCreate({ team_name: "project-x", subagent_type: "nexus:builder", name: "builder", prompt: "..." })
+Teammate spawn example:
+  TeamCreate({ team_name: "proj", description: "..." })
+  Agent({ subagent_type: "nexus:analyst", name: "analyst", team_name: "proj", prompt: "..." })
+  Agent({ subagent_type: "nexus:architect", name: "architect", team_name: "proj", prompt: "..." })
 
-Key: Gate Stop blocks until all nx_task tasks are completed. Use nx_task_update() to mark progress. nx_plan_archive() to finish.`
+Key: Plan = consensus (Analyst + Architect), Execute = atomic by default \u2014 but Analyst may add tasks (nx_task_add) or reopen tasks (nx_task_update) based on Guard reports. Tasks are persisted in tasks.json. Gate Stop reminds until all nx_task tasks are completed. Do NOT use TaskCreate to spawn teammates \u2014 use Agent with team_name.
+When reminded by Gate Stop, use SendMessage to check teammate progress or assign idle teammates instead of attempting the work yourself.`
       });
       return;
     }

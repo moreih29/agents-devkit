@@ -29,6 +29,10 @@ Before reporting completion:
 - Run relevant tests if they exist
 - Verify no new lint warnings were introduced
 
+## Task Completion Reporting
+작업 완료 후 반드시 Analyst에게 SendMessage로 태스크 완료를 보고하라.
+보고 내용: 완료한 태스크 ID, 변경된 파일 목록, 간략한 구현 요약.
+
 ## What You Do NOT Do
 - Make architecture decisions — consult Architect via Lead
 - Review your own code for approval — that's Guard's job

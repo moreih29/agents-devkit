@@ -17,20 +17,6 @@ nx_knowledge_read({
 })
 ```
 
-### 세션 메모 (휘발성, `.nexus/memo/`)
-```typescript
-nx_memo_write({
-  content: "현재 auth 모듈 리팩토링 중, 3/5 파일 완료",
-  ttl: "session",               // session | day | week
-  tags: ["progress"]
-})
-
-nx_memo_read({
-  ttl: "session",               // TTL 필터 (선택)
-  tags: ["progress"]            // 태그 필터 (선택)
-})
-```
-
 ### 컨텍스트 상태 통합 조회
 ```typescript
 nx_context()
@@ -40,7 +26,7 @@ nx_context()
 ### 태스크 관리 (`.nexus/tasks.json`)
 ```typescript
 nx_task_list({ status?: "pending" | "completed" })
-nx_task_add({ title: "인증 모듈 구현", description?: "...", tags?: ["auth"] })
+nx_task_add({ title: "인증 모듈 구현", description?: "...", tags?: ["auth"], caller?: "analyst" })  // caller: analyst 전용 파라미터 (태스크 소유자 지정)
 nx_task_update({ id: "eaba793e", status?: "completed" | "cancelled", title?, description?, tags? })
 ```
 
@@ -53,10 +39,10 @@ nx_decision_add({
 })
 ```
 
-### 계획 아카이브 (`.nexus/plans/`)
+### 계획 아카이브 (`.nexus/archives/`)
 ```typescript
 nx_plan_archive()
-// 현재 tasks.json을 .nexus/plans/NN-title.md로 아카이브하고 tasks.json 초기화
+// 현재 tasks.json을 .nexus/archives/NN-title.md로 아카이브하고 tasks.json 초기화
 ```
 
 ## 구분 기준
@@ -64,7 +50,6 @@ nx_plan_archive()
 | 질문 | 도구 | 저장 위치 |
 |------|------|-----------|
 | "팀원도 알아야 하는가?" | `nx_knowledge_write` | `.claude/nexus/` (git) |
-| "이 세션/며칠만 기억하면 되는가?" | `nx_memo_write` | `.nexus/` (gitignore) |
 | "현재 작업 태스크인가?" | `nx_task_add/update` | `.nexus/tasks.json` |
 | "아키텍처 결정인가?" | `nx_decision_add` | `.nexus/decisions.json` |
 

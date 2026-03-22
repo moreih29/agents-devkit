@@ -5,111 +5,145 @@ triggers: ["team", "팀 구성", "팀으로", "team this"]
 ---
 # Team
 
-팀을 구성하고, 태스크를 생성하고, 완료할 때까지 실행한다.
+팀을 구성하고, 합의 기반으로 태스크를 생성하고, 완료할 때까지 실행한다.
 
 ## Trigger
 - User says: "team", "팀 구성", "팀으로", "team this"
 - Explicit tag: `[team]`
 - Direct invocation: `/nexus:nx-team`
 
-## What It Does
+## 워크플로우: intake → analyze → plan → execute → complete
 
-목표를 분석 → 계획 초안 작성 → 리뷰 → tasks.json 생성 → 팀 실행. Gate Stop이 pending tasks를 감시하여 모든 태스크 완료까지 nonstop.
+### Phase 1: Intake (Lead)
 
-## Workflow
+사용자 요청/의도/대화 맥락만 정리한다. **분석/코드 도구 호출 금지.**
 
+- 사용자 요청에서 목표, 범위, 의도를 정리
+- 대화 맥락(이전 메시지, 제공된 정보)을 브리핑으로 요약
+- 불명확하면 **AskUserQuestion 1-2회**로 해소 후 진행
+- 오케스트레이션 도구만 사용 (TeamCreate, Agent, SendMessage, AskUserQuestion)
+- **nx_knowledge_read, nx_context, LSP, AST 등 분석/코드 도구 호출 금지**
+
+**Branch Guard:** main/master 브랜치에서는 실행 전에 feature 브랜치를 먼저 생성한다.
+1. 사용자 요청을 바탕으로 적절한 브랜치명 생성 (예: `feat/add-login`, `fix/null-crash`)
+2. `git checkout -b <branch-name>` 실행
+3. 이후 워크플로우 진행
+
+**팀 구성 + Analyst/Architect 스폰:**
 ```
-analyze → (clarify) → draft → review → persist → execute
+TeamCreate({ team_name: "<project>", description: "..." })
+Agent({ subagent_type: "nexus:analyst", name: "analyst", team_name: "<project>",
+  prompt: "심층 분석을 수행하라. nx_knowledge_read, nx_context, LSP, AST를 활용해 프로젝트 현황을 파악하고 구현 분석서를 작성하라. 불명확한 점은 Lead에게 SendMessage로 질의하라. 분석 완료 후 architect에게 SendMessage로 분석서를 전달하라.\n\n브리핑: {briefing}" })
+Agent({ subagent_type: "nexus:architect", name: "architect", team_name: "<project>",
+  prompt: "analyst의 분석서를 구조적으로 검토하라. 문제 발견 시 analyst에게 SendMessage로 수정 요청. 합의 완료 후 analyst에게 최종 확정 지시." })
 ```
 
-### Phase 1: Analyze
+### Phase 2: Analyze (Analyst)
 
-요청을 분석해 목표와 범위를 파악한다.
+Analyst가 직접 분석 도구를 사용해 심층 분석을 수행한다.
 
 - `nx_knowledge_read`, `nx_context`로 프로젝트 컨텍스트 파악
 - `decisions.json`이 있으면 참고 (`.nexus/decisions.json`)
 - 기존 코드가 있으면 `nx_lsp_document_symbols`, `nx_ast_search`로 현황 파악
-- 불명확하면 **AskUserQuestion 1-2회**로 해소 후 진행
+- 불명확하면 **Lead에게 SendMessage로 질의** → Lead가 AskUserQuestion으로 사용자에게 전달 → 답변을 다시 Analyst에게 전달
+- 분석 결과를 구현 분석서로 정리 후 Architect에게 SendMessage로 전달
 
-**Branch Guard:** main/master 브랜치에서는 실행 전에 feature 브랜치를 먼저 생성한다.
-1. 사용자 요청을 분석하여 적절한 브랜치명 생성 (예: `feat/add-login`, `fix/null-crash`)
-2. `git checkout -b <branch-name>` 실행
-3. 이후 워크플로우 진행
+**Lead의 질의 중계 역할:**
+Analyst가 Lead에게 질문을 보내면, Lead는 AskUserQuestion으로 사용자에게 질문한다. 답변을 받으면 SendMessage로 Analyst에게 전달한다.
 
-### Phase 2: Draft
+### Phase 3: Plan (Analyst + Architect 합의)
 
-Lead(메인)이 직접 계획 초안을 작성한다. Strategist 에이전트를 쓰지 않는다.
+Analyst의 분석서가 Architect에게 전달되면서 합의 루프가 시작된다.
 
-구조화된 계획:
+**합의 루프:**
+- Analyst가 분석서 작성 → Architect에게 SendMessage
+- Architect가 구조 검토 (비판적 검토 포함) → 문제 있으면 Analyst에게 수정 요청
+- 2자 합의 도달 → **Analyst가 nx_task_add()로 태스크를 확정**
+
+**합의 결과 형식 (Analyst가 태스크 확정 시 반영):**
+- 목표
+- 변경 범위
+- 단계별 구현
+- 리스크
+- 태스크 목록 + 의존성 + 병렬 가능 여부
+
+**Lead는 nx_task_add()를 호출하지 않는다.** Analyst가 태스크 소유자.
+
+Gate Stop이 tasks.json을 감시 → 등록 즉시 nonstop 시작.
+
+필요시 `nx_decision_add()`로 중요한 설계 결정을 기록한다.
+
+### Phase 4: Execute (Builder, Guard)
+
+태스크를 실행한다. Analyst가 일차 조율, Lead가 보조한다.
+
+**Teammate 재활용 규칙:**
+1. **idle teammate 확인 → SendMessage로 새 업무 배정 우선**
+2. **모두 busy일 때만 새 teammate 스폰**
+
+**Teammate 스폰 (병렬 가능):**
+독립 태스크(deps 없음)는 teammate를 병렬 스폰. 의존성 있으면 선행 완료 후 순차.
 ```
-## 목표
-## 변경 범위
-## 단계별 구현
-## 리스크
-## 테스트 전략
-## 완료 기준
+Agent({ subagent_type: "nexus:builder", name: "builder-1", team_name: "<project>",
+  prompt: "태스크 T1을 구현하라.\n\n컨텍스트: {task.context}\n\n완료 후 Analyst에게 SendMessage로 태스크 완료를 보고하라." })
+Agent({ subagent_type: "nexus:builder", name: "builder-2", team_name: "<project>",
+  prompt: "태스크 T2를 구현하라.\n\n컨텍스트: {task.context}\n\n완료 후 Analyst에게 SendMessage로 태스크 완료를 보고하라." })
 ```
+- Builder는 nx_task_update(id, "in_progress") 착수, 구현 완료 후 nx_task_update(id, "completed") 호출, 이후 **Analyst에게 SendMessage로 태스크 완료를 보고**
+- Analyst는 보고를 수신하면 tasks.json 상태를 확인하고 다음 단계를 조율
 
-### Phase 3: Review
-
-순차 실행 필수 — 병렬화하면 검토 체인이 깨진다.
-
-**Step 1 — Architect (teammate):** 구조적 관점 검토 (인터페이스 설계, 의존성, 확장성)
+**Guard 검증 (태스크별):**
+Builder 완료 보고마다 Guard가 해당 태스크 검증. CRITICAL이면 Builder에게 수정 지시.
+Guard가 문제를 발견하면 **Analyst에게 SendMessage로 보고**. Analyst가 `nx_task_add()`로 새 태스크를 추가하거나 `nx_task_update()`로 기존 태스크를 재오픈한다. Guard는 태스크를 직접 생성/수정하지 않는다.
+검증이 통과되면 **Analyst에게 SendMessage로 검증 완료를 보고**한다.
 ```
-TeamCreate({ team_name: "review-team", description: "Plan review" })
-TaskCreate({ team_name: "review-team", subagent_type: "nexus:architect", name: "architect",
-  prompt: "다음 계획 초안을 구조적 관점에서 검토하라.\n\n초안: {draft}" })
-```
-
-**Step 2 — Reviewer (teammate):** 비판적 검토, 누락/과잉 지적
-```
-TaskCreate({ team_name: "review-team", subagent_type: "nexus:reviewer", name: "reviewer",
-  prompt: "다음 계획을 비판적으로 검토하라. 누락된 리스크, 과잉 복잡도, 잘못된 가정을 지적하라.\n\n계획: {draft}" })
-```
-
-두 검토 결과를 반영해 Lead가 초안을 수정한다.
-
-### Phase 4: Persist (MANDATORY — do NOT skip)
-
-`nx_task_add()`로 각 태스크를 `.nexus/tasks.json`에 등록한다.
-
-각 태스크 필드:
-- `title`: 작업 제목
-- `context`: 구현에 필요한 맥락
-- `deps` (optional): 선행 태스크 ID 목록
-
-Gate Stop이 이 파일을 감시 → 등록 즉시 nonstop 시작.
-
-`decisions.json`에 남길 중요한 설계 결정이 있으면 이 단계에서 함께 기록한다.
-
-### Phase 5: Execute
-
-```
-TeamCreate({ team_name: "exec-team", description: "Execution team" })
-TaskCreate({ team_name: "exec-team", subagent_type: "nexus:builder", name: "builder", prompt: "..." })
-TaskCreate({ team_name: "exec-team", subagent_type: "nexus:tester", name: "tester", prompt: "..." })
-TaskCreate({ team_name: "exec-team", subagent_type: "nexus:guard", name: "guard", prompt: "..." })
+Agent({ subagent_type: "nexus:guard", name: "guard", team_name: "<project>",
+  prompt: "태스크 T1 검증. 변경 파일: {files}. 타입체크/테스트/빌드/스펙 일치. 검증 완료(통과 또는 문제 발견) 후 Analyst에게 SendMessage로 결과를 보고하라." })
 ```
 
-- `TeamCreate`로 팀 구성 후 `TaskCreate`로 각 teammate 스폰 및 태스크 할당
-- Teammate들이 작업 완료 시 `nx_task_update()`로 진행 상황 기록
-- Guard teammate가 완료된 작업 검증
-- `SendMessage`로 teammate 간 소통 (Agent() 직접 호출 금지)
+**Debugger (조건부):** 빌드/테스트 실패 시에만 스폰.
 
-### Completion
+### Phase 5: Complete (Lead)
 
 Gate Stop이 all tasks completed를 감지하면 아카이브를 지시한다.
 
-1. `nx_plan_archive()` 호출 → `.nexus/plans/NN-title.md` 생성
-2. `tasks.json` + `decisions.json` 삭제
-3. 자연스럽게 종료
+1. `nx_plan_archive()` 호출 → `.nexus/archives/NN-title.md` 생성 + `tasks.json`/`decisions.json` 삭제
+2. 자연스럽게 종료
 
 ## Key Principles
 
-1. **Lead가 직접 계획** — 컨텍스트 손실 방지, Strategist 에이전트 없음
-2. **tasks.json이 유일한 상태** — 이 파일로 모든 것 추적, 별도 plan.md 없음
-3. **Gate Stop nonstop** — pending 태스크가 있으면 종료 불가
-4. **Architect + Reviewer = 다른 관점** — 순차 실행
+1. **Lead = 조율 + 사용자 소통** — 오케스트레이션 도구만 사용 (TeamCreate, Agent, SendMessage, AskUserQuestion). 분석/코드 도구 호출 금지
+2. **Analyst = 분석 + 태스크 소유** — nx_knowledge_read/nx_context/LSP/AST로 심층 분석. nx_task_add/nx_task_update 권한 보유
+3. **Teammate 재활용 우선** — idle teammate에 SendMessage로 배정 먼저, 모두 busy일 때만 새 스폰
+4. **단일 팀** — review/exec 팀 분리 금지
+5. **tasks.json이 유일한 상태** — 이 파일로 모든 것 추적, 별도 plan.md 없음
+6. **Gate Stop nonstop** — pending 태스크가 있으면 종료 불가
+7. **Plan = 합의 (Analyst + Architect), Execute = atomic** — Plan phase는 2자 합의로 수렴, Execute phase는 확정된 태스크를 실행. 단, Guard 검증 결과에 따라 Analyst가 태스크 추가/재오픈 가능
+8. **Guard 태스크별 검증** — 완료 즉시 검증, 문제 발견 시 Analyst에게 보고
+9. **Debugger 조건부** — 에러 시에만
+
+## Lead Awaiting Pattern
+
+Lead가 대기 중일 때:
+
+- **idle teammate 확인:** SendMessage로 새 업무 배정
+- **모두 busy:** 새 teammate 스폰
+- **Analyst 질의 수신:** AskUserQuestion으로 사용자에게 전달 → 답변을 SendMessage로 Analyst에게 중계
+- **Plan phase 대기:** Analyst ↔ Architect 합의를 기다림. SendMessage로 진행 상황 확인 가능
+- **에러 보고 수신:** Debugger 스폰 후 해당 builder에게 연결
+- **직접 작업 금지:** Lead는 코드를 직접 작성하거나 파일을 수정하지 않는다
+
+## Teammate 스폰 예시 (정확한 API)
+
+```
+TeamCreate({ team_name: "<project>", description: "..." })
+Agent({ subagent_type: "nexus:analyst", name: "analyst", team_name: "<project>", prompt: "..." })
+Agent({ subagent_type: "nexus:architect", name: "architect", team_name: "<project>", prompt: "..." })
+Agent({ subagent_type: "nexus:builder", name: "builder-1", team_name: "<project>", prompt: "..." })
+Agent({ subagent_type: "nexus:guard", name: "guard", team_name: "<project>", prompt: "..." })
+```
+
+주의: `TaskCreate`는 Claude Code 태스크 생성 도구이지 teammate 스폰이 아님. teammate 스폰은 반드시 `Agent({ team_name: ... })`를 사용하라.
 
 ## State Management
 
@@ -117,4 +151,4 @@ Gate Stop이 all tasks completed를 감지하면 아카이브를 지시한다.
 
 ## Deactivation
 
-All tasks completed → `nx_plan_archive()` → 자연스럽게 종료. 별도 `nx_state_clear`는 불필요.
+All tasks completed → `nx_plan_archive()` → 자연스럽게 종료.

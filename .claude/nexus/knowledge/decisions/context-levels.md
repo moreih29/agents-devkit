@@ -5,8 +5,8 @@
 
 ## 맥락
 모든 에이전트에 동일한 양의 컨텍스트를 주입하면 두 가지 문제가 발생한다:
-1. haiku 같은 소형 모델의 context window를 배경지식으로 낭비
-2. 파일 하나 찾는 Finder에게 아키텍처 결정 근거까지 주입하는 것은 비효율
+1. 소형 모델의 context window를 배경지식으로 낭비
+2. 단순 작업 에이전트에게 아키텍처 결정 근거까지 주입하는 것은 비효율
 
 ## 결정
 에이전트 정의에 `context: minimal | standard | full` 필드를 추가한다.
@@ -19,9 +19,8 @@
 ```
 
 ### 에이전트 매핑
-- minimal: Finder, Writer (탐색/기록에 배경지식 불필요)
-- standard: Builder, Debugger, Tester, Guard, Herald, Palette, Mason (작업에 프로젝트 맥락 필요)
-- full: Lead, Architect, Strategist, Analyst, Reviewer, Critic (전체 그림 필요)
+- standard: Builder, Debugger, Guard (작업에 프로젝트 맥락 필요)
+- full: Architect, Analyst (전체 그림 필요)
 
 ## 근거
 - "최대한의 컨텍스트"가 아닌 "최적화된 컨텍스트" 주입이 원칙

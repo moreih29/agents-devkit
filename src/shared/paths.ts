@@ -14,7 +14,7 @@ function findProjectRoot(): string {
 const PROJECT_ROOT = findProjectRoot();
 
 /** .nexus/ — gitignore, 런타임 상태 */
-export const RUNTIME_ROOT = join(PROJECT_ROOT, '.nexus');
+export const RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || join(PROJECT_ROOT, '.nexus');
 
 /** .claude/nexus/ — git 추적, 공유 지식 */
 export const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');

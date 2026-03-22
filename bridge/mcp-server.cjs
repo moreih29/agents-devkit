@@ -21004,7 +21004,7 @@ function findProjectRoot() {
   return process.cwd();
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = (0, import_path.join)(PROJECT_ROOT, ".nexus");
+var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path.join)(PROJECT_ROOT, ".nexus");
 var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
 function knowledgePath(topic) {
   return (0, import_path.join)(KNOWLEDGE_ROOT, "knowledge", `${topic}.md`);
@@ -21103,7 +21103,7 @@ function getCurrentBranch() {
 function registerContextTool(server2) {
   server2.tool(
     "nx_context",
-    "Get aggregated context status: active mode, agents, session, branch, codebase profile",
+    "Get context: active team mode, tasks summary, branch",
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {},
     async () => {
@@ -22016,17 +22016,14 @@ function registerAstTools(server2) {
 var import_fs7 = require("fs");
 var import_promises3 = require("fs/promises");
 var import_path7 = require("path");
-var TASKS_PATH = (0, import_path7.join)(process.cwd(), ".nexus", "tasks.json");
+var TASKS_PATH = (0, import_path7.join)(RUNTIME_ROOT, "tasks.json");
 async function readTasks() {
   if (!(0, import_fs7.existsSync)(TASKS_PATH)) return null;
   const raw = await (0, import_promises3.readFile)(TASKS_PATH, "utf-8");
   return JSON.parse(raw);
 }
 async function writeTasks(data) {
-  const dir = (0, import_path7.join)(process.cwd(), ".nexus");
-  if (!(0, import_fs7.existsSync)(dir)) {
-    (0, import_fs7.mkdirSync)(dir, { recursive: true });
-  }
+  ensureDir(RUNTIME_ROOT);
   await (0, import_promises3.writeFile)(TASKS_PATH, JSON.stringify(data, null, 2));
 }
 function computeSummary(tasks) {
@@ -22063,14 +22060,22 @@ function registerTaskTools(server2) {
     "nx_task_add",
     "Add a new task to .nexus/tasks.json",
     {
+      caller: external_exports.string().describe("Your agent name"),
       title: external_exports.string().describe("Task title"),
       context: external_exports.string().describe("Task context or description"),
-      deps: external_exports.array(external_exports.number()).optional().describe("IDs of tasks this task depends on")
+      deps: external_exports.array(external_exports.number()).optional().describe("IDs of tasks this task depends on"),
+      goal: external_exports.string().optional().describe("Set or update the goal for this task list")
     },
-    async ({ title, context, deps }) => {
+    async ({ caller, title, context, deps, goal }) => {
+      if (caller !== "analyst") {
+        return { content: [{ type: "text", text: JSON.stringify({ error: `Only analyst can create tasks. You are: ${caller}` }) }] };
+      }
       let data = await readTasks();
       if (!data) {
         data = { goal: "", tasks: [] };
+      }
+      if (goal) {
+        data.goal = goal;
       }
       const maxId = data.tasks.reduce((max, t) => Math.max(max, t.id), 0);
       const newTask = {
@@ -22136,14 +22141,9 @@ function registerTaskTools(server2) {
 var import_fs8 = require("fs");
 var import_promises4 = require("fs/promises");
 var import_path8 = require("path");
-var DECISIONS_PATH = (0, import_path8.join)(process.cwd(), ".nexus", "decisions.json");
-var TASKS_PATH2 = (0, import_path8.join)(process.cwd(), ".nexus", "tasks.json");
-var PLANS_DIR = (0, import_path8.join)(process.cwd(), ".nexus", "plans");
-function ensureDir2(dir) {
-  if (!(0, import_fs8.existsSync)(dir)) {
-    (0, import_fs8.mkdirSync)(dir, { recursive: true });
-  }
-}
+var DECISIONS_PATH = (0, import_path8.join)(RUNTIME_ROOT, "decisions.json");
+var TASKS_PATH2 = (0, import_path8.join)(RUNTIME_ROOT, "tasks.json");
+var ARCHIVES_DIR = (0, import_path8.join)(RUNTIME_ROOT, "archives");
 async function readDecisions() {
   if (!(0, import_fs8.existsSync)(DECISIONS_PATH)) {
     return { decisions: [] };
@@ -22152,15 +22152,15 @@ async function readDecisions() {
   return JSON.parse(raw);
 }
 async function writeDecisions(data) {
-  ensureDir2((0, import_path8.join)(process.cwd(), ".nexus"));
+  ensureDir(RUNTIME_ROOT);
   await (0, import_promises4.writeFile)(DECISIONS_PATH, JSON.stringify(data, null, 2));
 }
 function toKebabCase(str) {
-  return str.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
+  return str.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
 }
-async function nextPlanNumber() {
-  if (!(0, import_fs8.existsSync)(PLANS_DIR)) return 1;
-  const files = await (0, import_promises4.readdir)(PLANS_DIR);
+async function nextArchiveNumber() {
+  if (!(0, import_fs8.existsSync)(ARCHIVES_DIR)) return 1;
+  const files = await (0, import_promises4.readdir)(ARCHIVES_DIR);
   let max = 0;
   for (const file of files) {
     const match = file.match(/^(\d+)-/);
@@ -22194,7 +22194,7 @@ function registerDecisionTools(server2) {
   );
   server2.tool(
     "nx_plan_archive",
-    "Archive current plan: generate markdown summary, save to .nexus/plans/, delete tasks.json and decisions.json",
+    "Archive current plan: generate markdown summary, save to .nexus/archives/, delete tasks.json and decisions.json",
     {},
     async () => {
       if (!(0, import_fs8.existsSync)(TASKS_PATH2)) {
@@ -22211,13 +22211,29 @@ function registerDecisionTools(server2) {
       const tasksData = JSON.parse(tasksRaw);
       const decisionsData = await readDecisions();
       const decisionsSection = decisionsData.decisions.length > 0 ? decisionsData.decisions.map((d, i) => `- D${i + 1}: ${d}`).join("\n") : "(none)";
+      const completedTasks = tasksData.tasks.filter((t) => t.status === "completed");
+      const incompleteTasks = tasksData.tasks.filter((t) => t.status !== "completed");
       const tasksSection = tasksData.tasks.length > 0 ? tasksData.tasks.map((t) => {
         const check2 = t.status === "completed" ? "x" : " ";
         return `- [${check2}] Task ${t.id}: ${t.title}`;
       }).join("\n") : "(none)";
       const totalTasks = tasksData.tasks.length;
       const totalDecisions = decisionsData.decisions.length;
+      const completedAt = (/* @__PURE__ */ new Date()).toISOString();
+      const descriptionLines = [];
+      if (completedTasks.length > 0) {
+        descriptionLines.push(`Completed: ${completedTasks.map((t) => t.title).join(", ")}`);
+      }
+      if (incompleteTasks.length > 0) {
+        descriptionLines.push(`Incomplete: ${incompleteTasks.map((t) => t.title).join(", ")}`);
+      }
+      const description = descriptionLines.length > 0 ? descriptionLines.join(" | ") : "(no tasks)";
       const markdown = `# ${tasksData.goal}
+
+## Description
+${description}
+
+Archived at: ${completedAt}
 
 ## Decisions
 ${decisionsSection}
@@ -22227,13 +22243,15 @@ ${tasksSection}
 
 ## Summary
 Total: ${totalTasks} tasks, ${totalDecisions} decisions
+Completed: ${completedTasks.length}/${totalTasks}
 `;
-      ensureDir2(PLANS_DIR);
-      const num = await nextPlanNumber();
+      ensureDir(ARCHIVES_DIR);
+      const num = await nextArchiveNumber();
       const paddedNum = String(num).padStart(2, "0");
-      const slug = toKebabCase(tasksData.goal.slice(0, 30));
-      const filename = `${paddedNum}-${slug}.md`;
-      const archivePath = (0, import_path8.join)(PLANS_DIR, filename);
+      const goalSlug = tasksData.goal.trim();
+      const slug = goalSlug ? toKebabCase(goalSlug).slice(0, 50) : "untitled";
+      const filename = `${paddedNum}-${slug || "untitled"}.md`;
+      const archivePath = (0, import_path8.join)(ARCHIVES_DIR, filename);
       await (0, import_promises4.writeFile)(archivePath, markdown);
       await (0, import_promises4.rm)(TASKS_PATH2);
       if ((0, import_fs8.existsSync)(DECISIONS_PATH)) {

@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { existsSync, mkdirSync, unlinkSync } from 'fs';
+import { existsSync, unlinkSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { RUNTIME_ROOT, ensureDir } from '../../shared/paths.js';
 
-const TASKS_PATH = join(process.cwd(), '.nexus', 'tasks.json');
+const TASKS_PATH = join(RUNTIME_ROOT, 'tasks.json');
 
 interface Task {
   id: number;
@@ -26,10 +27,7 @@ async function readTasks(): Promise<TasksFile | null> {
 }
 
 async function writeTasks(data: TasksFile): Promise<void> {
-  const dir = join(process.cwd(), '.nexus');
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
+  ensureDir(RUNTIME_ROOT);
   await writeFile(TASKS_PATH, JSON.stringify(data, null, 2));
 }
 
@@ -73,14 +71,24 @@ export function registerTaskTools(server: McpServer): void {
     'nx_task_add',
     'Add a new task to .nexus/tasks.json',
     {
+      caller: z.string().describe('Your agent name'),
       title: z.string().describe('Task title'),
       context: z.string().describe('Task context or description'),
       deps: z.array(z.number()).optional().describe('IDs of tasks this task depends on'),
+      goal: z.string().optional().describe('Set or update the goal for this task list'),
     },
-    async ({ title, context, deps }) => {
+    async ({ caller, title, context, deps, goal }) => {
+      if (caller !== 'analyst') {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Only analyst can create tasks. You are: ${caller}` }) }] };
+      }
+
       let data = await readTasks();
       if (!data) {
         data = { goal: '', tasks: [] };
+      }
+
+      if (goal) {
+        data.goal = goal;
       }
 
       const maxId = data.tasks.reduce((max, t) => Math.max(max, t.id), 0);

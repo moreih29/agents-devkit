@@ -1,15 +1,13 @@
 ---
 name: nx-setup
 description: Interactive project setup wizard for Nexus configuration.
-triggers: ["setup", "nexus 설정", "nexus 세팅"]
+disable-model-invocation: true
 ---
 # Setup
 
 Interactive project setup wizard — configure Nexus for a new project with minimal token cost.
 
 ## Trigger
-- User says: "setup", "nexus 설정", "nexus 세팅", "setup nexus"
-- Explicit tag: `[setup]`
 - Direct invocation: `/nexus:nx-setup`
 
 ## What It Does
@@ -27,16 +25,16 @@ AskUserQuestion({
     header: "Scope",
     multiSelect: false,
     options: [
-      { label: "User (Global)", description: "모든 프로젝트에 적용 (~/.claude/CLAUDE.md, ~/.nexus/config.json)" },
-      { label: "Project", description: "이 프로젝트에만 적용 (CLAUDE.md, .nexus/config.json)" }
+      { label: "User (Global)", description: "모든 프로젝트에 적용 (~/.claude/CLAUDE.md, 환경변수 NEXUS_STATUSLINE)" },
+      { label: "Project", description: "이 프로젝트에만 적용 (CLAUDE.md, .claude/nexus/config.json)" }
     ]
   }]
 })
 ```
 
 선택에 따라 이후 모든 파일 쓰기 경로가 결정됨:
-- User: `~/.claude/CLAUDE.md`, `~/.nexus/config.json`
-- Project: `./CLAUDE.md`, `./.nexus/config.json`
+- User: `~/.claude/CLAUDE.md`, 환경변수 `NEXUS_STATUSLINE`
+- Project: `./CLAUDE.md`, `./.claude/nexus/config.json`
 
 ### Step 2: Statusline Preset
 
@@ -55,31 +53,39 @@ AskUserQuestion({
 })
 ```
 
-선택 시 scope에 따라 `config.json`의 `statuslinePreset` 필드에 저장.
-Skip이면 아무것도 하지 않음 (기본값 full 유지).
-
-### Step 3: Delegation Enforcement
-
-```
-AskUserQuestion({
-  questions: [{
-    question: "에이전트 위임 강제 수준을 선택하세요.",
-    header: "Delegation",
-    multiSelect: false,
-    options: [
-      { label: "Warn (Recommended)", description: "Write/Edit 시 위임 리마인더 주입. 실행은 허용." },
-      { label: "Strict", description: "Write/Edit 시 도구 차단. 반드시 에이전트에 위임해야 함." },
-      { label: "Off", description: "위임 안내 없음. 자유롭게 직접 작업." },
-      { label: "Skip", description: "위임 강제 설정 건너뛰기 (기본값 warn)" }
-    ]
-  }]
-})
+**래퍼 스크립트 생성** (Full/Minimal 공통, Bash 도구로 실행):
+```bash
+mkdir -p ~/.claude/hooks
+cat > ~/.claude/hooks/nexus-statusline.sh << 'EOF'
+#!/bin/bash
+SCRIPT=$(ls -1d "$HOME/.claude/plugins/cache/nexus/claude-nexus"/*/scripts/statusline.cjs 2>/dev/null | sort -V | tail -1)
+[ -n "$SCRIPT" ] && exec node "$SCRIPT"
+EOF
+chmod +x ~/.claude/hooks/nexus-statusline.sh
 ```
 
-선택 시 scope에 따라 `config.json`에 `{"delegationEnforcement": "<선택>"}` 저장.
-Skip이면 아무것도 하지 않음 (기본값 warn 유지).
+**선택 시 scope에 따라:**
 
-### Step 4: CLAUDE.md Delegation Table
+**(1) User scope:**
+- 래퍼 스크립트 생성 (위 단계 실행)
+- `~/.claude/settings.json`에 statusLine 설정 추가:
+  ```json
+  { "statusLine": { "type": "command", "command": "bash $HOME/.claude/hooks/nexus-statusline.sh" } }
+  ```
+- 이미 statusLine 설정이 있으면 교체 여부를 Step 4 (OMC Conflict Detection)에서 처리
+
+**(2) Project scope:**
+- 래퍼 스크립트 생성 (위 단계 실행)
+- `.claude/settings.local.json`에 statusLine 설정 추가:
+  ```json
+  { "statusLine": { "type": "command", "command": "bash $HOME/.claude/hooks/nexus-statusline.sh" } }
+  ```
+- `.claude/nexus/config.json`의 `statuslinePreset` 필드에도 선택값 저장 (기존 유지)
+
+**(3) Skip:**
+- 래퍼 생성도, settings.json 수정도 하지 않음.
+
+### Step 3: CLAUDE.md Delegation Table
 
 Generate the Nexus section in CLAUDE.md using `<!-- NEXUS:START -->` / `<!-- NEXUS:END -->` markers.
 
@@ -97,43 +103,39 @@ Section content (in English):
 
 ### Agent Routing
 
+병렬 작업이나 다른 관점이 필요할 때 에이전트를 활용하라.
+
 | Task | Agent |
 |------|-------|
-| Code implementation, edits | executor |
-| Architecture, design decisions | architect |
+| Code implementation, edits | builder |
+| Architecture, design decisions, code review | architect |
 | Debugging, tracing issues | debugger |
-| Code review, quality check | code-reviewer |
-| Test writing, coverage | test-engineer |
-| Research, documentation | document-specialist |
-| Planning, decomposition | planner |
+| Deep analysis, research | analyst |
+| Validation, testing, security review | guard |
 
-### 6-Section Response Format
-
-Agents use structured responses: Context → Plan → Implementation → Verification → Risks → Next Steps.
+단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.
 
 ### Skills
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
 | nx-consult | [consult] | Interactive discovery — understand intent before executing |
-| nx-plan | [plan] | Generate structured implementation plan |
-| nx-init | [init] | Onboard project — generate knowledge from existing docs |
-| nx-setup | [setup] | Configure Nexus interactively |
+| nx-team | [team] | Team-driven planning with tasks.json, nonstop execution |
+| nx-init | /nexus:nx-init | Onboard project — generate knowledge from existing docs |
+| nx-setup | /nexus:nx-setup | Configure Nexus interactively |
 | nx-sync | [sync] | Sync knowledge docs with source files |
 
-## Nexus Agents
-병렬 작업이나 다른 관점이 필요할 때 에이전트를 활용하라.
+### Tags
 
-- 리뷰/비판 필요 → Architect, Reviewer
-- 병렬 구현 → Builder, Debugger, Tester
-- 검증 → Guard
-- 리서치 → Analyst
-
-단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.
+| Tag | Purpose |
+|-----|---------|
+| [consult] | 상담 — 실행 전 의도 파악 |
+| [team] | team mode — 계획 생성 및 nonstop 실행 |
+| [d] | 결정 기록 (nx_decision_add 호출) |
 <!-- NEXUS:END -->
 ```
 
-### Step 5: OMC Conflict Detection
+### Step 4: OMC Conflict Detection
 
 Check if the omc or oh-my-claudecode plugin is active:
 - Look for `oh-my-claudecode` or `omc` in `.claude/settings.json` plugins list
@@ -160,7 +162,34 @@ AskUserQuestion({
 
 OMC가 감지되지 않으면 이 단계는 건너뜀.
 
-### Step 6: Recommended Plugin
+**OMC Statusline 공존 처리:**
+
+OMC 감지 여부와 무관하게, 다음 조건 중 하나라도 해당하면 기존 statusline 설정으로 판단:
+- `~/.claude/hooks/statusline.sh` 파일이 존재
+- 또는 `~/.claude/settings.json`에 `statusLine` 설정이 이미 존재
+
+감지 시:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "기존 상태라인 설정이 감지되었습니다. Nexus 상태라인으로 교체할까요?",
+    header: "Statusline",
+    multiSelect: false,
+    options: [
+      { label: "Replace (Recommended)", description: "Nexus 상태라인으로 교체 (래퍼 스크립트 설정)" },
+      { label: "Keep Existing", description: "기존 상태라인 유지. Nexus 래퍼는 생성하되 settings.json은 수정하지 않음." }
+    ]
+  }]
+})
+```
+
+- Replace (Recommended) 선택: Step 2의 래퍼 생성 + settings.json의 statusLine을 Nexus 래퍼로 교체
+- Keep Existing 선택: `~/.claude/hooks/nexus-statusline.sh` 래퍼는 생성하되, settings.json의 statusLine은 기존 설정을 유지 (사용자가 나중에 수동 전환 가능)
+
+기존 statusline 설정이 감지되지 않으면 이 하위 단계는 건너뜀.
+
+### Step 5: Recommended Plugin
 
 Check if `context7@claude-plugins-official` is in `enabledPlugins` (global or project settings.json).
 
@@ -197,7 +226,7 @@ scope에 따른 `settings.json`의 `enabledPlugins`에 추가:
 
 **Skip 선택 시:** 다음 단계로 진행.
 
-### Step 7: Knowledge Init
+### Step 6: Knowledge Init
 
 ```
 AskUserQuestion({
@@ -216,7 +245,7 @@ AskUserQuestion({
 Yes 선택 시: init 스킬 워크플로우 실행 (SCAN → TRIAGE → PROPOSE → GENERATE → VERIFY).
 Skip 시: 다음 단계로.
 
-### Step 8: Complete
+### Step 7: Complete
 
 설정 완료 메시지 출력:
 - 적용된 설정 요약
@@ -233,4 +262,4 @@ Skip 시: 다음 단계로.
 ## State Management
 
 setup은 상태 파일 없이 순차 AskUserQuestion으로 동작.
-설정 결과는 각 단계에서 즉시 `config.json`에 기록.
+설정 결과는 각 단계에서 즉시 `.claude/nexus/config.json`에 기록 (Project scope의 경우).

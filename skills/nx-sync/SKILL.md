@@ -25,23 +25,19 @@ For each agent file:
   - disallowedTools (READ-ONLY indicator)
 ```
 
-**Skills** — Glob `skills/*/SKILL.md`, read each file's trigger section (5 skills: consult, plan, init, setup, sync):
+**Skills** — Glob `skills/*/SKILL.md`, read each file's trigger section (5 skills: consult, team, init, setup, sync):
 ```
 For each skill:
   - name (directory name)
   - trigger keywords
 ```
 
-**Hooks** — Read `src/hooks/gate.ts` and `src/hooks/pulse.ts`:
+**Hooks** — Read `src/hooks/gate.ts`:
 ```
 From gate.ts:
   - EXPLICIT_TAGS keys (what keywords are detected)
   - NATURAL_PATTERNS (what natural language triggers exist)
   - handleStop() checks (which primitives block Stop, in what order)
-
-From pulse.ts:
-  - What workflow states are injected as context
-  - Priority levels used
 ```
 
 ### Phase 2: Scan Knowledge Documents

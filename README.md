@@ -14,17 +14,17 @@ claude plugin install claude-nexus@nexus
 
 ## 에이전트
 
-7개의 특화된 에이전트가 각각의 역할을 담당합니다.
+5개의 특화된 에이전트가 각각의 역할을 담당합니다.
 
 | 에이전트 | 호출 | 역할 | 모델 |
 |----------|------|------|------|
-| **Architect** | `nexus:architect` | 아키텍처 설계 (읽기 전용) | opus |
-| **Reviewer** | `nexus:reviewer` | 코드 리뷰 (읽기 전용) | opus |
+| **Architect** | `nexus:architect` | 아키텍처 설계 + 코드 리뷰 (읽기 전용) | opus |
 | **Analyst** | `nexus:analyst` | 심층 분석, 리서치 | opus |
 | **Builder** | `nexus:builder` | 코드 구현, 리팩토링 | sonnet |
 | **Debugger** | `nexus:debugger` | 디버깅, 원인 분석 | sonnet |
-| **Guard** | `nexus:guard` | 검증, 보안 리뷰 | sonnet |
-| **Tester** | `nexus:tester` | 테스트 작성, 커버리지 분석 | sonnet |
+| **Guard** | `nexus:guard` | 검증, 테스트, 보안 리뷰 | sonnet |
+
+> 이전 Reviewer/Tester 에이전트는 각각 Architect/Guard로 통합되었습니다.
 
 ## 스킬
 
@@ -42,7 +42,7 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (7개)
+### Core (6개)
 
 | 도구 | 용도 |
 |------|------|
@@ -102,12 +102,11 @@ Gate 단일 모듈로 동작합니다 (v2에서 3개 → 1개로 통합).
 
 ## 런타임 상태
 
-`.nexus/` 디렉토리에 브랜치별 계획이 저장됩니다. gitignore 대상입니다.
+`.nexus/` 디렉토리에 런타임 상태가 저장됩니다. gitignore 대상입니다.
 
 ```
 .nexus/
-└── plans/                  ← 브랜치별 실행 계획
-    └── {branch}/
-        ├── plan.md
-        └── tasks.json
+├── tasks.json              ← 태스크 목록
+├── decisions.json          ← 아키텍처 결정 목록
+└── archives/               ← 아카이브된 계획 (NN-title.md)
 ```

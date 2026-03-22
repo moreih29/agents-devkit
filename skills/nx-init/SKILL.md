@@ -1,15 +1,13 @@
 ---
 name: nx-init
 description: Onboard a project to Nexus — auto-generate knowledge from existing docs.
-triggers: ["init", "온보딩", "프로젝트 초기화"]
+disable-model-invocation: true
 ---
 # Init
 
 Onboard Nexus into an existing project — scan, triage, and restructure project knowledge for optimal context efficiency.
 
 ## Trigger
-- User says: "init", "온보딩", "nexus 설정", "프로젝트 초기화"
-- Explicit tag: `[init]`
 - Direct invocation: `/nexus:nx-init`
 
 ## What It Does
@@ -163,7 +161,7 @@ project-context.md:
 
 ## Nexus
 - 프로젝트 지식: `.claude/nexus/knowledge/` 참조
-- 브랜치 계획: `.nexus/plans/` (로컬, 세션 독립)
+- 아카이브: `.nexus/archives/` (로컬, 세션 독립)
 - 원본 CLAUDE.md: `.claude/nexus/knowledge/original-claude-md.md`
 ```
 

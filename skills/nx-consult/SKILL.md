@@ -98,7 +98,7 @@ AskUserQuestion({
 
 ## State Management
 
-상태 파일 없이 동작한다. `workflow.json` 생성이나 `nx_state_*` 호출 불필요.
+상태 파일 없이 동작한다. 별도 상태 파일이나 MCP 호출 불필요.
 
 ## Deactivation
 

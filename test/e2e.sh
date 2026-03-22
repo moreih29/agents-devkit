@@ -10,11 +10,10 @@ PASS=0
 FAIL=0
 MCP="bridge/mcp-server.cjs"
 
-# 현재 세션 백업 (테스트 후 복원)
-ORIG_SESSION=""
-if [ -f .nexus/state/current-session.json ]; then
-  ORIG_SESSION=$(cat .nexus/state/current-session.json)
-fi
+# 임시 디렉토리 사용 — 실제 .nexus는 건드리지 않음
+E2E_TMP=$(mktemp -d)
+export NEXUS_RUNTIME_ROOT="$E2E_TMP"
+mkdir -p "$E2E_TMP"
 
 green() { echo -e "\033[32m✔ $1\033[0m"; }
 red() { echo -e "\033[31m✘ $1\033[0m"; }
@@ -135,22 +134,22 @@ echo ""
 echo "=== 훅 ==="
 
 # Stop: tasks.json 없음 → pass
-rm -f .nexus/tasks.json
+rm -f "$E2E_TMP/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (no tasks.json)" '"continue":true' "$result"
 
 # Stop: tasks.json에 완료된 태스크만 → pass
-echo '{"tasks":[{"id":"t1","title":"done","status":"completed"}]}' > .nexus/tasks.json
+echo '{"tasks":[{"id":"t1","title":"done","status":"completed"}]}' > "$E2E_TMP/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (all tasks completed)" '"continue":true' "$result"
-rm -f .nexus/tasks.json
+rm -f "$E2E_TMP/tasks.json"
 
-# Stop: tasks.json에 미완료 태스크 → block
-echo '{"tasks":[{"id":"t1","title":"pending task","status":"pending"},{"id":"t2","title":"done","status":"completed"}]}' > .nexus/tasks.json
+# Stop: tasks.json에 미완료 태스크 → continue:true (nonstop, block 아님)
+echo '{"tasks":[{"id":"t1","title":"pending task","status":"pending"},{"id":"t2","title":"done","status":"completed"}]}' > "$E2E_TMP/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/Stop (pending tasks)" '"decision":"block"' "$result"
+check "Gate/Stop (pending tasks)" '"continue":true' "$result"
 check "Gate/Stop (pending tasks count)" '1 tasks remaining' "$result"
-rm -f .nexus/tasks.json
+rm -f "$E2E_TMP/tasks.json"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (no keyword)" '"continue":true' "$result"
@@ -215,14 +214,8 @@ if [ -f "$CI_RESULT" ]; then
 fi
 rm -f "$CI_RESULT"
 
-# Cleanup — 테스트 세션 제거 + 원본 세션 복원
-rm -rf .nexus/state/sessions/e2e-hook .nexus/state/sessions/e2e-test .nexus/state/sessions/e2e-prev .nexus/state/sessions/e2e-old1 .nexus/state/sessions/e2e-old2 2>/dev/null
-rm -f .nexus/tasks.json 2>/dev/null
-if [ -n "$ORIG_SESSION" ]; then
-  echo "$ORIG_SESSION" > .nexus/state/current-session.json
-else
-  rm -f .nexus/state/current-session.json
-fi
+# Cleanup — 임시 디렉토리 제거
+rm -rf "$E2E_TMP"
 
 # --- 결과 ---
 echo ""

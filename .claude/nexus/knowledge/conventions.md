@@ -38,7 +38,7 @@ tags: [tag1, tag2]
 
 ## 설정 파일
 
-- 프로젝트: `.claude/nexus.jsonc` (JSONC, 주석 지원)
+- 프로젝트: `.nexus/config.json`
 - 사용자: `~/.claude/nexus.jsonc`
 - 검증: Zod strict 모드 (오타 에러 발생)
 

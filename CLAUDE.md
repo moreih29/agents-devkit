@@ -21,21 +21,21 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 | Task | Agent |
 |------|-------|
 | Code implementation, edits | builder |
-| Architecture, design decisions | architect |
+| Architecture, design decisions, code review | architect |
 | Debugging, tracing issues | debugger |
-| Code review, quality check | reviewer |
-| Test writing, coverage | tester |
 | Deep analysis, research | analyst |
-| Validation, security review | guard |
+| Validation, testing, security review | guard |
+
+단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.
 
 ### Skills
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| nx-consult | [consult] | 4-step consultation (Explore→Clarify→Propose→Converge) — understand intent before executing |
+| nx-consult | [consult] | Interactive discovery — understand intent before executing |
 | nx-team | [team] | Team-driven planning with tasks.json, nonstop execution |
-| nx-init | [init] | Onboard project — generate knowledge from existing docs |
-| nx-setup | [setup] | Configure Nexus interactively |
+| nx-init | /nexus:nx-init | Onboard project — generate knowledge from existing docs |
+| nx-setup | /nexus:nx-setup | Configure Nexus interactively |
 | nx-sync | [sync] | Sync knowledge docs with source files |
 
 ### Tags

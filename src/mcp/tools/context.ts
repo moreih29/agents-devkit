@@ -18,7 +18,7 @@ function getCurrentBranch(): string {
 export function registerContextTool(server: McpServer): void {
   server.tool(
     'nx_context',
-    'Get aggregated context status: active mode, agents, session, branch, codebase profile',
+    'Get context: active team mode, tasks summary, branch',
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {} as Record<string, z.ZodType>,
     async () => {
