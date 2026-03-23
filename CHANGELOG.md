@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0 (2026-03-23)
+
+### Features
+- team TodoWrite 진행 표시 + statusline 사용량 캐시 개선
+
 ## 0.6.0 (2026-03-22)
 
 ### Features
