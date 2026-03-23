@@ -16,6 +16,8 @@
 - **기능**: Lead가 팀을 구성하고 사용자 소통을 담당. Analyst가 심층 분석 + 태스크 소유. Analyst ↔ Architect 합의 기반 계획. tasks.json 중심으로 태스크 관리. Agent Teams 활용
 - **키워드**: team, team this, 팀 구성/으로
 - **결정 캡처**: `[d]` 태그로 아키텍처 결정 명시 → nx_decision_add로 decisions.json에 기록
+- **진행 표시**: Lead가 팀원 SendMessage 보고 수신 시 TodoWrite로 태스크 진행 상황 갱신 (tasks.json은 Gate Stop용, TodoWrite는 가시성용)
+- **타임아웃**: Builder가 착수 시 예상 소요 시간 보고 → 초과 시 Lead가 확인 ping
 - 워크플로우: Intake(Lead) → Analyze(Analyst) → Plan(Analyst+Architect 합의) → Execute(Builder/Guard) → Complete(Lead)
 
 ### Sub (경량 실행)

@@ -70,7 +70,7 @@ claude-nexus/
 | 항목 | 선택 |
 |------|------|
 | 런타임 | Node.js >= 20 |
-| 빌드 | tsc + esbuild |
+| 빌드 | esbuild |
 | 테스트 | bash E2E (test/e2e.sh) |
 | 스키마 | Zod (strict) |
 | MCP | @modelcontextprotocol/sdk |

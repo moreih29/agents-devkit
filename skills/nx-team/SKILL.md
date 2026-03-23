@@ -29,6 +29,9 @@ triggers: ["team", "팀 구성", "팀으로", "team this"]
 2. `git checkout -b <branch-name>` 실행
 3. 이후 워크플로우 진행
 
+**TodoWrite 초기화:**
+팀 구성 후, 현재 파악된 목표를 TodoWrite로 초기 체크리스트를 생성한다 (status: "pending"). 이후 팀원이 SendMessage로 진행 보고를 할 때마다 갱신한다.
+
 **팀 구성 + Analyst/Architect 스폰:**
 ```
 TeamCreate({ team_name: "<project>", description: "..." })
@@ -85,11 +88,12 @@ Gate Stop이 tasks.json을 감시 → 등록 즉시 nonstop 시작.
 독립 태스크(deps 없음)는 teammate를 병렬 스폰. 의존성 있으면 선행 완료 후 순차.
 ```
 Agent({ subagent_type: "nexus:builder", name: "builder-1", team_name: "<project>",
-  prompt: "태스크 T1을 구현하라.\n\n컨텍스트: {task.context}\n\n완료 후 Analyst에게 SendMessage로 태스크 완료를 보고하라." })
+  prompt: "태스크 T1을 구현하라.\n\n컨텍스트: {task.context}\n\n착수 즉시 Lead에게 SendMessage로 예상 소요 시간을 보고하라 (예: '~3분 예상'). 완료 후 Analyst에게 SendMessage로 태스크 완료를 보고하라." })
 Agent({ subagent_type: "nexus:builder", name: "builder-2", team_name: "<project>",
-  prompt: "태스크 T2를 구현하라.\n\n컨텍스트: {task.context}\n\n완료 후 Analyst에게 SendMessage로 태스크 완료를 보고하라." })
+  prompt: "태스크 T2를 구현하라.\n\n컨텍스트: {task.context}\n\n착수 즉시 Lead에게 SendMessage로 예상 소요 시간을 보고하라 (예: '~3분 예상'). 완료 후 Analyst에게 SendMessage로 태스크 완료를 보고하라." })
 ```
 - Builder는 nx_task_update(id, "in_progress") 착수, 구현 완료 후 nx_task_update(id, "completed") 호출, 이후 **Analyst에게 SendMessage로 태스크 완료를 보고**
+- Lead는 팀원으로부터 SendMessage 보고를 수신할 때마다 TodoWrite로 태스크 진행 상황을 갱신한다 (착수 → "in_progress", 완료 → "completed", 검증 실패 → "pending" 재오픈)
 - Analyst는 보고를 수신하면 tasks.json 상태를 확인하고 다음 단계를 조율
 
 **Guard 검증 (태스크별):**
@@ -121,6 +125,7 @@ Gate Stop이 all tasks completed를 감지하면 아카이브를 지시한다.
 7. **Plan = 합의 (Analyst + Architect), Execute = atomic** — Plan phase는 2자 합의로 수렴, Execute phase는 확정된 태스크를 실행. 단, Guard 검증 결과에 따라 Analyst가 태스크 추가/재오픈 가능
 8. **Guard 태스크별 검증** — 완료 즉시 검증, 문제 발견 시 Analyst에게 보고
 9. **Debugger 조건부** — 에러 시에만
+10. **Lead TodoWrite 진행 표시** — Lead는 팀원의 SendMessage 보고를 받을 때마다 TodoWrite로 태스크 진행 상황을 갱신한다. tasks.json은 Gate Stop용으로 유지하고, TodoWrite는 사용자 가시성 전용이다.
 
 ## Lead Awaiting Pattern
 
@@ -132,6 +137,7 @@ Lead가 대기 중일 때:
 - **Plan phase 대기:** Analyst ↔ Architect 합의를 기다림. SendMessage로 진행 상황 확인 가능
 - **에러 보고 수신:** Debugger 스폰 후 해당 builder에게 연결
 - **직접 작업 금지:** Lead는 코드를 직접 작성하거나 파일을 수정하지 않는다
+- **타임아웃 체크:** 팀원이 보고한 예상 소요 시간을 초과했는데 보고가 없으면, 해당 팀원에게 SendMessage로 진행 상황을 확인한다
 
 ## Teammate 스폰 예시 (정확한 API)
 

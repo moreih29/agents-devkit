@@ -52,14 +52,12 @@ scope: agent, hook, mcp, skill, config, build
 
 ## 테스트
 
-- 프레임워크: Vitest
-- 파일: `*.test.ts` (소스 옆에 배치)
-- 커버리지: 핵심 모듈(훅, MCP 도구) 필수
+- 프레임워크: bash E2E (`test/e2e.sh`)
+- 단위 테스트 프레임워크 미도입 (필요 시 추가)
 
 ## 빌드 규칙
 
-- `tsc` → `dist/` (ESM + 타입 선언)
-- `esbuild` → `bridge/mcp-server.cjs` (CJS 번들)
+- `esbuild` → `bridge/mcp-server.cjs`, `scripts/{gate,statusline}.cjs` (CJS 번들)
 - 네이티브 모듈(`@ast-grep/napi`) → external 처리, 별도 패키지 (`claude-nexus-code-intel`)
 - 에이전트 프롬프트 → 빌드 시 인라인 (`__AGENT_PROMPTS__`)
 

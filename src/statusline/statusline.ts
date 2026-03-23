@@ -36,7 +36,6 @@ function findProjectRoot(): string {
 }
 
 const PROJECT_ROOT = findProjectRoot();
-const RUNTIME_ROOT = join(PROJECT_ROOT, '.nexus');
 const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
 
 // --- Preset ---
@@ -160,18 +159,36 @@ function buildLine1(): string {
 
 // --- Line 2: 컨텍스트 + 사용량 ---
 
-interface UsageCache {
-  timestamp: number;
-  ttl: number;
-  data: string;
+const USAGE_CACHE_PATH = join(process.env.HOME || '~', '.claude', '.usage_cache');
+const CACHE_TTL_DEFAULT = 60;    // 정상 fetch 주기 (초)
+const FETCH_BACKOFF = 300;       // 실패 시 백오프 (초)
+
+/** 캐시 파일 원자적 쓰기 (tmp + rename) */
+function writeCacheAtomic(content: string): void {
+  try {
+    require('fs').writeFileSync(USAGE_CACHE_PATH + '.tmp', content);
+    require('fs').renameSync(USAGE_CACHE_PATH + '.tmp', USAGE_CACHE_PATH);
+  } catch {
+    try { require('fs').unlinkSync(USAGE_CACHE_PATH + '.tmp'); } catch { /* skip */ }
+  }
 }
 
-const USAGE_CACHE_PATH = join(process.env.HOME || '~', '.claude', '.usage_cache');
-const CACHE_TTL_DEFAULT = 60;
-const CACHE_TTL_MAX = 240;
+/**
+ * 백그라운드에서 OAuth API 호출 → 캐시 파일에 저장 (non-blocking)
+ *
+ * 캐시 포맷 (3줄):
+ *   {data_timestamp}     ← 데이터가 실제 fetch된 시점 (stale 표시용)
+ *   {next_fetch_after}   ← 이 시점 이후에만 다음 fetch 허용 (경합 방지 + 백오프)
+ *   {data}               ← JSON 응답
+ */
+function triggerBackgroundFetch(dataTimestamp: number, cachedData: string): void {
+  const now = Math.floor(Date.now() / 1000);
 
-/** 백그라운드에서 OAuth API 호출 → 캐시 파일에 저장 (non-blocking) */
-function triggerBackgroundFetch(): void {
+  // 스폰 전에 next_fetch_after를 즉시 갱신 → 다른 세션의 중복 fetch 방지
+  if (cachedData) {
+    writeCacheAtomic(`${dataTimestamp}\n${now + CACHE_TTL_DEFAULT}\n${cachedData}`);
+  }
+
   try {
     let tokenCmd = '';
     if (process.platform === 'darwin') {
@@ -181,12 +198,19 @@ function triggerBackgroundFetch(): void {
       tokenCmd = `TOKEN=$(grep -o '"accessToken":"[^"]*"' "${credFile}" 2>/dev/null | sed 's/"accessToken":"//;s/"//')`;
     }
 
-    // 백그라운드 셸에서 API 호출 → 성공 시 캐시 갱신
+    // 셸 스크립트: 성공 시 새 데이터 + TTL, 실패 시 기존 데이터 + 백오프
     const script = `
       ${tokenCmd}
       [ -z "$TOKEN" ] && exit 1
       RESP=$(curl -s --max-time 3 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer $TOKEN" -H "anthropic-beta: oauth-2025-04-20" 2>/dev/null)
-      echo "$RESP" | grep -q "five_hour" && printf '%s\\n%s\\n%s\\n' "$(date +%s)" "${CACHE_TTL_DEFAULT}" "$RESP" > "${USAGE_CACHE_PATH}.tmp" && mv "${USAGE_CACHE_PATH}.tmp" "${USAGE_CACHE_PATH}"
+      NOW=$(date +%s)
+      if echo "$RESP" | grep -q "five_hour"; then
+        printf '%s\\n%s\\n%s\\n' "$NOW" "$((NOW + ${CACHE_TTL_DEFAULT}))" "$RESP" > "${USAGE_CACHE_PATH}.tmp" && mv "${USAGE_CACHE_PATH}.tmp" "${USAGE_CACHE_PATH}"
+      else
+        OLD_TS=$(head -1 "${USAGE_CACHE_PATH}" 2>/dev/null)
+        OLD_DATA=$(sed -n '3p' "${USAGE_CACHE_PATH}" 2>/dev/null)
+        [ -n "$OLD_DATA" ] && printf '%s\\n%s\\n%s\\n' "$OLD_TS" "$((NOW + ${FETCH_BACKOFF}))" "$OLD_DATA" > "${USAGE_CACHE_PATH}.tmp" && mv "${USAGE_CACHE_PATH}.tmp" "${USAGE_CACHE_PATH}"
+      fi
     `;
     require('child_process').spawn('sh', ['-c', script], {
       stdio: 'ignore',
@@ -195,39 +219,47 @@ function triggerBackgroundFetch(): void {
   } catch { /* skip */ }
 }
 
-const STALE_THRESHOLD = 300; // 5분 이상 미갱신 시에만 [stale] 표시
+const STALE_THRESHOLD = 300; // 5분 이상 미갱신 시에만 stale 표시
 
 function getUsage(): { json: string; stale: boolean; ageSeconds: number } | null {
   const now = Math.floor(Date.now() / 1000);
-  let currentTtl = CACHE_TTL_DEFAULT;
+  let dataTimestamp = 0;
+  let nextFetchAfter = 0;
   let cachedData = '';
-  let cacheAge = 0;
 
   // 캐시 읽기 (여러 세션이 같은 캐시 공유)
   if (existsSync(USAGE_CACHE_PATH)) {
     try {
       const lines = readFileSync(USAGE_CACHE_PATH, 'utf-8').split('\n');
-      const cachedAt = parseInt(lines[0]);
-      currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
-      cachedData = lines[2] || '';
-      cacheAge = now - cachedAt;
+      dataTimestamp = parseInt(lines[0]) || 0;
+      const line1 = parseInt(lines[1]) || 0;
 
-      // TTL 이내: 캐시 반환 (fresh)
-      if (cacheAge < currentTtl) {
-        return { json: cachedData, stale: false, ageSeconds: cacheAge };
+      // 포맷 감지: line1이 unix timestamp(> 1_000_000)이면 새 포맷, 아니면 구 포맷(ttl)
+      if (line1 > 1_000_000) {
+        nextFetchAfter = line1;
+        cachedData = lines[2] || '';
+      } else {
+        // 구 포맷 호환: timestamp + ttl → next_fetch_after로 변환
+        nextFetchAfter = dataTimestamp + (line1 || CACHE_TTL_DEFAULT);
+        cachedData = lines[2] || '';
       }
     } catch { /* skip */ }
   }
 
-  // TTL 만료: 백그라운드에서 갱신 트리거 (non-blocking)
-  triggerBackgroundFetch();
+  const dataAge = dataTimestamp > 0 ? now - dataTimestamp : 0;
 
-  // stale 캐시가 있으면 즉시 반환 (5분 이상일 때만 stale 표시)
-  if (cachedData) {
-    return { json: cachedData, stale: cacheAge >= STALE_THRESHOLD, ageSeconds: cacheAge };
+  // fetch 쿨다운 이내: 캐시 반환 (fresh 또는 stale)
+  if (cachedData && now < nextFetchAfter) {
+    return { json: cachedData, stale: dataAge >= STALE_THRESHOLD, ageSeconds: dataAge };
   }
 
-  // 캐시 없음 (최초 실행): 동기 호출 1회 (어쩔 수 없음)
+  // fetch 쿨다운 만료 + 데이터 있음: 백그라운드 갱신 후 stale 반환
+  if (cachedData) {
+    triggerBackgroundFetch(dataTimestamp, cachedData);
+    return { json: cachedData, stale: dataAge >= STALE_THRESHOLD, ageSeconds: dataAge };
+  }
+
+  // 캐시 없음 (최초 실행): 동기 호출 1회
   try {
     let credJson = '';
     if (process.platform === 'darwin') {
@@ -240,13 +272,7 @@ function getUsage(): { json: string; stale: boolean; ageSeconds: number } | null
     if (tokenMatch) {
       const resp = execSync(`curl -s --max-time 2 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
       if (resp && resp.includes('five_hour')) {
-        const cacheContent = `${now}\n${CACHE_TTL_DEFAULT}\n${resp}`;
-        try {
-          require('fs').writeFileSync(USAGE_CACHE_PATH + '.tmp', cacheContent);
-          require('fs').renameSync(USAGE_CACHE_PATH + '.tmp', USAGE_CACHE_PATH);
-        } catch {
-          try { require('fs').unlinkSync(USAGE_CACHE_PATH + '.tmp'); } catch { /* skip */ }
-        }
+        writeCacheAtomic(`${now}\n${now + CACHE_TTL_DEFAULT}\n${resp}`);
         return { json: resp, stale: false, ageSeconds: 0 };
       }
     }
@@ -255,24 +281,22 @@ function getUsage(): { json: string; stale: boolean; ageSeconds: number } | null
   return null;
 }
 
-function extractUtil(json: string, section: string): number {
-  const sectionMatch = json.match(new RegExp(`"${section}":\\{[^}]*}`));
-  if (!sectionMatch) return 0;
-  const utilMatch = sectionMatch[0].match(/"utilization":([0-9.]+)/);
-  if (!utilMatch) return 0;
-  const val = parseFloat(utilMatch[1]);
+function extractUtil(parsed: Record<string, unknown> | null, section: string): number {
+  if (!parsed) return 0;
+  const sectionData = parsed[section] as Record<string, unknown> | undefined;
+  const val = Number(sectionData?.utilization) || 0;
   // utilization이 0-1이면 ×100, 이미 퍼센트(>1)이면 그대로
   return val > 1 ? val : val * 100;
 }
 
-function extractResetInfo(json: string, section: string): { timeStr: string; remaining: string; remainingCoarse: string; dayStr: string } {
+function extractResetInfo(parsed: Record<string, unknown> | null, section: string): { timeStr: string; remaining: string; remainingCoarse: string; dayStr: string } {
   const empty = { timeStr: '', remaining: '', remainingCoarse: '', dayStr: '' };
-  const sectionMatch = json.match(new RegExp(`"${section}":\\{[^}]*}`));
-  if (!sectionMatch) return empty;
-  const resetMatch = sectionMatch[0].match(/"resets_at":"([^"]+)"/);
-  if (!resetMatch) return empty;
+  if (!parsed) return empty;
+  const sectionData = parsed[section] as Record<string, unknown> | undefined;
+  const resetAt = sectionData?.resets_at as string | undefined;
+  if (!resetAt) return empty;
   try {
-    const d = new Date(resetMatch[1]);
+    const d = new Date(resetAt);
     const now = new Date();
     const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
@@ -333,15 +357,24 @@ function buildLine2(): string {
     return `${ctx} ${SEP} ${DIM}API mode${RESET}`;
   }
 
+  const noData = (label: string) => `${DIM}${label} ${'░'.repeat(BAR_WIDTH)} --%${RESET}`;
+
   const usage = getUsage();
   if (!usage || !usage.json) {
-    return `${ctx} ${SEP} ${coloredMeter('5h', 0, BAR_WIDTH)} ${SEP} ${coloredMeter('7d', 0, BAR_WIDTH)}`;
+    return `${ctx} ${SEP} ${noData('5h')} ${SEP} ${noData('7d')}`;
   }
 
-  const pct5h = Math.round(extractUtil(usage.json, 'five_hour'));
-  const pct7d = Math.round(extractUtil(usage.json, 'seven_day'));
-  const { remaining: remain5h } = extractResetInfo(usage.json, 'five_hour');
-  const { remainingCoarse: remain7d } = extractResetInfo(usage.json, 'seven_day');
+  let usageParsed: Record<string, unknown> | null = null;
+  try { usageParsed = JSON.parse(usage.json); } catch { /* skip */ }
+
+  if (!usageParsed) {
+    return `${ctx} ${SEP} ${noData('5h')} ${SEP} ${noData('7d')}`;
+  }
+
+  const pct5h = Math.round(extractUtil(usageParsed, 'five_hour'));
+  const pct7d = Math.round(extractUtil(usageParsed, 'seven_day'));
+  const { remaining: remain5h } = extractResetInfo(usageParsed, 'five_hour');
+  const { remainingCoarse: remain7d } = extractResetInfo(usageParsed, 'seven_day');
 
   const m5h = coloredMeter('5h', pct5h, BAR_WIDTH);
   const m7d = coloredMeter('7d', pct7d, BAR_WIDTH);
@@ -361,20 +394,6 @@ function buildLine2(): string {
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${stalePart}`;
 }
 
-// --- 태스크 프리픽스 (Line 2 앞에 붙음) ---
-
-function getTaskPrefix(): string {
-  const tasksPath = join(RUNTIME_ROOT, 'tasks.json');
-  if (!existsSync(tasksPath)) return `📋 0/0 ${SEP} `;
-  try {
-    const data = JSON.parse(readFileSync(tasksPath, 'utf-8'));
-    const tasks: Array<{ status: string }> = data.tasks ?? [];
-    const total = tasks.length;
-    const done = tasks.filter(t => t.status === 'completed').length;
-    return `📋 ${done}/${total} ${SEP} `;
-  } catch { return `📋 0/0 ${SEP} `; }
-}
-
 // --- 메인 ---
 
 function main() {
@@ -382,7 +401,7 @@ function main() {
   const lines: string[] = [buildLine1()];
 
   if (preset === 'full') {
-    lines.push(`${getTaskPrefix()}${buildLine2()}`);
+    lines.push(buildLine2());
   }
 
   process.stdout.write(lines.join('\n') + '\n');

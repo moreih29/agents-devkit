@@ -43,7 +43,6 @@ function findProjectRoot() {
   return cwd;
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".nexus");
 var KNOWLEDGE_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".claude", "nexus");
 function getPreset() {
   const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
@@ -141,7 +140,25 @@ function buildLine1() {
 }
 var USAGE_CACHE_PATH = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".usage_cache");
 var CACHE_TTL_DEFAULT = 60;
-function triggerBackgroundFetch() {
+var FETCH_BACKOFF = 300;
+function writeCacheAtomic(content) {
+  try {
+    require("fs").writeFileSync(USAGE_CACHE_PATH + ".tmp", content);
+    require("fs").renameSync(USAGE_CACHE_PATH + ".tmp", USAGE_CACHE_PATH);
+  } catch {
+    try {
+      require("fs").unlinkSync(USAGE_CACHE_PATH + ".tmp");
+    } catch {
+    }
+  }
+}
+function triggerBackgroundFetch(dataTimestamp, cachedData) {
+  const now = Math.floor(Date.now() / 1e3);
+  if (cachedData) {
+    writeCacheAtomic(`${dataTimestamp}
+${now + CACHE_TTL_DEFAULT}
+${cachedData}`);
+  }
   try {
     let tokenCmd = "";
     if (process.platform === "darwin") {
@@ -154,7 +171,14 @@ function triggerBackgroundFetch() {
       ${tokenCmd}
       [ -z "$TOKEN" ] && exit 1
       RESP=$(curl -s --max-time 3 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer $TOKEN" -H "anthropic-beta: oauth-2025-04-20" 2>/dev/null)
-      echo "$RESP" | grep -q "five_hour" && printf '%s\\n%s\\n%s\\n' "$(date +%s)" "${CACHE_TTL_DEFAULT}" "$RESP" > "${USAGE_CACHE_PATH}.tmp" && mv "${USAGE_CACHE_PATH}.tmp" "${USAGE_CACHE_PATH}"
+      NOW=$(date +%s)
+      if echo "$RESP" | grep -q "five_hour"; then
+        printf '%s\\n%s\\n%s\\n' "$NOW" "$((NOW + ${CACHE_TTL_DEFAULT}))" "$RESP" > "${USAGE_CACHE_PATH}.tmp" && mv "${USAGE_CACHE_PATH}.tmp" "${USAGE_CACHE_PATH}"
+      else
+        OLD_TS=$(head -1 "${USAGE_CACHE_PATH}" 2>/dev/null)
+        OLD_DATA=$(sed -n '3p' "${USAGE_CACHE_PATH}" 2>/dev/null)
+        [ -n "$OLD_DATA" ] && printf '%s\\n%s\\n%s\\n' "$OLD_TS" "$((NOW + ${FETCH_BACKOFF}))" "$OLD_DATA" > "${USAGE_CACHE_PATH}.tmp" && mv "${USAGE_CACHE_PATH}.tmp" "${USAGE_CACHE_PATH}"
+      fi
     `;
     require("child_process").spawn("sh", ["-c", script], {
       stdio: "ignore",
@@ -166,25 +190,31 @@ function triggerBackgroundFetch() {
 var STALE_THRESHOLD = 300;
 function getUsage() {
   const now = Math.floor(Date.now() / 1e3);
-  let currentTtl = CACHE_TTL_DEFAULT;
+  let dataTimestamp = 0;
+  let nextFetchAfter = 0;
   let cachedData = "";
-  let cacheAge = 0;
   if ((0, import_fs2.existsSync)(USAGE_CACHE_PATH)) {
     try {
       const lines = (0, import_fs2.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
-      const cachedAt = parseInt(lines[0]);
-      currentTtl = parseInt(lines[1]) || CACHE_TTL_DEFAULT;
-      cachedData = lines[2] || "";
-      cacheAge = now - cachedAt;
-      if (cacheAge < currentTtl) {
-        return { json: cachedData, stale: false, ageSeconds: cacheAge };
+      dataTimestamp = parseInt(lines[0]) || 0;
+      const line1 = parseInt(lines[1]) || 0;
+      if (line1 > 1e6) {
+        nextFetchAfter = line1;
+        cachedData = lines[2] || "";
+      } else {
+        nextFetchAfter = dataTimestamp + (line1 || CACHE_TTL_DEFAULT);
+        cachedData = lines[2] || "";
       }
     } catch {
     }
   }
-  triggerBackgroundFetch();
+  const dataAge = dataTimestamp > 0 ? now - dataTimestamp : 0;
+  if (cachedData && now < nextFetchAfter) {
+    return { json: cachedData, stale: dataAge >= STALE_THRESHOLD, ageSeconds: dataAge };
+  }
   if (cachedData) {
-    return { json: cachedData, stale: cacheAge >= STALE_THRESHOLD, ageSeconds: cacheAge };
+    triggerBackgroundFetch(dataTimestamp, cachedData);
+    return { json: cachedData, stale: dataAge >= STALE_THRESHOLD, ageSeconds: dataAge };
   }
   try {
     let credJson = "";
@@ -198,18 +228,9 @@ function getUsage() {
     if (tokenMatch) {
       const resp = (0, import_child_process.execSync)(`curl -s --max-time 2 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
       if (resp && resp.includes("five_hour")) {
-        const cacheContent = `${now}
-${CACHE_TTL_DEFAULT}
-${resp}`;
-        try {
-          require("fs").writeFileSync(USAGE_CACHE_PATH + ".tmp", cacheContent);
-          require("fs").renameSync(USAGE_CACHE_PATH + ".tmp", USAGE_CACHE_PATH);
-        } catch {
-          try {
-            require("fs").unlinkSync(USAGE_CACHE_PATH + ".tmp");
-          } catch {
-          }
-        }
+        writeCacheAtomic(`${now}
+${now + CACHE_TTL_DEFAULT}
+${resp}`);
         return { json: resp, stale: false, ageSeconds: 0 };
       }
     }
@@ -217,22 +238,20 @@ ${resp}`;
   }
   return null;
 }
-function extractUtil(json, section) {
-  const sectionMatch = json.match(new RegExp(`"${section}":\\{[^}]*}`));
-  if (!sectionMatch) return 0;
-  const utilMatch = sectionMatch[0].match(/"utilization":([0-9.]+)/);
-  if (!utilMatch) return 0;
-  const val = parseFloat(utilMatch[1]);
+function extractUtil(parsed, section) {
+  if (!parsed) return 0;
+  const sectionData = parsed[section];
+  const val = Number(sectionData?.utilization) || 0;
   return val > 1 ? val : val * 100;
 }
-function extractResetInfo(json, section) {
+function extractResetInfo(parsed, section) {
   const empty = { timeStr: "", remaining: "", remainingCoarse: "", dayStr: "" };
-  const sectionMatch = json.match(new RegExp(`"${section}":\\{[^}]*}`));
-  if (!sectionMatch) return empty;
-  const resetMatch = sectionMatch[0].match(/"resets_at":"([^"]+)"/);
-  if (!resetMatch) return empty;
+  if (!parsed) return empty;
+  const sectionData = parsed[section];
+  const resetAt = sectionData?.resets_at;
+  if (!resetAt) return empty;
   try {
-    const d = new Date(resetMatch[1]);
+    const d = new Date(resetAt);
     const now = /* @__PURE__ */ new Date();
     const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     const diffMs = d.getTime() - now.getTime();
@@ -284,14 +303,23 @@ function buildLine2() {
     }
     return `${ctx} ${SEP} ${DIM}API mode${RESET}`;
   }
+  const noData = (label) => `${DIM}${label} ${"\u2591".repeat(BAR_WIDTH)} --%${RESET}`;
   const usage = getUsage();
   if (!usage || !usage.json) {
-    return `${ctx} ${SEP} ${coloredMeter("5h", 0, BAR_WIDTH)} ${SEP} ${coloredMeter("7d", 0, BAR_WIDTH)}`;
+    return `${ctx} ${SEP} ${noData("5h")} ${SEP} ${noData("7d")}`;
   }
-  const pct5h = Math.round(extractUtil(usage.json, "five_hour"));
-  const pct7d = Math.round(extractUtil(usage.json, "seven_day"));
-  const { remaining: remain5h } = extractResetInfo(usage.json, "five_hour");
-  const { remainingCoarse: remain7d } = extractResetInfo(usage.json, "seven_day");
+  let usageParsed = null;
+  try {
+    usageParsed = JSON.parse(usage.json);
+  } catch {
+  }
+  if (!usageParsed) {
+    return `${ctx} ${SEP} ${noData("5h")} ${SEP} ${noData("7d")}`;
+  }
+  const pct5h = Math.round(extractUtil(usageParsed, "five_hour"));
+  const pct7d = Math.round(extractUtil(usageParsed, "seven_day"));
+  const { remaining: remain5h } = extractResetInfo(usageParsed, "five_hour");
+  const { remainingCoarse: remain7d } = extractResetInfo(usageParsed, "seven_day");
   const m5h = coloredMeter("5h", pct5h, BAR_WIDTH);
   const m7d = coloredMeter("7d", pct7d, BAR_WIDTH);
   const r5h = remain5h ? ` ${DIM}\u21BB${remain5h}${RESET}` : "";
@@ -306,24 +334,11 @@ function buildLine2() {
   }
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${stalePart}`;
 }
-function getTaskPrefix() {
-  const tasksPath = (0, import_path2.join)(RUNTIME_ROOT, "tasks.json");
-  if (!(0, import_fs2.existsSync)(tasksPath)) return `\u{1F4CB} 0/0 ${SEP} `;
-  try {
-    const data = JSON.parse((0, import_fs2.readFileSync)(tasksPath, "utf-8"));
-    const tasks = data.tasks ?? [];
-    const total = tasks.length;
-    const done = tasks.filter((t) => t.status === "completed").length;
-    return `\u{1F4CB} ${done}/${total} ${SEP} `;
-  } catch {
-    return `\u{1F4CB} 0/0 ${SEP} `;
-  }
-}
 function main() {
   const preset = getPreset();
   const lines = [buildLine1()];
   if (preset === "full") {
-    lines.push(`${getTaskPrefix()}${buildLine2()}`);
+    lines.push(buildLine2());
   }
   process.stdout.write(lines.join("\n") + "\n");
 }
