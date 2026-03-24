@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0 (2026-03-24)
+
+### Features
+- deploy 스킬 추가 — pre-release 검증 + release.mjs 자동화
+
+### Refactoring
+- nx-setup Step 3 — 하드코딩 제거, CLAUDE.md에서 런타임 읽기
+
 ## 0.8.0 (2026-03-24)
 
 ### Features
