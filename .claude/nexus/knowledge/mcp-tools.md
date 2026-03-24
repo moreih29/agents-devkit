@@ -23,14 +23,14 @@ nx_context()
 // → { sessionId, branch, pendingTasks, recentDecisions }
 ```
 
-### 태스크 관리 (`.nexus/tasks.json`)
+### 태스크 관리 (`.nexus/branches/{branch}/tasks.json`)
 ```typescript
 nx_task_list({ status?: "pending" | "completed" })
 nx_task_add({ title: "인증 모듈 구현", description?: "...", tags?: ["auth"] })
 nx_task_update({ id: "eaba793e", status?: "completed" | "cancelled", title?, description?, tags? })
 ```
 
-### 결정 관리 (`.nexus/decisions.json`)
+### 결정 관리 (`.nexus/branches/{branch}/decisions.json`)
 ```typescript
 nx_decision_add({
   title: "JWT 대신 세션 쿠키 사용",
@@ -44,8 +44,8 @@ nx_decision_add({
 | 질문 | 도구 | 저장 위치 |
 |------|------|-----------|
 | "팀원도 알아야 하는가?" | `nx_knowledge_write` | `.claude/nexus/` (git) |
-| "현재 작업 태스크인가?" | `nx_task_add/update` | `.nexus/tasks.json` |
-| "아키텍처 결정인가?" | `nx_decision_add` | `.nexus/decisions.json` |
+| "현재 작업 태스크인가?" | `nx_task_add/update/clear` | `.nexus/branches/{branch}/tasks.json` |
+| "아키텍처 결정인가?" | `nx_decision_add` | `.nexus/branches/{branch}/decisions.json` |
 
 ## Code Intelligence (nx 서버 통합)
 

@@ -161,7 +161,7 @@ project-context.md:
 
 ## Nexus
 - 프로젝트 지식: `.claude/nexus/knowledge/` 참조
-- 아카이브: `.nexus/archives/` (로컬, 세션 독립)
+- 런타임: `.nexus/branches/{branch}/` (로컬, 브랜치별 격리)
 - 원본 CLAUDE.md: `.claude/nexus/knowledge/original-claude-md.md`
 ```
 

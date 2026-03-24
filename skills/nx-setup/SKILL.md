@@ -108,11 +108,13 @@ Section content:
 
 | Task | Agent |
 |------|-------|
-| Code implementation, edits | builder |
-| Architecture, design decisions, code review | architect |
-| Debugging, tracing issues | debugger |
-| Deep analysis, research | analyst |
-| Validation, testing, security review | guard |
+| Project direction, scope, priorities | director |
+| Architecture, technical design, code review | architect |
+| Code implementation, edits, debugging | engineer |
+| Testing, verification, security review | qa |
+| Research direction, agenda, bias prevention | principal |
+| Research methodology, evidence synthesis | postdoc |
+| Web search, independent investigation | researcher |
 
 단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.
 
@@ -121,8 +123,8 @@ Section content:
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
 | nx-consult | [consult] | Interactive discovery — understand intent before executing |
-| nx-team | [team] | Team-driven planning with tasks.json, nonstop execution |
-| nx-sub | [sub] | Lightweight execution — Lead analyzes directly, spawns Builder subagents |
+| nx-dev | [dev] / [dev!] | Development execution — sub-agent or team mode |
+| nx-research | [research] / [research!] | Research execution — principal+postdoc+researcher team |
 | nx-init | /claude-nexus:nx-init | Onboard project — generate knowledge from existing docs |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
 | nx-sync | /claude-nexus:nx-sync | Sync knowledge docs with source files |
@@ -132,8 +134,10 @@ Section content:
 | Tag | Purpose |
 |-----|---------|
 | [consult] | 상담 — 실행 전 의도 파악 |
-| [team] | team mode — 계획 생성 및 nonstop 실행 |
-| [sub] | 경량 실행 — Lead 직접 분석 + Builder direct spawn |
+| [dev] | 개발 — Lead 자율 판단 (sub 또는 team) |
+| [dev!] | 개발 팀 강제 — 반드시 팀 구성 |
+| [research] | 리서치 — Lead 자율 판단 (sub 또는 team) |
+| [research!] | 리서치 팀 강제 — 반드시 팀 구성 |
 | [d] | 결정 기록 (nx_decision_add 호출) |
 <!-- NEXUS:END -->
 ```
@@ -259,7 +263,7 @@ Skip 시: 다음 단계로.
 설정 완료 메시지 출력:
 - 적용된 설정 요약
 - 사용 가능한 스킬/에이전트 간략 소개
-- "시작하려면 작업을 말하거나 [consult]로 상담, [team]으로 팀 실행, [sub]로 경량 실행하세요"
+- "시작하려면 작업을 말하거나 [consult]로 상담, [dev]로 개발, [research]로 리서치하세요"
 
 ## Key Principles
 

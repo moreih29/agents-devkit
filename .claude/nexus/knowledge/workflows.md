@@ -53,8 +53,7 @@
 // tasks.json에 pending 태스크가 있으면 — continue:true + 리마인더
 { "continue": true, "additionalContext": "[NEXUS] N tasks remaining in tasks.json. Complete all tasks before stopping." }
 
-// 모든 태스크 완료 시 — continue:true + 아카이브 지시
-{ "continue": true, "additionalContext": "[NEXUS] All tasks completed. Run nx_plan_archive() to archive this plan, then report results to the user." }
+// 모든 태스크 완료 시 — pass (차단 없음)
 ```
 
 ## 에이전트 위임 형식 (6-Section)

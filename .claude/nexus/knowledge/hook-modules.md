@@ -17,16 +17,15 @@ Memory 모듈은 MCP 도구(`nx_*`)이므로 hooks.json에 등록하지 않음.
 
 ### Stop 처리 (`handleStop`)
 순차 체크:
-1. `.nexus/tasks.json`에 pending(todo/in_progress) 태스크가 있으면 block
-2. 모든 태스크 completed → 아카이브 지시
+1. `.nexus/branches/{branch}/tasks.json`에 pending 태스크가 있으면 block
+2. 모든 태스크 completed 또는 tasks.json 없음 → pass
 3. 그 외 허용
 
 ```javascript
 // 태스크 pending 시 — continue:true + 리마인더
 { "continue": true, "additionalContext": "[NEXUS] N tasks remaining in tasks.json. Complete all tasks before stopping." }
 
-// 모든 완료 시 — continue:true + 아카이브 지시
-{ "continue": true, "additionalContext": "[NEXUS] All tasks completed. Run nx_plan_archive() to archive this plan, then report results to the user." }
+// 모든 완료 시 — pass (차단 없음)
 ```
 
 ### 키워드 감지 (UserPromptSubmit)
@@ -34,8 +33,8 @@ Memory 모듈은 MCP 도구(`nx_*`)이므로 hooks.json에 등록하지 않음.
 
 감지 우선순위:
 1. 결정 태그 (`[d]`) → LLM이 decisions.json에 캡처하도록 지시
-2. 스킬 키워드 (`[consult]`/`[dev]`/`[dev!]` 및 자연어) → 스킬 호출 지시
-   - `[dev!]`는 반드시 팀 구성 강제
+2. 스킬 키워드 (`[consult]`/`[dev]`/`[dev!]`/`[research]`/`[research!]` 및 자연어) → 스킬 호출 지시
+   - `[dev!]`/`[research!]`는 반드시 팀 구성 강제
 
 ## Phase별 최적화
 

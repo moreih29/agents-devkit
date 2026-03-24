@@ -39,8 +39,8 @@ claude plugin install claude-nexus@nexus
 
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
-| **nx-consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 4단계 상담(Explore→Clarify→Propose→Converge) — 실행 전 의도 파악 |
-| **nx-dev** | `[dev]` 또는 "계획 세워" | Team-driven, tasks.json 중심으로 계획 생성 및 nonstop 실행 |
+| **nx-consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 원칙 기반 상담 + [d] 자기강화 루프 — 실행 전 의도 파악 |
+| **nx-dev** | `[dev]` / `[dev!]` | Sub/Team 자동 판단. Director가 태스크 소유, nonstop 실행 |
 | **nx-research** | `[research]` / `[research!]` | 리서치 팀(principal+postdoc+researcher) 구성 및 조사 실행 |
 | **nx-init** | `[init]` 또는 "온보딩" | 프로젝트를 Nexus에 온보드 - 기존 문서 스캔하여 지식 생성 |
 | **nx-setup** | `[setup]` 또는 "nexus 설정" | Nexus 대화형 설정 마법사 |
@@ -50,15 +50,14 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (6개)
+### Core (5개)
 
 | 도구 | 용도 |
 |------|------|
 | `nx_knowledge_read/write` | 프로젝트 지식 관리 (git 추적) |
 | `nx_context` | 현재 세션 상태 조회 |
-| `nx_task_list/add/update` | tasks.json 기반 태스크 관리 |
+| `nx_task_list/add/update/clear` | tasks.json 기반 태스크 관리 |
 | `nx_decision_add` | 아키텍처 결정 기록 |
-| `nx_plan_archive` | 완료된 계획 아카이브 |
 
 ### Code Intelligence (10개)
 
@@ -114,7 +113,10 @@ Gate 단일 모듈로 동작합니다 (v2에서 3개 → 1개로 통합).
 
 ```
 .nexus/
-├── tasks.json              ← 태스크 목록
-├── decisions.json          ← 아키텍처 결정 목록
-└── archives/               ← 아카이브된 계획 (NN-title.md)
+├── branches/               ← 브랜치별 격리
+│   └── {branch}/
+│       ├── tasks.json      ← 태스크 목록
+│       ├── decisions.json  ← 아키텍처 결정 목록
+│       └── reports/        ← 리서치 산출물
+└── sync-state.json         ← 마지막 sync 커밋
 ```
