@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0 (2026-03-24)
+
+### Refactoring
+- init 삭제, sync로 통합 — knowledge 하드코딩 제거, First Run/Reset 모드 추가
+
 ## 0.9.0 (2026-03-24)
 
 ### Features
