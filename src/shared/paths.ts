@@ -1,5 +1,5 @@
 import { resolve, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, renameSync } from 'fs';
 import { execSync } from 'child_process';
 
 /** 프로젝트 루트 (.git이 있는 디렉토리) */
@@ -55,5 +55,19 @@ function sanitizeBranch(branch: string): string {
 }
 
 export const CURRENT_BRANCH = getCurrentBranch();
-export const BRANCH_ROOT = join(RUNTIME_ROOT, sanitizeBranch(CURRENT_BRANCH));
+
+/** 레거시 .nexus/{branch}/ → .nexus/branches/{branch}/ 마이그레이션 (멱등적) */
+function migrateLegacyBranchDir(branchName: string): void {
+  const sanitized = sanitizeBranch(branchName);
+  const legacyPath = join(RUNTIME_ROOT, sanitized);
+  const newPath = join(RUNTIME_ROOT, 'branches', sanitized);
+  if (existsSync(legacyPath) && !existsSync(newPath)) {
+    ensureDir(join(RUNTIME_ROOT, 'branches'));
+    renameSync(legacyPath, newPath);
+  }
+}
+
+migrateLegacyBranchDir(CURRENT_BRANCH);
+
+export const BRANCH_ROOT = join(RUNTIME_ROOT, 'branches', sanitizeBranch(CURRENT_BRANCH));
 

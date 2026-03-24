@@ -14,7 +14,9 @@ claude plugin install claude-nexus@nexus
 
 ## 에이전트
 
-4개의 특화된 에이전트가 각각의 역할을 담당합니다.
+특화된 에이전트가 각각의 역할을 담당합니다.
+
+### 개발 팀 (4개)
 
 | 에이전트 | 호출 | 역할 | 모델 |
 |----------|------|------|------|
@@ -22,6 +24,14 @@ claude plugin install claude-nexus@nexus
 | **Architect** | `claude-nexus:architect` | 기술 설계, 아키텍처 리뷰 (읽기 전용) | opus |
 | **Engineer** | `claude-nexus:engineer` | 코드 구현, 디버깅 | sonnet |
 | **QA** | `claude-nexus:qa` | 검증, 테스트, 보안 리뷰 | sonnet |
+
+### 리서치 팀 (3개)
+
+| 에이전트 | 호출 | 역할 | 모델 |
+|----------|------|------|------|
+| **Principal** | `claude-nexus:principal` | 리서치 방향, 아젠다, 확증편향 방지 | opus |
+| **Postdoc** | `claude-nexus:postdoc` | 방법론 설계, 증거 평가, synthesis 문서 작성 | opus |
+| **Researcher** | `claude-nexus:researcher` | 웹 검색, 독립 조사, 출처 보고 | sonnet |
 
 ## 스킬
 
@@ -31,6 +41,7 @@ claude plugin install claude-nexus@nexus
 |------|--------|------|
 | **nx-consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 4단계 상담(Explore→Clarify→Propose→Converge) — 실행 전 의도 파악 |
 | **nx-dev** | `[dev]` 또는 "계획 세워" | Team-driven, tasks.json 중심으로 계획 생성 및 nonstop 실행 |
+| **nx-research** | `[research]` / `[research!]` | 리서치 팀(principal+postdoc+researcher) 구성 및 조사 실행 |
 | **nx-init** | `[init]` 또는 "온보딩" | 프로젝트를 Nexus에 온보드 - 기존 문서 스캔하여 지식 생성 |
 | **nx-setup** | `[setup]` 또는 "nexus 설정" | Nexus 대화형 설정 마법사 |
 | **nx-sync** | `[sync]` 또는 "지식 동기화" | 소스 코드와 지식 문서 간 불일치 감지 및 수정 |

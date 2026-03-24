@@ -13,10 +13,10 @@ MCP="bridge/mcp-server.cjs"
 # 임시 디렉토리 사용 — 실제 .nexus는 건드리지 않음
 E2E_TMP=$(mktemp -d)
 export NEXUS_RUNTIME_ROOT="$E2E_TMP"
-# gate.cjs는 RUNTIME_ROOT/<sanitized-branch>/tasks.json 에서 읽으므로 브랜치 서브디렉토리 사용
+# gate.cjs는 RUNTIME_ROOT/branches/<sanitized-branch>/tasks.json 에서 읽으므로 branches/ 서브디렉토리 사용
 E2E_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
 E2E_BRANCH_SAFE=$(echo "$E2E_BRANCH" | tr '/\\:*?"<>|' '-')
-E2E_BRANCH_ROOT="$E2E_TMP/$E2E_BRANCH_SAFE"
+E2E_BRANCH_ROOT="$E2E_TMP/branches/$E2E_BRANCH_SAFE"
 mkdir -p "$E2E_BRANCH_ROOT"
 
 green() { echo -e "\033[32m✔ $1\033[0m"; }
@@ -190,6 +190,20 @@ check "Gate/UserPromptSubmit (dev! tag)" 'Dev team mode' "$result"
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[dev!] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
 check "Dev team (nx_task_add)" 'nx_task_add' "$result"
 check "Dev team (tasks.json)" 'tasks.json' "$result"
+
+# --- Research ---
+echo ""
+echo "=== Research ==="
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[research] 마케팅 팀 조사"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (research tag)" 'Research mode' "$result"
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[research!] 경쟁사 분석"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (research! tag)" 'Research team mode' "$result"
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[research!] 시장 조사"}' | node scripts/gate.cjs 2>/dev/null)
+check "Research team (nx_task_add)" 'nx_task_add' "$result"
+check "Research team (tasks.json)" 'tasks.json' "$result"
 
 # --- Statusline ---
 echo ""

@@ -60,7 +60,6 @@ Phase: **intake → design → execute → complete**
 
 - 목표, 범위, 의도 정리 → briefing 작성
 - Branch Guard: main/master면 feature 브랜치 생성
-- TodoWrite 초기화
 - TeamCreate + director/architect 병렬 스폰
 
 ```
@@ -91,7 +90,6 @@ Agent({ subagent_type: "claude-nexus:qa", name: "qa", team_name: "<project>",
   prompt: "태스크별 검증. 문제 발견 시 director에게 SendMessage 보고." })
 ```
 
-- Lead는 SendMessage 보고 수신마다 TodoWrite 갱신
 - QA 문제 발견 → director가 nx_task_add/nx_task_update로 태스크 추가/재오픈
 
 ### Phase 4: Complete
@@ -112,8 +110,7 @@ Agent({ subagent_type: "claude-nexus:qa", name: "qa", team_name: "<project>",
 6. **tasks.json이 유일한 상태** (Team Path)
 7. **Gate Stop nonstop** — pending 태스크 있으면 종료 불가
 8. **Design = 합의** (Director + Architect SendMessage 토론)
-9. **Lead TodoWrite 진행 표시** — SendMessage 보고마다 갱신
-10. **[dev] 판단: 도구 0회** — 요청 텍스트만으로 직감 추정
+9. **[dev] 판단: 도구 0회** — 요청 텍스트만으로 직감 추정
 
 ## Lead Awaiting Pattern (Team Path)
 

@@ -47,18 +47,18 @@ Before reporting completion:
 - Confirm the implementation matches the acceptance criteria in the task
 
 ## Completion Reporting
-작업 완료 후 반드시 director에게 SendMessage로 태스크 완료를 보고하라.
-보고 내용:
-- 완료한 태스크 ID
-- 변경된 파일 목록 (절대 경로)
-- 간략한 구현 요약 (무엇을 왜 이렇게 구현했는지)
-- 주목할 만한 결정이나 제약사항
+After completing a task, always report to director via SendMessage.
+Include:
+- Completed task ID
+- List of changed files (absolute paths)
+- Brief implementation summary (what was done and why)
+- Notable decisions or constraints encountered
 
 ## Escalation
-기술적으로 막히거나 설계 방향이 불명확할 때:
-- architect에게 SendMessage로 에스컬레이션 (기술적 자문 요청)
-- director에게도 알려서 컨텍스트 공유
-- 추측으로 구현하지 말 것 — 확실하지 않으면 물어볼 것
+When stuck on a technical issue or unclear on design direction:
+- Escalate to architect via SendMessage for technical guidance
+- Notify director as well to maintain shared context
+- Do not guess at implementations — ask when uncertain
 
 ## What You Do NOT Do
 - Make architecture or scope decisions unilaterally — consult architect or director

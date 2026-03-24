@@ -30,6 +30,11 @@ function findProjectRoot() {
 var PROJECT_ROOT = findProjectRoot();
 var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path.join)(PROJECT_ROOT, ".nexus");
 var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
+function ensureDir(dir) {
+  if (!(0, import_fs.existsSync)(dir)) {
+    (0, import_fs.mkdirSync)(dir, { recursive: true });
+  }
+}
 function getCurrentBranch() {
   try {
     return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
@@ -49,7 +54,17 @@ function sanitizeBranch(branch) {
   return branch.replace(/[/\\:*?"<>|]/g, "-");
 }
 var CURRENT_BRANCH = getCurrentBranch();
-var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, sanitizeBranch(CURRENT_BRANCH));
+function migrateLegacyBranchDir(branchName) {
+  const sanitized = sanitizeBranch(branchName);
+  const legacyPath = (0, import_path.join)(RUNTIME_ROOT, sanitized);
+  const newPath = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitized);
+  if ((0, import_fs.existsSync)(legacyPath) && !(0, import_fs.existsSync)(newPath)) {
+    ensureDir((0, import_path.join)(RUNTIME_ROOT, "branches"));
+    (0, import_fs.renameSync)(legacyPath, newPath);
+  }
+}
+migrateLegacyBranchDir(CURRENT_BRANCH);
+var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
 
 // src/hooks/gate.ts
 var import_fs2 = require("fs");
@@ -106,7 +121,9 @@ function handlePreToolUse(event) {
 var EXPLICIT_TAGS = {
   consult: { primitive: "consult", skill: "claude-nexus:nx-consult" },
   dev: { primitive: "dev", skill: "claude-nexus:nx-dev" },
-  "dev!": { primitive: "dev!", skill: "claude-nexus:nx-dev" }
+  "dev!": { primitive: "dev!", skill: "claude-nexus:nx-dev" },
+  research: { primitive: "research", skill: "claude-nexus:nx-research" },
+  "research!": { primitive: "research!", skill: "claude-nexus:nx-research" }
 };
 var NATURAL_PATTERNS = [
   {
@@ -115,11 +132,11 @@ var NATURAL_PATTERNS = [
   }
 ];
 var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-var PRIMITIVE_NAMES = /\b(dev|consult)\b/i;
+var PRIMITIVE_NAMES = /\b(dev|consult|research)\b/i;
 function isPrimitiveMention(prompt) {
   if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
   if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  if (/[`"'](?:dev|consult)[`"']/i.test(prompt)) return true;
+  if (/[`"'](?:dev|consult|research)[`"']/i.test(prompt)) return true;
   return false;
 }
 function detectKeywords(prompt) {
@@ -203,6 +220,47 @@ Teammate spawn example:
 
 Key: Plan = consensus (director + architect), Execute = atomic by default \u2014 but director may add tasks (nx_task_add) or reopen tasks (nx_task_update) based on qa reports. Tasks are persisted in tasks.json. Gate Stop reminds until all nx_task tasks are completed. When reminded by Gate Stop, use SendMessage to check teammate progress or assign idle teammates instead of attempting the work yourself.
 Escalation: engineer/qa report to director by default. Escalate to architect for design/architecture questions.`
+      });
+      return;
+    }
+    if (match.primitive === "research") {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] Research mode activated. Assess the request and choose your approach:
+- Simple (1-3 topics, single domain): Use direct Agent() spawns freely with any agent (principal, postdoc, researcher)
+- Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow (principal+postdoc scope \u2192 researcher investigate \u2192 converge)
+[research!] forces team mode. Otherwise, use your judgment \u2014 no need to over-analyze.`
+      });
+      return;
+    }
+    if (match.primitive === "research!") {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] Research team mode activated (forced). Follow the team workflow:
+CRITICAL RULES \u2014 VIOLATION OF THESE IS A SYSTEM ERROR:
+1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).
+2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY principal can create/modify tasks.
+3. Lead MUST NEVER conduct research, read sources, or create plans. ALL work goes through teammates.
+4. Lead uses ONLY orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion). No analysis or research tools.
+5. If you need tasks created, tell principal via SendMessage. Do NOT call nx_task_add yourself \u2014 even with a caller parameter.
+
+1. INTAKE: Summarize user request/context. TeamCreate + spawn principal and postdoc simultaneously via Agent({ team_name: ... }).
+2. SCOPE: principal investigates background/context. If unclear, principal sends question to Lead via SendMessage \u2014 Lead forwards to user via AskUserQuestion, then relays answer back to principal. principal and postdoc then enter consensus loop (principal \u2194 postdoc via SendMessage). principal finalizes tasks via nx_task_add() after consensus.
+3. PERSIST: principal registers all tasks in tasks.json via nx_task_add(). Gate Stop watches this file \u2014 nonstop execution begins immediately.
+4. INVESTIGATE: Assign tasks \u2014 reuse idle teammates first (SendMessage to assign new work), spawn new teammates only if all are busy.
+   - Any teammate can be spawned in parallel (e.g. researcher-1, researcher-2) when workload demands it.
+   - researcher calls nx_task_update(id, "completed") when done, then SendMessage to principal to report completion.
+   - On insufficient results, principal updates tasks (nx_task_add or nx_task_update).
+5. CONVERGE: principal synthesizes findings with postdoc via SendMessage. Final insights/recommendations drafted.
+6. COMPLETE: When all tasks done, Gate Stop unblocks automatically.
+
+Teammate spawn example:
+  TeamCreate({ team_name: "proj", description: "..." })
+  Agent({ subagent_type: "claude-nexus:principal", name: "principal", team_name: "proj", prompt: "..." })
+  Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "proj", prompt: "..." })
+
+Key: Scope = consensus (principal + postdoc), Investigate = atomic by default \u2014 but principal may add tasks (nx_task_add) or reopen tasks (nx_task_update) based on findings. Tasks are persisted in tasks.json. Gate Stop reminds until all nx_task tasks are completed. When reminded by Gate Stop, use SendMessage to check teammate progress or assign idle teammates instead of attempting the work yourself.
+Escalation: researcher reports to principal by default. Escalate to postdoc for methodology/source questions.`
       });
       return;
     }

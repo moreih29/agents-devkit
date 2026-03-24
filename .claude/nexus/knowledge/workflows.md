@@ -22,6 +22,14 @@
 - **QA 조건**: 변경 파일 3개 이상, 기존 테스트 모듈 수정, 또는 Lead 판단
 - **복잡도 가드**: 4+ 서브태스크 또는 cross-cutting concerns → 팀 모드 전환
 
+### Research (리서치 실행)
+- **기능**: Lead가 복잡도 판단 후 sub 또는 team 모드로 리서치 실행. [research!] 태그 시 반드시 팀 구성
+- **키워드**: [research] (자율 판단), [research!] (팀 강제)
+- **팀 구성**: Principal(방향/태스크) + Postdoc(방법론/종합) + Researcher(조사/검색)
+- **확증편향 방지**: Principal이 steelman 태스크 필수 생성, Postdoc이 falsifiability 검증
+- **탈출조건**: Researcher WebSearch 3회 무의미 시 현재까지 결과 보고
+- **출력물**: Postdoc이 synthesis.md 작성 (연구질문/방법론/발견/반증/결론/한계)
+
 ### Init (온보딩)
 - **기능**: 기존 프로젝트에 Nexus 도입 시 기존 문서를 트리아지하여 knowledge 자동 생성
 - **직접 호출만 지원**: `/claude-nexus:nx-init` (gate.ts의 자동 감지 없음)
@@ -78,5 +86,6 @@
 Gate가 UserPromptSubmit에서 감지하는 키워드 우선순위:
 
 1. 결정 태그 (`[d]`) → LLM이 nx_decision_add로 decisions.json에 캡처
-2. 스킬 키워드 (`[consult]`/`[dev]`/`[dev!]` 및 자연어) → 스킬 호출 지시
+2. 스킬 키워드 (`[consult]`/`[dev]`/`[dev!]`/`[research]`/`[research!]` 및 자연어) → 스킬 호출 지시
    - `[dev!]`는 반드시 팀 구성 강제
+   - `[research!]`는 반드시 리서치 팀(principal+postdoc+researcher) 구성 강제

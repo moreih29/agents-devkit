@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
-import { RUNTIME_ROOT } from '../../shared/paths.js';
+import { BRANCH_ROOT } from '../../shared/paths.js';
 import { execSync } from 'child_process';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -24,7 +24,7 @@ export function registerContextTool(server: McpServer): void {
     async () => {
       // 활성 모드 감지: tasks.json에서 읽기
       let teamStatus: { activeMode: 'team'; goal: string; tasksSummary: { total: number; completed: number; pending: number } } | { activeMode: null } = { activeMode: null };
-      const tasksFile = join(RUNTIME_ROOT, 'tasks.json');
+      const tasksFile = join(BRANCH_ROOT, 'tasks.json');
       if (existsSync(tasksFile)) {
         try {
           const data = JSON.parse(await readFile(tasksFile, 'utf-8'));

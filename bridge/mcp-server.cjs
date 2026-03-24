@@ -21034,7 +21034,17 @@ function sanitizeBranch(branch) {
   return branch.replace(/[/\\:*?"<>|]/g, "-");
 }
 var CURRENT_BRANCH = getCurrentBranch();
-var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, sanitizeBranch(CURRENT_BRANCH));
+function migrateLegacyBranchDir(branchName) {
+  const sanitized = sanitizeBranch(branchName);
+  const legacyPath = (0, import_path.join)(RUNTIME_ROOT, sanitized);
+  const newPath = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitized);
+  if ((0, import_fs.existsSync)(legacyPath) && !(0, import_fs.existsSync)(newPath)) {
+    ensureDir((0, import_path.join)(RUNTIME_ROOT, "branches"));
+    (0, import_fs.renameSync)(legacyPath, newPath);
+  }
+}
+migrateLegacyBranchDir(CURRENT_BRANCH);
+var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
 
 // src/mcp/tools/knowledge.ts
 var import_path2 = require("path");
@@ -21129,7 +21139,7 @@ function registerContextTool(server2) {
     {},
     async () => {
       let teamStatus = { activeMode: null };
-      const tasksFile = (0, import_path3.join)(RUNTIME_ROOT, "tasks.json");
+      const tasksFile = (0, import_path3.join)(BRANCH_ROOT, "tasks.json");
       if ((0, import_fs3.existsSync)(tasksFile)) {
         try {
           const data = JSON.parse(await (0, import_promises2.readFile)(tasksFile, "utf-8"));

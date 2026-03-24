@@ -77,14 +77,16 @@ function handlePreToolUse(event: Record<string, unknown>): void {
 // --- UserPromptSubmit 이벤트 처리: 키워드 감지 ---
 
 interface KeywordMatch {
-  primitive: 'consult' | 'dev' | 'dev!';
+  primitive: 'consult' | 'dev' | 'dev!' | 'research' | 'research!';
   skill: string;
 }
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
-  consult: { primitive: 'consult', skill: 'claude-nexus:nx-consult' },
-  dev:     { primitive: 'dev',     skill: 'claude-nexus:nx-dev' },
-  'dev!':  { primitive: 'dev!',    skill: 'claude-nexus:nx-dev' },
+  consult:     { primitive: 'consult',    skill: 'claude-nexus:nx-consult' },
+  dev:         { primitive: 'dev',        skill: 'claude-nexus:nx-dev' },
+  'dev!':      { primitive: 'dev!',       skill: 'claude-nexus:nx-dev' },
+  research:    { primitive: 'research',   skill: 'claude-nexus:nx-research' },
+  'research!': { primitive: 'research!',  skill: 'claude-nexus:nx-research' },
 };
 
 const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
@@ -96,7 +98,7 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
 
 // 프리미티브 이름이 에러/버그 맥락에서 언급되면 활성화가 아닌 "대화" — 오탐 방지
 const ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-const PRIMITIVE_NAMES = /\b(dev|consult)\b/i;
+const PRIMITIVE_NAMES = /\b(dev|consult|research)\b/i;
 
 /** 프리미티브 이름이 에러/버그 맥락과 함께 등장하거나, 단순 질문/인용 맥락인지 판별 */
 function isPrimitiveMention(prompt: string): boolean {
@@ -104,8 +106,8 @@ function isPrimitiveMention(prompt: string): boolean {
   if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
   // 질문 맥락: "dev가 뭐야", "what is consult" 등
   if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  // 인용 맥락: `dev`, "consult"
-  if (/[`"'](?:dev|consult)[`"']/i.test(prompt)) return true;
+  // 인용 맥락: `dev`, "consult", `research`
+  if (/[`"'](?:dev|consult|research)[`"']/i.test(prompt)) return true;
   return false;
 }
 
@@ -197,6 +199,49 @@ Teammate spawn example:
 
 Key: Plan = consensus (director + architect), Execute = atomic by default — but director may add tasks (nx_task_add) or reopen tasks (nx_task_update) based on qa reports. Tasks are persisted in tasks.json. Gate Stop reminds until all nx_task tasks are completed. When reminded by Gate Stop, use SendMessage to check teammate progress or assign idle teammates instead of attempting the work yourself.
 Escalation: engineer/qa report to director by default. Escalate to architect for design/architecture questions.`,
+      });
+      return;
+    }
+
+    if (match.primitive === 'research') {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] Research mode activated. Assess the request and choose your approach:
+- Simple (1-3 topics, single domain): Use direct Agent() spawns freely with any agent (principal, postdoc, researcher)
+- Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow (principal+postdoc scope → researcher investigate → converge)
+[research!] forces team mode. Otherwise, use your judgment — no need to over-analyze.`,
+      });
+      return;
+    }
+
+    if (match.primitive === 'research!') {
+      respond({
+        continue: true,
+        additionalContext: `[NEXUS] Research team mode activated (forced). Follow the team workflow:
+CRITICAL RULES — VIOLATION OF THESE IS A SYSTEM ERROR:
+1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).
+2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY principal can create/modify tasks.
+3. Lead MUST NEVER conduct research, read sources, or create plans. ALL work goes through teammates.
+4. Lead uses ONLY orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion). No analysis or research tools.
+5. If you need tasks created, tell principal via SendMessage. Do NOT call nx_task_add yourself — even with a caller parameter.
+
+1. INTAKE: Summarize user request/context. TeamCreate + spawn principal and postdoc simultaneously via Agent({ team_name: ... }).
+2. SCOPE: principal investigates background/context. If unclear, principal sends question to Lead via SendMessage — Lead forwards to user via AskUserQuestion, then relays answer back to principal. principal and postdoc then enter consensus loop (principal ↔ postdoc via SendMessage). principal finalizes tasks via nx_task_add() after consensus.
+3. PERSIST: principal registers all tasks in tasks.json via nx_task_add(). Gate Stop watches this file — nonstop execution begins immediately.
+4. INVESTIGATE: Assign tasks — reuse idle teammates first (SendMessage to assign new work), spawn new teammates only if all are busy.
+   - Any teammate can be spawned in parallel (e.g. researcher-1, researcher-2) when workload demands it.
+   - researcher calls nx_task_update(id, "completed") when done, then SendMessage to principal to report completion.
+   - On insufficient results, principal updates tasks (nx_task_add or nx_task_update).
+5. CONVERGE: principal synthesizes findings with postdoc via SendMessage. Final insights/recommendations drafted.
+6. COMPLETE: When all tasks done, Gate Stop unblocks automatically.
+
+Teammate spawn example:
+  TeamCreate({ team_name: "proj", description: "..." })
+  Agent({ subagent_type: "claude-nexus:principal", name: "principal", team_name: "proj", prompt: "..." })
+  Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "proj", prompt: "..." })
+
+Key: Scope = consensus (principal + postdoc), Investigate = atomic by default — but principal may add tasks (nx_task_add) or reopen tasks (nx_task_update) based on findings. Tasks are persisted in tasks.json. Gate Stop reminds until all nx_task tasks are completed. When reminded by Gate Stop, use SendMessage to check teammate progress or assign idle teammates instead of attempting the work yourself.
+Escalation: researcher reports to principal by default. Escalate to postdoc for methodology/source questions.`,
       });
       return;
     }
