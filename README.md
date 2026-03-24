@@ -3,18 +3,46 @@
 [![npm version](https://img.shields.io/npm/v/claude-nexus)](https://www.npmjs.com/package/claude-nexus)
 [![license](https://img.shields.io/badge/license-MIT-blue)](https://github.com/moreih29/claude-nexus/blob/main/LICENSE)
 
-Claude Code를 위한 에이전트 오케스트레이션 플러그인. 전문화된 에이전트와 스킬을 통해 코드, 분석, 설계, 테스트, 문서화를 체계적으로 관리합니다.
+> 🌏 [English](README.en.md)
 
-## 설치
+Claude Code를 위한 에이전트 오케스트레이션 플러그인.
+
+## Why
+
+복잡한 개발/리서치 작업을 혼자 처리하는 대신, 전문화된 에이전트 팀이 역할을 나눠 체계적으로 수행합니다. 태그 하나로 상담, 개발, 리서치 워크플로우가 자동 오케스트레이션됩니다.
+
+## Quick Start
+
+**설치**
 
 ```bash
 claude plugin marketplace add https://github.com/moreih29/claude-nexus.git
 claude plugin install claude-nexus@nexus
 ```
 
-## 에이전트
+**온보딩**
 
-특화된 에이전트가 각각의 역할을 담당합니다.
+`/claude-nexus:nx-init`으로 프로젝트 문서를 스캔해 `.claude/nexus/knowledge/`에 지식을 생성합니다.
+
+**첫 사용**
+
+- **상담**: `[consult] 인증 시스템 어떻게 설계하면 좋을까?` — 실행 전 의도 파악, 설계 상담
+- **개발**: `[dev] 로그인 API 구현해줘` — 에이전트 팀이 분석부터 구현까지 실행
+- **리서치**: `[research] React vs Svelte 성능 비교` — 독립 조사 후 synthesis 문서 작성
+
+## 사용법
+
+| 태그 | 동작 | 예시 |
+|------|------|------|
+| `[consult]` | 실행 전 상담, 의도 파악 | `[consult] DB 마이그레이션 전략 논의` |
+| `[dev]` | 개발 실행 (Sub/Team 자동 판단) | `[dev] 결제 모듈 리팩토링` |
+| `[dev!]` | 팀 모드 강제 | `[dev!] 인증 시스템 전면 개편` |
+| `[research]` | 리서치 실행 (Sub/Team 자동 판단) | `[research] 캐싱 전략 비교 분석` |
+| `[research!]` | 리서치 팀 강제 | `[research!] 경쟁사 기술 스택 조사` |
+
+흐름: `[consult]`로 방향을 잡은 뒤 `[dev]` 또는 `[research]`로 실행합니다.
+
+## 에이전트
 
 ### 개발 팀 (4개)
 
@@ -35,18 +63,19 @@ claude plugin install claude-nexus@nexus
 
 ## 스킬
 
-대화형 워크플로우를 통해 복잡한 작업을 단계별로 진행합니다.
-
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
-| **nx-consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 원칙 기반 상담 + [d] 자기강화 루프 — 실행 전 의도 파악 |
-| **nx-dev** | `[dev]` / `[dev!]` | Sub/Team 자동 판단. Director가 태스크 소유, nonstop 실행 |
-| **nx-research** | `[research]` / `[research!]` | 리서치 팀(principal+postdoc+researcher) 구성 및 조사 실행 |
-| **nx-init** | `[init]` 또는 "온보딩" | 프로젝트를 Nexus에 온보드 - 기존 문서 스캔하여 지식 생성 |
-| **nx-setup** | `[setup]` 또는 "nexus 설정" | Nexus 대화형 설정 마법사 |
-| **nx-sync** | `[sync]` 또는 "지식 동기화" | 소스 코드와 지식 문서 간 불일치 감지 및 수정 |
+| **nx-consult** | `[consult]` | 구조화된 상담. 요구사항 정리 → 결정 기록(`[d]`) → 실행 태그 추천 |
+| **nx-dev** | `[dev]` / `[dev!]` | 개발 실행. 복잡도에 따라 단독 또는 팀(Director→Architect→Engineer→QA) 자동 편성 |
+| **nx-research** | `[research]` / `[research!]` | 리서치 실행. 복잡도에 따라 단독 또는 팀(Principal→Postdoc→Researcher) 자동 편성 |
+| **nx-init** | `/claude-nexus:nx-init` | 프로젝트 온보딩. 기존 문서를 스캔해 knowledge 파일 자동 생성 |
+| **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정. CLAUDE.md에 에이전트/스킬/태그 설정 주입 |
+| **nx-sync** | `/claude-nexus:nx-sync` | 소스 코드 변경 후 knowledge 문서와의 불일치 감지 및 수정 |
 
-## MCP 도구
+## 고급 기능
+
+<details>
+<summary>MCP 도구</summary>
 
 Claude가 직접 호출하는 도구입니다.
 
@@ -77,37 +106,32 @@ Claude가 직접 호출하는 도구입니다.
 LSP는 프로젝트 언어를 자동 감지합니다 (tsconfig.json → TypeScript 등).
 AST는 `@ast-grep/napi` 필요: `bun install @ast-grep/napi`
 
-## Hook
+</details>
 
-Gate 단일 모듈로 동작합니다 (v2에서 3개 → 1개로 통합).
+<details>
+<summary>Hook</summary>
+
+Gate 단일 모듈로 동작합니다.
 
 | 이벤트 | 역할 |
 |--------|------|
 | `UserPromptSubmit` | 프롬프트 전처리 및 컨텍스트 주입 |
 | `Stop` | 세션 종료 후처리 |
 
-## 프로젝트 지식
+</details>
 
-`.claude/nexus/knowledge/` 디렉토리에 팀이 공유하는 장기 프로젝트 지식을 저장합니다. git으로 추적됩니다.
+<details>
+<summary>프로젝트 지식</summary>
 
-```
-.claude/nexus/
-├── knowledge/              ← 공유 지식 (git 추적)
-│   ├── architecture.md
-│   ├── agents-catalog.md
-│   ├── conventions.md
-│   ├── workflows.md
-│   ├── hook-modules.md
-│   ├── mcp-tools.md
-│   ├── dev-workflow.md
-│   └── decisions/          ← 아키텍처 결정 기록
-├── config.json             ← Nexus 설정
-└── plans/                  ← 브랜치별 구현 계획
-    └── feature--*/
-        └── plan.md
-```
+`.claude/nexus/knowledge/`에 프로젝트 지식을 저장합니다. git으로 추적됩니다.
 
-## 런타임 상태
+- `nx-init`이 프로젝트에 맞는 knowledge 파일을 자동 생성합니다 (구조 고정 아님)
+- `config.json`에 Nexus 설정이 저장됩니다
+
+</details>
+
+<details>
+<summary>런타임 상태</summary>
 
 `.nexus/` 디렉토리에 런타임 상태가 저장됩니다. gitignore 대상입니다.
 
@@ -120,3 +144,5 @@ Gate 단일 모듈로 동작합니다 (v2에서 3개 → 1개로 통합).
 │       └── reports/        ← 리서치 산출물
 └── sync-state.json         ← 마지막 sync 커밋
 ```
+
+</details>
