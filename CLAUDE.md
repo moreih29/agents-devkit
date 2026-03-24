@@ -20,11 +20,10 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 
 | Task | Agent |
 |------|-------|
-| Code implementation, edits | builder |
-| Architecture, design decisions, code review | architect |
-| Debugging, tracing issues | debugger |
-| Deep analysis, research | analyst |
-| Validation, testing, security review | guard |
+| Project direction, scope, priorities | director |
+| Architecture, technical design, code review | architect |
+| Code implementation, edits, debugging | engineer |
+| Testing, verification, security review | qa |
 
 단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.
 
@@ -33,18 +32,17 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
 | nx-consult | [consult] | Interactive discovery — understand intent before executing |
-| nx-team | [team] | Team-driven planning with tasks.json, nonstop execution |
-| nx-sub | [sub] | Lightweight execution — Lead analyzes directly, spawns Builder subagents |
-| nx-init | /nexus:nx-init | Onboard project — generate knowledge from existing docs |
-| nx-setup | /nexus:nx-setup | Configure Nexus interactively |
-| nx-sync | /nexus:nx-sync | Sync knowledge docs with source files |
+| nx-dev | [dev] / [dev!] | Development execution — sub-agent or team mode |
+| nx-init | /claude-nexus:nx-init | Onboard project — generate knowledge from existing docs |
+| nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
+| nx-sync | /claude-nexus:nx-sync | Sync knowledge docs with source files |
 
 ### Tags
 
 | Tag | Purpose |
 |-----|---------|
 | [consult] | 상담 — 실행 전 의도 파악 |
-| [team] | team mode — 계획 생성 및 nonstop 실행 |
-| [sub] | 경량 실행 — Lead 직접 분석 + Builder direct spawn |
+| [dev] | 개발 — Lead 자율 판단 (sub 또는 team) |
+| [dev!] | 개발 팀 강제 — 반드시 팀 구성 |
 | [d] | 결정 기록 (nx_decision_add 호출) |
 <!-- NEXUS:END -->

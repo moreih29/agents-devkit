@@ -20995,6 +20995,7 @@ var import_promises = require("fs/promises");
 // src/shared/paths.ts
 var import_path = require("path");
 var import_fs = require("fs");
+var import_child_process = require("child_process");
 function findProjectRoot() {
   let dir = process.cwd();
   while (dir !== "/") {
@@ -21014,6 +21015,26 @@ function ensureDir(dir) {
     (0, import_fs.mkdirSync)(dir, { recursive: true });
   }
 }
+function getCurrentBranch() {
+  try {
+    return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    return "_unknown";
+  }
+}
+function sanitizeBranch(branch) {
+  if (branch === "HEAD") {
+    try {
+      const hash = (0, import_child_process.execSync)("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
+      return `_detached-${hash}`;
+    } catch {
+      return "_detached";
+    }
+  }
+  return branch.replace(/[/\\:*?"<>|]/g, "-");
+}
+var CURRENT_BRANCH = getCurrentBranch();
+var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, sanitizeBranch(CURRENT_BRANCH));
 
 // src/mcp/tools/knowledge.ts
 var import_path2 = require("path");
@@ -21091,11 +21112,11 @@ ${content}`;
 // src/mcp/tools/context.ts
 var import_fs3 = require("fs");
 var import_promises2 = require("fs/promises");
-var import_child_process = require("child_process");
+var import_child_process2 = require("child_process");
 var import_path3 = require("path");
-function getCurrentBranch() {
+function getCurrentBranch2() {
   try {
-    return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8" }).trim();
+    return (0, import_child_process2.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8" }).trim();
   } catch {
     return "unknown";
   }
@@ -21125,7 +21146,7 @@ function registerContextTool(server2) {
         }
       }
       const result = {
-        branch: getCurrentBranch(),
+        branch: getCurrentBranch2(),
         ...teamStatus
       };
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -21139,7 +21160,7 @@ var import_path5 = require("path");
 var import_url = require("url");
 
 // src/code-intel/lsp-client.ts
-var import_child_process2 = require("child_process");
+var import_child_process3 = require("child_process");
 var import_events = require("events");
 var LspClient = class extends import_events.EventEmitter {
   constructor(command, args) {
@@ -21155,7 +21176,7 @@ var LspClient = class extends import_events.EventEmitter {
   contentLength = -1;
   async initialize(rootUri) {
     if (this.initialized) return;
-    this.process = (0, import_child_process2.spawn)(this.command, this.args, {
+    this.process = (0, import_child_process3.spawn)(this.command, this.args, {
       stdio: ["pipe", "pipe", "pipe"],
       env: { ...process.env, NODE_OPTIONS: "" }
     });
@@ -21277,7 +21298,7 @@ var LspClient = class extends import_events.EventEmitter {
 
 // src/code-intel/detect.ts
 var import_fs4 = require("fs");
-var import_child_process3 = require("child_process");
+var import_child_process4 = require("child_process");
 var import_path4 = require("path");
 var LSP_SERVERS = {
   typescript: {
@@ -21309,7 +21330,7 @@ var COMMON_PATHS = {
 function resolveCommand(command) {
   if (command === "npx") return command;
   try {
-    const resolved = (0, import_child_process3.execSync)(`which ${command}`, { encoding: "utf-8", timeout: 3e3 }).trim();
+    const resolved = (0, import_child_process4.execSync)(`which ${command}`, { encoding: "utf-8", timeout: 3e3 }).trim();
     if (resolved) return resolved;
   } catch {
   }
@@ -22016,14 +22037,14 @@ function registerAstTools(server2) {
 var import_fs7 = require("fs");
 var import_promises3 = require("fs/promises");
 var import_path7 = require("path");
-var TASKS_PATH = (0, import_path7.join)(RUNTIME_ROOT, "tasks.json");
+var TASKS_PATH = (0, import_path7.join)(BRANCH_ROOT, "tasks.json");
 async function readTasks() {
   if (!(0, import_fs7.existsSync)(TASKS_PATH)) return null;
   const raw = await (0, import_promises3.readFile)(TASKS_PATH, "utf-8");
   return JSON.parse(raw);
 }
 async function writeTasks(data) {
-  ensureDir(RUNTIME_ROOT);
+  ensureDir(BRANCH_ROOT);
   await (0, import_promises3.writeFile)(TASKS_PATH, JSON.stringify(data, null, 2));
 }
 function computeSummary(tasks) {
@@ -22064,11 +22085,12 @@ function registerTaskTools(server2) {
       title: external_exports.string().describe("Task title"),
       context: external_exports.string().describe("Task context or description"),
       deps: external_exports.array(external_exports.number()).optional().describe("IDs of tasks this task depends on"),
-      goal: external_exports.string().optional().describe("Set or update the goal for this task list")
+      goal: external_exports.string().optional().describe("Set or update the goal for this task list"),
+      owner: external_exports.string().optional().describe("Assignee agent name for this task")
     },
-    async ({ caller, title, context, deps, goal }) => {
-      if (caller !== "analyst") {
-        return { content: [{ type: "text", text: JSON.stringify({ error: `Only analyst can create tasks. You are: ${caller}` }) }] };
+    async ({ caller, title, context, deps, goal, owner }) => {
+      if (caller !== "director") {
+        return { content: [{ type: "text", text: JSON.stringify({ error: `Only director can create tasks. You are: ${caller}` }) }] };
       }
       let data = await readTasks();
       if (!data) {
@@ -22083,7 +22105,9 @@ function registerTaskTools(server2) {
         title,
         context,
         status: "pending",
-        deps: deps ?? []
+        deps: deps ?? [],
+        owner,
+        created_at: (/* @__PURE__ */ new Date()).toISOString()
       };
       data.tasks.push(newTask);
       await writeTasks(data);
@@ -22141,9 +22165,7 @@ function registerTaskTools(server2) {
 var import_fs8 = require("fs");
 var import_promises4 = require("fs/promises");
 var import_path8 = require("path");
-var DECISIONS_PATH = (0, import_path8.join)(RUNTIME_ROOT, "decisions.json");
-var TASKS_PATH2 = (0, import_path8.join)(RUNTIME_ROOT, "tasks.json");
-var ARCHIVES_DIR = (0, import_path8.join)(RUNTIME_ROOT, "archives");
+var DECISIONS_PATH = (0, import_path8.join)(BRANCH_ROOT, "decisions.json");
 async function readDecisions() {
   if (!(0, import_fs8.existsSync)(DECISIONS_PATH)) {
     return { decisions: [] };
@@ -22152,24 +22174,8 @@ async function readDecisions() {
   return JSON.parse(raw);
 }
 async function writeDecisions(data) {
-  ensureDir(RUNTIME_ROOT);
+  ensureDir(BRANCH_ROOT);
   await (0, import_promises4.writeFile)(DECISIONS_PATH, JSON.stringify(data, null, 2));
-}
-function toKebabCase(str) {
-  return str.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
-}
-async function nextArchiveNumber() {
-  if (!(0, import_fs8.existsSync)(ARCHIVES_DIR)) return 1;
-  const files = await (0, import_promises4.readdir)(ARCHIVES_DIR);
-  let max = 0;
-  for (const file of files) {
-    const match = file.match(/^(\d+)-/);
-    if (match) {
-      const n = parseInt(match[1], 10);
-      if (n > max) max = n;
-    }
-  }
-  return max + 1;
 }
 function registerDecisionTools(server2) {
   server2.tool(
@@ -22187,81 +22193,6 @@ function registerDecisionTools(server2) {
           {
             type: "text",
             text: JSON.stringify({ decisions: data.decisions })
-          }
-        ]
-      };
-    }
-  );
-  server2.tool(
-    "nx_plan_archive",
-    "Archive current plan: generate markdown summary, save to .nexus/archives/, delete tasks.json and decisions.json",
-    {},
-    async () => {
-      if (!(0, import_fs8.existsSync)(TASKS_PATH2)) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ error: "tasks.json not found" })
-            }
-          ]
-        };
-      }
-      const tasksRaw = await (0, import_promises4.readFile)(TASKS_PATH2, "utf-8");
-      const tasksData = JSON.parse(tasksRaw);
-      const decisionsData = await readDecisions();
-      const decisionsSection = decisionsData.decisions.length > 0 ? decisionsData.decisions.map((d, i) => `- D${i + 1}: ${d}`).join("\n") : "(none)";
-      const completedTasks = tasksData.tasks.filter((t) => t.status === "completed");
-      const incompleteTasks = tasksData.tasks.filter((t) => t.status !== "completed");
-      const tasksSection = tasksData.tasks.length > 0 ? tasksData.tasks.map((t) => {
-        const check2 = t.status === "completed" ? "x" : " ";
-        return `- [${check2}] Task ${t.id}: ${t.title}`;
-      }).join("\n") : "(none)";
-      const totalTasks = tasksData.tasks.length;
-      const totalDecisions = decisionsData.decisions.length;
-      const completedAt = (/* @__PURE__ */ new Date()).toISOString();
-      const descriptionLines = [];
-      if (completedTasks.length > 0) {
-        descriptionLines.push(`Completed: ${completedTasks.map((t) => t.title).join(", ")}`);
-      }
-      if (incompleteTasks.length > 0) {
-        descriptionLines.push(`Incomplete: ${incompleteTasks.map((t) => t.title).join(", ")}`);
-      }
-      const description = descriptionLines.length > 0 ? descriptionLines.join(" | ") : "(no tasks)";
-      const markdown = `# ${tasksData.goal}
-
-## Description
-${description}
-
-Archived at: ${completedAt}
-
-## Decisions
-${decisionsSection}
-
-## Tasks
-${tasksSection}
-
-## Summary
-Total: ${totalTasks} tasks, ${totalDecisions} decisions
-Completed: ${completedTasks.length}/${totalTasks}
-`;
-      ensureDir(ARCHIVES_DIR);
-      const num = await nextArchiveNumber();
-      const paddedNum = String(num).padStart(2, "0");
-      const goalSlug = tasksData.goal.trim();
-      const slug = goalSlug ? toKebabCase(goalSlug).slice(0, 50) : "untitled";
-      const filename = `${paddedNum}-${slug || "untitled"}.md`;
-      const archivePath = (0, import_path8.join)(ARCHIVES_DIR, filename);
-      await (0, import_promises4.writeFile)(archivePath, markdown);
-      await (0, import_promises4.rm)(TASKS_PATH2);
-      if ((0, import_fs8.existsSync)(DECISIONS_PATH)) {
-        await (0, import_promises4.rm)(DECISIONS_PATH);
-      }
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ archived: archivePath })
           }
         ]
       };

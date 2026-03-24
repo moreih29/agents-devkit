@@ -19,8 +19,8 @@
 ```
 
 ### 에이전트 매핑
-- standard: Builder, Debugger, Guard (작업에 프로젝트 맥락 필요)
-- full: Architect, Analyst (전체 그림 필요)
+- standard: Engineer, QA (작업에 프로젝트 맥락 필요)
+- full: Architect, Director (전체 그림 필요)
 
 ## 근거
 - "최대한의 컨텍스트"가 아닌 "최적화된 컨텍스트" 주입이 원칙

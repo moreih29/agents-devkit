@@ -3,9 +3,9 @@ import { existsSync, unlinkSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { RUNTIME_ROOT, ensureDir } from '../../shared/paths.js';
+import { BRANCH_ROOT, ensureDir } from '../../shared/paths.js';
 
-const TASKS_PATH = join(RUNTIME_ROOT, 'tasks.json');
+const TASKS_PATH = join(BRANCH_ROOT, 'tasks.json');
 
 interface Task {
   id: number;
@@ -13,6 +13,8 @@ interface Task {
   context: string;
   status: 'pending' | 'in_progress' | 'completed';
   deps: number[];
+  owner?: string;
+  created_at?: string;
 }
 
 interface TasksFile {
@@ -27,7 +29,7 @@ async function readTasks(): Promise<TasksFile | null> {
 }
 
 async function writeTasks(data: TasksFile): Promise<void> {
-  ensureDir(RUNTIME_ROOT);
+  ensureDir(BRANCH_ROOT);
   await writeFile(TASKS_PATH, JSON.stringify(data, null, 2));
 }
 
@@ -76,10 +78,11 @@ export function registerTaskTools(server: McpServer): void {
       context: z.string().describe('Task context or description'),
       deps: z.array(z.number()).optional().describe('IDs of tasks this task depends on'),
       goal: z.string().optional().describe('Set or update the goal for this task list'),
+      owner: z.string().optional().describe('Assignee agent name for this task'),
     },
-    async ({ caller, title, context, deps, goal }) => {
-      if (caller !== 'analyst') {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Only analyst can create tasks. You are: ${caller}` }) }] };
+    async ({ caller, title, context, deps, goal, owner }) => {
+      if (caller !== 'director') {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Only director can create tasks. You are: ${caller}` }) }] };
       }
 
       let data = await readTasks();
@@ -98,6 +101,8 @@ export function registerTaskTools(server: McpServer): void {
         context,
         status: 'pending',
         deps: deps ?? [],
+        owner,
+        created_at: new Date().toISOString(),
       };
 
       data.tasks.push(newTask);

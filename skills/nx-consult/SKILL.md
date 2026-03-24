@@ -11,7 +11,7 @@ triggers: ["consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까"
 
 - User says: "consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까", "방법을 찾아줘"
 - Explicit tag: `[consult]`
-- Direct invocation: `/nexus:nx-consult`
+- Direct invocation: `/claude-nexus:nx-consult`
 
 ## What It Does
 

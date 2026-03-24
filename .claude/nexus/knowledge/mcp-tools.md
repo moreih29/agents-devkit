@@ -26,7 +26,7 @@ nx_context()
 ### 태스크 관리 (`.nexus/tasks.json`)
 ```typescript
 nx_task_list({ status?: "pending" | "completed" })
-nx_task_add({ title: "인증 모듈 구현", description?: "...", tags?: ["auth"], caller?: "analyst" })  // caller: analyst 전용 파라미터 (태스크 소유자 지정)
+nx_task_add({ title: "인증 모듈 구현", description?: "...", tags?: ["auth"] })
 nx_task_update({ id: "eaba793e", status?: "completed" | "cancelled", title?, description?, tags? })
 ```
 
@@ -37,12 +37,6 @@ nx_decision_add({
   rationale: "SSR 환경에서 쿠키가 더 자연스럽다",
   tags: ["auth", "security"]
 })
-```
-
-### 계획 아카이브 (`.nexus/archives/`)
-```typescript
-nx_plan_archive()
-// 현재 tasks.json을 .nexus/archives/NN-title.md로 아카이브하고 tasks.json 초기화
 ```
 
 ## 구분 기준

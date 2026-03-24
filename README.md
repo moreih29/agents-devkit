@@ -14,17 +14,14 @@ claude plugin install claude-nexus@nexus
 
 ## 에이전트
 
-5개의 특화된 에이전트가 각각의 역할을 담당합니다.
+4개의 특화된 에이전트가 각각의 역할을 담당합니다.
 
 | 에이전트 | 호출 | 역할 | 모델 |
 |----------|------|------|------|
-| **Architect** | `nexus:architect` | 아키텍처 설계 + 코드 리뷰 (읽기 전용) | opus |
-| **Analyst** | `nexus:analyst` | 심층 분석, 리서치 | opus |
-| **Builder** | `nexus:builder` | 코드 구현, 리팩토링 | sonnet |
-| **Debugger** | `nexus:debugger` | 디버깅, 원인 분석 | sonnet |
-| **Guard** | `nexus:guard` | 검증, 테스트, 보안 리뷰 | sonnet |
-
-> 이전 Reviewer/Tester 에이전트는 각각 Architect/Guard로 통합되었습니다.
+| **Director** | `claude-nexus:director` | 프로젝트 방향, 스코프, 우선순위 판단 | opus |
+| **Architect** | `claude-nexus:architect` | 기술 설계, 아키텍처 리뷰 (읽기 전용) | opus |
+| **Engineer** | `claude-nexus:engineer` | 코드 구현, 디버깅 | sonnet |
+| **QA** | `claude-nexus:qa` | 검증, 테스트, 보안 리뷰 | sonnet |
 
 ## 스킬
 
@@ -33,7 +30,7 @@ claude plugin install claude-nexus@nexus
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
 | **nx-consult** | `[consult]` 또는 "어떻게 하면 좋을까" | 4단계 상담(Explore→Clarify→Propose→Converge) — 실행 전 의도 파악 |
-| **nx-team** | `[team]` 또는 "계획 세워" | v2 Team-driven, tasks.json 중심으로 계획 생성 및 nonstop 실행 |
+| **nx-dev** | `[dev]` 또는 "계획 세워" | Team-driven, tasks.json 중심으로 계획 생성 및 nonstop 실행 |
 | **nx-init** | `[init]` 또는 "온보딩" | 프로젝트를 Nexus에 온보드 - 기존 문서 스캔하여 지식 생성 |
 | **nx-setup** | `[setup]` 또는 "nexus 설정" | Nexus 대화형 설정 마법사 |
 | **nx-sync** | `[sync]` 또는 "지식 동기화" | 소스 코드와 지식 문서 간 불일치 감지 및 수정 |

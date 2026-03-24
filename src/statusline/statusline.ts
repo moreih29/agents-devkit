@@ -284,9 +284,8 @@ function getUsage(): { json: string; stale: boolean; ageSeconds: number } | null
 function extractUtil(parsed: Record<string, unknown> | null, section: string): number {
   if (!parsed) return 0;
   const sectionData = parsed[section] as Record<string, unknown> | undefined;
-  const val = Number(sectionData?.utilization) || 0;
-  // utilization이 0-1이면 ×100, 이미 퍼센트(>1)이면 그대로
-  return val > 1 ? val : val * 100;
+  // API는 퍼센트 값 반환 (2.0 = 2%, 56.0 = 56%)
+  return Number(sectionData?.utilization) || 0;
 }
 
 function extractResetInfo(parsed: Record<string, unknown> | null, section: string): { timeStr: string; remaining: string; remainingCoarse: string; dayStr: string } {

@@ -8,7 +8,7 @@ disable-model-invocation: true
 Interactive project setup wizard — configure Nexus for a new project with minimal token cost.
 
 ## Trigger
-- Direct invocation: `/nexus:nx-setup`
+- Direct invocation: `/claude-nexus:nx-setup`
 
 ## What It Does
 
@@ -123,9 +123,9 @@ Section content:
 | nx-consult | [consult] | Interactive discovery — understand intent before executing |
 | nx-team | [team] | Team-driven planning with tasks.json, nonstop execution |
 | nx-sub | [sub] | Lightweight execution — Lead analyzes directly, spawns Builder subagents |
-| nx-init | /nexus:nx-init | Onboard project — generate knowledge from existing docs |
-| nx-setup | /nexus:nx-setup | Configure Nexus interactively |
-| nx-sync | /nexus:nx-sync | Sync knowledge docs with source files |
+| nx-init | /claude-nexus:nx-init | Onboard project — generate knowledge from existing docs |
+| nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
+| nx-sync | /claude-nexus:nx-sync | Sync knowledge docs with source files |
 
 ### Tags
 
@@ -245,7 +245,7 @@ AskUserQuestion({
     multiSelect: false,
     options: [
       { label: "Yes (Recommended)", description: "기존 문서(README, CLAUDE.md 등)를 분석해 .claude/nexus/knowledge/ 생성" },
-      { label: "Skip", description: "나중에 /nexus:nx-init으로 직접 실행" }
+      { label: "Skip", description: "나중에 /claude-nexus:nx-init으로 직접 실행" }
     ]
   }]
 })

@@ -29,7 +29,7 @@ knowledge_files = Glob(".claude/nexus/knowledge/*.md")
 
 IF knowledge_files 개수 < 2:
   → 사용자에게 안내:
-    "knowledge 파일이 부족합니다. `/nexus:nx-init`을 실행하면
+    "knowledge 파일이 부족합니다. `/claude-nexus:nx-init`을 실행하면
      프로젝트 분석을 기반으로 knowledge가 자동 생성됩니다."
   → 종료
 ELSE:

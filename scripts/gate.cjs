@@ -18,6 +18,7 @@ function pass() {
 // src/shared/paths.ts
 var import_path = require("path");
 var import_fs = require("fs");
+var import_child_process = require("child_process");
 function findProjectRoot() {
   let dir = process.cwd();
   while (dir !== "/") {
@@ -29,12 +30,32 @@ function findProjectRoot() {
 var PROJECT_ROOT = findProjectRoot();
 var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path.join)(PROJECT_ROOT, ".nexus");
 var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
+function getCurrentBranch() {
+  try {
+    return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    return "_unknown";
+  }
+}
+function sanitizeBranch(branch) {
+  if (branch === "HEAD") {
+    try {
+      const hash = (0, import_child_process.execSync)("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
+      return `_detached-${hash}`;
+    } catch {
+      return "_detached";
+    }
+  }
+  return branch.replace(/[/\\:*?"<>|]/g, "-");
+}
+var CURRENT_BRANCH = getCurrentBranch();
+var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, sanitizeBranch(CURRENT_BRANCH));
 
 // src/hooks/gate.ts
 var import_fs2 = require("fs");
 var import_path2 = require("path");
 function handleStop() {
-  const tasksPath = (0, import_path2.join)(RUNTIME_ROOT, "tasks.json");
+  const tasksPath = (0, import_path2.join)(BRANCH_ROOT, "tasks.json");
   if (!(0, import_fs2.existsSync)(tasksPath)) {
     pass();
     return;
@@ -50,10 +71,7 @@ function handleStop() {
       });
       return;
     }
-    respond({
-      continue: true,
-      additionalContext: "[NEXUS] All tasks completed. Run nx_plan_archive() to archive this plan, then report results to the user."
-    });
+    pass();
     return;
   } catch {
     pass();
@@ -75,7 +93,7 @@ function handlePreToolUse(event) {
     pass();
     return;
   }
-  const tasksPath = (0, import_path2.join)(RUNTIME_ROOT, "tasks.json");
+  const tasksPath = (0, import_path2.join)(BRANCH_ROOT, "tasks.json");
   if (!(0, import_fs2.existsSync)(tasksPath)) {
     pass();
     return;
@@ -86,30 +104,26 @@ function handlePreToolUse(event) {
   });
 }
 var EXPLICIT_TAGS = {
-  consult: { primitive: "consult", skill: "nexus:nx-consult" },
-  team: { primitive: "team", skill: "nexus:nx-team" },
-  sub: { primitive: "sub", skill: "nexus:nx-sub" }
+  consult: { primitive: "consult", skill: "claude-nexus:nx-consult" },
+  dev: { primitive: "dev", skill: "claude-nexus:nx-dev" },
+  "dev!": { primitive: "dev!", skill: "claude-nexus:nx-dev" }
 };
 var NATURAL_PATTERNS = [
   {
     patterns: [/\bconsult\b/i, /상담/, /어떻게\s*하면\s*좋을까/, /뭐가\s*좋을까/, /방법을?\s*찾아/],
-    match: { primitive: "consult", skill: "nexus:nx-consult" }
-  },
-  {
-    patterns: [/팀\s*(구성|으로)/, /\bteam\b/i, /team\s*this/i],
-    match: { primitive: "team", skill: "nexus:nx-team" }
+    match: { primitive: "consult", skill: "claude-nexus:nx-consult" }
   }
 ];
 var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-var PRIMITIVE_NAMES = /\b(team|consult)\b/i;
+var PRIMITIVE_NAMES = /\b(dev|consult)\b/i;
 function isPrimitiveMention(prompt) {
   if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
   if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  if (/[`"'](?:team|consult)[`"']/i.test(prompt)) return true;
+  if (/[`"'](?:dev|consult)[`"']/i.test(prompt)) return true;
   return false;
 }
 function detectKeywords(prompt) {
-  const tagMatch = prompt.match(/\[(\w+)\]/);
+  const tagMatch = prompt.match(/\[(\w+!?)\]/);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -150,54 +164,44 @@ Key: No execution. User decides next steps. [d] tags can record decisions during
       });
       return;
     }
-    if (match.primitive === "sub") {
+    if (match.primitive === "dev") {
       respond({
         continue: true,
-        additionalContext: `[NEXUS] Sub mode activated. Lightweight execution \u2014 you handle analysis directly.
-
-RULES:
-1. You ARE allowed to use analysis and code tools (Read, Grep, LSP, AST, etc.) \u2014 unlike team mode.
-2. Analyze the request yourself. Do NOT spawn Analyst or Architect.
-3. If the task requires 4+ subtasks or cross-cutting concerns, STOP and suggest [team] to the user.
-4. Spawn Builder subagents via Agent({ subagent_type: "nexus:builder" }) WITHOUT team_name (direct spawn, no team).
-   Do NOT use TeamCreate or team_name \u2014 sub mode has no team.
-5. Guard: spawn if changed files >= 3, or modified module has existing tests, or verification is warranted.
-6. No tasks.json, no Gate Stop, no archive. Report results directly to the user.
-7. Use TodoWrite after analysis to create a checklist of tasks (status: "pending"). Update each to "completed" after Builder finishes.
-
-Workflow: analyze \u2192 TodoWrite (create checklist) \u2192 spawn builders (direct spawn) \u2192 update TodoWrite \u2192 (conditional) verify \u2192 report to user.`
+        additionalContext: `[NEXUS] Dev mode activated. Assess the request and choose your approach:
+- Simple (1-3 files, clear scope): Use direct Agent() spawns freely with any agent (director, architect, engineer, qa)
+- Complex (4+ files, design decisions needed): Use TeamCreate + full team workflow (director+architect design \u2192 engineer+qa execute)
+[dev!] forces team mode. Otherwise, use your judgment \u2014 no need to over-analyze.`
       });
       return;
     }
-    if (match.primitive === "team") {
+    if (match.primitive === "dev!") {
       respond({
         continue: true,
-        additionalContext: `[NEXUS] Team mode activated. Follow the team workflow:
+        additionalContext: `[NEXUS] Dev team mode activated (forced). Follow the team workflow:
 CRITICAL RULES \u2014 VIOLATION OF THESE IS A SYSTEM ERROR:
 1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).
-2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY Analyst can create/modify tasks.
+2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY director can create/modify tasks.
 3. Lead MUST NEVER write code, edit files, or create plans. ALL work goes through teammates.
 4. Lead uses ONLY orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion). No analysis or code tools.
-5. If you need tasks created, tell Analyst via SendMessage. Do NOT call nx_task_add yourself \u2014 even with a caller parameter.
+5. If you need tasks created, tell director via SendMessage. Do NOT call nx_task_add yourself \u2014 even with a caller parameter.
 
-1. INTAKE: Summarize user request/context. Branch Guard (create feature branch if on main/master). TeamCreate + spawn Analyst and Architect simultaneously via Agent({ team_name: ... }).
-2. ANALYZE+PLAN: Analyst investigates using nx_knowledge_read, nx_context, LSP, AST tools. If unclear, Analyst sends question to Lead via SendMessage \u2014 Lead forwards to user via AskUserQuestion, then relays answer back to Analyst. Analyst and Architect then enter consensus loop (Analyst \u2194 Architect via SendMessage). Analyst finalizes tasks via nx_task_add() after consensus.
-3. PERSIST: Analyst registers all tasks in tasks.json via nx_task_add(). Gate Stop watches this file \u2014 nonstop execution begins immediately.
+1. INTAKE: Summarize user request/context. TeamCreate + spawn director and architect simultaneously via Agent({ team_name: ... }).
+2. ANALYZE+PLAN: director investigates using nx_knowledge_read, nx_context, LSP, AST tools. If unclear, director sends question to Lead via SendMessage \u2014 Lead forwards to user via AskUserQuestion, then relays answer back to director. director and architect then enter consensus loop (director \u2194 architect via SendMessage). director finalizes tasks via nx_task_add() after consensus.
+3. PERSIST: director registers all tasks in tasks.json via nx_task_add(). Gate Stop watches this file \u2014 nonstop execution begins immediately.
 4. EXECUTE: Assign tasks \u2014 reuse idle teammates first (SendMessage to assign new work), spawn new teammates only if all are busy.
-   - Any teammate can be spawned in parallel (e.g. builder-1, builder-2, guard-1, guard-2) when workload demands it.
-   - Builder calls nx_task_update(id, "completed") when done, then SendMessage to Analyst to report completion.
-   - Guard validates each task result, then SendMessage to Analyst with the result (pass or issues found).
-   - On issues found, Guard reports to Analyst via SendMessage. Analyst updates tasks (nx_task_add or nx_task_update).
-   - Debugger is for errors only \u2014 spawn on demand when a teammate hits a blocking issue.
-5. COMPLETE: When all tasks done, call nx_plan_archive().
+   - Any teammate can be spawned in parallel (e.g. engineer-1, engineer-2, qa-1, qa-2) when workload demands it.
+   - engineer calls nx_task_update(id, "completed") when done, then SendMessage to director to report completion.
+   - qa validates each task result, then SendMessage to director with the result (pass or issues found).
+   - On issues found, qa reports to director via SendMessage. director updates tasks (nx_task_add or nx_task_update).
+5. COMPLETE: When all tasks done, Gate Stop unblocks automatically.
 
 Teammate spawn example:
   TeamCreate({ team_name: "proj", description: "..." })
-  Agent({ subagent_type: "nexus:analyst", name: "analyst", team_name: "proj", prompt: "..." })
-  Agent({ subagent_type: "nexus:architect", name: "architect", team_name: "proj", prompt: "..." })
+  Agent({ subagent_type: "claude-nexus:director", name: "director", team_name: "proj", prompt: "..." })
+  Agent({ subagent_type: "claude-nexus:architect", name: "architect", team_name: "proj", prompt: "..." })
 
-Key: Plan = consensus (Analyst + Architect), Execute = atomic by default \u2014 but Analyst may add tasks (nx_task_add) or reopen tasks (nx_task_update) based on Guard reports. Tasks are persisted in tasks.json. Gate Stop reminds until all nx_task tasks are completed. Do NOT use TaskCreate to spawn teammates \u2014 use Agent with team_name.
-When reminded by Gate Stop, use SendMessage to check teammate progress or assign idle teammates instead of attempting the work yourself.`
+Key: Plan = consensus (director + architect), Execute = atomic by default \u2014 but director may add tasks (nx_task_add) or reopen tasks (nx_task_update) based on qa reports. Tasks are persisted in tasks.json. Gate Stop reminds until all nx_task tasks are completed. When reminded by Gate Stop, use SendMessage to check teammate progress or assign idle teammates instead of attempting the work yourself.
+Escalation: engineer/qa report to director by default. Escalate to architect for design/architecture questions.`
       });
       return;
     }

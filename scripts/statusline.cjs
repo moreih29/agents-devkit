@@ -241,8 +241,7 @@ ${resp}`);
 function extractUtil(parsed, section) {
   if (!parsed) return 0;
   const sectionData = parsed[section];
-  const val = Number(sectionData?.utilization) || 0;
-  return val > 1 ? val : val * 100;
+  return Number(sectionData?.utilization) || 0;
 }
 function extractResetInfo(parsed, section) {
   const empty = { timeStr: "", remaining: "", remainingCoarse: "", dayStr: "" };

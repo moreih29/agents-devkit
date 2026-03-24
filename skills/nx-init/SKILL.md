@@ -8,7 +8,7 @@ disable-model-invocation: true
 Onboard Nexus into an existing project — scan, triage, and restructure project knowledge for optimal context efficiency.
 
 ## Trigger
-- Direct invocation: `/nexus:nx-init`
+- Direct invocation: `/claude-nexus:nx-init`
 
 ## What It Does
 

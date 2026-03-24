@@ -13,7 +13,11 @@ MCP="bridge/mcp-server.cjs"
 # 임시 디렉토리 사용 — 실제 .nexus는 건드리지 않음
 E2E_TMP=$(mktemp -d)
 export NEXUS_RUNTIME_ROOT="$E2E_TMP"
-mkdir -p "$E2E_TMP"
+# gate.cjs는 RUNTIME_ROOT/<sanitized-branch>/tasks.json 에서 읽으므로 브랜치 서브디렉토리 사용
+E2E_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+E2E_BRANCH_SAFE=$(echo "$E2E_BRANCH" | tr '/\\:*?"<>|' '-')
+E2E_BRANCH_ROOT="$E2E_TMP/$E2E_BRANCH_SAFE"
+mkdir -p "$E2E_BRANCH_ROOT"
 
 green() { echo -e "\033[32m✔ $1\033[0m"; }
 red() { echo -e "\033[31m✘ $1\033[0m"; }
@@ -134,22 +138,22 @@ echo ""
 echo "=== 훅 ==="
 
 # Stop: tasks.json 없음 → pass
-rm -f "$E2E_TMP/tasks.json"
+rm -f "$E2E_BRANCH_ROOT/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (no tasks.json)" '"continue":true' "$result"
 
 # Stop: tasks.json에 완료된 태스크만 → pass
-echo '{"tasks":[{"id":"t1","title":"done","status":"completed"}]}' > "$E2E_TMP/tasks.json"
+echo '{"tasks":[{"id":"t1","title":"done","status":"completed"}]}' > "$E2E_BRANCH_ROOT/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (all tasks completed)" '"continue":true' "$result"
-rm -f "$E2E_TMP/tasks.json"
+rm -f "$E2E_BRANCH_ROOT/tasks.json"
 
 # Stop: tasks.json에 미완료 태스크 → continue:true (nonstop, block 아님)
-echo '{"tasks":[{"id":"t1","title":"pending task","status":"pending"},{"id":"t2","title":"done","status":"completed"}]}' > "$E2E_TMP/tasks.json"
+echo '{"tasks":[{"id":"t1","title":"pending task","status":"pending"},{"id":"t2","title":"done","status":"completed"}]}' > "$E2E_BRANCH_ROOT/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (pending tasks)" '"continue":true' "$result"
 check "Gate/Stop (pending tasks count)" '1 tasks remaining' "$result"
-rm -f "$E2E_TMP/tasks.json"
+rm -f "$E2E_BRANCH_ROOT/tasks.json"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (no keyword)" '"continue":true' "$result"
@@ -173,22 +177,19 @@ check "Consult (EXPLORE step)" 'EXPLORE' "$result"
 check "Consult (brownfield)" 'brownfield' "$result"
 check "Consult (advisory only)" 'advisory only' "$result"
 
-# --- Team ---
+# --- Dev ---
 echo ""
-echo "=== Team ==="
+echo "=== Dev ==="
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[team] API 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (team tag)" 'Team mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[dev] API 인증 모듈 구현"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (dev tag)" 'Dev mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"팀 구성해서 게이트 훅 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (team natural)" 'Team mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[dev!] 게이트 훅 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (dev! tag)" 'Dev team mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"team this"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (team natural 2)" 'Team mode' "$result"
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[team] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Team (nx_task_add)" 'nx_task_add' "$result"
-check "Team (tasks.json)" 'tasks.json' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[dev!] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
+check "Dev team (nx_task_add)" 'nx_task_add' "$result"
+check "Dev team (tasks.json)" 'tasks.json' "$result"
 
 # --- Statusline ---
 echo ""

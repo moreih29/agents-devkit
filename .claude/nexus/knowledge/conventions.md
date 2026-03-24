@@ -19,7 +19,7 @@
 ### 코드
 - 팩토리 함수: `createXXX()` 패턴 (omo에서 채택)
 - 타입 export: barrel pattern (`index.ts`)
-- 에이전트 이름: 소문자 (lead, builder, architect 등)
+- 에이전트 이름: 소문자 (lead, director, architect, engineer, qa 등)
 - MCP 도구: `nx_` 접두사 (`nx_knowledge_write`, `nx_task_add` 등)
 
 ## 에이전트 정의 포맷
@@ -27,8 +27,9 @@
 ```markdown
 ---
 name: {name}
-tier: high | medium | low
-context: minimal | standard | full
+model: opus | sonnet | haiku
+description: {one-line description}
+maxTurns: {number}
 disallowedTools: []
 tags: [tag1, tag2]
 ---
