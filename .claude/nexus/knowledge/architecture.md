@@ -18,7 +18,7 @@ src/
 ├── hooks/gate.ts          ← 유일한 훅 모듈 (3개 이벤트 통합 처리)
 ├── mcp/
 │   ├── server.ts          ← McpServer 인스턴스 + 도구 등록
-│   └── tools/             ← 도구별 모듈 (knowledge, context, task, decision, lsp, ast)
+│   └── tools/             ← 도구별 모듈 (knowledge, context, task, decision, artifact, lsp, ast)
 ├── shared/
 │   ├── paths.ts           ← PROJECT_ROOT, KNOWLEDGE_ROOT, BRANCH_ROOT 등 경로
 │   ├── hook-io.ts         ← readStdin/respond/pass — 훅 I/O 프로토콜
@@ -41,7 +41,7 @@ src/
 |------|------|------|
 | `.claude/nexus/knowledge/` | git | 장기 프로젝트 지식 |
 | `.claude/nexus/config.json` | git | Nexus 설정 |
-| `.nexus/branches/{branch}/` | gitignore | 런타임 상태 (tasks.json, decisions.json, reports/) |
+| `.nexus/branches/{branch}/` | gitignore | 런타임 상태 (tasks.json, decisions.json, artifacts/) |
 | `.nexus/sync-state.json` | gitignore | 마지막 sync 커밋 |
 
 ## Key Design Decisions

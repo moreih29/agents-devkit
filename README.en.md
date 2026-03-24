@@ -80,7 +80,7 @@ Typical flow: use `[consult]` to discuss and align → decide → use `[dev]` or
 
 Claude-callable tools exposed by the Nexus MCP server.
 
-### Core (5 tools)
+### Core (6 tools)
 
 | Tool | Purpose |
 |------|---------|
@@ -88,6 +88,7 @@ Claude-callable tools exposed by the Nexus MCP server.
 | `nx_context` | Current session state lookup |
 | `nx_task_list/add/update/clear` | Task management backed by tasks.json |
 | `nx_decision_add` | Record architecture decisions |
+| `nx_artifact_write` | Save team artifacts (branch-isolated) |
 
 ### Code Intelligence (10 tools)
 
@@ -142,7 +143,7 @@ Runtime state is stored under `.nexus/` and is excluded from git.
 │   └── {branch}/
 │       ├── tasks.json      ← Task list
 │       ├── decisions.json  ← Architecture decision list
-│       └── reports/        ← Research outputs
+│       └── artifacts/      ← Team artifacts
 └── sync-state.json         ← Last sync commit
 ```
 
