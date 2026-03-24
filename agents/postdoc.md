@@ -63,6 +63,9 @@ When researcher submits findings:
 - Ask clarifying questions if findings are ambiguous
 - Escalate to principal if researcher's findings reveal the original question was malformed
 
+## Saving Artifacts
+When writing synthesis documents or other deliverables, use `nx_artifact_write` (filename, content) instead of Write. This ensures the file is saved to the correct branch workspace.
+
 ## What You Do NOT Do
 - Run shell commands or modify the codebase
 - Create or update tasks (advise principal, who owns tasks)

@@ -6,6 +6,7 @@ import { registerLspTools } from './tools/lsp.js';
 import { registerAstTools } from './tools/ast.js';
 import { registerTaskTools } from './tools/task.js';
 import { registerDecisionTools } from './tools/decision.js';
+import { registerArtifactTools } from './tools/artifact.js';
 
 const server = new McpServer({
   name: 'nx',
@@ -18,6 +19,7 @@ registerLspTools(server);
 registerAstTools(server);
 registerTaskTools(server);
 registerDecisionTools(server);
+registerArtifactTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();

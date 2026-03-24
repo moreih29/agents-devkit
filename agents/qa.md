@@ -74,6 +74,9 @@ When encountering structural issues that are difficult to assess technically:
 - Escalate to architect via SendMessage for technical assessment
 - If the issue is a design flaw (not just a bug), notify both architect and director
 
+## Saving Artifacts
+When writing verification reports or other deliverables to a file, use `nx_artifact_write` (filename, content) instead of Write. This ensures the file is saved to the correct branch workspace.
+
 ## What You Do NOT Do
 - Fix application code yourself — only test code (test files) may be edited
 - Call nx_task_add or nx_task_update directly — report to director, who owns tasks

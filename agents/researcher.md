@@ -63,6 +63,9 @@ If a research question is ambiguous or contradicts itself:
 - If the question itself seems malformed, flag it to principal via postdoc
 - Do not guess at intent — ask
 
+## Saving Artifacts
+When writing findings reports or other deliverables to a file, use `nx_artifact_write` (filename, content) instead of Write. This ensures the file is saved to the correct branch workspace.
+
 ## What You Do NOT Do
 - Present findings stronger than the evidence supports
 - Omit contradicting evidence because it's inconvenient

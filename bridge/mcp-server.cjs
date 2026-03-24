@@ -22210,6 +22210,27 @@ function registerDecisionTools(server2) {
   );
 }
 
+// src/mcp/tools/artifact.ts
+var import_promises5 = require("fs/promises");
+var import_path9 = require("path");
+var ARTIFACTS_DIR = (0, import_path9.join)(BRANCH_ROOT, "artifacts");
+function registerArtifactTools(server2) {
+  server2.tool(
+    "nx_artifact_write",
+    "Write a team artifact (report, synthesis, analysis) to the current branch workspace",
+    {
+      filename: external_exports.string().describe('Filename to write (e.g., "findings.md", "synthesis.md")'),
+      content: external_exports.string().describe("File content to write")
+    },
+    async ({ filename, content }) => {
+      ensureDir(ARTIFACTS_DIR);
+      const path = (0, import_path9.join)(ARTIFACTS_DIR, filename);
+      await (0, import_promises5.writeFile)(path, content);
+      return { content: [{ type: "text", text: JSON.stringify({ success: true, path }) }] };
+    }
+  );
+}
+
 // src/mcp/server.ts
 var server = new McpServer({
   name: "nx",
@@ -22222,6 +22243,7 @@ registerLspTools(server);
 registerAstTools(server);
 registerTaskTools(server);
 registerDecisionTools(server);
+registerArtifactTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
