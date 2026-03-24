@@ -147,12 +147,13 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     if (match.primitive === 'consult') {
       respond({
         continue: true,
-        additionalContext: `[NEXUS] Consult mode activated. Follow the consult workflow:
-1. EXPLORE: Read code and knowledge first. Auto-detect brownfield vs greenfield.
-2. CLARIFY: Use AskUserQuestion with concrete options. One question at a time. 1-2 rounds max.
-3. PROPOSE: Present 2-3 genuinely different approaches with pros/cons/effort via AskUserQuestion.
-4. CONVERGE: Summarize the chosen direction. Do NOT execute. Consult is advisory only.
-Key: No execution. User decides next steps. [d] tags can record decisions during consult.`,
+        additionalContext: `[NEXUS] Consult mode activated. Principles:
+1. Explore first — read code, knowledge, and decisions before asking questions.
+2. AskUserQuestion for clear choices, natural dialogue for open discussion.
+3. When a decision is reached, suggest recording it with [d] tag.
+4. After each decision, naturally transition to the next topic.
+5. Do NOT execute. When ready, recommend an appropriate execution tag from CLAUDE.md Tags table.
+6. Spawn agents if specialized analysis is needed.`,
       });
       return;
     }

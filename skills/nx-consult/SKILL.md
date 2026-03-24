@@ -5,7 +5,7 @@ triggers: ["consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까"
 ---
 # Consult
 
-구조화된 상담으로 사용자의 요구사항을 정리하고 방향을 합의한다. 실행하지 않는다.
+사용자와 구조화된 상담으로 요구사항을 정리하고 방향을 합의한다. 실행하지 않는다.
 
 ## Trigger
 
@@ -15,91 +15,48 @@ triggers: ["consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까"
 
 ## What It Does
 
-요구사항이 불명확할 때 구조화된 상담으로 정리한다. 선택지를 제시하고 방향을 합의하는 것이 전부다. 실행은 하지 않으며, 사용자가 `[team]`으로 전환하여 실행을 시작한다.
+요구사항이 불명확하거나 설계/전략 논의가 필요할 때 상담으로 정리한다. 실행은 하지 않으며, 준비되면 적절한 실행 태그를 추천한다.
 
-## Workflow
+## Principles
 
-```
-explore → clarify → propose → converge
-```
+1. **탐색 우선** — 질문하기 전에 코드, knowledge, decisions를 먼저 파악. 근거 있는 질문을 한다.
+2. **AskUserQuestion은 선택적 도구** — 명확한 선택지가 있을 때 사용. 열린 토론이 필요하면 자연어 대화. 최종 확정 시 사용하면 효과적.
+3. **결정은 [d]로 기록** — 결정이 나오면 사용자에게 [d] 태그 기록을 제안한다. 멀티턴에서 결정사항이 흩어지지 않도록.
+4. **다음 주제로 자연스럽게 이어감** — 한 주제의 결정이 나면 다음 논의할 주제를 제안하여 상담 흐름을 유지한다.
+5. **실행 안 함** — 상담 후 가용한 실행 태그 중 적절한 것을 추천 (CLAUDE.md Tags 테이블 참조). 전환은 사용자가 결정.
+6. **필요시 에이전트 소환** — 특화된 분석이 필요하면 에이전트를 자율적으로 스폰하여 정보를 수집할 수 있다.
 
-### Phase 1: Explore
+## 상담 패턴
 
-**Brownfield/Greenfield 자동 감지** 후 행동 분기:
+### 빠른 결정 (단일 주제, 명확한 선택지)
 
-- **Brownfield** (관련 파일/디렉토리가 이미 존재): 코드베이스 먼저 탐색 → 기존 패턴/제약 파악 → 그 위에 질문
-- **Greenfield** (새로 만드는 것): 사용자 의도 중심으로 질문 → 기술 선택지 제시
+1. 컨텍스트 파악 (코드/knowledge 탐색)
+2. AskUserQuestion으로 선택지 제시 (2-3개, pros/cons/effort 포함, 추천에 "(Recommended)" 표기)
+3. 선택 확정 → [d] 기록 제안
 
-탐색 수단:
-- `nx_knowledge_read`, `nx_context`로 프로젝트 컨텍스트 파악
-- Brownfield일 경우 `nx_lsp_document_symbols`, `nx_ast_search`로 기존 코드 구조 파악
-- "코드를 봤더니 X인데 맞나요?" 형태의 근거 있는 질문
+### 심층 토론 (복수 주제, 탐색적)
 
-### Phase 2: Clarify
+1. 컨텍스트 파악
+2. 자연어 대화로 주제별 순차 탐색
+3. 각 주제마다 합의 → [d] 기록 제안 → 다음 주제로 이어감
+4. 모든 주제 합의 후 실행 태그 추천
 
-**한 번에 하나의 질문** 원칙. 반드시 `AskUserQuestion`을 사용하여 선택지 형태로 질문한다. 자유 텍스트 질문 금지. 1-2회면 충분하다.
-
-```
-❌ 일반 텍스트로 질문: "성능이란 어떤 의미인가요?"
-✅ AskUserQuestion으로 선택지 제시:
-AskUserQuestion({
-  questions: [{
-    question: "어떤 종류의 성능을 의미하나요?",
-    header: "Clarify",
-    multiSelect: false,
-    options: [
-      { label: "응답 속도", description: "훅/MCP 프로세스 스폰 오버헤드" },
-      { label: "토큰 효율성", description: "컨텍스트 소비, 에이전트 호출 비용" },
-      { label: "둘 다", description: "속도와 토큰 효율 모두" }
-    ]
-  }]
-})
-```
-
-### Phase 3: Propose
-
-2-3개의 genuinely different 접근 방식을 `AskUserQuestion`으로 제시한다.
+## 자기강화 루프
 
 ```
-AskUserQuestion({
-  questions: [{
-    question: "어떤 접근 방식이 좋을까요?",
-    header: "Approach",
-    multiSelect: false,
-    options: [
-      {
-        label: "Option A (Recommended)",
-        description: "간단한 설명...",
-        preview: "## Option A\n\n구체적인 방향...\n\n**Pros:** ...\n**Cons:** ...\n**Effort:** ..."
-      }
-    ]
-  }]
-})
+[consult] 시작
+  ↓
+탐색 → 토론 → 결정 → [d] 기록 (gate.ts 리마인더 재주입) → 다음 주제 제안 → 토론 → ...
+  ↓
+실행 태그 추천 (예: [dev])
 ```
 
-- 각 선택지에 pros, cons, effort 정리
-- 추천 옵션에 "(Recommended)" 표기
-- `preview`에 구체적 내용 포함
-
-### Phase 4: Converge
-
-선택된 방향을 정리하고 종료한다. 실행으로 이어지지 않는다.
-
-- 선택된 접근 방식과 그 근거를 요약
-- 다음 단계로 `[team]`을 제안 (전환은 사용자가 결정)
-- `[d]`로 결정 사항 기록 가능 (`nx_decision_add`)
-
-## Key Principles
-
-1. **한 번에 하나의 질문** — 여러 질문을 한꺼번에 던지지 않음
-2. **선택지는 진짜 다른 것** — A와 B가 사실상 같으면 의미 없음
-3. **컨텍스트를 먼저 파악** — 질문하기 전에 코드와 knowledge를 충분히 탐색
-4. **실행 안 함** — 상담 후 사용자가 `[team]`으로 전환을 결정
+[d] 태그가 gate.ts를 통해 리마인더를 재주입하므로, 긴 대화에서도 상담 맥락이 자연스럽게 유지된다.
 
 ## State Management
 
-상태 파일 없이 동작한다. 별도 상태 파일이나 MCP 호출 불필요.
+상태 파일 없이 동작한다. [d] 태그와 대화 컨텍스트만으로 상담 모드를 유지.
 
 ## Deactivation
 
-Converge 후 자연스럽게 종료된다. 별도 정리 작업 없음.
+사용자가 실행 태그 (예: [dev])로 전환하면 자연스럽게 종료. 별도 정리 작업 없음.

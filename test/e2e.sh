@@ -173,9 +173,9 @@ result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"어떻게 하면 
 check "Gate/UserPromptSubmit (consult natural)" 'Consult mode' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[consult] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Consult (EXPLORE step)" 'EXPLORE' "$result"
-check "Consult (brownfield)" 'brownfield' "$result"
-check "Consult (advisory only)" 'advisory only' "$result"
+check "Consult (explore first)" 'Explore first' "$result"
+check "Consult (d tag)" 'tag' "$result"
+check "Consult (no execute)" 'Do NOT execute' "$result"
 
 # --- Dev ---
 echo ""
