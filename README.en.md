@@ -22,7 +22,7 @@ claude plugin install claude-nexus@nexus
 
 **2. Onboard your project**
 
-Run `/claude-nexus:nx-init` to scan existing docs and generate structured knowledge under `.claude/nexus/knowledge/`.
+Run `/claude-nexus:nx-sync` — on first run it scans your project and auto-generates structured knowledge under `.claude/nexus/knowledge/`.
 
 **3. Start using**
 
@@ -70,9 +70,8 @@ Typical flow: use `[consult]` to discuss and align → decide → use `[dev]` or
 | **nx-consult** | `[consult]` | Structured consultation. Clarify requirements → record decisions (`[d]`) → recommend execution tag |
 | **nx-dev** | `[dev]` / `[dev!]` | Development execution. Auto-selects solo or team (Director→Architect→Engineer→QA) based on complexity |
 | **nx-research** | `[research]` / `[research!]` | Research execution. Auto-selects solo or team (Principal→Postdoc→Researcher) based on complexity |
-| **nx-init** | `/claude-nexus:nx-init` | Project onboarding. Scans existing docs to auto-generate knowledge files |
 | **nx-setup** | `/claude-nexus:nx-setup` | Interactive setup. Injects agent/skill/tag configuration into CLAUDE.md |
-| **nx-sync** | `/claude-nexus:nx-sync` | Detects and fixes drift between source code changes and knowledge docs |
+| **nx-sync** | `/claude-nexus:nx-sync` | Auto-generates knowledge on first run, then detects and fixes drift with source changes. --reset for re-initialization |
 
 ## Advanced
 
@@ -127,7 +126,7 @@ Nexus registers a single Gate module as a Claude Code hook.
 
 Project knowledge is stored under `.claude/nexus/knowledge/` and tracked by git.
 
-- `nx-init` auto-generates knowledge files tailored to your project (structure is not fixed)
+- `nx-sync` auto-generates knowledge files tailored to your project on first run (structure is not fixed)
 - Nexus configuration is stored in `config.json`
 
 </details>

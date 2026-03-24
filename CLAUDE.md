@@ -37,9 +37,8 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 | nx-consult | [consult] | Interactive discovery — understand intent before executing |
 | nx-dev | [dev] / [dev!] | Development execution — sub-agent or team mode |
 | nx-research | [research] / [research!] | Research execution — principal+postdoc+researcher team |
-| nx-init | /claude-nexus:nx-init | Onboard project — generate knowledge from existing docs |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
-| nx-sync | /claude-nexus:nx-sync | Sync knowledge docs with source files |
+| nx-sync | /claude-nexus:nx-sync | Sync knowledge docs with source files (first run = auto-generate) |
 
 ### Tags
 

@@ -22,7 +22,7 @@ claude plugin install claude-nexus@nexus
 
 **온보딩**
 
-`/claude-nexus:nx-init`으로 프로젝트 문서를 스캔해 `.claude/nexus/knowledge/`에 지식을 생성합니다.
+`/claude-nexus:nx-sync`를 처음 실행하면 프로젝트를 스캔해 `.claude/nexus/knowledge/`에 지식을 자동 생성합니다.
 
 **첫 사용**
 
@@ -68,9 +68,8 @@ claude plugin install claude-nexus@nexus
 | **nx-consult** | `[consult]` | 구조화된 상담. 요구사항 정리 → 결정 기록(`[d]`) → 실행 태그 추천 |
 | **nx-dev** | `[dev]` / `[dev!]` | 개발 실행. 복잡도에 따라 단독 또는 팀(Director→Architect→Engineer→QA) 자동 편성 |
 | **nx-research** | `[research]` / `[research!]` | 리서치 실행. 복잡도에 따라 단독 또는 팀(Principal→Postdoc→Researcher) 자동 편성 |
-| **nx-init** | `/claude-nexus:nx-init` | 프로젝트 온보딩. 기존 문서를 스캔해 knowledge 파일 자동 생성 |
 | **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정. CLAUDE.md에 에이전트/스킬/태그 설정 주입 |
-| **nx-sync** | `/claude-nexus:nx-sync` | 소스 코드 변경 후 knowledge 문서와의 불일치 감지 및 수정 |
+| **nx-sync** | `/claude-nexus:nx-sync` | 첫 실행 시 knowledge 자동 생성, 이후 소스 변경과의 불일치 감지 및 수정. --reset으로 초기화 가능 |
 
 ## 고급 기능
 
@@ -125,7 +124,7 @@ Gate 단일 모듈로 동작합니다.
 
 `.claude/nexus/knowledge/`에 프로젝트 지식을 저장합니다. git으로 추적됩니다.
 
-- `nx-init`이 프로젝트에 맞는 knowledge 파일을 자동 생성합니다 (구조 고정 아님)
+- `nx-sync` 첫 실행 시 프로젝트에 맞는 knowledge 파일을 자동 생성합니다 (구조 고정 아님)
 - `config.json`에 Nexus 설정이 저장됩니다
 
 </details>
