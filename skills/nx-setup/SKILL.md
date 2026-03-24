@@ -88,59 +88,21 @@ chmod +x ~/.claude/hooks/nexus-statusline.sh
 
 ### Step 3: CLAUDE.md Nexus Section
 
-Generate the Nexus section in CLAUDE.md using `<!-- NEXUS:START -->` / `<!-- NEXUS:END -->` markers.
+Write the Nexus section in CLAUDE.md using `<!-- NEXUS:START -->` / `<!-- NEXUS:END -->` markers.
 
 If a Nexus section already exists, replace the content between markers. Content outside the markers is preserved unchanged.
 
 Write location depends on scope selected in Step 1.
 
-Section content:
+**Section content is NOT hardcoded here.** Read it dynamically at runtime:
 
-```markdown
-<!-- NEXUS:START -->
-## Nexus Agent Orchestration
+1. **Read `~/.claude/CLAUDE.md`** — extract content between `<!-- NEXUS:START -->` and `<!-- NEXUS:END -->` markers
+2. **If not found (first install):** Read the plugin's own CLAUDE.md from the cache directory:
+   - Glob `~/.claude/plugins/cache/nexus/claude-nexus/*/CLAUDE.md` → pick the latest version
+   - Extract the `<!-- NEXUS:START -->` to `<!-- NEXUS:END -->` section
+3. **If neither found:** Error — "Nexus 섹션 템플릿을 찾을 수 없습니다. 플러그인이 올바르게 설치되었는지 확인하세요."
 
-**Default: DELEGATE** — route code work, analysis, and multi-file changes to agents.
-
-### Agent Routing
-
-병렬 작업이나 다른 관점이 필요할 때 에이전트를 활용하라.
-
-| Task | Agent |
-|------|-------|
-| Project direction, scope, priorities | director |
-| Architecture, technical design, code review | architect |
-| Code implementation, edits, debugging | engineer |
-| Testing, verification, security review | qa |
-| Research direction, agenda, bias prevention | principal |
-| Research methodology, evidence synthesis | postdoc |
-| Web search, independent investigation | researcher |
-
-단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.
-
-### Skills
-
-| Skill | Trigger | Purpose |
-|-------|---------|---------|
-| nx-consult | [consult] | Interactive discovery — understand intent before executing |
-| nx-dev | [dev] / [dev!] | Development execution — sub-agent or team mode |
-| nx-research | [research] / [research!] | Research execution — principal+postdoc+researcher team |
-| nx-init | /claude-nexus:nx-init | Onboard project — generate knowledge from existing docs |
-| nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
-| nx-sync | /claude-nexus:nx-sync | Sync knowledge docs with source files |
-
-### Tags
-
-| Tag | Purpose |
-|-----|---------|
-| [consult] | 상담 — 실행 전 의도 파악 |
-| [dev] | 개발 — Lead 자율 판단 (sub 또는 team) |
-| [dev!] | 개발 팀 강제 — 반드시 팀 구성 |
-| [research] | 리서치 — Lead 자율 판단 (sub 또는 team) |
-| [research!] | 리서치 팀 강제 — 반드시 팀 구성 |
-| [d] | 결정 기록 (nx_decision_add 호출) |
-<!-- NEXUS:END -->
-```
+Write the extracted section to the target CLAUDE.md (respecting scope from Step 1).
 
 ### Step 4: OMC Conflict Detection
 
