@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0 (2026-03-24)
+
+### Features
+- nx_artifact_write MCP 도구 추가 — 팀 산출물 브랜치 경로 강제
+
 ## 0.10.0 (2026-03-24)
 
 ### Refactoring
