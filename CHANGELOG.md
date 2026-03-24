@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.0 (2026-03-24)
+
+### Features
+- 리서치 팀 추가: principal/postdoc/researcher 에이전트 + nx-research 스킬
+- 에이전트 시스템 전면 개편: 4인 체제 (director/architect/engineer/qa) + [dev] 통합 스킬
+- consult 스킬 경량화: 원칙 기반 프라이머 + [d] 자기강화 루프
+
+### Improvements
+- BRANCH_ROOT에 branches/ 세그먼트 추가 + 레거시 마이그레이션
+- context.ts RUNTIME_ROOT→BRANCH_ROOT 버그 수정
+- 에이전트 프롬프트 영문 통일
+- Team Path TodoWrite 지시 제거 (Lead idle 시 불필요)
+
+### Removed
+- state/ 세션 데이터 의존성 제거 (수동 정리 가능)
+
 ## 0.7.0 (2026-03-23)
 
 ### Features
