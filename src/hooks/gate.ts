@@ -70,6 +70,13 @@ function handleClaudeMdSync(): string | null {
   return null;
 }
 
+function cleanupConsult(): void {
+  const consultFile = join(BRANCH_ROOT, 'consult.json');
+  if (existsSync(consultFile)) {
+    try { unlinkSync(consultFile); } catch {}
+  }
+}
+
 // --- Stop 이벤트 처리 ---
 
 function handleStop(): void {
@@ -149,6 +156,7 @@ interface KeywordMatch {
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   consult:     { primitive: 'consult',    skill: 'claude-nexus:nx-consult' },
+  'consult:new': { primitive: 'consult',    skill: 'claude-nexus:nx-consult' },
   dev:         { primitive: 'dev',        skill: 'claude-nexus:nx-dev' },
   'dev!':      { primitive: 'dev!',       skill: 'claude-nexus:nx-dev' },
   research:    { primitive: 'research',   skill: 'claude-nexus:nx-research' },
@@ -178,8 +186,8 @@ function isPrimitiveMention(prompt: string): boolean {
 }
 
 function detectKeywords(prompt: string): KeywordMatch | null {
-  // 1차: 명시적 태그 [consult], [dev], [dev!] — 항상 확정
-  const tagMatch = prompt.match(/\[(\w+!?)\]/);
+  // 1차: 명시적 태그 [consult], [dev], [dev!], [consult:new] — 항상 확정
+  const tagMatch = prompt.match(/\[([\w:]+!?)\]/);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -202,27 +210,36 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const prompt = (event.prompt ?? event.user_prompt ?? '') as string;
   if (!prompt) { pass(); return; }
 
-  // [d] 결정 태그 감지
+  // [d] 결정 태그 감지 — consult.json 유무로 도구 분기
   const dTag = prompt.match(/\[d\]/i);
   if (dTag) {
-    const base = '[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.';
-    respond({
-      continue: true,
-      additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
-    });
+    const consultFile = join(BRANCH_ROOT, 'consult.json');
+    if (existsSync(consultFile)) {
+      respond({
+        continue: true,
+        additionalContext: `${claudeMdNotice ? claudeMdNotice + '\n' : ''}[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record — updates consult.json + decisions.json simultaneously.`,
+      });
+    } else {
+      respond({
+        continue: true,
+        additionalContext: `${claudeMdNotice ? claudeMdNotice + '\n' : ''}[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.`,
+      });
+    }
     return;
   }
 
   const match = detectKeywords(prompt);
   if (match) {
     if (match.primitive === 'consult') {
-      const base = `[NEXUS] Consult mode activated. Principles:
-1. Explore first — read code, knowledge, and decisions before asking questions.
-2. AskUserQuestion for clear choices, natural dialogue for open discussion.
-3. When a decision is reached, suggest recording it with [d] tag.
-4. After each decision, naturally transition to the next topic.
-5. Do NOT execute. When ready, recommend an appropriate execution tag from CLAUDE.md Tags table.
-6. Spawn agents if specialized analysis is needed.`;
+      const base = `[NEXUS] Consult mode activated. Follow the structured consultation procedure:
+1. Explore first — read code, knowledge, decisions before asking questions.
+2. Decompose the topic into discrete issues. Register with nx_consult_start. Present one issue at a time.
+3. For each issue: comparison table (keywords) + recommendation bullets (why not others, why this one).
+4. Natural dialogue for responses — allow user's free feedback (combinations, counter-proposals, questions).
+5. Record decisions with [d] tag. After each decision, transition to the next issue.
+6. After all issues decided: check for missed topics against the original question.
+7. Do NOT execute. When ready, recommend an appropriate execution tag from CLAUDE.md Tags table.
+8. Spawn agents if specialized analysis is needed.`;
       respond({
         continue: true,
         additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
@@ -231,6 +248,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     }
 
     if (match.primitive === 'dev') {
+      cleanupConsult();
       const base = `[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (1-3 files, clear scope): Use direct Agent() spawns freely with any agent (director, architect, engineer, qa)
 - Complex (4+ files, design decisions needed): Use TeamCreate + full team workflow (director+architect design → engineer+qa execute)
@@ -243,6 +261,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     }
 
     if (match.primitive === 'dev!') {
+      cleanupConsult();
       const base = `[NEXUS] Dev team mode activated (forced). Follow the team workflow:
 CRITICAL RULES — VIOLATION OF THESE IS A SYSTEM ERROR:
 1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).
@@ -276,6 +295,7 @@ Escalation: engineer/qa report to director by default. Escalate to architect for
     }
 
     if (match.primitive === 'research') {
+      cleanupConsult();
       const base = `[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (1-3 topics, single domain): Use direct Agent() spawns freely with any agent (principal, postdoc, researcher)
 - Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow (principal+postdoc scope → researcher investigate → converge)
@@ -288,6 +308,7 @@ Escalation: engineer/qa report to director by default. Escalate to architect for
     }
 
     if (match.primitive === 'research!') {
+      cleanupConsult();
       const base = `[NEXUS] Research team mode activated (forced). Follow the team workflow:
 CRITICAL RULES — VIOLATION OF THESE IS A SYSTEM ERROR:
 1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).

@@ -42,9 +42,22 @@ export function registerContextTool(server: McpServer): void {
         }
       }
 
+      // 결정 사항 읽기
+      let decisions: string[] = [];
+      const decisionsFile = join(getBranchRoot(), 'decisions.json');
+      if (existsSync(decisionsFile)) {
+        try {
+          const data = JSON.parse(await readFile(decisionsFile, 'utf-8'));
+          decisions = Array.isArray(data.decisions) ? data.decisions : [];
+        } catch {
+          // skip
+        }
+      }
+
       const result = {
         branch: getCurrentBranch(),
         ...teamStatus,
+        decisions,
       };
 
       return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };

@@ -21160,9 +21160,19 @@ function registerContextTool(server2) {
         } catch {
         }
       }
+      let decisions = [];
+      const decisionsFile = (0, import_path3.join)(getBranchRoot(), "decisions.json");
+      if ((0, import_fs3.existsSync)(decisionsFile)) {
+        try {
+          const data = JSON.parse(await (0, import_promises2.readFile)(decisionsFile, "utf-8"));
+          decisions = Array.isArray(data.decisions) ? data.decisions : [];
+        } catch {
+        }
+      }
       const result = {
         branch: getCurrentBranch2(),
-        ...teamStatus
+        ...teamStatus,
+        decisions
       };
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
@@ -22244,6 +22254,145 @@ function registerArtifactTools(server2) {
   );
 }
 
+// src/mcp/tools/consult.ts
+var import_fs9 = require("fs");
+var import_promises6 = require("fs/promises");
+var import_path10 = require("path");
+function consultPath() {
+  return (0, import_path10.join)(getBranchRoot(), "consult.json");
+}
+async function readConsult() {
+  const p = consultPath();
+  if (!(0, import_fs9.existsSync)(p)) return null;
+  const raw = await (0, import_promises6.readFile)(p, "utf-8");
+  return JSON.parse(raw);
+}
+async function writeConsult(data) {
+  const root = getBranchRoot();
+  ensureDir(root);
+  await (0, import_promises6.writeFile)((0, import_path10.join)(root, "consult.json"), JSON.stringify(data, null, 2));
+}
+function decisionsPath2() {
+  return (0, import_path10.join)(getBranchRoot(), "decisions.json");
+}
+async function readDecisions2() {
+  const p = decisionsPath2();
+  if (!(0, import_fs9.existsSync)(p)) return { decisions: [] };
+  const raw = await (0, import_promises6.readFile)(p, "utf-8");
+  return JSON.parse(raw);
+}
+async function writeDecisions2(data) {
+  const root = getBranchRoot();
+  ensureDir(root);
+  await (0, import_promises6.writeFile)((0, import_path10.join)(root, "decisions.json"), JSON.stringify(data, null, 2));
+}
+function registerConsultTools(server2) {
+  server2.tool(
+    "nx_consult_start",
+    "Start a new consultation session with topic and issues to discuss",
+    {
+      topic: external_exports.string().describe("Consultation topic"),
+      issues: external_exports.array(external_exports.string()).describe("List of issue titles to discuss")
+    },
+    async ({ topic, issues }) => {
+      const data = {
+        topic,
+        issues: issues.map((title, i) => ({
+          id: i + 1,
+          title,
+          status: "pending"
+        }))
+      };
+      await writeConsult(data);
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ created: true, topic, issueCount: issues.length })
+        }]
+      };
+    }
+  );
+  server2.tool(
+    "nx_consult_status",
+    "Get current consultation status: topic, issues, and their statuses",
+    {},
+    async () => {
+      const data = await readConsult();
+      if (!data) {
+        return { content: [{ type: "text", text: JSON.stringify({ active: false }) }] };
+      }
+      const pending = data.issues.filter((i) => i.status === "pending").length;
+      const discussing = data.issues.filter((i) => i.status === "discussing").length;
+      const decided = data.issues.filter((i) => i.status === "decided").length;
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            active: true,
+            topic: data.topic,
+            issues: data.issues,
+            summary: { total: data.issues.length, pending, discussing, decided }
+          })
+        }]
+      };
+    }
+  );
+  server2.tool(
+    "nx_consult_decide",
+    "Mark a consultation issue as decided and record the decision",
+    {
+      issue_id: external_exports.number().describe("Issue ID to mark as decided"),
+      summary: external_exports.string().describe("Decision summary to record")
+    },
+    async ({ issue_id, summary }) => {
+      const data = await readConsult();
+      if (!data) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: "No active consultation" }) }] };
+      }
+      const issue2 = data.issues.find((i) => i.id === issue_id);
+      if (!issue2) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+      }
+      issue2.status = "decided";
+      const decisions = await readDecisions2();
+      decisions.decisions.push(summary);
+      await writeDecisions2(decisions);
+      const allDecided = data.issues.every((i) => i.status === "decided");
+      if (allDecided) {
+        try {
+          (0, import_fs9.unlinkSync)(consultPath());
+        } catch {
+        }
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              decided: true,
+              issue: issue2.title,
+              allComplete: true,
+              message: "All issues decided. consult.json removed.",
+              decisions: decisions.decisions
+            })
+          }]
+        };
+      }
+      await writeConsult(data);
+      const remaining = data.issues.filter((i) => i.status !== "decided");
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            decided: true,
+            issue: issue2.title,
+            allComplete: false,
+            remaining: remaining.map((i) => ({ id: i.id, title: i.title, status: i.status }))
+          })
+        }]
+      };
+    }
+  );
+}
+
 // src/mcp/server.ts
 var server = new McpServer({
   name: "nx",
@@ -22257,6 +22406,7 @@ registerAstTools(server);
 registerTaskTools(server);
 registerDecisionTools(server);
 registerArtifactTools(server);
+registerConsultTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

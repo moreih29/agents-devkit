@@ -26,6 +26,7 @@ Lead가 요청 복잡도를 판단해 Sub Path 또는 Team Path로 실행한다.
 ### Phase 1: Analyze (Lead 직접)
 
 - Lead가 직접 분석 도구 사용 (Read, Grep, LSP, AST 등) — team path와 다름
+- decisions.json이 있으면 `nx_context`로 기존 결정 사항을 확인하고 맥락에 반영
 - TodoWrite로 할일 목록 생성 (status: "pending")
 - 계획을 사용자에게 보여준 뒤 Spawn으로 진입
 
@@ -61,6 +62,7 @@ Phase: **intake → design → execute → complete**
 사용자 요청/의도/맥락만 정리. **분석/코드 도구 호출 금지.**
 
 - 목표, 범위, 의도 정리 → briefing 작성
+- decisions.json이 있으면 기존 결정 사항을 briefing에 포함 (`nx_context`로 조회)
 - Branch Guard: main/master면 feature 브랜치 생성
 - TeamCreate + director/architect 병렬 스폰
 

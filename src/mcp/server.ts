@@ -7,6 +7,7 @@ import { registerAstTools } from './tools/ast.js';
 import { registerTaskTools } from './tools/task.js';
 import { registerDecisionTools } from './tools/decision.js';
 import { registerArtifactTools } from './tools/artifact.js';
+import { registerConsultTools } from './tools/consult.js';
 
 const server = new McpServer({
   name: 'nx',
@@ -20,6 +21,7 @@ registerAstTools(server);
 registerTaskTools(server);
 registerDecisionTools(server);
 registerArtifactTools(server);
+registerConsultTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();
