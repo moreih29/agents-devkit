@@ -80,15 +80,18 @@ Typical flow: use `[consult]` to discuss and align → decide → use `[dev]` or
 
 Claude-callable tools exposed by the Nexus MCP server.
 
-### Core (6 tools)
+### Core (9 tools)
 
 | Tool | Purpose |
 |------|---------|
 | `nx_knowledge_read/write` | Project knowledge management (git-tracked) |
-| `nx_context` | Current session state lookup |
+| `nx_context` | Current session state lookup (branch, tasks, decisions) |
 | `nx_task_list/add/update/clear` | Task management backed by tasks.json |
 | `nx_decision_add` | Record architecture decisions |
 | `nx_artifact_write` | Save team artifacts (branch-isolated) |
+| `nx_consult_start` | Start consultation session (topic + issues) |
+| `nx_consult_status` | Query consultation state |
+| `nx_consult_decide` | Record issue decision (consult.json + decisions.json) |
 
 ### Code Intelligence (10 tools)
 
@@ -143,6 +146,7 @@ Runtime state is stored under `.nexus/` and is excluded from git.
 │   └── {branch}/
 │       ├── tasks.json      ← Task list
 │       ├── decisions.json  ← Architecture decision list
+│       ├── consult.json   ← Consultation issue tracker (exists only during consult)
 │       └── artifacts/      ← Team artifacts
 └── sync-state.json         ← Last sync commit
 ```

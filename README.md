@@ -78,15 +78,18 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (6개)
+### Core (9개)
 
 | 도구 | 용도 |
 |------|------|
 | `nx_knowledge_read/write` | 프로젝트 지식 관리 (git 추적) |
-| `nx_context` | 현재 세션 상태 조회 |
+| `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 결정) |
 | `nx_task_list/add/update/clear` | tasks.json 기반 태스크 관리 |
 | `nx_decision_add` | 아키텍처 결정 기록 |
 | `nx_artifact_write` | 팀 산출물 저장 (브랜치별 격리) |
+| `nx_consult_start` | 상담 세션 시작 (토픽 + 논점 등록) |
+| `nx_consult_status` | 상담 상태 조회 |
+| `nx_consult_decide` | 논점 결정 처리 (consult.json + decisions.json) |
 
 ### Code Intelligence (10개)
 
@@ -141,6 +144,7 @@ Gate 단일 모듈로 동작합니다.
 │   └── {branch}/
 │       ├── tasks.json      ← 태스크 목록
 │       ├── decisions.json  ← 아키텍처 결정 목록
+│       ├── consult.json   ← 상담 논점 추적 (상담 중에만 존재)
 │       └── artifacts/      ← 팀 산출물
 └── sync-state.json         ← 마지막 sync 커밋
 ```
