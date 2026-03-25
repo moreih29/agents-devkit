@@ -1,5 +1,4 @@
 <!-- tags: architecture, structure, entry-points, data-paths, build -->
-<!-- tags: architecture, structure, entry-points, data-paths, build -->
 # Architecture
 
 Claude Code 플러그인. 3개 런타임 진입점이 esbuild로 번들되어 동작한다.
@@ -21,7 +20,7 @@ src/
 │   ├── server.ts          ← McpServer 인스턴스 + 도구 등록
 │   └── tools/             ← 도구별 모듈 (knowledge, rules, context, task, decision, artifact, consult, lsp, ast)
 ├── shared/
-│   ├── paths.ts           ← PROJECT_ROOT, KNOWLEDGE_ROOT, BRANCH_ROOT, getBranchRoot() 등 경로
+│   ├── paths.ts           ← PROJECT_ROOT, KNOWLEDGE_ROOT, BRANCH_ROOT, getBranchRoot(), rulesPath() 등 경로
 │   ├── hook-io.ts         ← readStdin/respond/pass — 훅 I/O 프로토콜
 │   └── version.ts         ← VERSION 파일 읽기
 ├── data/

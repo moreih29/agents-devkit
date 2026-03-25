@@ -1,5 +1,4 @@
 <!-- tags: development, build, conventions, testing -->
-<!-- tags: development, build, conventions, testing -->
 # Development
 
 ## Tech Stack

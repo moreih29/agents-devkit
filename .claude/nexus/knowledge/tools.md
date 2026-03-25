@@ -1,5 +1,4 @@
-<!-- tags: mcp, tools, lsp, ast, knowledge, tasks, consult -->
-<!-- tags: mcp, tools, lsp, ast, knowledge, tasks, consult -->
+<!-- tags: mcp, tools, lsp, ast, knowledge, tasks, consult, rules -->
 # MCP Tools
 
 MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/mcp/tools/`.

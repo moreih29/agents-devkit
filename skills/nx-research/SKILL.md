@@ -124,10 +124,24 @@ Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_nam
 
 ## Rules Template (참고)
 
-팀 커스텀 규칙이 필요할 때 rules/ 디렉토리에 생성. 구조 예시:
-- 이름: 규칙 목적 (예: "source-tiers", "report-format")
-- 태그: `["research"]` 포함 시 research 스킬에서 자동 로드
-- 내용: 마크다운 자유 형식
+팀 커스텀 규칙이 필요할 때 `nx_rules_write`로 `.claude/nexus/rules/`에 생성. 태그에 `["research"]` 포함 시 Phase 1에서 자동 로드.
+
+```markdown
+<!-- tags: research -->
+# Research Rules
+
+## 출처/검증 기준
+(소스 등급 분류, 교차 검증 수준, 표기 방식)
+
+## 리포트 양식
+(필수 구조, 네이밍, 저장 위치)
+
+## 산출물 변환 규칙
+(리포트→최종 산출물 톤, 깊이, 분량)
+
+## 에셋 정책
+(이미지/다이어그램 제작 기준, 저장 경로)
+```
 
 ## Lead Awaiting Pattern (Team Path)
 

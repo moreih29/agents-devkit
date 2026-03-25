@@ -121,10 +121,26 @@ triggers: ["consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까"
 
 ## Rules Template (참고)
 
-팀 커스텀 규칙이 필요할 때 `nx_rules_write`로 생성. 구조 예시:
-- 이름: 규칙 목적 (예: "coding-style", "review-checklist")
-- 태그: 검색용 (예: ["dev"], ["research"])
-- 내용: 마크다운 자유 형식, HTML 코멘트로 태그 삽입
+사용자가 팀 커스텀을 요청하면 `nx_rules_write`로 `.claude/nexus/rules/`에 생성 안내.
+
+**dev-rules.md 예시:**
+```markdown
+<!-- tags: dev -->
+# Dev Rules
+## 코딩 컨벤션
+## 테스트 정책
+## 커밋/PR 규칙
+```
+
+**research-rules.md 예시:**
+```markdown
+<!-- tags: research -->
+# Research Rules
+## 출처/검증 기준
+## 리포트 양식
+## 산출물 변환 규칙
+## 에셋 정책
+```
 
 ## Self-Reinforcing Loop
 

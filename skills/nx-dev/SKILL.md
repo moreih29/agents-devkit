@@ -122,10 +122,21 @@ Agent({ subagent_type: "claude-nexus:qa", name: "qa", team_name: "<project>",
 
 ## Rules Template (참고)
 
-팀 커스텀 규칙이 필요할 때 rules/ 디렉토리에 생성. 구조 예시:
-- 이름: 규칙 목적 (예: "coding-style", "review-checklist")
-- 태그: `["dev"]` 포함 시 dev 스킬에서 자동 로드
-- 내용: 마크다운 자유 형식
+팀 커스텀 규칙이 필요할 때 `nx_rules_write`로 `.claude/nexus/rules/`에 생성. 태그에 `["dev"]` 포함 시 Phase 1에서 자동 로드.
+
+```markdown
+<!-- tags: dev -->
+# Dev Rules
+
+## 코딩 컨벤션
+(프로젝트 고유 스타일, 네이밍, 패턴)
+
+## 테스트 정책
+(커버리지 기준, 테스트 유형, QA 요구사항)
+
+## 커밋/PR 규칙
+(메시지 포맷, PR 크기, 리뷰 기준)
+```
 
 ## Lead Awaiting Pattern (Team Path)
 
