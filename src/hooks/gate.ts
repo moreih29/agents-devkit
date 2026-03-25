@@ -202,19 +202,20 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const prompt = (event.prompt ?? event.user_prompt ?? '') as string;
   if (!prompt) { pass(); return; }
 
-  // [d] 결정 태그 감지 — consult.json 유무로 도구 분기
+  // [d] 결정 태그 감지 — consult.json 유무로 도구 분기 + 행동 규칙 주입
   const dTag = prompt.match(/\[d\]/i);
   if (dTag) {
+    const postDecisionRules = `\n\nAfter recording the decision:\n1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.\n2. If the user explicitly requests implementation: nx_task_add → perform work → nx_task_close (history archive). Follow this pipeline even for simple edits.\n3. You may recommend [dev] or [research] tags for execution, but do not execute yourself unless asked.`;
     const consultFile = join(BRANCH_ROOT, 'consult.json');
     if (existsSync(consultFile)) {
       respond({
         continue: true,
-        additionalContext: `${claudeMdNotice ? claudeMdNotice + '\n' : ''}[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record — updates consult.json + decisions.json simultaneously.`,
+        additionalContext: `${claudeMdNotice ? claudeMdNotice + '\n' : ''}[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record — updates consult.json + decisions.json simultaneously.${postDecisionRules}`,
       });
     } else {
       respond({
         continue: true,
-        additionalContext: `${claudeMdNotice ? claudeMdNotice + '\n' : ''}[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.`,
+        additionalContext: `${claudeMdNotice ? claudeMdNotice + '\n' : ''}[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`,
       });
     }
     return;

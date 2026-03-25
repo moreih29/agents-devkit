@@ -215,16 +215,22 @@ function handleUserPromptSubmit(event) {
   }
   const dTag = prompt.match(/\[d\]/i);
   if (dTag) {
+    const postDecisionRules = `
+
+After recording the decision:
+1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.
+2. If the user explicitly requests implementation: nx_task_add \u2192 perform work \u2192 nx_task_close (history archive). Follow this pipeline even for simple edits.
+3. You may recommend [dev] or [research] tags for execution, but do not execute yourself unless asked.`;
     const consultFile = (0, import_path2.join)(BRANCH_ROOT, "consult.json");
     if ((0, import_fs2.existsSync)(consultFile)) {
       respond({
         continue: true,
-        additionalContext: `${claudeMdNotice ? claudeMdNotice + "\n" : ""}[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record \u2014 updates consult.json + decisions.json simultaneously.`
+        additionalContext: `${claudeMdNotice ? claudeMdNotice + "\n" : ""}[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record \u2014 updates consult.json + decisions.json simultaneously.${postDecisionRules}`
       });
     } else {
       respond({
         continue: true,
-        additionalContext: `${claudeMdNotice ? claudeMdNotice + "\n" : ""}[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.`
+        additionalContext: `${claudeMdNotice ? claudeMdNotice + "\n" : ""}[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`
       });
     }
     return;
