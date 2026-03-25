@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.1 (2026-03-25)
+
+### Fixes
+- [d] 태그에 행동 규칙 additionalContext 추가
+- team-path 팀 종료 예시 추가 (shutdown + TeamDelete)
+- sub/team path에서 nx_task_add 필수 + nx_task_close 자동 호출 명시
+
 ## 0.13.0 (2026-03-25)
 
 ### Features
