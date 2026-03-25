@@ -80,18 +80,20 @@ Typical flow: use `[consult]` to discuss and align → decide → use `[dev]` or
 
 Claude-callable tools exposed by the Nexus MCP server.
 
-### Core (9 tools)
+### Core (13 tools)
 
 | Tool | Purpose |
 |------|---------|
 | `nx_knowledge_read/write` | Project knowledge management (git-tracked) |
+| `nx_rules_read/write` | Team custom rules management (git-tracked) |
 | `nx_context` | Current session state lookup (branch, tasks, decisions) |
-| `nx_task_list/add/update/clear` | Task management backed by tasks.json |
+| `nx_task_list/add/update/close` | Task management + history.json archiving |
 | `nx_decision_add` | Record architecture decisions |
 | `nx_artifact_write` | Save team artifacts (branch-isolated) |
 | `nx_consult_start` | Start consultation session (topic + issues) |
-| `nx_consult_status` | Query consultation state |
+| `nx_consult_status` | Query consultation state (with decisions join) |
 | `nx_consult_decide` | Record issue decision (consult.json + decisions.json) |
+| `nx_consult_update` | Modify consultation issues (add/remove/edit/reopen) |
 
 ### Code Intelligence (10 tools)
 
@@ -128,10 +130,11 @@ Nexus registers a single Gate module as a Claude Code hook.
 <details>
 <summary>Project Knowledge</summary>
 
-Project knowledge is stored under `.claude/nexus/knowledge/` and tracked by git.
+Project knowledge and rules are stored under `.claude/nexus/` and tracked by git.
 
-- `nx-sync` auto-generates knowledge files tailored to your project on first run (structure is not fixed)
-- Nexus configuration is stored in `config.json`
+- `knowledge/` — Project knowledge. Auto-generated on first `nx-sync` run (structure is not fixed)
+- `rules/` — Team custom rules. Created via `nx_rules_write` on user request
+- `config.json` — Nexus configuration
 
 </details>
 
@@ -146,7 +149,8 @@ Runtime state is stored under `.nexus/` and is excluded from git.
 │   └── {branch}/
 │       ├── tasks.json      ← Task list
 │       ├── decisions.json  ← Architecture decision list
-│       ├── consult.json   ← Consultation issue tracker (exists only during consult)
+│       ├── consult.json    ← Consultation issue tracker
+│       ├── history.json    ← Cycle archive (created by nx_task_close)
 │       └── artifacts/      ← Team artifacts
 └── sync-state.json         ← Last sync commit
 ```
