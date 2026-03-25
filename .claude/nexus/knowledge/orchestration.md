@@ -1,4 +1,5 @@
-<!-- tags: orchestration, gate, tags, agents, skills -->
+<!-- tags: orchestration, gate, tags, agents, skills, consult -->
+<!-- tags: orchestration, gate, tags, agents, skills, consult -->
 # Orchestration
 
 ## Tag System
@@ -10,11 +11,12 @@ Gate hook의 `UserPromptSubmit` 이벤트에서 사용자 프롬프트의 태그
 | 태그 | primitive | 스킬 |
 |------|-----------|------|
 | `[consult]` | consult | nx-consult |
+| `[consult:new]` | consult | nx-consult (기존 상담 초기화 후 새 토픽) |
 | `[dev]` | dev | nx-dev |
 | `[dev!]` | dev! | nx-dev |
 | `[research]` | research | nx-research |
 | `[research!]` | research! | nx-research |
-| `[d]` | — | nx_decision_add 호출 지시 |
+| `[d]` | — | consult.json 유무로 분기: 있으면 nx_consult_decide, 없으면 nx_decision_add |
 
 ### 자연어 패턴 (NATURAL_PATTERNS)
 
@@ -29,6 +31,12 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 ## Gate Hook 동작
 
+### CLAUDE.md 자동 동기화 (UserPromptSubmit 시)
+
+`$CLAUDE_PLUGIN_ROOT/templates/nexus-section.md`와 CLAUDE.md 마커 내용을 콘텐츠 비교:
+- 글로벌 `~/.claude/CLAUDE.md`: 다르면 자동 교체
+- 프로젝트 `./CLAUDE.md`: 다르면 1회 알림 (`.nexus/claudemd-notified` 플래그)
+
 ### Stop 이벤트
 `tasks.json`에 pending 태스크가 있으면 `continue: true`로 종료 차단 (nonstop). 모두 completed이면 pass.
 
@@ -40,11 +48,14 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 ### UserPromptSubmit 이벤트
 태그 감지 → 모드별 `additionalContext` 주입:
-- consult: 원칙 기반 상담 프라이머
+- consult: 구조화된 8단계 상담 절차 (논점 분해, 비교 테이블, 추천 불렛 등)
 - dev: Sub/Team 판단 가이드
 - dev!: 팀 모드 강제 + 상세 워크플로우
 - research: Sub/Team 판단 가이드
 - research!: 팀 모드 강제 + 상세 워크플로우
+
+### 모드 전환 시 Cleanup
+dev/dev!/research/research! 활성화 시 `cleanupConsult()` 호출 → consult.json 삭제.
 
 ## Agent Catalog (7개)
 
@@ -67,8 +78,8 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 | 스킬 | 트리거 | Sub Path | Team Path |
 |------|--------|----------|-----------|
-| nx-consult | [consult] | 자연어 대화 + [d] 자기강화 루프 | — |
-| nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰 | Director+Architect 합의→Engineer+QA 실행 |
-| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰 | Principal+Postdoc 스코프→Researcher 조사→Postdoc synthesis |
-| nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 | — |
-| nx-sync | /claude-nexus:nx-sync | git diff 기반 drift 감지+수정 (첫 실행=자동 생성, --reset=초기화) | — |
+| nx-consult | [consult]/[consult:new] | 구조화된 5단계 상담 (탐색→논점도출→선택지→결정→완료) + consult.json 추적 | — |
+| nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰 (decisions.json 참조) | Director+Architect 합의→Engineer+QA 실행 (decisions.json 참조) |
+| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰 (decisions.json 참조) | Principal+Postdoc 스코프→Researcher 조사→Postdoc synthesis (decisions.json 참조) |
+| nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 (templates/nexus-section.md에서 Nexus 섹션 읽기) | — |
+| nx-sync | /claude-nexus:nx-sync | git diff 기반 drift 감지+수정 (첫 실행=자동 생성, --reset=초기화, Phase 0.5=CLAUDE.md 체크) | — |

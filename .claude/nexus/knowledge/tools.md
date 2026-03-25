@@ -1,4 +1,5 @@
-<!-- tags: mcp, tools, lsp, ast, knowledge, tasks -->
+<!-- tags: mcp, tools, lsp, ast, knowledge, tasks, consult -->
+<!-- tags: mcp, tools, lsp, ast, knowledge, tasks, consult -->
 # MCP Tools
 
 MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/mcp/tools/`.
@@ -9,13 +10,16 @@ MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/
 |------|------|-----------|------|
 | `nx_knowledge_read` | knowledge.ts | `.claude/nexus/knowledge/{topic}.md` | knowledge 읽기 (topic 지정 또는 태그 검색) |
 | `nx_knowledge_write` | knowledge.ts | `.claude/nexus/knowledge/{topic}.md` | knowledge 쓰기 (tags 옵션) |
-| `nx_context` | context.ts | `.nexus/branches/{branch}/tasks.json` 참조 | 현재 브랜치, 팀 모드, 태스크 요약 조회 |
+| `nx_context` | context.ts | `.nexus/branches/{branch}/tasks.json`, `decisions.json` 참조 | 현재 브랜치, 팀 모드, 태스크 요약, 결정 사항 조회 |
 | `nx_task_list` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 목록 + summary + ready 태스크 |
 | `nx_task_add` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 추가 (caller=director만 허용) |
 | `nx_task_update` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 상태 변경 (pending/in_progress/completed) |
 | `nx_task_clear` | task.ts | `.nexus/branches/{branch}/tasks.json` | tasks.json 삭제 (nonstop 해제) |
 | `nx_decision_add` | decision.ts | `.nexus/branches/{branch}/decisions.json` | 결정 기록 추가 |
 | `nx_artifact_write` | artifact.ts | `.nexus/branches/{branch}/artifacts/{filename}` | 팀 산출물 저장 (report, synthesis 등) |
+| `nx_consult_start` | consult.ts | `.nexus/branches/{branch}/consult.json` | 상담 세션 시작 (토픽 + 논점 목록 등록) |
+| `nx_consult_status` | consult.ts | `.nexus/branches/{branch}/consult.json` | 현재 상담 상태 조회 (논점 목록/상태) |
+| `nx_consult_decide` | consult.ts | `.nexus/branches/{branch}/consult.json` + `decisions.json` | 논점 결정 처리 (consult.json 갱신 + decisions.json 기록, 모두 decided 시 자동 삭제) |
 
 ## Code Intelligence
 
@@ -38,3 +42,5 @@ MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/
 - LSP: 프로젝트 언어 자동 감지 (tsconfig.json → TypeScript 등). 언어별 LSP 클라이언트 맵으로 관리.
 - AST: `@ast-grep/napi`가 optional — 플러그인 캐시 또는 프로젝트 node_modules에서 동적 로드.
 - knowledge_write의 topic 파라미터가 파일명이 됨 (`knowledge/{topic}.md`). 하위 디렉토리 생성은 지원하지 않음.
+- MCP 도구는 `getBranchRoot()` 동적 함수로 경로를 해결. MCP 서버는 장기 프로세스이므로 정적 `BRANCH_ROOT` 대신 호출 시마다 현재 브랜치를 감지.
+- `nx_consult_decide`는 consult.json + decisions.json을 동시 갱신. 모든 issues decided 시 consult.json 자동 삭제.
