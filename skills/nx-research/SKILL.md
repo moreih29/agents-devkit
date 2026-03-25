@@ -29,7 +29,7 @@ Lead가 요청 복잡도를 판단해 Sub Path 또는 Team Path로 실행한다.
 - Lead가 직접 분석 도구 사용 (Read, Grep, WebSearch, WebFetch 등) — team path와 다름
 - decisions.json이 있으면 `nx_context`로 기존 결정 사항을 확인하고 맥락에 반영
 - `nx_rules_read(tags: ["research"])`로 팀 rules 확인. 있으면 스킬 기본 원칙보다 우선 적용.
-- TodoWrite로 할일 목록 생성 (status: "pending")
+- TodoWrite로 할일 목록 생성 (status: "pending") + **반드시 `nx_task_add`로 동일 태스크 등록** (history 아카이브용)
 - 계획을 사용자에게 보여준 뒤 Spawn으로 진입
 
 ### Phase 2: Spawn
@@ -45,7 +45,9 @@ Agent({ subagent_type: "claude-nexus:researcher", prompt: "..." })  // team_name
 ### Phase 3: Done
 
 - TodoWrite 전체 "completed" 확인
-- 사용자에게 결과 보고. **리포트 생성하지 않음.** `nx_task_add`/`nx_task_close` 사용 가능 (Sub Path도 동일).
+- **리포트 생성하지 않음.**
+- `nx_task_close` 호출 → consult+decisions+tasks를 history.json에 아카이브 후 삭제
+- 사용자에게 결과 보고
 
 ---
 
@@ -105,8 +107,8 @@ Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_nam
 ### Phase 5: Complete
 
 - all tasks completed → Gate Stop pass → 자연스럽게 종료
-- tasks.json/decisions.json 삭제 안 함 (resume용)
-- 정리는 사용자 명시적 요청 시 `nx_task_close` (consult+decisions+tasks → history.json 아카이브 후 삭제)
+- `nx_task_close` 호출 → consult+decisions+tasks를 history.json에 아카이브 후 삭제
+- 사용자에게 결과 보고
 
 ---
 
