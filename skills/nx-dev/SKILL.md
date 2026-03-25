@@ -103,9 +103,10 @@ Agent({ subagent_type: "claude-nexus:qa", name: "qa", team_name: "<project>",
 
 ### Phase 4: Complete
 
-- all tasks completed → Gate Stop pass → 자연스럽게 종료
-- `nx_task_close` 호출 → consult+decisions+tasks를 history.json에 아카이브 후 삭제
-- 사용자에게 결과 보고
+1. all tasks completed → Gate Stop pass → 자연스럽게 종료
+2. `nx_task_close` 호출 → consult+decisions+tasks를 history.json에 아카이브 후 삭제
+3. 팀 종료: 전 팀원에게 shutdown 요청 → 전원 종료 확인 → `TeamDelete`
+4. 사용자에게 결과 보고
 
 ---
 
@@ -156,6 +157,16 @@ Agent({ subagent_type: "claude-nexus:qa", name: "qa", team_name: "<project>", pr
 ```
 
 주의: `TaskCreate`는 Claude Code 태스크 생성 도구. teammate 스폰은 반드시 `Agent({ team_name: ... })`.
+
+## 팀 종료 예시
+
+```
+// 1. 전 팀원에게 shutdown 요청
+SendMessage({ to: "*", message: { type: "shutdown_request", reason: "전체 태스크 완료" } })
+
+// 2. 전원 종료 확인 후 팀 삭제
+TeamDelete()
+```
 
 ## State Management
 
