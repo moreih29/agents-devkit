@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0 (2026-03-25)
+
+### Features
+- consult 스킬 개선 — 구조화된 상담 절차 + consult.json 상태 관리
+- CLAUDE.md 자동 관리 + MCP 동적 브랜치 감지
+
 ## 0.11.0 (2026-03-24)
 
 ### Features
