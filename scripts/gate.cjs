@@ -139,15 +139,41 @@ function handleStop() {
       });
       return;
     }
-    pass();
+    respond({
+      continue: true,
+      additionalContext: `[NEXUS] All ${tasks.length} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks \u2192 history.json) before finishing.`
+    });
     return;
   } catch {
     pass();
     return;
   }
 }
+function isNexusInternalPath(filePath) {
+  if (/[\\/]\.nexus[\\/]/.test(filePath)) return true;
+  if (/[\\/]\.claude[\\/]nexus[\\/]/.test(filePath)) return true;
+  if (/[\\/]\.claude[\\/]settings\.json$/.test(filePath)) return true;
+  if (/[\\/]CLAUDE\.md$/.test(filePath)) return true;
+  return false;
+}
 function handlePreToolUse(event) {
   const toolName = event.tool_name ?? "";
+  if (toolName === "Edit" || toolName === "Write") {
+    const toolInput2 = event.tool_input;
+    const filePath = toolInput2?.file_path ?? "";
+    if (!isNexusInternalPath(filePath)) {
+      const tasksPath2 = (0, import_path2.join)(BRANCH_ROOT, "tasks.json");
+      if (!(0, import_fs2.existsSync)(tasksPath2)) {
+        respond({
+          decision: "block",
+          reason: "[NEXUS] No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: consult \u2192 decisions \u2192 tasks \u2192 execute."
+        });
+        return;
+      }
+    }
+    pass();
+    return;
+  }
   if (toolName !== "Agent") {
     pass();
     return;
@@ -206,8 +232,27 @@ function detectKeywords(prompt) {
   }
   return null;
 }
+function getTasksReminder() {
+  const tasksPath = (0, import_path2.join)(BRANCH_ROOT, "tasks.json");
+  if (!(0, import_fs2.existsSync)(tasksPath)) return null;
+  try {
+    const data = JSON.parse((0, import_fs2.readFileSync)(tasksPath, "utf-8"));
+    const tasks = data.tasks ?? [];
+    const pending = tasks.filter((t) => t.status !== "completed");
+    if (pending.length > 0) {
+      return `[NEXUS] \u26A0 ${pending.length} pending tasks in tasks.json. Complete tasks (nx_task_update) and archive (nx_task_close) before moving on.`;
+    }
+    return `[NEXUS] \u26A0 All ${tasks.length} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.`;
+  } catch {
+    return null;
+  }
+}
+function withNotices(base, tasksReminder, claudeMdNotice) {
+  return [tasksReminder, base, claudeMdNotice].filter(Boolean).join("\n");
+}
 function handleUserPromptSubmit(event) {
   const claudeMdNotice = handleClaudeMdSync();
+  const tasksReminder = getTasksReminder();
   const prompt = event.prompt ?? event.user_prompt ?? "";
   if (!prompt) {
     pass();
@@ -219,18 +264,18 @@ function handleUserPromptSubmit(event) {
 
 After recording the decision:
 1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.
-2. If the user explicitly requests implementation: nx_task_add \u2192 perform work \u2192 nx_task_close (history archive). Follow this pipeline even for simple edits.
+2. If the user explicitly requests implementation: nx_task_add (decisions=[] or relevant IDs) \u2192 perform work \u2192 nx_task_close (history archive). Follow this pipeline even for simple edits. Edit/Write will be BLOCKED without tasks.json.
 3. You may recommend [dev] or [research] tags for execution, but do not execute yourself unless asked.`;
     const consultFile = (0, import_path2.join)(BRANCH_ROOT, "consult.json");
     if ((0, import_fs2.existsSync)(consultFile)) {
       respond({
         continue: true,
-        additionalContext: `${claudeMdNotice ? claudeMdNotice + "\n" : ""}[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record \u2014 updates consult.json + decisions.json simultaneously.${postDecisionRules}`
+        additionalContext: withNotices(`[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record \u2014 updates consult.json + decisions.json simultaneously.${postDecisionRules}`, tasksReminder, claudeMdNotice)
       });
     } else {
       respond({
         continue: true,
-        additionalContext: `${claudeMdNotice ? claudeMdNotice + "\n" : ""}[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`
+        additionalContext: withNotices(`[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`, tasksReminder, claudeMdNotice)
       });
     }
     return;
@@ -261,18 +306,20 @@ Note: To continue an existing session, just continue the conversation without us
       }
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? "\n" + claudeMdNotice : ""}`
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
       });
       return;
     }
     if (match.primitive === "dev") {
-      const base = `[NEXUS] Dev mode activated. Assess the request and choose your approach:
+      const base = `MANDATORY: Call nx_task_add to register tasks BEFORE starting any work. Do NOT skip this step. Pass decisions as [] if no decisions exist.
+[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (1-3 files, clear scope): Use direct Agent() spawns freely with any agent (director, architect, engineer, qa)
 - Complex (4+ files, design decisions needed): Use TeamCreate + full team workflow (director+architect design \u2192 engineer+qa execute)
-[dev!] forces team mode. Otherwise, use your judgment \u2014 no need to over-analyze.`;
+[dev!] forces team mode. Otherwise, use your judgment \u2014 no need to over-analyze.
+Architect: Even in simple mode, spawn architect to review design BEFORE engineer implements \u2014 especially for interface changes, cross-module edits, or non-trivial logic.`;
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? "\n" + claudeMdNotice : ""}`
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
       });
       return;
     }
@@ -304,18 +351,19 @@ Key: Plan = consensus (director + architect), Execute = atomic by default \u2014
 Escalation: engineer/qa report to director by default. Escalate to architect for design/architecture questions.`;
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? "\n" + claudeMdNotice : ""}`
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
       });
       return;
     }
     if (match.primitive === "research") {
-      const base = `[NEXUS] Research mode activated. Assess the request and choose your approach:
+      const base = `MANDATORY: Call nx_task_add to register tasks BEFORE starting any work. Do NOT skip this step. Pass decisions as [] if no decisions exist.
+[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (1-3 topics, single domain): Use direct Agent() spawns freely with any agent (principal, postdoc, researcher)
 - Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow (principal+postdoc scope \u2192 researcher investigate \u2192 converge)
 [research!] forces team mode. Otherwise, use your judgment \u2014 no need to over-analyze.`;
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? "\n" + claudeMdNotice : ""}`
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
       });
       return;
     }
@@ -347,13 +395,13 @@ Key: Scope = consensus (principal + postdoc), Investigate = atomic by default \u
 Escalation: researcher reports to principal by default. Escalate to postdoc for methodology/source questions.`;
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? "\n" + claudeMdNotice : ""}`
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
       });
       return;
     }
   }
-  if (claudeMdNotice) {
-    respond({ continue: true, additionalContext: claudeMdNotice });
+  if (claudeMdNotice || tasksReminder) {
+    respond({ continue: true, additionalContext: [tasksReminder, claudeMdNotice].filter(Boolean).join("\n") });
     return;
   }
   pass();

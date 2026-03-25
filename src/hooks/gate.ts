@@ -92,8 +92,11 @@ function handleStop(): void {
       return;
     }
 
-    // all completed → 더 이상 차단하지 않음
-    pass();
+    // all completed → nx_task_close 강제 호출
+    respond({
+      continue: true,
+      additionalContext: `[NEXUS] All ${tasks.length} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks → history.json) before finishing.`,
+    });
     return;
   } catch {
     pass();
@@ -101,10 +104,43 @@ function handleStop(): void {
   }
 }
 
-// --- PreToolUse 이벤트 처리: Agent 직접 호출 차단 ---
+// --- PreToolUse 이벤트 처리: Agent 직접 호출 차단 + Edit/Write 태스크 강제 ---
+
+/** 예외 경로: Nexus 내부 파일 및 setup/sync 대상 파일은 tasks.json 없이도 수정 허용 */
+function isNexusInternalPath(filePath: string): boolean {
+  // .nexus/ 런타임 상태
+  if (/[\\/]\.nexus[\\/]/.test(filePath)) return true;
+  // .claude/nexus/ 지식 저장소
+  if (/[\\/]\.claude[\\/]nexus[\\/]/.test(filePath)) return true;
+  // .claude/settings.json — setup 스킬 대상
+  if (/[\\/]\.claude[\\/]settings\.json$/.test(filePath)) return true;
+  // CLAUDE.md — sync 스킬 대상
+  if (/[\\/]CLAUDE\.md$/.test(filePath)) return true;
+  return false;
+}
 
 function handlePreToolUse(event: Record<string, unknown>): void {
   const toolName = (event.tool_name ?? '') as string;
+
+  // Edit/Write 도구: tasks.json 없으면 차단 (Nexus 내부 경로 제외)
+  if (toolName === 'Edit' || toolName === 'Write') {
+    const toolInput = event.tool_input as Record<string, unknown> | undefined;
+    const filePath = (toolInput?.file_path ?? '') as string;
+
+    if (!isNexusInternalPath(filePath)) {
+      const tasksPath = join(BRANCH_ROOT, 'tasks.json');
+      if (!existsSync(tasksPath)) {
+        respond({
+          decision: 'block',
+          reason: '[NEXUS] No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: consult → decisions → tasks → execute.',
+        });
+        return;
+      }
+    }
+
+    pass();
+    return;
+  }
 
   // Agent tool만 체크
   if (toolName !== 'Agent') {
@@ -196,8 +232,30 @@ function detectKeywords(prompt: string): KeywordMatch | null {
   return null;
 }
 
+function getTasksReminder(): string | null {
+  const tasksPath = join(BRANCH_ROOT, 'tasks.json');
+  if (!existsSync(tasksPath)) return null;
+  try {
+    const data = JSON.parse(readFileSync(tasksPath, 'utf-8'));
+    const tasks = data.tasks ?? [];
+    const pending = tasks.filter((t: { status: string }) => t.status !== 'completed');
+    if (pending.length > 0) {
+      return `[NEXUS] ⚠ ${pending.length} pending tasks in tasks.json. Complete tasks (nx_task_update) and archive (nx_task_close) before moving on.`;
+    }
+    return `[NEXUS] ⚠ All ${tasks.length} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.`;
+  } catch {
+    return null;
+  }
+}
+
+/** additionalContext에 tasksReminder와 claudeMdNotice를 자동 병합 */
+function withNotices(base: string, tasksReminder: string | null, claudeMdNotice: string | null): string {
+  return [tasksReminder, base, claudeMdNotice].filter(Boolean).join('\n');
+}
+
 function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const claudeMdNotice = handleClaudeMdSync();
+  const tasksReminder = getTasksReminder();
 
   const prompt = (event.prompt ?? event.user_prompt ?? '') as string;
   if (!prompt) { pass(); return; }
@@ -205,17 +263,17 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   // [d] 결정 태그 감지 — consult.json 유무로 도구 분기 + 행동 규칙 주입
   const dTag = prompt.match(/\[d\]/i);
   if (dTag) {
-    const postDecisionRules = `\n\nAfter recording the decision:\n1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.\n2. If the user explicitly requests implementation: nx_task_add → perform work → nx_task_close (history archive). Follow this pipeline even for simple edits.\n3. You may recommend [dev] or [research] tags for execution, but do not execute yourself unless asked.`;
+    const postDecisionRules = `\n\nAfter recording the decision:\n1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.\n2. If the user explicitly requests implementation: nx_task_add (decisions=[] or relevant IDs) → perform work → nx_task_close (history archive). Follow this pipeline even for simple edits. Edit/Write will be BLOCKED without tasks.json.\n3. You may recommend [dev] or [research] tags for execution, but do not execute yourself unless asked.`;
     const consultFile = join(BRANCH_ROOT, 'consult.json');
     if (existsSync(consultFile)) {
       respond({
         continue: true,
-        additionalContext: `${claudeMdNotice ? claudeMdNotice + '\n' : ''}[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record — updates consult.json + decisions.json simultaneously.${postDecisionRules}`,
+        additionalContext: withNotices(`[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record — updates consult.json + decisions.json simultaneously.${postDecisionRules}`, tasksReminder, claudeMdNotice),
       });
     } else {
       respond({
         continue: true,
-        additionalContext: `${claudeMdNotice ? claudeMdNotice + '\n' : ''}[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`,
+        additionalContext: withNotices(`[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`, tasksReminder, claudeMdNotice),
       });
     }
     return;
@@ -247,19 +305,21 @@ Note: To continue an existing session, just continue the conversation without us
       }
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
       });
       return;
     }
 
     if (match.primitive === 'dev') {
-      const base = `[NEXUS] Dev mode activated. Assess the request and choose your approach:
+      const base = `MANDATORY: Call nx_task_add to register tasks BEFORE starting any work. Do NOT skip this step. Pass decisions as [] if no decisions exist.
+[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (1-3 files, clear scope): Use direct Agent() spawns freely with any agent (director, architect, engineer, qa)
 - Complex (4+ files, design decisions needed): Use TeamCreate + full team workflow (director+architect design → engineer+qa execute)
-[dev!] forces team mode. Otherwise, use your judgment — no need to over-analyze.`;
+[dev!] forces team mode. Otherwise, use your judgment — no need to over-analyze.
+`;
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
       });
       return;
     }
@@ -292,19 +352,20 @@ Key: Plan = consensus (director + architect), Execute = atomic by default — bu
 Escalation: engineer/qa report to director by default. Escalate to architect for design/architecture questions.`;
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
       });
       return;
     }
 
     if (match.primitive === 'research') {
-      const base = `[NEXUS] Research mode activated. Assess the request and choose your approach:
+      const base = `MANDATORY: Call nx_task_add to register tasks BEFORE starting any work. Do NOT skip this step. Pass decisions as [] if no decisions exist.
+[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (1-3 topics, single domain): Use direct Agent() spawns freely with any agent (principal, postdoc, researcher)
 - Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow (principal+postdoc scope → researcher investigate → converge)
 [research!] forces team mode. Otherwise, use your judgment — no need to over-analyze.`;
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
       });
       return;
     }
@@ -337,14 +398,14 @@ Key: Scope = consensus (principal + postdoc), Investigate = atomic by default �
 Escalation: researcher reports to principal by default. Escalate to postdoc for methodology/source questions.`;
       respond({
         continue: true,
-        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
+        additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
       });
       return;
     }
   }
 
-  if (claudeMdNotice) {
-    respond({ continue: true, additionalContext: claudeMdNotice });
+  if (claudeMdNotice || tasksReminder) {
+    respond({ continue: true, additionalContext: [tasksReminder, claudeMdNotice].filter(Boolean).join('\n') });
     return;
   }
 

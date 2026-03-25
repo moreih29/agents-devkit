@@ -84,13 +84,14 @@ export function registerTaskTools(server: McpServer): void {
       title: z.string().describe('Task title'),
       context: z.string().describe('Task context or description'),
       deps: z.array(z.number()).optional().describe('IDs of tasks this task depends on'),
-      decisions: z.array(z.number()).optional().describe('IDs of decisions that informed this task'),
+      decisions: z.array(z.number()).describe('IDs of decisions that informed this task. Pass [] if none.'),
       goal: z.string().optional().describe('Set or update the goal for this task list'),
       owner: z.string().optional().describe('Assignee agent name for this task'),
     },
     async ({ caller, title, context, deps, decisions, goal, owner }) => {
-      if (caller !== 'director') {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Only director can create tasks. You are: ${caller}` }) }] };
+      const allowedCallers = ['director', 'lead', 'principal'];
+      if (!allowedCallers.includes(caller)) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Only ${allowedCallers.join('/')} can create tasks. You are: ${caller}` }) }] };
       }
 
       let data = await readTasks();
@@ -109,7 +110,7 @@ export function registerTaskTools(server: McpServer): void {
         context,
         status: 'pending',
         deps: deps ?? [],
-        decisions: decisions ?? [],
+        decisions,
         owner,
         created_at: new Date().toISOString(),
       };

@@ -22377,13 +22377,14 @@ function registerTaskTools(server2) {
       title: external_exports.string().describe("Task title"),
       context: external_exports.string().describe("Task context or description"),
       deps: external_exports.array(external_exports.number()).optional().describe("IDs of tasks this task depends on"),
-      decisions: external_exports.array(external_exports.number()).optional().describe("IDs of decisions that informed this task"),
+      decisions: external_exports.array(external_exports.number()).describe("IDs of decisions that informed this task. Pass [] if none."),
       goal: external_exports.string().optional().describe("Set or update the goal for this task list"),
       owner: external_exports.string().optional().describe("Assignee agent name for this task")
     },
     async ({ caller, title, context, deps, decisions, goal, owner }) => {
-      if (caller !== "director") {
-        return { content: [{ type: "text", text: JSON.stringify({ error: `Only director can create tasks. You are: ${caller}` }) }] };
+      const allowedCallers = ["director", "lead", "principal"];
+      if (!allowedCallers.includes(caller)) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: `Only ${allowedCallers.join("/")} can create tasks. You are: ${caller}` }) }] };
       }
       let data = await readTasks();
       if (!data) {
@@ -22399,7 +22400,7 @@ function registerTaskTools(server2) {
         context,
         status: "pending",
         deps: deps ?? [],
-        decisions: decisions ?? [],
+        decisions,
         owner,
         created_at: (/* @__PURE__ */ new Date()).toISOString()
       };
