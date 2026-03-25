@@ -10,8 +10,7 @@ Gate hook의 `UserPromptSubmit` 이벤트에서 사용자 프롬프트의 태그
 
 | 태그 | primitive | 스킬 |
 |------|-----------|------|
-| `[consult]` | consult | nx-consult |
-| `[consult:new]` | consult | nx-consult (기존 상담 초기화 후 새 토픽) |
+| `[consult]` | consult | nx-consult (기존 consult.json 있으면 세션 이어감, 없으면 새 세션 시작) |
 | `[dev]` | dev | nx-dev |
 | `[dev!]` | dev! | nx-dev |
 | `[research]` | research | nx-research |
@@ -48,14 +47,31 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 ### UserPromptSubmit 이벤트
 태그 감지 → 모드별 `additionalContext` 주입:
-- consult: 구조화된 8단계 상담 절차 (논점 분해, 비교 테이블, 추천 불렛 등)
+- consult: consult.json 존재 여부 체크 → 있으면 nx_consult_status 확인 + nx_consult_update(add) 안내, 없으면 구조화된 8단계 새 세션 시작 안내.
 - dev: Sub/Team 판단 가이드
 - dev!: 팀 모드 강제 + 상세 워크플로우
 - research: Sub/Team 판단 가이드
 - research!: 팀 모드 강제 + 상세 워크플로우
 
-### 모드 전환 시 Cleanup
-dev/dev!/research/research! 활성화 시 `cleanupConsult()` 호출 → consult.json 삭제.
+### Consult 세션 규칙
+
+- `[consult]` 태그 사용 시 consult.json 존재 여부로 분기:
+  - 있으면: nx_consult_status 확인 후 nx_consult_update(add)로 논점 추가 안내
+  - 없으면: nx_consult_start 호출 + 8단계 새 세션 시작 안내
+- 세션은 nx_task_close 호출 시 history.json에 아카이브되어 종료됨.
+- cleanupConsult() 제거됨 — 모드 전환(dev/research 등) 시 consult.json을 삭제하지 않음.
+
+### Rules 커스터마이징 흐름
+
+사용자가 커스텀 규칙/원칙을 요청할 때:
+1. `nx_rules_read`로 기존 rules 확인
+2. 대화로 내용 구체화
+3. `nx_rules_write`로 `.claude/nexus/rules/{name}.md`에 저장
+
+규칙은 자동으로 승격되지 않음 — 사용자가 명시적으로 요청할 때만 생성.
+
+### 사이클 종료 (nx_task_close)
+모든 태스크 완료 후 `nx_task_close` 호출 → consult+decisions+tasks를 history.json에 아카이브 → 소스 파일 삭제. 모드 전환 시 consult.json은 유지됨 (자동 삭제 없음).
 
 ## Agent Catalog (7개)
 
@@ -78,8 +94,8 @@ dev/dev!/research/research! 활성화 시 `cleanupConsult()` 호출 → consult.
 
 | 스킬 | 트리거 | Sub Path | Team Path |
 |------|--------|----------|-----------|
-| nx-consult | [consult]/[consult:new] | 구조화된 5단계 상담 (탐색→논점도출→선택지→결정→완료) + consult.json 추적 | — |
-| nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰 (decisions.json 참조) | Director+Architect 합의→Engineer+QA 실행 (decisions.json 참조) |
-| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰 (decisions.json 참조) | Principal+Postdoc 스코프→Researcher 조사→Postdoc synthesis (decisions.json 참조) |
+| nx-consult | [consult] | 구조화된 8단계 상담 (탐색→논점도출→선택지→결정→완료). consult.json 추적. 사용자 요청 시 nx_rules_write로 커스텀 rules 생성 안내. | — |
+| nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰. Phase 1에서 nx_rules_read(tags: ["dev"])로 팀 rules 확인 후 우선 적용. 모드 고지: "[dev] sub-agent 모드로 처리합니다" | Director+Architect 합의→Engineer+QA 실행. Phase 1 briefing에 nx_rules_read(tags: ["dev"]) 결과 포함. 모드 고지: "[dev] 팀을 구성합니다" |
+| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰. Phase 1에서 nx_rules_read(tags: ["research"])로 팀 rules 확인 후 우선 적용. 모드 고지. 리포트 생성 없음. | Principal+Postdoc 스코프→Researcher 조사→Converge. Phase 1 briefing에 nx_rules_read(tags: ["research"]) 결과 포함. 리포트 필수. 모드 고지. |
 | nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 (templates/nexus-section.md에서 Nexus 섹션 읽기) | — |
 | nx-sync | /claude-nexus:nx-sync | git diff 기반 drift 감지+수정 (첫 실행=자동 생성, --reset=초기화, Phase 0.5=CLAUDE.md 체크) | — |

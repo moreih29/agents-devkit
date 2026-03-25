@@ -25,6 +25,11 @@ export function knowledgePath(topic: string): string {
   return join(KNOWLEDGE_ROOT, 'knowledge', `${topic}.md`);
 }
 
+/** 룰 파일 경로 */
+export function rulesPath(name: string): string {
+  return join(KNOWLEDGE_ROOT, 'rules', `${name}.md`);
+}
+
 /** 디렉토리 생성 (재귀) */
 export function ensureDir(dir: string): void {
   if (!existsSync(dir)) {

@@ -25,8 +25,10 @@ Lead가 요청 복잡도를 판단해 Sub Path 또는 Team Path로 실행한다.
 
 ### Phase 1: Analyze (Lead 직접)
 
+- 사용자에게 모드 고지: "[research] sub-agent 모드로 처리합니다"
 - Lead가 직접 분석 도구 사용 (Read, Grep, WebSearch, WebFetch 등) — team path와 다름
 - decisions.json이 있으면 `nx_context`로 기존 결정 사항을 확인하고 맥락에 반영
+- `nx_rules_read(tags: ["research"])`로 팀 rules 확인. 있으면 스킬 기본 원칙보다 우선 적용.
 - TodoWrite로 할일 목록 생성 (status: "pending")
 - 계획을 사용자에게 보여준 뒤 Spawn으로 진입
 
@@ -43,7 +45,7 @@ Agent({ subagent_type: "claude-nexus:researcher", prompt: "..." })  // team_name
 ### Phase 3: Done
 
 - TodoWrite 전체 "completed" 확인
-- 사용자에게 결과 보고. tasks.json/아카이브 없음.
+- 사용자에게 결과 보고. **리포트 생성하지 않음.** `nx_task_add`/`nx_task_close` 사용 가능 (Sub Path도 동일).
 
 ---
 
@@ -57,8 +59,10 @@ Phase: **intake → scope → investigate → converge → complete**
 
 사용자 요청/의도/맥락만 정리. **분석/코드 도구 호출 금지.**
 
+- 사용자에게 모드 고지: "[research] 팀을 구성합니다"
 - 목표, 범위, 의도 정리 → briefing 작성
 - decisions.json이 있으면 기존 결정 사항을 briefing에 포함 (`nx_context`로 조회)
+- `nx_rules_read(tags: ["research"])`로 팀 rules 조회. 있으면 briefing에 포함하여 팀원에게 전달, 스킬 기본 원칙보다 우선.
 - TeamCreate + principal/postdoc 병렬 스폰
 
 ```
@@ -91,15 +95,18 @@ Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_nam
 
 ### Phase 4: Converge (Principal + Postdoc)
 
+**리포트 필수** — Team Path는 반드시 최종 리포트를 생성한다.
+
 - 수집된 조사 결과를 principal이 종합
 - postdoc와 SendMessage로 결론 검증
 - 최종 인사이트/권고사항 도출
+- 보완 내역 기록: 보완일, 사유, 변경 항목. Lead가 팀 완료 후 내부 교정 요약 1-2줄 보고.
 
 ### Phase 5: Complete
 
 - all tasks completed → Gate Stop pass → 자연스럽게 종료
 - tasks.json/decisions.json 삭제 안 함 (resume용)
-- 정리는 사용자 명시적 요청 시 `nx_task_clear`
+- 정리는 사용자 명시적 요청 시 `nx_task_close` (consult+decisions+tasks → history.json 아카이브 후 삭제)
 
 ---
 
@@ -114,6 +121,13 @@ Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_nam
 7. **Gate Stop nonstop** — pending 태스크 있으면 종료 불가
 8. **Scope = 합의** (Principal + Postdoc SendMessage 토론)
 9. **[research] 판단: 도구 0회** — 요청 텍스트만으로 직감 추정
+
+## Rules Template (참고)
+
+팀 커스텀 규칙이 필요할 때 rules/ 디렉토리에 생성. 구조 예시:
+- 이름: 규칙 목적 (예: "source-tiers", "report-format")
+- 태그: `["research"]` 포함 시 research 스킬에서 자동 로드
+- 내용: 마크다운 자유 형식
 
 ## Lead Awaiting Pattern (Team Path)
 
@@ -132,6 +146,19 @@ Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_nam
 
 주의: `TaskCreate`는 Claude Code 태스크 생성 도구. teammate 스폰은 반드시 `Agent({ team_name: ... })`.
 
+## 기본 범위
+
+research 기본 범위는 조사+리포트. 산출물 생성이 필요하면 `rules/`로 변환 규칙을 정의하여 확장. 빌드 검증은 별도 스킬 조합 패턴 권장.
+
+## 방법론 원칙
+
+- **출처 계층화**: 신뢰도별 등급 분류
+- **교차 검증**: 복수 출처 대조
+- **출처 기록**: 인라인 근거 포함
+
+원칙만 내장. 구체적 분류 기준(T1/T2/T3 정의, 리포트 양식 등)은 `rules/`에서 프로젝트별 정의.
+
 ## State Management
 
-`.nexus/{branch}/tasks.json` — `nx_task_add`/`nx_task_update`로 관리. Gate Stop 감시. Sub Path는 상태 파일 없음.
+`.nexus/{branch}/tasks.json` — `nx_task_add`/`nx_task_update`로 관리. Gate Stop 감시.
+사이클 종료 시 `nx_task_close`로 consult+decisions+tasks를 history.json에 아카이브.

@@ -5,15 +5,25 @@ import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBranchRoot, ensureDir } from '../../shared/paths.js';
 
-interface DecisionsFile {
-  decisions: string[];
+export interface DecisionEntry {
+  id: number;
+  summary: string;
+  consult: number | null;
 }
 
-function decisionsPath(): string {
+export interface DecisionsFile {
+  decisions: DecisionEntry[];
+}
+
+export function normalizeDecision(d: DecisionEntry): DecisionEntry {
+  return d;
+}
+
+export function decisionsPath(): string {
   return join(getBranchRoot(), 'decisions.json');
 }
 
-async function readDecisions(): Promise<DecisionsFile> {
+export async function readDecisions(): Promise<DecisionsFile> {
   const p = decisionsPath();
   if (!existsSync(p)) {
     return { decisions: [] };
@@ -22,7 +32,7 @@ async function readDecisions(): Promise<DecisionsFile> {
   return JSON.parse(raw) as DecisionsFile;
 }
 
-async function writeDecisions(data: DecisionsFile): Promise<void> {
+export async function writeDecisions(data: DecisionsFile): Promise<void> {
   const root = getBranchRoot();
   ensureDir(root);
   await writeFile(join(root, 'decisions.json'), JSON.stringify(data, null, 2));
@@ -34,10 +44,13 @@ export function registerDecisionTools(server: McpServer): void {
     'Add a decision to .nexus/decisions.json',
     {
       summary: z.string().describe('Decision summary to record'),
+      consult: z.number().nullable().optional().describe('Consult issue ID this decision relates to (null if not from a consultation)'),
     },
-    async ({ summary }) => {
+    async ({ summary, consult }) => {
       const data = await readDecisions();
-      data.decisions.push(summary);
+      const maxId = data.decisions.reduce((max, d) => Math.max(max, d.id), 0);
+      const entry: DecisionEntry = { id: maxId + 1, summary, consult: consult ?? null };
+      data.decisions.push(entry);
       await writeDecisions(data);
       return {
         content: [
@@ -49,4 +62,5 @@ export function registerDecisionTools(server: McpServer): void {
       };
     }
   );
+
 }

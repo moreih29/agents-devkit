@@ -70,13 +70,6 @@ function handleClaudeMdSync(): string | null {
   return null;
 }
 
-function cleanupConsult(): void {
-  const consultFile = join(BRANCH_ROOT, 'consult.json');
-  if (existsSync(consultFile)) {
-    try { unlinkSync(consultFile); } catch {}
-  }
-}
-
 // --- Stop 이벤트 처리 ---
 
 function handleStop(): void {
@@ -156,7 +149,6 @@ interface KeywordMatch {
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   consult:     { primitive: 'consult',    skill: 'claude-nexus:nx-consult' },
-  'consult:new': { primitive: 'consult',    skill: 'claude-nexus:nx-consult' },
   dev:         { primitive: 'dev',        skill: 'claude-nexus:nx-dev' },
   'dev!':      { primitive: 'dev!',       skill: 'claude-nexus:nx-dev' },
   research:    { primitive: 'research',   skill: 'claude-nexus:nx-research' },
@@ -186,7 +178,7 @@ function isPrimitiveMention(prompt: string): boolean {
 }
 
 function detectKeywords(prompt: string): KeywordMatch | null {
-  // 1차: 명시적 태그 [consult], [dev], [dev!], [consult:new] — 항상 확정
+  // 1차: 명시적 태그 [consult], [dev], [dev!], [research], [research!] — 항상 확정
   const tagMatch = prompt.match(/\[([\w:]+!?)\]/);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
@@ -231,7 +223,17 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const match = detectKeywords(prompt);
   if (match) {
     if (match.primitive === 'consult') {
-      const base = `[NEXUS] Consult mode activated. Follow the structured consultation procedure:
+      const consultFile = join(BRANCH_ROOT, 'consult.json');
+      const hasExistingSession = existsSync(consultFile);
+      let base: string;
+      if (hasExistingSession) {
+        base = `[NEXUS] Consult mode activated. An existing session was found.
+MANDATORY: Call nx_consult_status to review current issues and decisions. Do NOT skip this tool call.
+If the new topic is related to the existing session, add issues with nx_consult_update(action="add").
+If the new topic is completely unrelated, you may start fresh with nx_consult_start (this overwrites the existing session).`;
+      } else {
+        base = `[NEXUS] Consult mode activated. Starting a new session.
+MANDATORY: Call nx_consult_start to register issues. Do NOT skip this tool call.
 1. Explore first — read code, knowledge, decisions before asking questions.
 2. Decompose the topic into discrete issues. Register with nx_consult_start. Present one issue at a time.
 3. For each issue: comparison table (keywords) + recommendation bullets (why not others, why this one).
@@ -239,7 +241,9 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
 5. Record decisions with [d] tag. After each decision, transition to the next issue.
 6. After all issues decided: check for missed topics against the original question.
 7. Do NOT execute. When ready, recommend an appropriate execution tag from CLAUDE.md Tags table.
-8. Spawn agents if specialized analysis is needed.`;
+8. Spawn agents if specialized analysis is needed.
+Note: To continue an existing session, just continue the conversation without using [consult].`;
+      }
       respond({
         continue: true,
         additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
@@ -248,7 +252,6 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     }
 
     if (match.primitive === 'dev') {
-      cleanupConsult();
       const base = `[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (1-3 files, clear scope): Use direct Agent() spawns freely with any agent (director, architect, engineer, qa)
 - Complex (4+ files, design decisions needed): Use TeamCreate + full team workflow (director+architect design → engineer+qa execute)
@@ -261,7 +264,6 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     }
 
     if (match.primitive === 'dev!') {
-      cleanupConsult();
       const base = `[NEXUS] Dev team mode activated (forced). Follow the team workflow:
 CRITICAL RULES — VIOLATION OF THESE IS A SYSTEM ERROR:
 1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).
@@ -295,7 +297,6 @@ Escalation: engineer/qa report to director by default. Escalate to architect for
     }
 
     if (match.primitive === 'research') {
-      cleanupConsult();
       const base = `[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (1-3 topics, single domain): Use direct Agent() spawns freely with any agent (principal, postdoc, researcher)
 - Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow (principal+postdoc scope → researcher investigate → converge)
@@ -308,7 +309,6 @@ Escalation: engineer/qa report to director by default. Escalate to architect for
     }
 
     if (match.primitive === 'research!') {
-      cleanupConsult();
       const base = `[NEXUS] Research team mode activated (forced). Follow the team workflow:
 CRITICAL RULES — VIOLATION OF THESE IS A SYSTEM ERROR:
 1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).

@@ -4,6 +4,8 @@ import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBranchRoot, ensureDir } from '../../shared/paths.js';
+import { readConsult, type ConsultFile } from './consult.js';
+import { readDecisions, type DecisionEntry } from './decision.js';
 
 function tasksPath(): string {
   return join(getBranchRoot(), 'tasks.json');
@@ -15,6 +17,7 @@ interface Task {
   context: string;
   status: 'pending' | 'in_progress' | 'completed';
   deps: number[];
+  decisions: number[];
   owner?: string;
   created_at?: string;
 }
@@ -81,10 +84,11 @@ export function registerTaskTools(server: McpServer): void {
       title: z.string().describe('Task title'),
       context: z.string().describe('Task context or description'),
       deps: z.array(z.number()).optional().describe('IDs of tasks this task depends on'),
+      decisions: z.array(z.number()).optional().describe('IDs of decisions that informed this task'),
       goal: z.string().optional().describe('Set or update the goal for this task list'),
       owner: z.string().optional().describe('Assignee agent name for this task'),
     },
-    async ({ caller, title, context, deps, goal, owner }) => {
+    async ({ caller, title, context, deps, decisions, goal, owner }) => {
       if (caller !== 'director') {
         return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Only director can create tasks. You are: ${caller}` }) }] };
       }
@@ -105,6 +109,7 @@ export function registerTaskTools(server: McpServer): void {
         context,
         status: 'pending',
         deps: deps ?? [],
+        decisions: decisions ?? [],
         owner,
         created_at: new Date().toISOString(),
       };
@@ -152,19 +157,73 @@ export function registerTaskTools(server: McpServer): void {
   );
 
   server.tool(
-    'nx_task_clear',
-    'Delete .nexus/tasks.json to abort the current plan and release the nonstop block',
+    'nx_task_close',
+    'Close the current cycle: archive consult+decisions+tasks into history.json, then delete source files',
     {},
     async () => {
-      if (!existsSync(tasksPath())) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: false, reason: 'tasks.json not found' }) }] };
+      const root = getBranchRoot();
+      const historyPath = join(root, 'history.json');
+      const consultJsonPath = join(root, 'consult.json');
+      const decisionsJsonPath = join(root, 'decisions.json');
+
+      // Read current state (only what exists)
+      const consult: ConsultFile | null = await readConsult();
+      const decisionsData = await readDecisions();
+      const decisions: DecisionEntry[] = decisionsData.decisions;
+      const tasksData = await readTasks();
+      const tasks: Task[] = tasksData?.tasks ?? [];
+
+      // Read or initialize history.json
+      interface Cycle {
+        completed_at: string;
+        consult: ConsultFile | null;
+        decisions: DecisionEntry[];
+        tasks: Task[];
       }
-      try {
-        unlinkSync(tasksPath());
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true }) }] };
-      } catch (e) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: false, reason: String(e) }) }] };
+      interface HistoryFile {
+        cycles: Cycle[];
       }
+
+      let history: HistoryFile = { cycles: [] };
+      if (existsSync(historyPath)) {
+        const raw = await readFile(historyPath, 'utf-8');
+        history = JSON.parse(raw) as HistoryFile;
+      }
+
+      // Create new cycle and append
+      const cycle: Cycle = {
+        completed_at: new Date().toISOString(),
+        consult,
+        decisions,
+        tasks,
+      };
+      history.cycles.push(cycle);
+
+      // Write history.json
+      ensureDir(root);
+      await writeFile(historyPath, JSON.stringify(history, null, 2));
+
+      // Delete source files
+      const deleted: string[] = [];
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath()]) {
+        if (existsSync(p)) {
+          unlinkSync(p);
+          deleted.push(p.split('/').pop()!);
+        }
+      }
+
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            closed: true,
+            cycle: cycle.completed_at,
+            archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
+            deleted,
+            total_cycles: history.cycles.length,
+          }),
+        }],
+      };
     }
   );
 }

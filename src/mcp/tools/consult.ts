@@ -1,17 +1,18 @@
 import { z } from 'zod';
-import { existsSync, unlinkSync } from 'fs';
+import { existsSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBranchRoot, ensureDir } from '../../shared/paths.js';
+import { readDecisions, writeDecisions, type DecisionEntry } from './decision.js';
 
-interface ConsultIssue {
+export interface ConsultIssue {
   id: number;
   title: string;
   status: 'pending' | 'discussing' | 'decided';
 }
 
-interface ConsultFile {
+export interface ConsultFile {
   topic: string;
   issues: ConsultIssue[];
 }
@@ -20,7 +21,7 @@ function consultPath(): string {
   return join(getBranchRoot(), 'consult.json');
 }
 
-async function readConsult(): Promise<ConsultFile | null> {
+export async function readConsult(): Promise<ConsultFile | null> {
   const p = consultPath();
   if (!existsSync(p)) return null;
   const raw = await readFile(p, 'utf-8');
@@ -31,28 +32,6 @@ async function writeConsult(data: ConsultFile): Promise<void> {
   const root = getBranchRoot();
   ensureDir(root);
   await writeFile(join(root, 'consult.json'), JSON.stringify(data, null, 2));
-}
-
-// Also need to read/write decisions.json for nx_consult_decide
-interface DecisionsFile {
-  decisions: string[];
-}
-
-function decisionsPath(): string {
-  return join(getBranchRoot(), 'decisions.json');
-}
-
-async function readDecisions(): Promise<DecisionsFile> {
-  const p = decisionsPath();
-  if (!existsSync(p)) return { decisions: [] };
-  const raw = await readFile(p, 'utf-8');
-  return JSON.parse(raw) as DecisionsFile;
-}
-
-async function writeDecisions(data: DecisionsFile): Promise<void> {
-  const root = getBranchRoot();
-  ensureDir(root);
-  await writeFile(join(root, 'decisions.json'), JSON.stringify(data, null, 2));
 }
 
 export function registerConsultTools(server: McpServer): void {
@@ -83,26 +62,48 @@ export function registerConsultTools(server: McpServer): void {
     }
   );
 
-  // nx_consult_status — read current consultation state
+  // nx_consult_status — read current consultation state + join decisions
   server.tool(
     'nx_consult_status',
-    'Get current consultation status: topic, issues, and their statuses',
+    'Get current consultation status: topic, issues, their statuses, and related decisions',
     {},
     async () => {
       const data = await readConsult();
       if (!data) {
         return { content: [{ type: 'text' as const, text: JSON.stringify({ active: false }) }] };
       }
+
+      // Load decisions and find those linked to consult issues
+      const decisionsData = await readDecisions();
+      const issueIds = new Set(data.issues.map(i => i.id));
+
+      // Build a map from issue_id to decision summary using consult field
+      const decisionByIssueId = new Map<number, string>();
+      for (const d of decisionsData.decisions) {
+        if (d.consult !== null && issueIds.has(d.consult)) {
+          decisionByIssueId.set(d.consult, d.summary);
+        }
+      }
+
       const pending = data.issues.filter(i => i.status === 'pending').length;
       const discussing = data.issues.filter(i => i.status === 'discussing').length;
       const decided = data.issues.filter(i => i.status === 'decided').length;
+
+      const issuesWithDecisions = data.issues.map(i => {
+        const result: Record<string, unknown> = { id: i.id, title: i.title, status: i.status };
+        if (i.status === 'decided' && decisionByIssueId.has(i.id)) {
+          result.decision = decisionByIssueId.get(i.id);
+        }
+        return result;
+      });
+
       return {
         content: [{
           type: 'text' as const,
           text: JSON.stringify({
             active: true,
             topic: data.topic,
-            issues: data.issues,
+            issues: issuesWithDecisions,
             summary: { total: data.issues.length, pending, discussing, decided },
           }),
         }],
@@ -110,8 +111,85 @@ export function registerConsultTools(server: McpServer): void {
     }
   );
 
+  // nx_consult_update — add/remove/edit/reopen issues
+  server.tool(
+    'nx_consult_update',
+    'Update consultation issues: add, remove, edit title, or reopen a decided issue',
+    {
+      action: z.enum(['add', 'remove', 'edit', 'reopen']).describe('Action to perform'),
+      issue_id: z.number().optional().describe('Issue ID (required for remove, edit, reopen)'),
+      title: z.string().optional().describe('Issue title (required for add and edit)'),
+    },
+    async ({ action, issue_id, title }) => {
+      const data = await readConsult();
+      if (!data) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'No active consultation' }) }] };
+      }
+
+      if (action === 'add') {
+        if (!title) {
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'title is required for add' }) }] };
+        }
+        const maxId = data.issues.reduce((max, i) => Math.max(max, i.id), 0);
+        const newIssue: ConsultIssue = { id: maxId + 1, title, status: 'pending' };
+        data.issues.push(newIssue);
+        await writeConsult(data);
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ added: true, issue: newIssue }) }] };
+      }
+
+      if (action === 'remove') {
+        if (issue_id === undefined) {
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'issue_id is required for remove' }) }] };
+        }
+        const idx = data.issues.findIndex(i => i.id === issue_id);
+        if (idx === -1) {
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+        }
+        const [removed] = data.issues.splice(idx, 1);
+        await writeConsult(data);
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ removed: true, issue: removed }) }] };
+      }
+
+      if (action === 'edit') {
+        if (issue_id === undefined || !title) {
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'issue_id and title are required for edit' }) }] };
+        }
+        const issue = data.issues.find(i => i.id === issue_id);
+        if (!issue) {
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+        }
+        issue.title = title;
+        await writeConsult(data);
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ edited: true, issue }) }] };
+      }
+
+      if (action === 'reopen') {
+        if (issue_id === undefined) {
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'issue_id is required for reopen' }) }] };
+        }
+        const issue = data.issues.find(i => i.id === issue_id);
+        if (!issue) {
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+        }
+        issue.status = 'discussing';
+        await writeConsult(data);
+
+        // Remove corresponding decision entry from decisions.json
+        const decisions = await readDecisions();
+        const before = decisions.decisions.length;
+        decisions.decisions = decisions.decisions.filter(d => d.consult !== issue_id);
+        if (decisions.decisions.length !== before) {
+          await writeDecisions(decisions);
+        }
+
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ reopened: true, issue }) }] };
+      }
+
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Unknown action' }) }] };
+    }
+  );
+
   // nx_consult_decide — mark issue as decided + record in decisions.json
-  // Auto-deletes consult.json if all issues are decided
   server.tool(
     'nx_consult_decide',
     'Mark a consultation issue as decided and record the decision',
@@ -132,16 +210,22 @@ export function registerConsultTools(server: McpServer): void {
 
       // Mark as decided
       issue.status = 'decided';
+      await writeConsult(data);
 
-      // Record in decisions.json
+      // Record in decisions.json with consult = issue_id
       const decisions = await readDecisions();
-      decisions.decisions.push(summary);
+      const maxId = decisions.decisions.reduce((max, d) => Math.max(max, d.id), 0);
+      const entry: DecisionEntry = {
+        id: maxId + 1,
+        summary,
+        consult: issue_id,
+      };
+      decisions.decisions.push(entry);
       await writeDecisions(decisions);
 
-      // Check if all decided → auto-delete consult.json
+      // Check if all decided — return completion signal without deleting consult.json
       const allDecided = data.issues.every(i => i.status === 'decided');
       if (allDecided) {
-        try { unlinkSync(consultPath()); } catch {}
         return {
           content: [{
             type: 'text' as const,
@@ -149,14 +233,13 @@ export function registerConsultTools(server: McpServer): void {
               decided: true,
               issue: issue.title,
               allComplete: true,
-              message: 'All issues decided. consult.json removed.',
+              message: '모든 논점이 결정되었습니다. 실행이 필요하면 [dev] 또는 [research] 태그를 사용하세요. 커스텀 규칙이 필요하면 nx_rules_write로 저장하세요.',
               decisions: decisions.decisions,
             }),
           }],
         };
       }
 
-      await writeConsult(data);
       const remaining = data.issues.filter(i => i.status !== 'decided');
       return {
         content: [{
