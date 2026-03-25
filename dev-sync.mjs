@@ -15,12 +15,19 @@ function findCacheDir() {
     try { return statSync(join(cacheBase, d)).isDirectory(); } catch { return false; }
   });
   if (versions.length === 0) return null;
-  // 가장 최신 버전 사용
-  versions.sort();
+  // 가장 최신 버전 사용 (semver 비교)
+  versions.sort((a, b) => {
+    const pa = a.split('.').map(Number);
+    const pb = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+      if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) - (pb[i] ?? 0);
+    }
+    return 0;
+  });
   return join(cacheBase, versions[versions.length - 1]);
 }
 
-const DIRS = ['.claude-plugin', 'bridge', 'scripts', 'hooks', 'agents', 'skills', 'src'];
+const DIRS = ['.claude-plugin', 'bridge', 'scripts', 'hooks', 'agents', 'skills', 'src', 'templates'];
 const FILES = ['.mcp.json', 'package.json', 'VERSION'];
 
 function syncTo(target, label) {

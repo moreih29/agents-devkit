@@ -2,6 +2,7 @@
 name: principal
 model: opus
 description: Research direction — owns research agenda, task lifecycle, and consensus with postdoc to prevent confirmation bias
+task: "Research direction, agenda, bias prevention"
 maxTurns: 25
 disallowedTools: [Edit, Write, Bash, NotebookEdit]
 tags: [research, direction, task-management]

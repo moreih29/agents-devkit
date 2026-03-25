@@ -21045,6 +21045,11 @@ function migrateLegacyBranchDir(branchName) {
 }
 migrateLegacyBranchDir(CURRENT_BRANCH);
 var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
+function getBranchRoot() {
+  const branch = getCurrentBranch();
+  migrateLegacyBranchDir(branch);
+  return (0, import_path.join)(RUNTIME_ROOT, "branches", sanitizeBranch(branch));
+}
 
 // src/mcp/tools/knowledge.ts
 var import_path2 = require("path");
@@ -21139,7 +21144,7 @@ function registerContextTool(server2) {
     {},
     async () => {
       let teamStatus = { activeMode: null };
-      const tasksFile = (0, import_path3.join)(BRANCH_ROOT, "tasks.json");
+      const tasksFile = (0, import_path3.join)(getBranchRoot(), "tasks.json");
       if ((0, import_fs3.existsSync)(tasksFile)) {
         try {
           const data = JSON.parse(await (0, import_promises2.readFile)(tasksFile, "utf-8"));
@@ -22047,15 +22052,19 @@ function registerAstTools(server2) {
 var import_fs7 = require("fs");
 var import_promises3 = require("fs/promises");
 var import_path7 = require("path");
-var TASKS_PATH = (0, import_path7.join)(BRANCH_ROOT, "tasks.json");
+function tasksPath() {
+  return (0, import_path7.join)(getBranchRoot(), "tasks.json");
+}
 async function readTasks() {
-  if (!(0, import_fs7.existsSync)(TASKS_PATH)) return null;
-  const raw = await (0, import_promises3.readFile)(TASKS_PATH, "utf-8");
+  const p = tasksPath();
+  if (!(0, import_fs7.existsSync)(p)) return null;
+  const raw = await (0, import_promises3.readFile)(p, "utf-8");
   return JSON.parse(raw);
 }
 async function writeTasks(data) {
-  ensureDir(BRANCH_ROOT);
-  await (0, import_promises3.writeFile)(TASKS_PATH, JSON.stringify(data, null, 2));
+  const root = getBranchRoot();
+  ensureDir(root);
+  await (0, import_promises3.writeFile)((0, import_path7.join)(root, "tasks.json"), JSON.stringify(data, null, 2));
 }
 function computeSummary(tasks) {
   const total = tasks.length;
@@ -22158,11 +22167,11 @@ function registerTaskTools(server2) {
     "Delete .nexus/tasks.json to abort the current plan and release the nonstop block",
     {},
     async () => {
-      if (!(0, import_fs7.existsSync)(TASKS_PATH)) {
+      if (!(0, import_fs7.existsSync)(tasksPath())) {
         return { content: [{ type: "text", text: JSON.stringify({ cleared: false, reason: "tasks.json not found" }) }] };
       }
       try {
-        (0, import_fs7.unlinkSync)(TASKS_PATH);
+        (0, import_fs7.unlinkSync)(tasksPath());
         return { content: [{ type: "text", text: JSON.stringify({ cleared: true }) }] };
       } catch (e) {
         return { content: [{ type: "text", text: JSON.stringify({ cleared: false, reason: String(e) }) }] };
@@ -22175,17 +22184,21 @@ function registerTaskTools(server2) {
 var import_fs8 = require("fs");
 var import_promises4 = require("fs/promises");
 var import_path8 = require("path");
-var DECISIONS_PATH = (0, import_path8.join)(BRANCH_ROOT, "decisions.json");
+function decisionsPath() {
+  return (0, import_path8.join)(getBranchRoot(), "decisions.json");
+}
 async function readDecisions() {
-  if (!(0, import_fs8.existsSync)(DECISIONS_PATH)) {
+  const p = decisionsPath();
+  if (!(0, import_fs8.existsSync)(p)) {
     return { decisions: [] };
   }
-  const raw = await (0, import_promises4.readFile)(DECISIONS_PATH, "utf-8");
+  const raw = await (0, import_promises4.readFile)(p, "utf-8");
   return JSON.parse(raw);
 }
 async function writeDecisions(data) {
-  ensureDir(BRANCH_ROOT);
-  await (0, import_promises4.writeFile)(DECISIONS_PATH, JSON.stringify(data, null, 2));
+  const root = getBranchRoot();
+  ensureDir(root);
+  await (0, import_promises4.writeFile)((0, import_path8.join)(root, "decisions.json"), JSON.stringify(data, null, 2));
 }
 function registerDecisionTools(server2) {
   server2.tool(
@@ -22213,7 +22226,6 @@ function registerDecisionTools(server2) {
 // src/mcp/tools/artifact.ts
 var import_promises5 = require("fs/promises");
 var import_path9 = require("path");
-var ARTIFACTS_DIR = (0, import_path9.join)(BRANCH_ROOT, "artifacts");
 function registerArtifactTools(server2) {
   server2.tool(
     "nx_artifact_write",
@@ -22223,8 +22235,9 @@ function registerArtifactTools(server2) {
       content: external_exports.string().describe("File content to write")
     },
     async ({ filename, content }) => {
-      ensureDir(ARTIFACTS_DIR);
-      const path = (0, import_path9.join)(ARTIFACTS_DIR, filename);
+      const artifactsDir = (0, import_path9.join)(getBranchRoot(), "artifacts");
+      ensureDir(artifactsDir);
+      const path = (0, import_path9.join)(artifactsDir, filename);
       await (0, import_promises5.writeFile)(path, content);
       return { content: [{ type: "text", text: JSON.stringify({ success: true, path }) }] };
     }

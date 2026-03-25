@@ -2,6 +2,7 @@
 name: postdoc
 model: opus
 description: Research methodology and synthesis — designs investigation approach, evaluates evidence quality, writes synthesis documents
+task: "Research methodology, evidence synthesis"
 maxTurns: 25
 disallowedTools: [Edit, Bash, NotebookEdit]
 tags: [research, synthesis, methodology]

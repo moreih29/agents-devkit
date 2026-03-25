@@ -2,6 +2,7 @@
 name: researcher
 model: sonnet
 description: Independent investigation — conducts web searches, gathers evidence, and reports findings with citations
+task: "Web search, independent investigation"
 maxTurns: 20
 disallowedTools: []
 tags: [research, investigation, web-search, analysis]

@@ -1,6 +1,8 @@
 ---
 name: nx-consult
 description: Structured consultation to clarify requirements and align on direction. Consult only — does not execute.
+trigger_display: "[consult]"
+purpose: "Interactive discovery — understand intent before executing"
 triggers: ["consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까", "방법을 찾아줘"]
 ---
 # Consult

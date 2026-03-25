@@ -3,25 +3,29 @@ import { existsSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { BRANCH_ROOT, ensureDir } from '../../shared/paths.js';
-
-const DECISIONS_PATH = join(BRANCH_ROOT, 'decisions.json');
+import { getBranchRoot, ensureDir } from '../../shared/paths.js';
 
 interface DecisionsFile {
   decisions: string[];
 }
 
+function decisionsPath(): string {
+  return join(getBranchRoot(), 'decisions.json');
+}
+
 async function readDecisions(): Promise<DecisionsFile> {
-  if (!existsSync(DECISIONS_PATH)) {
+  const p = decisionsPath();
+  if (!existsSync(p)) {
     return { decisions: [] };
   }
-  const raw = await readFile(DECISIONS_PATH, 'utf-8');
+  const raw = await readFile(p, 'utf-8');
   return JSON.parse(raw) as DecisionsFile;
 }
 
 async function writeDecisions(data: DecisionsFile): Promise<void> {
-  ensureDir(BRANCH_ROOT);
-  await writeFile(DECISIONS_PATH, JSON.stringify(data, null, 2));
+  const root = getBranchRoot();
+  ensureDir(root);
+  await writeFile(join(root, 'decisions.json'), JSON.stringify(data, null, 2));
 }
 
 export function registerDecisionTools(server: McpServer): void {

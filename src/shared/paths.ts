@@ -54,6 +54,7 @@ function sanitizeBranch(branch: string): string {
   return branch.replace(/[/\\:*?"<>|]/g, '-');
 }
 
+/** @deprecated 정적 값 — MCP 서버처럼 장기 프로세스에서는 getBranchRoot() 사용 */
 export const CURRENT_BRANCH = getCurrentBranch();
 
 /** 레거시 .nexus/{branch}/ → .nexus/branches/{branch}/ 마이그레이션 (멱등적) */
@@ -69,5 +70,13 @@ function migrateLegacyBranchDir(branchName: string): void {
 
 migrateLegacyBranchDir(CURRENT_BRANCH);
 
+/** @deprecated 정적 값 — MCP 서버처럼 장기 프로세스에서는 getBranchRoot() 사용 */
 export const BRANCH_ROOT = join(RUNTIME_ROOT, 'branches', sanitizeBranch(CURRENT_BRANCH));
+
+/** 호출 시마다 현재 브랜치를 감지하여 경로 반환. MCP 도구에서 사용. */
+export function getBranchRoot(): string {
+  const branch = getCurrentBranch();
+  migrateLegacyBranchDir(branch);
+  return join(RUNTIME_ROOT, 'branches', sanitizeBranch(branch));
+}
 

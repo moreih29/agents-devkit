@@ -1,6 +1,8 @@
 ---
 name: nx-research
 description: Research execution — sub-agent or team mode based on Lead's judgment.
+trigger_display: "[research] / [research!]"
+purpose: "Research execution — principal+postdoc+researcher team"
 triggers: ["research", "research!", "연구", "조사"]
 ---
 # Research

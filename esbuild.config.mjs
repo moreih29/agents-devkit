@@ -37,3 +37,6 @@ await build({
 });
 
 console.log('Build complete: bridge/mcp-server.cjs, scripts/{gate,statusline}.cjs');
+
+// Nexus 섹션 템플릿 생성 (agents/skills/tags → templates/nexus-section.md + CLAUDE.md)
+await import('./generate-template.mjs');

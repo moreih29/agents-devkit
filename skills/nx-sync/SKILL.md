@@ -1,6 +1,8 @@
 ---
 name: nx-sync
 description: Sync knowledge documents with the current state of the codebase. On first run, scans and generates knowledge from scratch.
+trigger_display: "/claude-nexus:nx-sync"
+purpose: "Sync knowledge docs with source files (first run = auto-generate)"
 triggers: ["sync", "sync knowledge", "지식 동기화", "문서 동기화"]
 ---
 
@@ -54,6 +56,18 @@ ELSE:
   → Sync 진입
 ```
 
+### Phase 0.5: CLAUDE.md Nexus Section Check
+
+프로젝트 CLAUDE.md의 Nexus 섹션(`<!-- NEXUS:START/END -->` 마커)이 최신 템플릿과 일치하는지 확인한다.
+
+1. 플러그인 캐시의 `templates/nexus-section.md` 읽기
+2. 프로젝트 `./CLAUDE.md`에서 마커 내부 콘텐츠 추출
+3. 비교:
+   - **일치** → 스킵
+   - **불일치** → 마커 내부를 템플릿으로 교체, 안내 출력: "CLAUDE.md Nexus 섹션을 최신 버전으로 갱신했습니다"
+   - **마커 없음** → 파일 끝에 마커 + 템플릿 추가
+4. 프리앰블(마커 바깥)은 수정하지 않는다.
+
 ### Phase 1: Scan
 
 #### First Run 모드
@@ -87,6 +101,7 @@ ELSE:
 - 스캔 결과를 분석하여 knowledge 파일을 생성한다.
 - 파일명, 구조, 계층은 프로젝트 특성에 맞게 자유 결정. 하드코딩된 템플릿 없음.
 - CLAUDE.md 슬림화: 핵심 지시사항만 유지, 나머지는 knowledge로 이동. 원본은 `.claude/nexus/knowledge/` 에 백업. 사용자 승인은 불필요하지만 "CLAUDE.md를 슬림화합니다" 안내를 출력한다.
+- CLAUDE.md 슬림화 시 `.nexus/`, `.claude/nexus/` 등 Nexus 내부 경로를 프리앰블에 남기지 않는다. 이러한 경로 정보는 knowledge에서 관리한다. 프리앰블에는 프로젝트 고유 지시사항(빌드 명령, 코딩 컨벤션 등)만 유지한다.
 - `nx_knowledge_write`로 파일 생성.
 
 #### Sync 모드

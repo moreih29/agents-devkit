@@ -2,6 +2,7 @@
 name: engineer
 model: sonnet
 description: Implementation — writes code, debugs issues, follows specifications from director and architect
+task: "Code implementation, edits, debugging"
 maxTurns: 25
 disallowedTools: []
 tags: [implementation, coding, debugging]

@@ -1,6 +1,8 @@
 ---
 name: nx-dev
 description: Development execution — sub-agent or team mode based on Lead's judgment.
+trigger_display: "[dev] / [dev!]"
+purpose: "Development execution — sub-agent or team mode"
 triggers: ["dev", "dev!", "개발", "구현"]
 ---
 # Dev

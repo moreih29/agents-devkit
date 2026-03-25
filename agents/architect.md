@@ -2,6 +2,7 @@
 name: architect
 model: opus
 description: Technical design — evaluates How, reviews architecture, advises on implementation approach
+task: "Architecture, technical design, code review"
 maxTurns: 20
 disallowedTools: [Edit, Write, NotebookEdit]
 tags: [architecture, design, review, technical]

@@ -29,6 +29,7 @@
     "hooks",
     "scripts",
     "bridge",
+    "templates",
     ".claude-plugin",
     ".mcp.json",
     "VERSION"

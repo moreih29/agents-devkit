@@ -2,6 +2,7 @@
 name: director
 model: opus
 description: Project direction — analyzes Why/What, owns task lifecycle, decides scope and priorities
+task: "Project direction, scope, priorities"
 maxTurns: 30
 disallowedTools: [Edit, Write, NotebookEdit]
 tags: [direction, planning, task-management]

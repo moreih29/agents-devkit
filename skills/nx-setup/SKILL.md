@@ -1,6 +1,8 @@
 ---
 name: nx-setup
 description: Interactive project setup wizard for Nexus configuration.
+trigger_display: "/claude-nexus:nx-setup"
+purpose: "Configure Nexus interactively"
 disable-model-invocation: true
 ---
 # Setup
@@ -94,15 +96,12 @@ If a Nexus section already exists, replace the content between markers. Content 
 
 Write location depends on scope selected in Step 1.
 
-**Section content is NOT hardcoded here.** Read it dynamically at runtime:
+**Section content is read from the plugin's template file at runtime:**
 
-1. **Read `~/.claude/CLAUDE.md`** — extract content between `<!-- NEXUS:START -->` and `<!-- NEXUS:END -->` markers
-2. **If not found (first install):** Read the plugin's own CLAUDE.md from the cache directory:
-   - Glob `~/.claude/plugins/cache/nexus/claude-nexus/*/CLAUDE.md` → pick the latest version
-   - Extract the `<!-- NEXUS:START -->` to `<!-- NEXUS:END -->` section
-3. **If neither found:** Error — "Nexus 섹션 템플릿을 찾을 수 없습니다. 플러그인이 올바르게 설치되었는지 확인하세요."
+1. **Read `$CLAUDE_PLUGIN_ROOT/templates/nexus-section.md`** — this file is auto-generated at build time from agents/skills/tags source files
+2. **If not found:** Error — "Nexus 섹션 템플릿을 찾을 수 없습니다. 플러그인이 올바르게 설치되었는지 확인하세요."
 
-Write the extracted section to the target CLAUDE.md (respecting scope from Step 1).
+Write the template content wrapped in `<!-- NEXUS:START -->` / `<!-- NEXUS:END -->` markers to the target CLAUDE.md (respecting scope from Step 1).
 
 ### Step 4: OMC Conflict Detection
 

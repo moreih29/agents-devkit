@@ -2,6 +2,7 @@
 name: qa
 model: sonnet
 description: Quality assurance — tests, verifies, validates stability and security of implementations
+task: "Testing, verification, security review"
 maxTurns: 20
 disallowedTools: []
 tags: [verification, testing, security, quality]

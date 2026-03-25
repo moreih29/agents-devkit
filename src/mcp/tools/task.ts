@@ -3,9 +3,11 @@ import { existsSync, unlinkSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { BRANCH_ROOT, ensureDir } from '../../shared/paths.js';
+import { getBranchRoot, ensureDir } from '../../shared/paths.js';
 
-const TASKS_PATH = join(BRANCH_ROOT, 'tasks.json');
+function tasksPath(): string {
+  return join(getBranchRoot(), 'tasks.json');
+}
 
 interface Task {
   id: number;
@@ -23,14 +25,16 @@ interface TasksFile {
 }
 
 async function readTasks(): Promise<TasksFile | null> {
-  if (!existsSync(TASKS_PATH)) return null;
-  const raw = await readFile(TASKS_PATH, 'utf-8');
+  const p = tasksPath();
+  if (!existsSync(p)) return null;
+  const raw = await readFile(p, 'utf-8');
   return JSON.parse(raw) as TasksFile;
 }
 
 async function writeTasks(data: TasksFile): Promise<void> {
-  ensureDir(BRANCH_ROOT);
-  await writeFile(TASKS_PATH, JSON.stringify(data, null, 2));
+  const root = getBranchRoot();
+  ensureDir(root);
+  await writeFile(join(root, 'tasks.json'), JSON.stringify(data, null, 2));
 }
 
 function computeSummary(tasks: Task[]) {
@@ -152,11 +156,11 @@ export function registerTaskTools(server: McpServer): void {
     'Delete .nexus/tasks.json to abort the current plan and release the nonstop block',
     {},
     async () => {
-      if (!existsSync(TASKS_PATH)) {
+      if (!existsSync(tasksPath())) {
         return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: false, reason: 'tasks.json not found' }) }] };
       }
       try {
-        unlinkSync(TASKS_PATH);
+        unlinkSync(tasksPath());
         return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: true }) }] };
       } catch (e) {
         return { content: [{ type: 'text' as const, text: JSON.stringify({ cleared: false, reason: String(e) }) }] };

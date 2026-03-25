@@ -1,8 +1,74 @@
 // Gate 훅: Stop (Task 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { BRANCH_ROOT } from '../shared/paths.js';
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { BRANCH_ROOT, RUNTIME_ROOT } from '../shared/paths.js';
+import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { homedir } from 'os';
+
+// --- CLAUDE.md 자동 동기화 ---
+
+const MARKER_START = '<!-- NEXUS:START -->';
+const MARKER_END = '<!-- NEXUS:END -->';
+const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT ?? '';
+
+function extractMarkerContent(fileContent: string): string | null {
+  const startIdx = fileContent.indexOf(MARKER_START);
+  const endIdx = fileContent.indexOf(MARKER_END);
+  if (startIdx === -1 || endIdx === -1) return null;
+  return fileContent.slice(startIdx + MARKER_START.length, endIdx).trim();
+}
+
+function replaceMarkerContent(fileContent: string, newContent: string): string {
+  const startIdx = fileContent.indexOf(MARKER_START);
+  const endIdx = fileContent.indexOf(MARKER_END);
+  return fileContent.slice(0, startIdx + MARKER_START.length) + '\n' + newContent + '\n' + fileContent.slice(endIdx);
+}
+
+function handleClaudeMdSync(): string | null {
+  // Read template
+  const templatePath = join(PLUGIN_ROOT, 'templates', 'nexus-section.md');
+  if (!PLUGIN_ROOT || !existsSync(templatePath)) return null;
+  const template = readFileSync(templatePath, 'utf-8').trim();
+
+  // --- Global CLAUDE.md auto-update ---
+  const globalClaudeMd = join(homedir(), '.claude', 'CLAUDE.md');
+  if (existsSync(globalClaudeMd)) {
+    const globalContent = readFileSync(globalClaudeMd, 'utf-8');
+    const globalMarker = extractMarkerContent(globalContent);
+    if (globalMarker !== null && globalMarker !== template) {
+      const updated = replaceMarkerContent(globalContent, template);
+      writeFileSync(globalClaudeMd, updated);
+    }
+  }
+
+  // --- Project CLAUDE.md stale notification ---
+  const projectClaudeMd = join(process.cwd(), 'CLAUDE.md');
+  const notifiedFlag = join(RUNTIME_ROOT, 'claudemd-notified');
+
+  if (existsSync(projectClaudeMd)) {
+    const projectContent = readFileSync(projectClaudeMd, 'utf-8');
+    const projectMarker = extractMarkerContent(projectContent);
+
+    if (projectMarker !== null && projectMarker !== template) {
+      // Stale — notify once
+      if (!existsSync(notifiedFlag)) {
+        const notifiedDir = dirname(notifiedFlag);
+        if (!existsSync(notifiedDir)) {
+          mkdirSync(notifiedDir, { recursive: true });
+        }
+        writeFileSync(notifiedFlag, '');
+        return '[NEXUS] 프로젝트 CLAUDE.md의 Nexus 섹션이 최신 버전과 다릅니다. /claude-nexus:nx-sync로 갱신하세요.';
+      }
+    } else if (projectMarker !== null && projectMarker === template) {
+      // Up to date — reset flag
+      if (existsSync(notifiedFlag)) {
+        try { unlinkSync(notifiedFlag); } catch {}
+      }
+    }
+  }
+
+  return null;
+}
 
 // --- Stop 이벤트 처리 ---
 
@@ -131,15 +197,18 @@ function detectKeywords(prompt: string): KeywordMatch | null {
 }
 
 function handleUserPromptSubmit(event: Record<string, unknown>): void {
+  const claudeMdNotice = handleClaudeMdSync();
+
   const prompt = (event.prompt ?? event.user_prompt ?? '') as string;
   if (!prompt) { pass(); return; }
 
   // [d] 결정 태그 감지
   const dTag = prompt.match(/\[d\]/i);
   if (dTag) {
+    const base = '[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.';
     respond({
       continue: true,
-      additionalContext: '[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.',
+      additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
     });
     return;
   }
@@ -147,34 +216,34 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const match = detectKeywords(prompt);
   if (match) {
     if (match.primitive === 'consult') {
-      respond({
-        continue: true,
-        additionalContext: `[NEXUS] Consult mode activated. Principles:
+      const base = `[NEXUS] Consult mode activated. Principles:
 1. Explore first — read code, knowledge, and decisions before asking questions.
 2. AskUserQuestion for clear choices, natural dialogue for open discussion.
 3. When a decision is reached, suggest recording it with [d] tag.
 4. After each decision, naturally transition to the next topic.
 5. Do NOT execute. When ready, recommend an appropriate execution tag from CLAUDE.md Tags table.
-6. Spawn agents if specialized analysis is needed.`,
+6. Spawn agents if specialized analysis is needed.`;
+      respond({
+        continue: true,
+        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
       });
       return;
     }
 
     if (match.primitive === 'dev') {
-      respond({
-        continue: true,
-        additionalContext: `[NEXUS] Dev mode activated. Assess the request and choose your approach:
+      const base = `[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (1-3 files, clear scope): Use direct Agent() spawns freely with any agent (director, architect, engineer, qa)
 - Complex (4+ files, design decisions needed): Use TeamCreate + full team workflow (director+architect design → engineer+qa execute)
-[dev!] forces team mode. Otherwise, use your judgment — no need to over-analyze.`,
+[dev!] forces team mode. Otherwise, use your judgment — no need to over-analyze.`;
+      respond({
+        continue: true,
+        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
       });
       return;
     }
 
     if (match.primitive === 'dev!') {
-      respond({
-        continue: true,
-        additionalContext: `[NEXUS] Dev team mode activated (forced). Follow the team workflow:
+      const base = `[NEXUS] Dev team mode activated (forced). Follow the team workflow:
 CRITICAL RULES — VIOLATION OF THESE IS A SYSTEM ERROR:
 1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).
 2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY director can create/modify tasks.
@@ -198,26 +267,28 @@ Teammate spawn example:
   Agent({ subagent_type: "claude-nexus:architect", name: "architect", team_name: "proj", prompt: "..." })
 
 Key: Plan = consensus (director + architect), Execute = atomic by default — but director may add tasks (nx_task_add) or reopen tasks (nx_task_update) based on qa reports. Tasks are persisted in tasks.json. Gate Stop reminds until all nx_task tasks are completed. When reminded by Gate Stop, use SendMessage to check teammate progress or assign idle teammates instead of attempting the work yourself.
-Escalation: engineer/qa report to director by default. Escalate to architect for design/architecture questions.`,
+Escalation: engineer/qa report to director by default. Escalate to architect for design/architecture questions.`;
+      respond({
+        continue: true,
+        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
       });
       return;
     }
 
     if (match.primitive === 'research') {
-      respond({
-        continue: true,
-        additionalContext: `[NEXUS] Research mode activated. Assess the request and choose your approach:
+      const base = `[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (1-3 topics, single domain): Use direct Agent() spawns freely with any agent (principal, postdoc, researcher)
 - Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow (principal+postdoc scope → researcher investigate → converge)
-[research!] forces team mode. Otherwise, use your judgment — no need to over-analyze.`,
+[research!] forces team mode. Otherwise, use your judgment — no need to over-analyze.`;
+      respond({
+        continue: true,
+        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
       });
       return;
     }
 
     if (match.primitive === 'research!') {
-      respond({
-        continue: true,
-        additionalContext: `[NEXUS] Research team mode activated (forced). Follow the team workflow:
+      const base = `[NEXUS] Research team mode activated (forced). Follow the team workflow:
 CRITICAL RULES — VIOLATION OF THESE IS A SYSTEM ERROR:
 1. Direct Agent() calls are BLOCKED (except Explore and team_name agents).
 2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY principal can create/modify tasks.
@@ -241,10 +312,18 @@ Teammate spawn example:
   Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "proj", prompt: "..." })
 
 Key: Scope = consensus (principal + postdoc), Investigate = atomic by default — but principal may add tasks (nx_task_add) or reopen tasks (nx_task_update) based on findings. Tasks are persisted in tasks.json. Gate Stop reminds until all nx_task tasks are completed. When reminded by Gate Stop, use SendMessage to check teammate progress or assign idle teammates instead of attempting the work yourself.
-Escalation: researcher reports to principal by default. Escalate to postdoc for methodology/source questions.`,
+Escalation: researcher reports to principal by default. Escalate to postdoc for methodology/source questions.`;
+      respond({
+        continue: true,
+        additionalContext: `${base}${claudeMdNotice ? '\n' + claudeMdNotice : ''}`,
       });
       return;
     }
+  }
+
+  if (claudeMdNotice) {
+    respond({ continue: true, additionalContext: claudeMdNotice });
+    return;
   }
 
   pass();
