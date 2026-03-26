@@ -39,18 +39,36 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 `tasks.json`에 pending 태스크가 있으면 `continue: true`로 종료 차단 (nonstop). 모두 completed이면 pass.
 
 ### PreToolUse 이벤트
+
+`Edit`/`Write` 도구 호출 시:
+- isNexusInternalPath → 허용
+- `mode.json` 존재 → 차단 (dev/research 모드에서 Lead 직접 수정 금지)
+- `tasks.json` 없음 → 차단 (nx_task_add 필수)
+- all completed / 빈 배열 → 차단 (nx_task_close 필수)
+
+`TeamCreate` 도구 호출 시:
+- mode.json의 path를 `"team"`으로 동적 전환 → 허용
+
 `Agent` 도구 호출 시:
 - Explore agent → 항상 허용
 - `team_name` 있음 → 허용 (TeamCreate 기반 teammate)
-- `tasks.json` 존재 + `team_name` 없음 → 차단 (팀 모드에서 직접 Agent() 금지)
+- `mode.json` path === `"team"` → 차단 (팀 모드에서 직접 Agent() 금지)
+- 그 외 → 허용 (sub path에서 Agent 직접 스폰 가능)
 
 ### UserPromptSubmit 이벤트
-태그 감지 → 모드별 `additionalContext` 주입:
-- consult: consult.json 존재 여부 체크 → 있으면 nx_consult_status 확인 + nx_consult_update(add) 안내, 없으면 구조화된 8단계 새 세션 시작 안내.
-- dev: Sub/Team 판단 가이드
-- dev!: 팀 모드 강제 + 상세 워크플로우
-- research: Sub/Team 판단 가이드
-- research!: 팀 모드 강제 + 상세 워크플로우
+
+태그 정규식: `/\[(consult|dev!?|research!?)\]/i` — Nexus 태그만 직접 검색 (이미지 `[Image #n]` 등에 간섭 방지).
+
+`PRIMITIVE_HANDLERS` 맵 기반 dispatch → 모드별 핸들러 함수 호출:
+- consult: consult.json 존재 여부 체크 → 있으면 세션 이어감, 없으면 새 세션 시작 안내.
+- dev/research: mode.json `{mode, path:"sub"}` 생성 + TASK_PIPELINE 주입 + Sub/Team 판단 가이드 (nudge만)
+- dev!/research!: mode.json `{mode, path:"team"}` 생성 + 팀 모드 nudge (SKILL.md 프로시저 참조)
+
+태그 없음 fallback:
+- tasks.json 없음 → TASK_PIPELINE 선제 주입
+- tasks.json 있음 → stale cycle 경고
+
+`[d]` 태그: postDecisionRules 주입 (결정만 기록, 구현 시 task 파이프라인 필수).
 
 ### Consult 세션 규칙
 

@@ -7,10 +7,10 @@ MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/
 
 | 도구 | 소스 | 저장 경로 | 용도 |
 |------|------|-----------|------|
-| `nx_knowledge_read` | knowledge.ts | `.claude/nexus/knowledge/{topic}.md` | knowledge 읽기 (topic 지정 또는 태그 검색) |
-| `nx_knowledge_write` | knowledge.ts | `.claude/nexus/knowledge/{topic}.md` | knowledge 쓰기 (tags 옵션) |
-| `nx_rules_read` | rules.ts | `.claude/nexus/rules/{name}.md` | rules 읽기 (name 지정 또는 태그 검색) |
-| `nx_rules_write` | rules.ts | `.claude/nexus/rules/{name}.md` | rules 쓰기 (tags 옵션, HTML 주석 frontmatter) |
+| `nx_knowledge_read` | markdown-store.ts | `.claude/nexus/knowledge/{topic}.md` | knowledge 읽기 (topic 지정 또는 태그 검색) |
+| `nx_knowledge_write` | markdown-store.ts | `.claude/nexus/knowledge/{topic}.md` | knowledge 쓰기 (tags 옵션) |
+| `nx_rules_read` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 읽기 (name 지정 또는 태그 검색) |
+| `nx_rules_write` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 쓰기 (tags 옵션, HTML 주석 frontmatter) |
 | `nx_context` | context.ts | `.nexus/branches/{branch}/tasks.json`, `decisions.json` 참조 | 현재 브랜치, 팀 모드, 태스크 요약, 결정 사항 조회 |
 | `nx_task_list` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 목록 + summary + ready 태스크 |
 | `nx_task_add` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 추가 (caller=director만 허용) |
@@ -94,4 +94,4 @@ decisions.json의 각 항목 구조:
 - `nx_consult_decide`는 consult.json + decisions.json을 동시 갱신. 모든 issues decided 시 consult.json **삭제하지 않음** — 완료 시그널(`allComplete: true`) 반환.
 - `nx_consult_update`의 reopen 액션은 decisions.json에서 `consult === issue_id`인 항목을 제거하여 일관성 유지.
 - `nx_consult_status`는 결정된 논점의 decisions.json 항목을 `d.consult === issue.id` 기반으로 join하여 함께 반환.
-- `nx_task_close`는 사이클 완료 시 호출. consult+decisions+tasks를 history.json에 아카이브 후 소스 파일 삭제. `nx_task_clear`(구버전) 대체.
+- `nx_task_close`는 사이클 완료 시 호출. consult+decisions+tasks를 history.json에 아카이브 후 소스 파일(consult.json, decisions.json, tasks.json, mode.json) 삭제. `nx_task_clear`(구버전) 대체.
