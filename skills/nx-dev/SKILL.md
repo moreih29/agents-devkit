@@ -21,12 +21,12 @@ Lead가 요청 복잡도를 판단해 Sub Path 또는 Team Path로 실행한다.
 
 `[dev]` + Lead가 단순하다 판단 시 (1-3개 태스크 수준, cross-cutting concerns 없음).
 
-**[dev] Lead 판단: 도구 0회, 요청 텍스트만으로 직감 추정. 4+ 서브태스크 또는 cross-cutting concerns 감지 시 Team Path.**
+**[dev] Lead 판단: 도구 0회, 요청 텍스트만으로 직감 추정. 4+ 서브태스크 또는 cross-cutting concerns 감지 시 Team Path. 판단 결과를 근거와 함께 1줄로 표시 (예: "sub-path로 진행합니다 — task 2개, cross-cutting 없음").**
 
 ### Phase 1: Analyze (Lead 직접)
 
-- 사용자에게 모드 고지: "[dev] sub-agent 모드로 처리합니다"
-- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `feat/`, `fix/`, `chore/`). 사용자 확인 없이 자동 생성.
+- 사용자에게 모드 고지 + 판단 근거: "[dev] sub-path로 진행합니다 — {판단 근거}"
+- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `feat/`, `fix/`, `chore/`). 사용자 확인 없이 자동 생성. 생성 직후 `nx_branch_migrate(from_branch)` 호출하여 이전 브랜치의 consult/decisions 상태를 이동.
 - Lead가 직접 분석 도구 사용 (Read, Grep, LSP, AST 등) — team path와 다름
 - decisions.json이 있으면 `nx_context`로 기존 결정 사항을 확인하고 맥락에 반영
 - `nx_rules_read(tags: ["dev"])`로 팀 rules 확인. 있으면 스킬 기본 원칙보다 우선 적용.
@@ -65,11 +65,11 @@ Phase: **intake → design → execute → complete**
 
 사용자 요청/의도/맥락만 정리. **분석/코드 도구 호출 금지.**
 
-- 사용자에게 모드 고지: "[dev] 팀을 구성합니다"
+- 사용자에게 모드 고지 + 판단 근거: "[dev] team-path로 진행합니다 — {판단 근거}"
 - 목표, 범위, 의도 정리 → briefing 작성
 - decisions.json이 있으면 기존 결정 사항을 briefing에 포함 (`nx_context`로 조회)
 - `nx_rules_read(tags: ["dev"])`로 팀 rules 조회. 있으면 briefing에 포함하여 팀원에게 전달, 스킬 기본 원칙보다 우선.
-- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `feat/`, `fix/`, `chore/`). 사용자 확인 없이 자동 생성.
+- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `feat/`, `fix/`, `chore/`). 사용자 확인 없이 자동 생성. 생성 직후 `nx_branch_migrate(from_branch)` 호출하여 이전 브랜치의 consult/decisions 상태를 이동.
 - TeamCreate + director/architect 병렬 스폰
 
 ```

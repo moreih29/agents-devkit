@@ -9,6 +9,7 @@ import { registerTaskTools } from './tools/task.js';
 import { registerDecisionTools } from './tools/decision.js';
 import { registerArtifactTools } from './tools/artifact.js';
 import { registerConsultTools } from './tools/consult.js';
+import { registerBranchTools } from './tools/branch.js';
 import { knowledgePath, rulesPath, KNOWLEDGE_ROOT } from '../shared/paths.js';
 import { join } from 'path';
 
@@ -42,6 +43,7 @@ registerTaskTools(server);
 registerDecisionTools(server);
 registerArtifactTools(server);
 registerConsultTools(server);
+registerBranchTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();

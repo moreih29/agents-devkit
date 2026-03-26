@@ -22408,8 +22408,51 @@ function registerArtifactTools(server2) {
   );
 }
 
-// src/mcp/server.ts
+// src/mcp/tools/branch.ts
+var import_fs11 = require("fs");
 var import_path12 = require("path");
+var MIGRATE_FILES = ["consult.json", "decisions.json"];
+function registerBranchTools(server2) {
+  server2.tool(
+    "nx_branch_migrate",
+    "Migrate state files (consult.json, decisions.json) from another branch folder into the current branch folder",
+    {
+      from_branch: external_exports.string().describe('Source branch name to migrate files from (e.g. "main")')
+    },
+    ({ from_branch }) => {
+      const fromDir = (0, import_path12.join)(RUNTIME_ROOT, "branches", sanitizeBranch(from_branch));
+      const toDir = getBranchRoot();
+      if (fromDir === toDir) {
+        return textResult({ error: "Source and current branch are the same" });
+      }
+      if (!(0, import_fs11.existsSync)(fromDir)) {
+        return textResult({ migrated: [], skipped: [], from: from_branch, to: getCurrentBranch(), message: "nothing to migrate" });
+      }
+      ensureDir(toDir);
+      const migrated = [];
+      const skipped = [];
+      for (const file of MIGRATE_FILES) {
+        const src = (0, import_path12.join)(fromDir, file);
+        const dst = (0, import_path12.join)(toDir, file);
+        if (!(0, import_fs11.existsSync)(src)) continue;
+        if ((0, import_fs11.existsSync)(dst)) {
+          skipped.push(file);
+          continue;
+        }
+        (0, import_fs11.renameSync)(src, dst);
+        migrated.push(file);
+      }
+      try {
+        (0, import_fs11.rmdirSync)(fromDir);
+      } catch {
+      }
+      return textResult({ migrated, skipped, from: from_branch, to: getCurrentBranch() });
+    }
+  );
+}
+
+// src/mcp/server.ts
+var import_path13 = require("path");
 var server = new McpServer({
   name: "nx",
   version: getCurrentVersion() || "0.0.0"
@@ -22417,7 +22460,7 @@ var server = new McpServer({
 registerMarkdownStore(server, {
   toolPrefix: "nx_knowledge",
   entityName: "topic",
-  dirPath: (0, import_path12.join)(KNOWLEDGE_ROOT, "knowledge"),
+  dirPath: (0, import_path13.join)(KNOWLEDGE_ROOT, "knowledge"),
   pathFn: knowledgePath,
   listKey: "topics",
   cache: true
@@ -22425,7 +22468,7 @@ registerMarkdownStore(server, {
 registerMarkdownStore(server, {
   toolPrefix: "nx_rules",
   entityName: "name",
-  dirPath: (0, import_path12.join)(KNOWLEDGE_ROOT, "rules"),
+  dirPath: (0, import_path13.join)(KNOWLEDGE_ROOT, "rules"),
   pathFn: rulesPath,
   listKey: "rules",
   cache: false
@@ -22437,6 +22480,7 @@ registerTaskTools(server);
 registerDecisionTools(server);
 registerArtifactTools(server);
 registerConsultTools(server);
+registerBranchTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
