@@ -21170,7 +21170,7 @@ var import_path4 = require("path");
 function registerContextTool(server2) {
   server2.tool(
     "nx_context",
-    "Get context: active team mode, tasks summary, branch",
+    "Get context: tasks summary, decisions, branch",
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {},
     async () => {
@@ -22355,8 +22355,7 @@ function registerTaskTools(server2) {
       ensureDir(root);
       await (0, import_promises5.writeFile)(historyPath, JSON.stringify(history, null, 2));
       const deleted = [];
-      const modePath = (0, import_path10.join)(root, "mode.json");
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), modePath]) {
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath()]) {
         if ((0, import_fs10.existsSync)(p)) {
           (0, import_fs10.unlinkSync)(p);
           deleted.push(p.split("/").pop());

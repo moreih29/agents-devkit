@@ -9,7 +9,7 @@ import { textResult } from '../../shared/mcp-utils.js';
 export function registerContextTool(server: McpServer): void {
   server.tool(
     'nx_context',
-    'Get context: active team mode, tasks summary, branch',
+    'Get context: tasks summary, decisions, branch',
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {} as Record<string, z.ZodType>,
     async () => {

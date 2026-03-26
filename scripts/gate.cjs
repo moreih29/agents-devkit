@@ -104,17 +104,39 @@ function taskPipelineMessage(modeSpecific) {
   return `${modeSpecific}${TASK_PIPELINE}`;
 }
 var DEV_TEAM_NUDGE = `[NEXUS] Dev team mode activated (forced).
-CRITICAL RULES:
-1. Lead MUST NOT use analysis tools, task tools, or code tools directly.
-2. Only director creates/modifies tasks via nx_task_add/nx_task_update.
-3. Use ONLY orchestration tools: TeamCreate, Agent, SendMessage, AskUserQuestion.
-Follow the Team Path procedure in SKILL.md.`;
+CRITICAL RULES \u2014 VIOLATION OF THESE IS A SYSTEM ERROR:
+1. Direct Agent() calls are BLOCKED (except Explore and team_name agents). Use TeamCreate + Agent({ team_name }).
+2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY director can create/modify tasks.
+3. Lead MUST NEVER write code, edit files, or create plans. ALL work goes through teammates.
+4. Lead uses ONLY orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion). No analysis or code tools.
+5. If you need tasks created, tell director via SendMessage. Do NOT call nx_task_add yourself.
+
+Workflow: INTAKE (summarize + TeamCreate) \u2192 DESIGN (director+architect consensus \u2192 nx_task_add) \u2192 EXECUTE (engineer+qa) \u2192 COMPLETE (nx_task_close).
+- director owns Why/What + tasks. architect owns How + tech review.
+- engineer/qa report to director. Escalate to architect for design questions.
+- Reuse idle teammates (SendMessage) before spawning new ones.
+
+Teammate spawn example:
+  TeamCreate({ team_name: "proj", description: "..." })
+  Agent({ subagent_type: "claude-nexus:director", name: "director", team_name: "proj", prompt: "..." })
+  Agent({ subagent_type: "claude-nexus:architect", name: "architect", team_name: "proj", prompt: "..." })`;
 var RESEARCH_TEAM_NUDGE = `[NEXUS] Research team mode activated (forced).
-CRITICAL RULES:
-1. Lead MUST NOT use research tools, task tools, or code tools directly.
-2. Only principal creates/modifies tasks via nx_task_add/nx_task_update.
-3. Use ONLY orchestration tools: TeamCreate, Agent, SendMessage, AskUserQuestion.
-Follow the Team Path procedure in SKILL.md.`;
+CRITICAL RULES \u2014 VIOLATION OF THESE IS A SYSTEM ERROR:
+1. Direct Agent() calls are BLOCKED (except Explore and team_name agents). Use TeamCreate + Agent({ team_name }).
+2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY principal can create/modify tasks.
+3. Lead MUST NEVER conduct research, read sources, or create plans. ALL work goes through teammates.
+4. Lead uses ONLY orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion). No analysis or research tools.
+5. If you need tasks created, tell principal via SendMessage. Do NOT call nx_task_add yourself.
+
+Workflow: INTAKE (summarize + TeamCreate) \u2192 SCOPE (principal+postdoc consensus \u2192 nx_task_add) \u2192 INVESTIGATE (researcher) \u2192 CONVERGE (principal+postdoc synthesis) \u2192 COMPLETE (nx_task_close).
+- principal owns research direction + tasks. postdoc owns methodology + synthesis.
+- researcher reports to principal. Escalate to postdoc for methodology questions.
+- Reuse idle teammates (SendMessage) before spawning new ones.
+
+Teammate spawn example:
+  TeamCreate({ team_name: "proj", description: "..." })
+  Agent({ subagent_type: "claude-nexus:principal", name: "principal", team_name: "proj", prompt: "..." })
+  Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "proj", prompt: "..." })`;
 var MARKER_START = "<!-- NEXUS:START -->";
 var MARKER_END = "<!-- NEXUS:END -->";
 var PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT ?? "";
@@ -189,25 +211,6 @@ function handleStop() {
     additionalContext: `[NEXUS] All ${summary.total} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks \u2192 history.json) before finishing.`
   });
 }
-function writeMode(mode, path) {
-  const modePath = (0, import_path3.join)(BRANCH_ROOT, "mode.json");
-  const modeDir = (0, import_path3.dirname)(modePath);
-  if (!(0, import_fs3.existsSync)(modeDir)) (0, import_fs3.mkdirSync)(modeDir, { recursive: true });
-  (0, import_fs3.writeFileSync)(modePath, JSON.stringify({ mode, path }));
-}
-function readMode() {
-  const modePath = (0, import_path3.join)(BRANCH_ROOT, "mode.json");
-  if (!(0, import_fs3.existsSync)(modePath)) return null;
-  try {
-    return JSON.parse((0, import_fs3.readFileSync)(modePath, "utf-8"));
-  } catch {
-    return null;
-  }
-}
-function updateModePath(newPath) {
-  const current = readMode();
-  if (current) writeMode(current.mode, newPath);
-}
 function isNexusInternalPath(filePath) {
   if (/[\\/]\.nexus[\\/]/.test(filePath)) return true;
   if (/[\\/]\.claude[\\/]nexus[\\/]/.test(filePath)) return true;
@@ -221,14 +224,6 @@ function handlePreToolUse(event) {
     const toolInput2 = event.tool_input;
     const filePath = toolInput2?.file_path ?? "";
     if (!isNexusInternalPath(filePath)) {
-      const modePath = (0, import_path3.join)(BRANCH_ROOT, "mode.json");
-      if ((0, import_fs3.existsSync)(modePath)) {
-        respond({
-          decision: "block",
-          reason: "[NEXUS] Dev/Research mode active. Lead cannot edit files directly. Spawn agents (Agent tool) to perform the work."
-        });
-        return;
-      }
       const summary = readTasksSummary(BRANCH_ROOT);
       if (!summary.exists) {
         respond({
@@ -248,11 +243,6 @@ function handlePreToolUse(event) {
     pass();
     return;
   }
-  if (toolName === "TeamCreate") {
-    updateModePath("team");
-    pass();
-    return;
-  }
   if (toolName !== "Agent") {
     pass();
     return;
@@ -264,14 +254,6 @@ function handlePreToolUse(event) {
   }
   if (toolInput?.team_name) {
     pass();
-    return;
-  }
-  const modeData = readMode();
-  if (modeData?.path === "team") {
-    respond({
-      decision: "block",
-      reason: "[TEAM] Direct Agent() calls are blocked in team mode. Use TeamCreate + Agent({ team_name }) to spawn teammates, or SendMessage to communicate with existing teammates."
-    });
     return;
   }
   pass();
@@ -350,7 +332,6 @@ Note: To continue an existing session, just continue the conversation without us
   });
 }
 function handleDevMode({ tasksReminder, claudeMdNotice }) {
-  writeMode("dev", "sub");
   const base = taskPipelineMessage(`[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (1-3 files): Use direct Agent() spawns
 - Complex (4+ files): Use TeamCreate + full team workflow
@@ -361,14 +342,12 @@ function handleDevMode({ tasksReminder, claudeMdNotice }) {
   });
 }
 function handleDevTeamMode({ tasksReminder, claudeMdNotice }) {
-  writeMode("dev", "team");
   respond({
     continue: true,
     additionalContext: withNotices(DEV_TEAM_NUDGE, tasksReminder, claudeMdNotice)
   });
 }
 function handleResearchMode({ tasksReminder, claudeMdNotice }) {
-  writeMode("research", "sub");
   const base = taskPipelineMessage(`[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (1-3 topics, single domain): Use direct Agent() spawns
 - Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow
@@ -379,7 +358,6 @@ function handleResearchMode({ tasksReminder, claudeMdNotice }) {
   });
 }
 function handleResearchTeamMode({ tasksReminder, claudeMdNotice }) {
-  writeMode("research", "team");
   respond({
     continue: true,
     additionalContext: withNotices(RESEARCH_TEAM_NUDGE, tasksReminder, claudeMdNotice)

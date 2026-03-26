@@ -192,8 +192,7 @@ export function registerTaskTools(server: McpServer): void {
 
       // Delete source files
       const deleted: string[] = [];
-      const modePath = join(root, 'mode.json');
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), modePath]) {
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath()]) {
         if (existsSync(p)) {
           unlinkSync(p);
           deleted.push(p.split('/').pop()!);
