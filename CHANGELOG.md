@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.2 (2026-03-26)
+
+### Fixes
+- improve branch detection and add Branch Guard to dev/research skills
+
+### Other
+- merge: fix/branch-detection — 브랜치 인식 개선 및 Branch Guard 추가
+
 ## 0.15.1 (2026-03-26)
 
 ### Refactoring
