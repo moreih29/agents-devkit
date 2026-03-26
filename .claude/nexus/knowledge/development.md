@@ -18,7 +18,7 @@ src/ 수정 → bun run dev (빌드 + 템플릿 생성 + 플러그인 캐시 동
 - `bun run dev` = `node esbuild.config.mjs && node dev-sync.mjs`
 - `esbuild.config.mjs`가 TS 번들 후 `generate-template.mjs`를 호출하여 `templates/nexus-section.md` + CLAUDE.md 마커 자동 갱신
 - `dev-sync.mjs`가 빌드 산출물 + agents + skills + hooks + templates 등을 `~/.claude/plugins/cache/nexus/` 에 동기화 (semver 정렬로 최신 버전 디렉토리에 동기화)
-- E2E 테스트: `bash test/e2e.sh` (33개 테스트)
+- E2E 테스트: `bash test/e2e.sh` (32개 테스트)
 
 ## Template Generation
 

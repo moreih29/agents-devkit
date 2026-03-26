@@ -36,7 +36,7 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 - 프로젝트 `./CLAUDE.md`: 다르면 1회 알림 (`.nexus/claudemd-notified` 플래그)
 
 ### Stop 이벤트
-`tasks.json`에 pending 태스크가 있으면 `continue: true`로 종료 차단 (nonstop). 모두 completed이면 pass.
+`tasks.json`에 pending 태스크가 있으면 `continue: true`로 종료 차단 (nonstop). 모두 completed이면 `nx_task_close` 강제 (아카이브 없이 종료 불가).
 
 ### PreToolUse 이벤트
 
@@ -57,7 +57,7 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 `PRIMITIVE_HANDLERS` 맵 기반 dispatch → 모드별 핸들러 함수 호출:
 - consult: consult.json 존재 여부 체크 → 있으면 세션 이어감, 없으면 새 세션 시작 안내.
 - dev/research: TASK_PIPELINE 주입 + Sub/Team 판단 가이드
-- dev!/research!: CRITICAL RULES 5줄 + 워크플로우 요약 + Spawn example 주입 (v0.13.1 수준 상세 안내)
+- dev!/research!: GUIDELINES (소프트 가이드) + 워크플로우 요약 + Spawn example 주입. "BLOCKED" 아닌 "Avoid" 톤.
 
 태그 없음 fallback:
 - tasks.json 없음 → TASK_PIPELINE 선제 주입
@@ -69,9 +69,16 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 - `[consult]` 태그 사용 시 consult.json 존재 여부로 분기:
   - 있으면: nx_consult_status 확인 후 nx_consult_update(add)로 논점 추가 안내
-  - 없으면: nx_consult_start 호출 + 5단계 새 세션 시작 안내
+  - 없으면: MANDATORY nx_consult_start 호출 + SKILL.md 참조 안내 (gate.ts에서 간소화된 지시)
 - 세션은 nx_task_close 호출 시 history.json에 아카이브되어 종료됨.
 - cleanupConsult() 제거됨 — 모드 전환(dev/research 등) 시 consult.json을 삭제하지 않음.
+
+### Consult 경량 컨텍스트 주입 (consultReminder)
+
+consult.json이 존재하는 동안, 태그 없는 멀티턴 대화에서도 매 UserPromptSubmit마다 경량 컨텍스트를 주입:
+- 주제명 + 현재 논점(discussing 또는 next pending) + remaining 수
+- 최소 가이드: "comparison table + pros/cons, [d]로 기록"
+- withNotices()에 통합되어 모든 additionalContext에 자동 병합
 
 ### Rules 커스터마이징 흐름
 
