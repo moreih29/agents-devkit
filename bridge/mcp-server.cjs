@@ -21035,7 +21035,7 @@ function getCurrentBranch() {
   try {
     return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
   } catch {
-    return "_unknown";
+    return "_default";
   }
 }
 function sanitizeBranch(branch) {
@@ -21057,6 +21057,12 @@ function migrateLegacyBranchDir(branchName) {
   if ((0, import_fs2.existsSync)(legacyPath) && !(0, import_fs2.existsSync)(newPath)) {
     ensureDir((0, import_path2.join)(RUNTIME_ROOT, "branches"));
     (0, import_fs2.renameSync)(legacyPath, newPath);
+  }
+  if (sanitized === "_default") {
+    const unknownPath = (0, import_path2.join)(RUNTIME_ROOT, "branches", "_unknown");
+    if ((0, import_fs2.existsSync)(unknownPath) && !(0, import_fs2.existsSync)(newPath)) {
+      (0, import_fs2.renameSync)(unknownPath, newPath);
+    }
   }
 }
 migrateLegacyBranchDir(CURRENT_BRANCH);
@@ -22169,9 +22175,14 @@ function registerConsultTools(server2) {
         issue2.status = "discussing";
         await writeConsult(data);
         const decisions = await readDecisions();
-        const before = decisions.decisions.length;
-        decisions.decisions = decisions.decisions.filter((d) => d.consult !== issue_id);
-        if (decisions.decisions.length !== before) {
+        let changed = false;
+        for (const d of decisions.decisions) {
+          if (d.consult === issue_id && d.status !== "revoked") {
+            d.status = "revoked";
+            changed = true;
+          }
+        }
+        if (changed) {
           await writeDecisions(decisions);
         }
         return textResult({ reopened: true, issue: issue2 });

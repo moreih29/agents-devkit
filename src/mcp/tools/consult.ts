@@ -165,11 +165,16 @@ export function registerConsultTools(server: McpServer): void {
         issue.status = 'discussing';
         await writeConsult(data);
 
-        // Remove corresponding decision entry from decisions.json
+        // Soft-delete: mark corresponding decision as revoked (preserves audit trail)
         const decisions = await readDecisions();
-        const before = decisions.decisions.length;
-        decisions.decisions = decisions.decisions.filter(d => d.consult !== issue_id);
-        if (decisions.decisions.length !== before) {
+        let changed = false;
+        for (const d of decisions.decisions) {
+          if (d.consult === issue_id && d.status !== 'revoked') {
+            d.status = 'revoked';
+            changed = true;
+          }
+        }
+        if (changed) {
           await writeDecisions(decisions);
         }
 

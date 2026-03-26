@@ -19,12 +19,12 @@ function taskPipelineMessage(modeSpecific: string): string {
 }
 
 const DEV_TEAM_NUDGE = `[NEXUS] Dev team mode activated (forced).
-CRITICAL RULES — VIOLATION OF THESE IS A SYSTEM ERROR:
-1. Direct Agent() calls are BLOCKED (except Explore and team_name agents). Use TeamCreate + Agent({ team_name }).
-2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY director can create/modify tasks.
-3. Lead MUST NEVER write code, edit files, or create plans. ALL work goes through teammates.
-4. Lead uses ONLY orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion). No analysis or code tools.
-5. If you need tasks created, tell director via SendMessage. Do NOT call nx_task_add yourself.
+GUIDELINES:
+1. Avoid direct Agent() calls — prefer TeamCreate + Agent({ team_name }). Explore and team_name agents are fine.
+2. Lead should not call nx_task_add() or nx_task_update(). Let director handle task management.
+3. Lead should not write code or edit files directly. Delegate all work through teammates.
+4. Lead should focus on orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion).
+5. If you need tasks created, tell director via SendMessage instead of calling nx_task_add yourself.
 
 Workflow: INTAKE (summarize + TeamCreate) → DESIGN (director+architect consensus → nx_task_add) → EXECUTE (engineer+qa) → COMPLETE (nx_task_close).
 - director owns Why/What + tasks. architect owns How + tech review.
@@ -37,12 +37,12 @@ Teammate spawn example:
   Agent({ subagent_type: "claude-nexus:architect", name: "architect", team_name: "proj", prompt: "..." })`;
 
 const RESEARCH_TEAM_NUDGE = `[NEXUS] Research team mode activated (forced).
-CRITICAL RULES — VIOLATION OF THESE IS A SYSTEM ERROR:
-1. Direct Agent() calls are BLOCKED (except Explore and team_name agents). Use TeamCreate + Agent({ team_name }).
-2. Lead MUST NEVER call nx_task_add() or nx_task_update(). ONLY principal can create/modify tasks.
-3. Lead MUST NEVER conduct research, read sources, or create plans. ALL work goes through teammates.
-4. Lead uses ONLY orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion). No analysis or research tools.
-5. If you need tasks created, tell principal via SendMessage. Do NOT call nx_task_add yourself.
+GUIDELINES:
+1. Avoid direct Agent() calls — prefer TeamCreate + Agent({ team_name }). Explore and team_name agents are fine.
+2. Lead should not call nx_task_add() or nx_task_update(). Let principal handle task management.
+3. Lead should not conduct research or read sources directly. Delegate all work through teammates.
+4. Lead should focus on orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion).
+5. If you need tasks created, tell principal via SendMessage instead of calling nx_task_add yourself.
 
 Workflow: INTAKE (summarize + TeamCreate) → SCOPE (principal+postdoc consensus → nx_task_add) → INVESTIGATE (researcher) → CONVERGE (principal+postdoc synthesis) → COMPLETE (nx_task_close).
 - principal owns research direction + tasks. postdoc owns methodology + synthesis.
@@ -277,9 +277,28 @@ function getTasksReminder(): string | null {
   return `[NEXUS] All ${summary.total} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.`;
 }
 
-/** additionalContext에 tasksReminder와 claudeMdNotice를 자동 병합 */
-function withNotices(base: string, tasksReminder: string | null, claudeMdNotice: string | null): string {
-  return [tasksReminder, base, claudeMdNotice].filter(Boolean).join('\n');
+function getConsultReminder(): string | null {
+  const consultPath = join(BRANCH_ROOT, 'consult.json');
+  if (!existsSync(consultPath)) return null;
+  try {
+    const data = JSON.parse(readFileSync(consultPath, 'utf-8'));
+    const issues = data.issues ?? [];
+    const discussing = issues.find((i: { status: string }) => i.status === 'discussing');
+    const pending = issues.filter((i: { status: string }) => i.status === 'pending');
+    const current = discussing
+      ? `Current: #${discussing.id} "${discussing.title}"`
+      : pending.length > 0
+        ? `Next: #${pending[0].id} "${pending[0].title}"`
+        : 'All issues decided.';
+    return `[NEXUS] Consult: "${data.topic}" | ${current} | ${pending.length} pending\nPresent comparison table with pros/cons/recommendation. Record decisions with [d].`;
+  } catch {
+    return null;
+  }
+}
+
+/** additionalContext에 notices를 자동 병합 */
+function withNotices(base: string, tasksReminder: string | null, claudeMdNotice: string | null, consultReminder?: string | null): string {
+  return [consultReminder, tasksReminder, base, claudeMdNotice].filter(Boolean).join('\n');
 }
 
 // --- 개별 프리미티브 핸들러 ---
@@ -302,15 +321,7 @@ If the new topic is completely unrelated, you may start fresh with nx_consult_st
   } else {
     base = `[NEXUS] Consult mode activated. Starting a new session.
 MANDATORY: Call nx_consult_start to register issues. Do NOT skip this tool call.
-1. Explore first — read code, knowledge, decisions before asking questions.
-2. Decompose the topic into discrete issues. Register with nx_consult_start. Present one issue at a time.
-3. For each issue: comparison table (keywords) + recommendation bullets (why not others, why this one).
-4. Natural dialogue for responses — allow user's free feedback (combinations, counter-proposals, questions).
-5. Record decisions with [d] tag. After each decision, transition to the next issue.
-6. After all issues decided: check for missed topics against the original question.
-7. Do NOT execute. When ready, recommend an appropriate execution tag from CLAUDE.md Tags table.
-8. Spawn agents if specialized analysis is needed.
-Note: To continue an existing session, just continue the conversation without using [consult].`;
+Follow the procedure defined in the consult skill (SKILL.md).`;
   }
   respond({
     continue: true,
@@ -320,8 +331,8 @@ Note: To continue an existing session, just continue the conversation without us
 
 function handleDevMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
   const base = taskPipelineMessage(`[NEXUS] Dev mode activated. Assess the request and choose your approach:
-- Simple (1-3 files): Use direct Agent() spawns
-- Complex (4+ files): Use TeamCreate + full team workflow
+- Simple (few tasks, no cross-cutting concerns): Spawn engineer for code edits. Do NOT edit files directly. Use parallel spawns for independent tasks.
+- Complex (design decisions needed, cross-cutting concerns): Use TeamCreate + full team workflow
 [dev!] forces team mode.`);
   respond({
     continue: true,
@@ -338,8 +349,8 @@ function handleDevTeamMode({ tasksReminder, claudeMdNotice }: Parameters<Primiti
 
 function handleResearchMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
   const base = taskPipelineMessage(`[NEXUS] Research mode activated. Assess the request and choose your approach:
-- Simple (1-3 topics, single domain): Use direct Agent() spawns
-- Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow
+- Simple (few tasks, single perspective): Spawn researcher agents directly. Use parallel spawns for independent topics.
+- Complex (multiple perspectives needed, synthesis required): Use TeamCreate + full team workflow
 [research!] forces team mode.`);
   respond({
     continue: true,
@@ -365,6 +376,7 @@ const PRIMITIVE_HANDLERS: Record<string, PrimitiveHandler> = {
 function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const claudeMdNotice = handleClaudeMdSync();
   const tasksReminder = getTasksReminder();
+  const consultReminder = getConsultReminder();
 
   const raw = event.prompt ?? event.user_prompt ?? '';
   const prompt = typeof raw === 'string' ? raw : String(raw);
@@ -378,7 +390,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     if (existsSync(consultFile)) {
       respond({
         continue: true,
-        additionalContext: withNotices(`[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record — updates consult.json + decisions.json simultaneously.${postDecisionRules}`, tasksReminder, claudeMdNotice),
+        additionalContext: withNotices(`[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record — updates consult.json + decisions.json simultaneously.${postDecisionRules}`, tasksReminder, claudeMdNotice, consultReminder),
       });
     } else {
       respond({
@@ -403,7 +415,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   if (!summary.exists) {
     respond({
       continue: true,
-      additionalContext: withNotices(taskPipelineMessage(`[NEXUS] No active tasks.`), null, claudeMdNotice),
+      additionalContext: withNotices(taskPipelineMessage(`[NEXUS] No active tasks.`), null, claudeMdNotice, consultReminder),
     });
     return;
   }
@@ -411,7 +423,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   // tasks.json 있음 → stale cycle 감지
   respond({
     continue: true,
-    additionalContext: withNotices(`[NEXUS] Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.`, tasksReminder, claudeMdNotice),
+    additionalContext: withNotices(`[NEXUS] Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.`, tasksReminder, claudeMdNotice, consultReminder),
   });
 }
 

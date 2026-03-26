@@ -37,12 +37,12 @@ export function ensureDir(dir: string): void {
   }
 }
 
-/** 현재 git 브랜치명 반환. 실패 시 '_unknown' */
+/** 현재 git 브랜치명 반환. git 없으면 '_default' */
 export function getCurrentBranch(): string {
   try {
     return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
   } catch {
-    return '_unknown';
+    return '_default';
   }
 }
 
@@ -70,6 +70,13 @@ function migrateLegacyBranchDir(branchName: string): void {
   if (existsSync(legacyPath) && !existsSync(newPath)) {
     ensureDir(join(RUNTIME_ROOT, 'branches'));
     renameSync(legacyPath, newPath);
+  }
+  // _unknown → _default 마이그레이션
+  if (sanitized === '_default') {
+    const unknownPath = join(RUNTIME_ROOT, 'branches', '_unknown');
+    if (existsSync(unknownPath) && !existsSync(newPath)) {
+      renameSync(unknownPath, newPath);
+    }
   }
 }
 
