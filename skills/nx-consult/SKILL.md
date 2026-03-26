@@ -31,7 +31,6 @@ triggers: ["consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까"
 - 탐색 결과를 바탕으로 논의해야 할 논점 목록을 도출
 - `nx_consult_start(topic, issues)`로 consult.json에 등록
 - 사용자에게 논점 목록을 보여주고 순서대로 진행할 것을 안내
-- **예외**: 논점이 1개이고 선택지가 명확하면 consult.json 없이 바로 Step 3으로 (간소화)
 
 ### Step 3: 논점별 상담
 
@@ -62,8 +61,7 @@ triggers: ["consult", "상담", "어떻게 하면 좋을까", "뭐가 좋을까"
 ### Step 4: 결정 기록
 
 사용자가 결정하면 `[d]` 태그로 기록한다.
-- consult.json이 있으면: gate.ts가 `nx_consult_decide` 호출 안내 (consult.json + decisions.json 동시 갱신)
-- consult.json이 없으면: 기존 `nx_decision_add` 사용
+- gate.ts가 `nx_consult_decide` 호출 안내 (consult.json + decisions.json 동시 갱신)
 
 ### Step 5: 다음 논점 또는 완료
 
