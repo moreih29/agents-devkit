@@ -122,8 +122,9 @@ Nexus registers a single Gate module as a Claude Code hook.
 
 | Event | Role |
 |-------|------|
-| `UserPromptSubmit` | Prompt preprocessing and context injection |
-| `Stop` | Post-session cleanup |
+| `UserPromptSubmit` | Tag detection → mode activation + TASK_PIPELINE injection. Creates mode.json |
+| `PreToolUse` | Edit/Write: blocks Lead when mode.json exists or tasks.json missing. Agent: blocks direct calls in team mode. TeamCreate: switches path to team |
+| `Stop` | Blocks exit with pending tasks. Forces nx_task_close when all completed |
 
 </details>
 
@@ -151,6 +152,7 @@ Runtime state is stored under `.nexus/` and is excluded from git.
 │       ├── decisions.json  ← Architecture decision list
 │       ├── consult.json    ← Consultation issue tracker
 │       ├── history.json    ← Cycle archive (created by nx_task_close)
+│       ├── mode.json       ← Execution mode (dev/research, sub/team)
 │       └── artifacts/      ← Team artifacts
 └── sync-state.json         ← Last sync commit
 ```
