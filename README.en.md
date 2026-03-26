@@ -80,7 +80,7 @@ Typical flow: use `[consult]` to discuss and align → decide → use `[dev]` or
 
 Claude-callable tools exposed by the Nexus MCP server.
 
-### Core (13 tools)
+### Core (14 tools)
 
 | Tool | Purpose |
 |------|---------|
@@ -94,6 +94,7 @@ Claude-callable tools exposed by the Nexus MCP server.
 | `nx_consult_status` | Query consultation state (with decisions join) |
 | `nx_consult_decide` | Record issue decision (consult.json + decisions.json) |
 | `nx_consult_update` | Modify consultation issues (add/remove/edit/reopen) |
+| `nx_branch_migrate` | Migrate state files (consult/decisions) across branches |
 
 ### Code Intelligence (10 tools)
 

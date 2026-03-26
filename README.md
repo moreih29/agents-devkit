@@ -78,7 +78,7 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (13개)
+### Core (14개)
 
 | 도구 | 용도 |
 |------|------|
@@ -92,6 +92,7 @@ Claude가 직접 호출하는 도구입니다.
 | `nx_consult_status` | 상담 상태 조회 (decisions.json join) |
 | `nx_consult_decide` | 논점 결정 처리 (consult.json + decisions.json) |
 | `nx_consult_update` | 상담 논점 수정 (add/remove/edit/reopen) |
+| `nx_branch_migrate` | 브랜치 전환 시 상태 파일 이동 (consult/decisions) |
 
 ### Code Intelligence (10개)
 
