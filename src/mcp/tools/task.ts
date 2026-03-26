@@ -6,6 +6,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBranchRoot, ensureDir } from '../../shared/paths.js';
 import { readConsult, type ConsultFile } from './consult.js';
 import { readDecisions, type DecisionEntry } from './decision.js';
+import { textResult } from '../../shared/mcp-utils.js';
 
 function tasksPath(): string {
   return join(getBranchRoot(), 'tasks.json');
@@ -62,17 +63,10 @@ export function registerTaskTools(server: McpServer): void {
     async () => {
       const data = await readTasks();
       if (!data) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ exists: false }) }] };
+        return textResult({ exists: false });
       }
       const summary = computeSummary(data.tasks);
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: JSON.stringify({ goal: data.goal, tasks: data.tasks, summary }),
-          },
-        ],
-      };
+      return textResult({ goal: data.goal, tasks: data.tasks, summary });
     }
   );
 
@@ -91,7 +85,7 @@ export function registerTaskTools(server: McpServer): void {
     async ({ caller, title, context, deps, decisions, goal, owner }) => {
       const allowedCallers = ['director', 'lead', 'principal'];
       if (!allowedCallers.includes(caller)) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Only ${allowedCallers.join('/')} can create tasks. You are: ${caller}` }) }] };
+        return textResult({ error: `Only ${allowedCallers.join('/')} can create tasks. You are: ${caller}` });
       }
 
       let data = await readTasks();
@@ -118,7 +112,7 @@ export function registerTaskTools(server: McpServer): void {
       data.tasks.push(newTask);
       await writeTasks(data);
 
-      return { content: [{ type: 'text' as const, text: JSON.stringify({ task: newTask }) }] };
+      return textResult({ task: newTask });
     }
   );
 
@@ -134,26 +128,18 @@ export function registerTaskTools(server: McpServer): void {
     async ({ id, status }) => {
       const data = await readTasks();
       if (!data) {
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify({ error: 'tasks.json not found' }) },
-          ],
-        };
+        return textResult({ error: 'tasks.json not found' });
       }
 
       const task = data.tasks.find((t) => t.id === id);
       if (!task) {
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify({ error: `Task id ${id} not found` }) },
-          ],
-        };
+        return textResult({ error: `Task id ${id} not found` });
       }
 
       task.status = status;
       await writeTasks(data);
 
-      return { content: [{ type: 'text' as const, text: JSON.stringify({ task }) }] };
+      return textResult({ task });
     }
   );
 
@@ -213,18 +199,13 @@ export function registerTaskTools(server: McpServer): void {
         }
       }
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            closed: true,
-            cycle: cycle.completed_at,
-            archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
-            deleted,
-            total_cycles: history.cycles.length,
-          }),
-        }],
-      };
+      return textResult({
+        closed: true,
+        cycle: cycle.completed_at,
+        archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
+        deleted,
+        total_cycles: history.cycles.length,
+      });
     }
   );
 }

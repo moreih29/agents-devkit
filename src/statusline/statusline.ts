@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 import { getCurrentVersion } from '../shared/version';
+import { findProjectRoot } from '../shared/paths';
 
 // --- 입력 파싱 ---
 
@@ -25,17 +26,7 @@ function getNum(key: string): number {
 
 // --- 프로젝트 루트 찾기 ---
 
-function findProjectRoot(): string {
-  const cwd = getVal('cwd') || process.cwd();
-  let dir = cwd;
-  while (dir !== '/') {
-    if (existsSync(join(dir, '.git'))) return dir;
-    dir = join(dir, '..');
-  }
-  return cwd;
-}
-
-const PROJECT_ROOT = findProjectRoot();
+const PROJECT_ROOT = findProjectRoot(getVal('cwd') || process.cwd());
 const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
 
 // --- Preset ---

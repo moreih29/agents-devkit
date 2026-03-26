@@ -2,9 +2,9 @@
 "use strict";
 
 // src/statusline/statusline.ts
-var import_fs2 = require("fs");
-var import_path2 = require("path");
-var import_child_process = require("child_process");
+var import_fs3 = require("fs");
+var import_path3 = require("path");
+var import_child_process2 = require("child_process");
 
 // src/shared/version.ts
 var import_fs = require("fs");
@@ -19,10 +19,61 @@ function getCurrentVersion() {
   return "";
 }
 
+// src/shared/paths.ts
+var import_path2 = require("path");
+var import_fs2 = require("fs");
+var import_child_process = require("child_process");
+function findProjectRoot(startDir) {
+  let dir = startDir ?? process.cwd();
+  while (dir !== "/") {
+    if ((0, import_fs2.existsSync)((0, import_path2.join)(dir, ".git"))) return dir;
+    dir = (0, import_path2.resolve)(dir, "..");
+  }
+  return startDir ?? process.cwd();
+}
+var PROJECT_ROOT = findProjectRoot();
+var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
+var KNOWLEDGE_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".claude", "nexus");
+function ensureDir(dir) {
+  if (!(0, import_fs2.existsSync)(dir)) {
+    (0, import_fs2.mkdirSync)(dir, { recursive: true });
+  }
+}
+function getCurrentBranch() {
+  try {
+    return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    return "_unknown";
+  }
+}
+function sanitizeBranch(branch) {
+  if (branch === "HEAD") {
+    try {
+      const hash = (0, import_child_process.execSync)("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
+      return `_detached-${hash}`;
+    } catch {
+      return "_detached";
+    }
+  }
+  return branch.replace(/[/\\:*?"<>|]/g, "-");
+}
+var CURRENT_BRANCH = getCurrentBranch();
+function migrateLegacyBranchDir(branchName) {
+  const sanitized = sanitizeBranch(branchName);
+  const legacyPath = (0, import_path2.join)(RUNTIME_ROOT, sanitized);
+  const newPath = (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitized);
+  if ((0, import_fs2.existsSync)(legacyPath) && !(0, import_fs2.existsSync)(newPath)) {
+    ensureDir((0, import_path2.join)(RUNTIME_ROOT, "branches"));
+    (0, import_fs2.renameSync)(legacyPath, newPath);
+  }
+}
+migrateLegacyBranchDir(CURRENT_BRANCH);
+var BRANCH_ROOT = (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
+
 // src/statusline/statusline.ts
 var input = "";
 try {
-  input = (0, import_fs2.readFileSync)(0, "utf-8");
+  input = (0, import_fs3.readFileSync)(0, "utf-8");
 } catch {
 }
 function getVal(key) {
@@ -33,24 +84,15 @@ function getNum(key) {
   const m = input.match(new RegExp(`"${key}"\\s*:\\s*([0-9.]+)`, ""));
   return m ? parseFloat(m[1]) : 0;
 }
-function findProjectRoot() {
-  const cwd = getVal("cwd") || process.cwd();
-  let dir = cwd;
-  while (dir !== "/") {
-    if ((0, import_fs2.existsSync)((0, import_path2.join)(dir, ".git"))) return dir;
-    dir = (0, import_path2.join)(dir, "..");
-  }
-  return cwd;
-}
-var PROJECT_ROOT = findProjectRoot();
-var KNOWLEDGE_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".claude", "nexus");
+var PROJECT_ROOT2 = findProjectRoot(getVal("cwd") || process.cwd());
+var KNOWLEDGE_ROOT2 = (0, import_path3.join)(PROJECT_ROOT2, ".claude", "nexus");
 function getPreset() {
   const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
   if (env === "minimal" || env === "full") return env;
-  const configFile = (0, import_path2.join)(KNOWLEDGE_ROOT, "config.json");
-  if ((0, import_fs2.existsSync)(configFile)) {
+  const configFile = (0, import_path3.join)(KNOWLEDGE_ROOT2, "config.json");
+  if ((0, import_fs3.existsSync)(configFile)) {
     try {
-      const data = JSON.parse((0, import_fs2.readFileSync)(configFile, "utf-8"));
+      const data = JSON.parse((0, import_fs3.readFileSync)(configFile, "utf-8"));
       const p = data.statuslinePreset;
       if (p === "minimal" || p === "full") return p;
     } catch {
@@ -84,14 +126,14 @@ function coloredMeter(label, pct, width) {
   const pctStr = `${Math.round(pct)}%`;
   return `${DIM}${label}${RESET} ${color}${bar} ${pctStr}${RESET}`;
 }
-var VERSION_CACHE_PATH = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".nexus_version_cache");
+var VERSION_CACHE_PATH = (0, import_path3.join)(process.env.HOME || "~", ".claude", ".nexus_version_cache");
 var VERSION_CACHE_TTL = 86400;
 function checkUpdateAvailable(currentVersion) {
   if (!currentVersion) return false;
   const now = Math.floor(Date.now() / 1e3);
-  if ((0, import_fs2.existsSync)(VERSION_CACHE_PATH)) {
+  if ((0, import_fs3.existsSync)(VERSION_CACHE_PATH)) {
     try {
-      const lines = (0, import_fs2.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
+      const lines = (0, import_fs3.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
       const cachedAt = parseInt(lines[0]);
       const latestVersion = lines[1]?.trim() || "";
       if (now - cachedAt < VERSION_CACHE_TTL && latestVersion) {
@@ -105,9 +147,9 @@ function checkUpdateAvailable(currentVersion) {
     require("child_process").spawn("sh", ["-c", script], { stdio: "ignore", detached: true }).unref();
   } catch {
   }
-  if ((0, import_fs2.existsSync)(VERSION_CACHE_PATH)) {
+  if ((0, import_fs3.existsSync)(VERSION_CACHE_PATH)) {
     try {
-      const lines = (0, import_fs2.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
+      const lines = (0, import_fs3.readFileSync)(VERSION_CACHE_PATH, "utf-8").split("\n");
       const latestVersion = lines[1]?.trim() || "";
       if (latestVersion) return latestVersion !== currentVersion && latestVersion > currentVersion;
     } catch {
@@ -119,12 +161,12 @@ function buildLine1() {
   const model = getVal("display_name") || "unknown";
   const modelLower = model.toLowerCase();
   const modelColor = Object.entries(MODEL_COLORS).find(([k]) => modelLower.includes(k))?.[1] ?? "\x1B[37m";
-  const project = require("path").basename(PROJECT_ROOT);
+  const project = require("path").basename(PROJECT_ROOT2);
   let gitPart = `${DIM}\u2014${RESET}`;
   try {
-    const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-    const staged = (0, import_child_process.execSync)("git diff --cached --numstat", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim().split("\n").filter(Boolean).length;
-    const unstaged = (0, import_child_process.execSync)("git diff --numstat", { cwd: PROJECT_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim().split("\n").filter(Boolean).length;
+    const branch = (0, import_child_process2.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT2, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    const staged = (0, import_child_process2.execSync)("git diff --cached --numstat", { cwd: PROJECT_ROOT2, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim().split("\n").filter(Boolean).length;
+    const unstaged = (0, import_child_process2.execSync)("git diff --numstat", { cwd: PROJECT_ROOT2, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim().split("\n").filter(Boolean).length;
     let dirty = "";
     if (staged > 0) dirty += `\x1B[32m+${staged}${RESET}`;
     if (unstaged > 0) dirty += `\x1B[33m~${unstaged}${RESET}`;
@@ -138,7 +180,7 @@ function buildLine1() {
   const nexusTag = `\x1B[38;5;141m\u25C6Nexus${versionStr}${RESET}${updateTag}`;
   return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart}`;
 }
-var USAGE_CACHE_PATH = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".usage_cache");
+var USAGE_CACHE_PATH = (0, import_path3.join)(process.env.HOME || "~", ".claude", ".usage_cache");
 var CACHE_TTL_DEFAULT = 60;
 var FETCH_BACKOFF = 300;
 function writeCacheAtomic(content) {
@@ -164,7 +206,7 @@ ${cachedData}`);
     if (process.platform === "darwin") {
       tokenCmd = `TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null | grep -o '"accessToken":"[^"]*"' | sed 's/"accessToken":"//;s/"//')`;
     } else {
-      const credFile = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".credentials.json");
+      const credFile = (0, import_path3.join)(process.env.HOME || "~", ".claude", ".credentials.json");
       tokenCmd = `TOKEN=$(grep -o '"accessToken":"[^"]*"' "${credFile}" 2>/dev/null | sed 's/"accessToken":"//;s/"//')`;
     }
     const script = `
@@ -193,9 +235,9 @@ function getUsage() {
   let dataTimestamp = 0;
   let nextFetchAfter = 0;
   let cachedData = "";
-  if ((0, import_fs2.existsSync)(USAGE_CACHE_PATH)) {
+  if ((0, import_fs3.existsSync)(USAGE_CACHE_PATH)) {
     try {
-      const lines = (0, import_fs2.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
+      const lines = (0, import_fs3.readFileSync)(USAGE_CACHE_PATH, "utf-8").split("\n");
       dataTimestamp = parseInt(lines[0]) || 0;
       const line1 = parseInt(lines[1]) || 0;
       if (line1 > 1e6) {
@@ -219,14 +261,14 @@ function getUsage() {
   try {
     let credJson = "";
     if (process.platform === "darwin") {
-      credJson = (0, import_child_process.execSync)('security find-generic-password -s "Claude Code-credentials" -w', { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+      credJson = (0, import_child_process2.execSync)('security find-generic-password -s "Claude Code-credentials" -w', { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
     } else {
-      const credFile = (0, import_path2.join)(process.env.HOME || "~", ".claude", ".credentials.json");
-      if ((0, import_fs2.existsSync)(credFile)) credJson = (0, import_fs2.readFileSync)(credFile, "utf-8");
+      const credFile = (0, import_path3.join)(process.env.HOME || "~", ".claude", ".credentials.json");
+      if ((0, import_fs3.existsSync)(credFile)) credJson = (0, import_fs3.readFileSync)(credFile, "utf-8");
     }
     const tokenMatch = credJson.match(/"accessToken"\s*:\s*"([^"]+)"/);
     if (tokenMatch) {
-      const resp = (0, import_child_process.execSync)(`curl -s --max-time 2 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+      const resp = (0, import_child_process2.execSync)(`curl -s --max-time 2 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
       if (resp && resp.includes("five_hour")) {
         writeCacheAtomic(`${now}
 ${now + CACHE_TTL_DEFAULT}
@@ -278,7 +320,7 @@ function isApiMode() {
 function fetchApiCost(adminKey) {
   try {
     const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-    const resp = (0, import_child_process.execSync)(
+    const resp = (0, import_child_process2.execSync)(
       `curl -s --max-time 3 "https://api.anthropic.com/v1/organizations/cost_report?start_date=${today}&end_date=${today}" -H "x-api-key: ${adminKey}" -H "anthropic-version: 2023-06-01"`,
       { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
     ).trim();

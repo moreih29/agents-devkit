@@ -3,6 +3,7 @@ import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBranchRoot, ensureDir } from '../../shared/paths.js';
+import { textResult } from '../../shared/mcp-utils.js';
 
 export function registerArtifactTools(server: McpServer): void {
   server.tool(
@@ -17,7 +18,7 @@ export function registerArtifactTools(server: McpServer): void {
       ensureDir(artifactsDir);
       const path = join(artifactsDir, filename);
       await writeFile(path, content);
-      return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, path }) }] };
+      return textResult({ success: true, path });
     }
   );
 }

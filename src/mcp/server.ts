@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { registerKnowledgeTools } from './tools/knowledge.js';
+import { getCurrentVersion } from '../shared/version.js';
+import { registerMarkdownStore } from './tools/markdown-store.js';
 import { registerContextTool } from './tools/context.js';
 import { registerLspTools } from './tools/lsp.js';
 import { registerAstTools } from './tools/ast.js';
@@ -8,14 +9,32 @@ import { registerTaskTools } from './tools/task.js';
 import { registerDecisionTools } from './tools/decision.js';
 import { registerArtifactTools } from './tools/artifact.js';
 import { registerConsultTools } from './tools/consult.js';
-import { registerRulesTools } from './tools/rules.js';
+import { knowledgePath, rulesPath, KNOWLEDGE_ROOT } from '../shared/paths.js';
+import { join } from 'path';
 
 const server = new McpServer({
   name: 'nx',
-  version: '0.2.0', // synced with package.json
+  version: getCurrentVersion() || '0.0.0',
 });
 
-registerKnowledgeTools(server);
+registerMarkdownStore(server, {
+  toolPrefix: 'nx_knowledge',
+  entityName: 'topic',
+  dirPath: join(KNOWLEDGE_ROOT, 'knowledge'),
+  pathFn: knowledgePath,
+  listKey: 'topics',
+  cache: true,
+});
+
+registerMarkdownStore(server, {
+  toolPrefix: 'nx_rules',
+  entityName: 'name',
+  dirPath: join(KNOWLEDGE_ROOT, 'rules'),
+  pathFn: rulesPath,
+  listKey: 'rules',
+  cache: false,
+});
+
 registerContextTool(server);
 registerLspTools(server);
 registerAstTools(server);
@@ -23,7 +42,6 @@ registerTaskTools(server);
 registerDecisionTools(server);
 registerArtifactTools(server);
 registerConsultTools(server);
-registerRulesTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();

@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { resolve } from 'path';
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { findProjectRoot } from '../../shared/paths.js';
+import { textResult } from '../../shared/mcp-utils.js';
 
 let astGrep: any = null;
 let astGrepAvailable: boolean | null = null;
@@ -42,15 +44,6 @@ const LANG_MAP: Record<string, string> = {
   cpp: 'Cpp',
 };
 
-function findProjectRoot(): string {
-  let dir = process.cwd();
-  while (dir !== '/') {
-    if (existsSync(resolve(dir, '.git'))) return dir;
-    dir = resolve(dir, '..');
-  }
-  return process.cwd();
-}
-
 function collectFiles(dir: string, ext: string, maxDepth = 5, depth = 0): string[] {
   if (depth > maxDepth) return [];
   const files: string[] = [];
@@ -79,16 +72,11 @@ export function registerAstTools(server: McpServer): void {
     },
     async ({ pattern, language, path: searchPath }) => {
       if (!loadAstGrep()) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              error: '@ast-grep/napi not installed',
-              install: 'npm install @ast-grep/napi',
-              note: 'AST search requires the @ast-grep/napi package. Install it in the project or globally.',
-            }),
-          }],
-        };
+        return textResult({
+          error: '@ast-grep/napi not installed',
+          install: 'npm install @ast-grep/napi',
+          note: 'AST search requires the @ast-grep/napi package. Install it in the project or globally.',
+        });
       }
 
       try {
@@ -100,12 +88,7 @@ export function registerAstTools(server: McpServer): void {
         const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
         const astLang = LANG_MAP[ext];
         if (!astLang) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify({ error: `Unsupported language: ${lang}`, supported: Object.values(LANG_MAP) }),
-            }],
-          };
+          return textResult({ error: `Unsupported language: ${lang}`, supported: Object.values(LANG_MAP) });
         }
 
         // 파일 수집
@@ -131,14 +114,9 @@ export function registerAstTools(server: McpServer): void {
           } catch { /* skip parse errors */ }
         }
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({ matches, count: matches.length, pattern, language: astLang }),
-          }],
-        };
+        return textResult({ matches, count: matches.length, pattern, language: astLang });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -155,15 +133,10 @@ export function registerAstTools(server: McpServer): void {
     },
     async ({ pattern, replacement, language, path: searchPath, dryRun }) => {
       if (!loadAstGrep()) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              error: '@ast-grep/napi not installed',
-              install: 'npm install @ast-grep/napi',
-            }),
-          }],
-        };
+        return textResult({
+          error: '@ast-grep/napi not installed',
+          install: 'npm install @ast-grep/napi',
+        });
       }
 
       const isDryRun = dryRun ?? true; // 기본 dry run (안전)
@@ -176,12 +149,7 @@ export function registerAstTools(server: McpServer): void {
         const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
         const astLang = LANG_MAP[ext];
         if (!astLang) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify({ error: `Unsupported language: ${lang}` }),
-            }],
-          };
+          return textResult({ error: `Unsupported language: ${lang}` });
         }
 
         const isFile = existsSync(targetPath) && statSync(targetPath).isFile();
@@ -226,21 +194,9 @@ export function registerAstTools(server: McpServer): void {
           } catch { /* skip */ }
         }
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              changes,
-              count: changes.length,
-              dryRun: isDryRun,
-              pattern,
-              replacement,
-              language: astLang,
-            }),
-          }],
-        };
+        return textResult({ changes, count: changes.length, dryRun: isDryRun, pattern, replacement, language: astLang });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );

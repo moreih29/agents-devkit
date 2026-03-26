@@ -7,20 +7,13 @@ import { LspClient } from '../../code-intel/lsp-client.js';
 import { detectLanguage, getLanguageFromExt, getLspConfig, getLanguageId } from '../../code-intel/detect.js';
 import type { Language } from '../../code-intel/detect.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { findProjectRoot } from '../../shared/paths.js';
+import { textResult } from '../../shared/mcp-utils.js';
 
 // 언어별 LSP 클라이언트 맵
 const clients = new Map<Language, LspClient>();
 let projectRoot: string | null = null;
 const openedFiles = new Set<string>();
-
-function findProjectRoot(): string {
-  let dir = process.cwd();
-  while (dir !== '/') {
-    if (existsSync(join(dir, '.git'))) return dir;
-    dir = resolve(dir, '..');
-  }
-  return process.cwd();
-}
 
 // 언어별 설정 파일 → 해당 디렉토리를 LSP rootUri로 사용
 const LANG_CONFIG_FILES: Record<string, string[]> = {
@@ -119,22 +112,12 @@ export function registerLspTools(server: McpServer): void {
         }) as { contents?: unknown } | null;
 
         if (!result) {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ hover: null, file, line, character }) }] };
+          return textResult({ hover: null, file, line, character });
         }
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              hover: formatMarkupContent(result.contents),
-              file,
-              line,
-              character,
-            }),
-          }],
-        };
+        return textResult({ hover: formatMarkupContent(result.contents), file, line, character });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -159,14 +142,9 @@ export function registerLspTools(server: McpServer): void {
         const locations = Array.isArray(result) ? result : result ? [result] : [];
         const formatted = locations.map((loc: any) => formatLocation(loc));
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({ definitions: formatted, file, line, character }),
-          }],
-        };
+        return textResult({ definitions: formatted, file, line, character });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -193,14 +171,9 @@ export function registerLspTools(server: McpServer): void {
         const locations = Array.isArray(result) ? result : [];
         const formatted = locations.map((loc: any) => formatLocation(loc));
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({ references: formatted, count: formatted.length, file, line, character }),
-          }],
-        };
+        return textResult({ references: formatted, count: formatted.length, file, line, character });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -249,14 +222,9 @@ export function registerLspTools(server: McpServer): void {
           character: (d.range?.start?.character ?? 0) + 1,
         }));
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({ diagnostics: formatted, count: formatted.length, file }),
-          }],
-        };
+        return textResult({ diagnostics: formatted, count: formatted.length, file });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -281,7 +249,7 @@ export function registerLspTools(server: McpServer): void {
         }) as { changes?: Record<string, any[]>; documentChanges?: any[] } | null;
 
         if (!result) {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Rename not supported at this position' }) }] };
+          return textResult({ error: 'Rename not supported at this position' });
         }
 
         const edits: Array<{ file: string; line: number; newText: string }> = [];
@@ -315,14 +283,9 @@ export function registerLspTools(server: McpServer): void {
           }
         }
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({ edits, count: edits.length, newName }),
-          }],
-        };
+        return textResult({ edits, count: edits.length, newName });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -378,14 +341,9 @@ export function registerLspTools(server: McpServer): void {
           isPreferred: a.isPreferred ?? false,
         }));
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({ actions: formatted, count: formatted.length, file, startLine, endLine }),
-          }],
-        };
+        return textResult({ actions: formatted, count: formatted.length, file, startLine, endLine });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -429,14 +387,9 @@ export function registerLspTools(server: McpServer): void {
         };
 
         const formatted = flatten(symbols);
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({ symbols: formatted, count: formatted.length, file }),
-          }],
-        };
+        return textResult({ symbols: formatted, count: formatted.length, file });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -462,14 +415,9 @@ export function registerLspTools(server: McpServer): void {
           location: formatLocation(s.location),
         }));
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({ symbols: formatted, count: formatted.length, query }),
-          }],
-        };
+        return textResult({ symbols: formatted, count: formatted.length, query });
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );

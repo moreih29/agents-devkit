@@ -5,6 +5,7 @@ import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBranchRoot, ensureDir } from '../../shared/paths.js';
 import { readDecisions, writeDecisions, type DecisionEntry } from './decision.js';
+import { textResult } from '../../shared/mcp-utils.js';
 
 export interface ConsultIssue {
   id: number;
@@ -53,12 +54,7 @@ export function registerConsultTools(server: McpServer): void {
         })),
       };
       await writeConsult(data);
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({ created: true, topic, issueCount: issues.length }),
-        }],
-      };
+      return textResult({ created: true, topic, issueCount: issues.length });
     }
   );
 
@@ -70,7 +66,7 @@ export function registerConsultTools(server: McpServer): void {
     async () => {
       const data = await readConsult();
       if (!data) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ active: false }) }] };
+        return textResult({ active: false });
       }
 
       // Load decisions and find those linked to consult issues
@@ -97,17 +93,12 @@ export function registerConsultTools(server: McpServer): void {
         return result;
       });
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            active: true,
-            topic: data.topic,
-            issues: issuesWithDecisions,
-            summary: { total: data.issues.length, pending, discussing, decided },
-          }),
-        }],
-      };
+      return textResult({
+        active: true,
+        topic: data.topic,
+        issues: issuesWithDecisions,
+        summary: { total: data.issues.length, pending, discussing, decided },
+      });
     }
   );
 
@@ -123,53 +114,53 @@ export function registerConsultTools(server: McpServer): void {
     async ({ action, issue_id, title }) => {
       const data = await readConsult();
       if (!data) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'No active consultation' }) }] };
+        return textResult({ error: 'No active consultation' });
       }
 
       if (action === 'add') {
         if (!title) {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'title is required for add' }) }] };
+          return textResult({ error: 'title is required for add' });
         }
         const maxId = data.issues.reduce((max, i) => Math.max(max, i.id), 0);
         const newIssue: ConsultIssue = { id: maxId + 1, title, status: 'pending' };
         data.issues.push(newIssue);
         await writeConsult(data);
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ added: true, issue: newIssue }) }] };
+        return textResult({ added: true, issue: newIssue });
       }
 
       if (action === 'remove') {
         if (issue_id === undefined) {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'issue_id is required for remove' }) }] };
+          return textResult({ error: 'issue_id is required for remove' });
         }
         const idx = data.issues.findIndex(i => i.id === issue_id);
         if (idx === -1) {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+          return textResult({ error: `Issue ${issue_id} not found` });
         }
         const [removed] = data.issues.splice(idx, 1);
         await writeConsult(data);
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ removed: true, issue: removed }) }] };
+        return textResult({ removed: true, issue: removed });
       }
 
       if (action === 'edit') {
         if (issue_id === undefined || !title) {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'issue_id and title are required for edit' }) }] };
+          return textResult({ error: 'issue_id and title are required for edit' });
         }
         const issue = data.issues.find(i => i.id === issue_id);
         if (!issue) {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+          return textResult({ error: `Issue ${issue_id} not found` });
         }
         issue.title = title;
         await writeConsult(data);
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ edited: true, issue }) }] };
+        return textResult({ edited: true, issue });
       }
 
       if (action === 'reopen') {
         if (issue_id === undefined) {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'issue_id is required for reopen' }) }] };
+          return textResult({ error: 'issue_id is required for reopen' });
         }
         const issue = data.issues.find(i => i.id === issue_id);
         if (!issue) {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+          return textResult({ error: `Issue ${issue_id} not found` });
         }
         issue.status = 'discussing';
         await writeConsult(data);
@@ -182,10 +173,10 @@ export function registerConsultTools(server: McpServer): void {
           await writeDecisions(decisions);
         }
 
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ reopened: true, issue }) }] };
+        return textResult({ reopened: true, issue });
       }
 
-      return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Unknown action' }) }] };
+      return textResult({ error: 'Unknown action' });
     }
   );
 
@@ -200,12 +191,12 @@ export function registerConsultTools(server: McpServer): void {
     async ({ issue_id, summary }) => {
       const data = await readConsult();
       if (!data) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'No active consultation' }) }] };
+        return textResult({ error: 'No active consultation' });
       }
 
       const issue = data.issues.find(i => i.id === issue_id);
       if (!issue) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+        return textResult({ error: `Issue ${issue_id} not found` });
       }
 
       // Mark as decided
@@ -226,32 +217,22 @@ export function registerConsultTools(server: McpServer): void {
       // Check if all decided — return completion signal without deleting consult.json
       const allDecided = data.issues.every(i => i.status === 'decided');
       if (allDecided) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              decided: true,
-              issue: issue.title,
-              allComplete: true,
-              message: '모든 논점이 결정되었습니다. 실행이 필요하면 [dev] 또는 [research] 태그를 사용하세요. 커스텀 규칙이 필요하면 nx_rules_write로 저장하세요.',
-              decisions: decisions.decisions,
-            }),
-          }],
-        };
+        return textResult({
+          decided: true,
+          issue: issue.title,
+          allComplete: true,
+          message: '모든 논점이 결정되었습니다. 실행이 필요하면 [dev] 또는 [research] 태그를 사용하세요. 커스텀 규칙이 필요하면 nx_rules_write로 저장하세요.',
+          decisions: decisions.decisions,
+        });
       }
 
       const remaining = data.issues.filter(i => i.status !== 'decided');
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            decided: true,
-            issue: issue.title,
-            allComplete: false,
-            remaining: remaining.map(i => ({ id: i.id, title: i.title, status: i.status })),
-          }),
-        }],
-      };
+      return textResult({
+        decided: true,
+        issue: issue.title,
+        allComplete: false,
+        remaining: remaining.map(i => ({ id: i.id, title: i.title, status: i.status })),
+      });
     }
   );
 }

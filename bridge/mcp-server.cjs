@@ -20988,34 +20988,47 @@ var StdioServerTransport = class {
   }
 };
 
-// src/mcp/tools/knowledge.ts
-var import_fs2 = require("fs");
+// src/shared/version.ts
+var import_fs = require("fs");
+var import_path = require("path");
+function getCurrentVersion() {
+  try {
+    const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+    const versionFile = pluginRoot ? (0, import_path.join)(pluginRoot, "VERSION") : (0, import_path.join)(__dirname, "..", "VERSION");
+    if ((0, import_fs.existsSync)(versionFile)) return (0, import_fs.readFileSync)(versionFile, "utf-8").trim();
+  } catch {
+  }
+  return "";
+}
+
+// src/mcp/tools/markdown-store.ts
+var import_fs3 = require("fs");
 var import_promises = require("fs/promises");
 
 // src/shared/paths.ts
-var import_path = require("path");
-var import_fs = require("fs");
+var import_path2 = require("path");
+var import_fs2 = require("fs");
 var import_child_process = require("child_process");
-function findProjectRoot() {
-  let dir = process.cwd();
+function findProjectRoot(startDir) {
+  let dir = startDir ?? process.cwd();
   while (dir !== "/") {
-    if ((0, import_fs.existsSync)((0, import_path.join)(dir, ".git"))) return dir;
-    dir = (0, import_path.resolve)(dir, "..");
+    if ((0, import_fs2.existsSync)((0, import_path2.join)(dir, ".git"))) return dir;
+    dir = (0, import_path2.resolve)(dir, "..");
   }
-  return process.cwd();
+  return startDir ?? process.cwd();
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path.join)(PROJECT_ROOT, ".nexus");
-var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
+var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
+var KNOWLEDGE_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".claude", "nexus");
 function knowledgePath(topic) {
-  return (0, import_path.join)(KNOWLEDGE_ROOT, "knowledge", `${topic}.md`);
+  return (0, import_path2.join)(KNOWLEDGE_ROOT, "knowledge", `${topic}.md`);
 }
 function rulesPath(name) {
-  return (0, import_path.join)(KNOWLEDGE_ROOT, "rules", `${name}.md`);
+  return (0, import_path2.join)(KNOWLEDGE_ROOT, "rules", `${name}.md`);
 }
 function ensureDir(dir) {
-  if (!(0, import_fs.existsSync)(dir)) {
-    (0, import_fs.mkdirSync)(dir, { recursive: true });
+  if (!(0, import_fs2.existsSync)(dir)) {
+    (0, import_fs2.mkdirSync)(dir, { recursive: true });
   }
 }
 function getCurrentBranch() {
@@ -21039,106 +21052,121 @@ function sanitizeBranch(branch) {
 var CURRENT_BRANCH = getCurrentBranch();
 function migrateLegacyBranchDir(branchName) {
   const sanitized = sanitizeBranch(branchName);
-  const legacyPath = (0, import_path.join)(RUNTIME_ROOT, sanitized);
-  const newPath = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitized);
-  if ((0, import_fs.existsSync)(legacyPath) && !(0, import_fs.existsSync)(newPath)) {
-    ensureDir((0, import_path.join)(RUNTIME_ROOT, "branches"));
-    (0, import_fs.renameSync)(legacyPath, newPath);
+  const legacyPath = (0, import_path2.join)(RUNTIME_ROOT, sanitized);
+  const newPath = (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitized);
+  if ((0, import_fs2.existsSync)(legacyPath) && !(0, import_fs2.existsSync)(newPath)) {
+    ensureDir((0, import_path2.join)(RUNTIME_ROOT, "branches"));
+    (0, import_fs2.renameSync)(legacyPath, newPath);
   }
 }
 migrateLegacyBranchDir(CURRENT_BRANCH);
-var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
+var BRANCH_ROOT = (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
 function getBranchRoot() {
   const branch = getCurrentBranch();
   migrateLegacyBranchDir(branch);
-  return (0, import_path.join)(RUNTIME_ROOT, "branches", sanitizeBranch(branch));
+  return (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitizeBranch(branch));
 }
 
-// src/mcp/tools/knowledge.ts
-var import_path2 = require("path");
-var knowledgeCache = /* @__PURE__ */ new Map();
-async function readKnowledgeCached(path) {
-  const cached2 = knowledgeCache.get(path);
+// src/mcp/tools/markdown-store.ts
+var import_path3 = require("path");
+
+// src/shared/mcp-utils.ts
+function textResult(data) {
+  return { content: [{ type: "text", text: JSON.stringify(data) }] };
+}
+
+// src/mcp/tools/markdown-store.ts
+var caches = /* @__PURE__ */ new Map();
+function getCache(prefix) {
+  if (!caches.has(prefix)) caches.set(prefix, /* @__PURE__ */ new Map());
+  return caches.get(prefix);
+}
+async function readMaybeCached(prefix, path, useCache) {
   const content = await (0, import_promises.readFile)(path, "utf-8");
-  if (cached2 && cached2.content.length === content.length && cached2.content === content) {
-    return cached2.content;
-  }
-  knowledgeCache.set(path, { content, mtime: Date.now() });
+  if (!useCache) return content;
+  const cache = getCache(prefix);
+  const cached2 = cache.get(path);
+  if (cached2 === content) return cached2;
+  cache.set(path, content);
   return content;
 }
-function registerKnowledgeTools(server2) {
+function invalidateCache(prefix, path) {
+  getCache(prefix).delete(path);
+}
+function registerMarkdownStore(server2, config2) {
+  const { toolPrefix, entityName, dirPath, pathFn, listKey, cache } = config2;
+  const readDesc = toolPrefix === "nx_knowledge" ? "Read project knowledge (git-tracked, shared across team)" : "Read project rules (git-tracked, shared across team)";
+  const writeDesc = toolPrefix === "nx_knowledge" ? "Write project knowledge (git-tracked). Use for long-term, team-shared information." : "Write project rules (git-tracked). Use for team conventions, guidelines, and checklists.";
+  const readEntityDesc = toolPrefix === "nx_knowledge" ? 'Specific topic name (e.g., "architecture", "conventions")' : 'Specific rule name (e.g., "coding-style", "review-checklist")';
+  const tagDesc = toolPrefix === "nx_knowledge" ? "Filter by tags (searches frontmatter)" : "Filter by tags (searches HTML comment frontmatter)";
+  const writeEntityDesc = toolPrefix === "nx_knowledge" ? "Topic name (becomes filename: knowledge/{topic}.md)" : "Rule name (becomes filename: rules/{name}.md)";
   server2.tool(
-    "nx_knowledge_read",
-    "Read project knowledge (git-tracked, shared across team)",
+    `${toolPrefix}_read`,
+    readDesc,
     {
-      topic: external_exports.string().optional().describe('Specific topic name (e.g., "architecture", "conventions")'),
-      tags: external_exports.array(external_exports.string()).optional().describe("Filter by tags (searches frontmatter)")
+      [entityName]: external_exports.string().optional().describe(readEntityDesc),
+      tags: external_exports.array(external_exports.string()).optional().describe(tagDesc)
     },
-    async ({ topic, tags }) => {
-      const knowledgeDir = (0, import_path2.join)(KNOWLEDGE_ROOT, "knowledge");
-      if (topic) {
-        const path = knowledgePath(topic);
-        if (!(0, import_fs2.existsSync)(path)) {
-          return { content: [{ type: "text", text: JSON.stringify({ exists: false, topic }) }] };
+    async (params) => {
+      const key = params[entityName];
+      const tags = params.tags;
+      if (key) {
+        const path = pathFn(key);
+        if (!(0, import_fs3.existsSync)(path)) {
+          return textResult({ exists: false, [entityName]: key });
         }
-        const content = await readKnowledgeCached(path);
+        const content = await readMaybeCached(toolPrefix, path, cache);
         return { content: [{ type: "text", text: content }] };
       }
-      if (!(0, import_fs2.existsSync)(knowledgeDir)) {
-        return { content: [{ type: "text", text: JSON.stringify({ topics: [] }) }] };
+      if (!(0, import_fs3.existsSync)(dirPath)) {
+        return textResult({ [listKey]: [] });
       }
-      const files = (await (0, import_promises.readdir)(knowledgeDir)).filter((f) => f.endsWith(".md"));
+      const files = (await (0, import_promises.readdir)(dirPath)).filter((f) => f.endsWith(".md"));
       const results = [];
       for (const file of files) {
-        const filePath = (0, import_path2.join)(knowledgeDir, file);
-        const content = await readKnowledgeCached(filePath);
+        const filePath = (0, import_path3.join)(dirPath, file);
+        const content = await readMaybeCached(toolPrefix, filePath, cache);
         if (tags && tags.length > 0) {
           const lowerContent = content.toLowerCase();
           const matched = tags.some((tag) => lowerContent.includes(tag.toLowerCase()));
           if (!matched) continue;
         }
         const firstLine = content.split("\n").find((l) => l.startsWith("# ")) ?? file;
-        results.push({ topic: file.replace(".md", ""), preview: firstLine });
+        results.push({ [entityName]: file.replace(".md", ""), preview: firstLine });
       }
-      return { content: [{ type: "text", text: JSON.stringify({ topics: results }) }] };
+      return textResult({ [listKey]: results });
     }
   );
   server2.tool(
-    "nx_knowledge_write",
-    "Write project knowledge (git-tracked). Use for long-term, team-shared information.",
+    `${toolPrefix}_write`,
+    writeDesc,
     {
-      topic: external_exports.string().describe("Topic name (becomes filename: knowledge/{topic}.md)"),
+      [entityName]: external_exports.string().describe(writeEntityDesc),
       content: external_exports.string().describe("Markdown content to write"),
       tags: external_exports.array(external_exports.string()).optional().describe("Tags for searchability")
     },
-    async ({ topic, content, tags }) => {
-      const knowledgeDir = (0, import_path2.join)(KNOWLEDGE_ROOT, "knowledge");
-      ensureDir(knowledgeDir);
+    async (params) => {
+      const key = params[entityName];
+      const content = params.content;
+      const tags = params.tags;
+      ensureDir(dirPath);
       let body = content;
       if (tags && tags.length > 0) {
         body = `<!-- tags: ${tags.join(", ")} -->
 ${content}`;
       }
-      const path = knowledgePath(topic);
+      const path = pathFn(key);
       await (0, import_promises.writeFile)(path, body);
-      knowledgeCache.delete(path);
-      return { content: [{ type: "text", text: JSON.stringify({ success: true, topic, path }) }] };
+      if (cache) invalidateCache(toolPrefix, path);
+      return textResult({ success: true, [entityName]: key, path });
     }
   );
 }
 
 // src/mcp/tools/context.ts
-var import_fs3 = require("fs");
+var import_fs4 = require("fs");
 var import_promises2 = require("fs/promises");
-var import_child_process2 = require("child_process");
-var import_path3 = require("path");
-function getCurrentBranch2() {
-  try {
-    return (0, import_child_process2.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8" }).trim();
-  } catch {
-    return "unknown";
-  }
-}
+var import_path4 = require("path");
 function registerContextTool(server2) {
   server2.tool(
     "nx_context",
@@ -21147,8 +21175,8 @@ function registerContextTool(server2) {
     {},
     async () => {
       let teamStatus = { activeMode: null };
-      const tasksFile = (0, import_path3.join)(getBranchRoot(), "tasks.json");
-      if ((0, import_fs3.existsSync)(tasksFile)) {
+      const tasksFile = (0, import_path4.join)(getBranchRoot(), "tasks.json");
+      if ((0, import_fs4.existsSync)(tasksFile)) {
         try {
           const data = JSON.parse(await (0, import_promises2.readFile)(tasksFile, "utf-8"));
           const tasks = Array.isArray(data.tasks) ? data.tasks : [];
@@ -21164,8 +21192,8 @@ function registerContextTool(server2) {
         }
       }
       let decisions = [];
-      const decisionsFile = (0, import_path3.join)(getBranchRoot(), "decisions.json");
-      if ((0, import_fs3.existsSync)(decisionsFile)) {
+      const decisionsFile = (0, import_path4.join)(getBranchRoot(), "decisions.json");
+      if ((0, import_fs4.existsSync)(decisionsFile)) {
         try {
           const data = JSON.parse(await (0, import_promises2.readFile)(decisionsFile, "utf-8"));
           decisions = Array.isArray(data.decisions) ? data.decisions : [];
@@ -21173,22 +21201,22 @@ function registerContextTool(server2) {
         }
       }
       const result = {
-        branch: getCurrentBranch2(),
+        branch: getCurrentBranch(),
         ...teamStatus,
         decisions
       };
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return textResult(result);
     }
   );
 }
 
 // src/mcp/tools/lsp.ts
-var import_fs5 = require("fs");
-var import_path5 = require("path");
+var import_fs6 = require("fs");
+var import_path6 = require("path");
 var import_url = require("url");
 
 // src/code-intel/lsp-client.ts
-var import_child_process3 = require("child_process");
+var import_child_process2 = require("child_process");
 var import_events = require("events");
 var LspClient = class extends import_events.EventEmitter {
   constructor(command, args) {
@@ -21204,7 +21232,7 @@ var LspClient = class extends import_events.EventEmitter {
   contentLength = -1;
   async initialize(rootUri) {
     if (this.initialized) return;
-    this.process = (0, import_child_process3.spawn)(this.command, this.args, {
+    this.process = (0, import_child_process2.spawn)(this.command, this.args, {
       stdio: ["pipe", "pipe", "pipe"],
       env: { ...process.env, NODE_OPTIONS: "" }
     });
@@ -21325,9 +21353,9 @@ var LspClient = class extends import_events.EventEmitter {
 };
 
 // src/code-intel/detect.ts
-var import_fs4 = require("fs");
-var import_child_process4 = require("child_process");
-var import_path4 = require("path");
+var import_fs5 = require("fs");
+var import_child_process3 = require("child_process");
+var import_path5 = require("path");
 var LSP_SERVERS = {
   typescript: {
     command: "npx",
@@ -21358,13 +21386,13 @@ var COMMON_PATHS = {
 function resolveCommand(command) {
   if (command === "npx") return command;
   try {
-    const resolved = (0, import_child_process4.execSync)(`which ${command}`, { encoding: "utf-8", timeout: 3e3 }).trim();
+    const resolved = (0, import_child_process3.execSync)(`which ${command}`, { encoding: "utf-8", timeout: 3e3 }).trim();
     if (resolved) return resolved;
   } catch {
   }
   const paths = COMMON_PATHS[command] ?? [];
   for (const p of paths) {
-    if ((0, import_fs4.existsSync)(p)) return p;
+    if ((0, import_fs5.existsSync)(p)) return p;
   }
   return command;
 }
@@ -21387,7 +21415,7 @@ var EXT_TO_LANGUAGE = {
 };
 function detectLanguage(projectRoot2) {
   for (const { file, language } of DETECT_FILES) {
-    if ((0, import_fs4.existsSync)((0, import_path4.join)(projectRoot2, file))) {
+    if ((0, import_fs5.existsSync)((0, import_path5.join)(projectRoot2, file))) {
       return language;
     }
   }
@@ -21422,14 +21450,6 @@ function getLanguageId(filePath) {
 var clients = /* @__PURE__ */ new Map();
 var projectRoot = null;
 var openedFiles = /* @__PURE__ */ new Set();
-function findProjectRoot2() {
-  let dir = process.cwd();
-  while (dir !== "/") {
-    if ((0, import_fs5.existsSync)((0, import_path5.join)(dir, ".git"))) return dir;
-    dir = (0, import_path5.resolve)(dir, "..");
-  }
-  return process.cwd();
-}
 var LANG_CONFIG_FILES = {
   typescript: ["tsconfig.json", "jsconfig.json", "package.json"],
   python: ["pyproject.toml", "setup.py", "setup.cfg"],
@@ -21437,22 +21457,22 @@ var LANG_CONFIG_FILES = {
   go: ["go.mod"]
 };
 function findLanguageRoot(filePath, language) {
-  const root = projectRoot ?? findProjectRoot2();
-  const absPath = (0, import_path5.resolve)(root, filePath);
-  let dir = absPath.includes(".") ? (0, import_path5.resolve)(absPath, "..") : absPath;
+  const root = projectRoot ?? findProjectRoot();
+  const absPath = (0, import_path6.resolve)(root, filePath);
+  let dir = absPath.includes(".") ? (0, import_path6.resolve)(absPath, "..") : absPath;
   const configFiles = LANG_CONFIG_FILES[language] ?? [];
   while (dir.length >= root.length) {
     for (const cf of configFiles) {
-      if ((0, import_fs5.existsSync)((0, import_path5.join)(dir, cf))) return dir;
+      if ((0, import_fs6.existsSync)((0, import_path6.join)(dir, cf))) return dir;
     }
-    const parent = (0, import_path5.resolve)(dir, "..");
+    const parent = (0, import_path6.resolve)(dir, "..");
     if (parent === dir) break;
     dir = parent;
   }
   return root;
 }
 async function ensureClientForFile(filePath) {
-  if (!projectRoot) projectRoot = findProjectRoot2();
+  if (!projectRoot) projectRoot = findProjectRoot();
   const language = getLanguageFromExt(filePath) ?? detectLanguage(projectRoot);
   if (!language) {
     throw new Error("No supported language detected. Looked for: tsconfig.json, pyproject.toml, Cargo.toml, go.mod");
@@ -21467,10 +21487,10 @@ async function ensureClientForFile(filePath) {
   return client;
 }
 function ensureFileOpen(lsp, filePath) {
-  const absPath = (0, import_path5.resolve)(projectRoot ?? process.cwd(), filePath);
+  const absPath = (0, import_path6.resolve)(projectRoot ?? process.cwd(), filePath);
   const uri = (0, import_url.pathToFileURL)(absPath).href;
   if (!openedFiles.has(uri)) {
-    const text = (0, import_fs5.readFileSync)(absPath, "utf-8");
+    const text = (0, import_fs6.readFileSync)(absPath, "utf-8");
     const langId = getLanguageId(absPath);
     lsp.notifyDidOpen(uri, langId, text);
     openedFiles.add(uri);
@@ -21511,21 +21531,11 @@ function registerLspTools(server2) {
           position: { line: line - 1, character: character - 1 }
         });
         if (!result) {
-          return { content: [{ type: "text", text: JSON.stringify({ hover: null, file, line, character }) }] };
+          return textResult({ hover: null, file, line, character });
         }
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              hover: formatMarkupContent(result.contents),
-              file,
-              line,
-              character
-            })
-          }]
-        };
+        return textResult({ hover: formatMarkupContent(result.contents), file, line, character });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -21547,14 +21557,9 @@ function registerLspTools(server2) {
         });
         const locations = Array.isArray(result) ? result : result ? [result] : [];
         const formatted = locations.map((loc) => formatLocation(loc));
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ definitions: formatted, file, line, character })
-          }]
-        };
+        return textResult({ definitions: formatted, file, line, character });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -21578,14 +21583,9 @@ function registerLspTools(server2) {
         });
         const locations = Array.isArray(result) ? result : [];
         const formatted = locations.map((loc) => formatLocation(loc));
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ references: formatted, count: formatted.length, file, line, character })
-          }]
-        };
+        return textResult({ references: formatted, count: formatted.length, file, line, character });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -21600,14 +21600,14 @@ function registerLspTools(server2) {
         const lsp = await ensureClientForFile(file);
         ensureFileOpen(lsp, file);
         const diagnostics = [];
-        const uri = (0, import_url.pathToFileURL)((0, import_path5.resolve)(projectRoot ?? process.cwd(), file)).href;
+        const uri = (0, import_url.pathToFileURL)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file)).href;
         const handler = (params) => {
           if (params.uri === uri) {
             diagnostics.push(...params.diagnostics);
           }
         };
         lsp.on("textDocument/publishDiagnostics", handler);
-        const text = (0, import_fs5.readFileSync)((0, import_path5.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
+        const text = (0, import_fs6.readFileSync)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
         const langId = getLanguageId(file);
         lsp.notify("textDocument/didClose", { textDocument: { uri } });
         openedFiles.delete(uri);
@@ -21622,14 +21622,9 @@ function registerLspTools(server2) {
           line: (d.range?.start?.line ?? 0) + 1,
           character: (d.range?.start?.character ?? 0) + 1
         }));
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ diagnostics: formatted, count: formatted.length, file })
-          }]
-        };
+        return textResult({ diagnostics: formatted, count: formatted.length, file });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -21652,10 +21647,10 @@ function registerLspTools(server2) {
           newName
         });
         if (!result) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: "Rename not supported at this position" }) }] };
+          return textResult({ error: "Rename not supported at this position" });
         }
         const edits = [];
-        const root = projectRoot ?? findProjectRoot2();
+        const root = projectRoot ?? findProjectRoot();
         if (result.changes) {
           for (const [fileUri, changes] of Object.entries(result.changes)) {
             const filePath = fileUri.replace((0, import_url.pathToFileURL)(root).href + "/", "");
@@ -21682,14 +21677,9 @@ function registerLspTools(server2) {
             }
           }
         }
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ edits, count: edits.length, newName })
-          }]
-        };
+        return textResult({ edits, count: edits.length, newName });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -21710,7 +21700,7 @@ function registerLspTools(server2) {
           if (params.uri === uri) diagnostics.push(...params.diagnostics);
         };
         lsp.on("textDocument/publishDiagnostics", handler);
-        const text = (0, import_fs5.readFileSync)((0, import_path5.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
+        const text = (0, import_fs6.readFileSync)((0, import_path6.resolve)(projectRoot ?? process.cwd(), file), "utf-8");
         const langId = getLanguageId(file);
         lsp.notify("textDocument/didClose", { textDocument: { uri } });
         openedFiles.delete(uri);
@@ -21736,14 +21726,9 @@ function registerLspTools(server2) {
           kind: a.kind ?? "unknown",
           isPreferred: a.isPreferred ?? false
         }));
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ actions: formatted, count: formatted.length, file, startLine, endLine })
-          }]
-        };
+        return textResult({ actions: formatted, count: formatted.length, file, startLine, endLine });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -21803,14 +21788,9 @@ function registerLspTools(server2) {
           return out;
         };
         const formatted = flatten(symbols);
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ symbols: formatted, count: formatted.length, file })
-          }]
-        };
+        return textResult({ symbols: formatted, count: formatted.length, file });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -21822,7 +21802,7 @@ function registerLspTools(server2) {
     },
     async ({ query }) => {
       try {
-        const root = projectRoot ?? findProjectRoot2();
+        const root = projectRoot ?? findProjectRoot();
         const lang = detectLanguage(root) ?? "typescript";
         const lsp = await ensureClientForFile(`dummy.${lang === "typescript" ? "ts" : lang === "python" ? "py" : lang === "rust" ? "rs" : "go"}`);
         const result = await lsp.request("workspace/symbol", { query });
@@ -21832,22 +21812,17 @@ function registerLspTools(server2) {
           kind: symbolKindMap[s.kind] ?? "Unknown",
           location: formatLocation(s.location)
         }));
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ symbols: formatted, count: formatted.length, query })
-          }]
-        };
+        return textResult({ symbols: formatted, count: formatted.length, query });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
 }
 
 // src/mcp/tools/ast.ts
-var import_path6 = require("path");
-var import_fs6 = require("fs");
+var import_path7 = require("path");
+var import_fs7 = require("fs");
 var astGrep = null;
 var astGrepAvailable = null;
 function loadAstGrep() {
@@ -21859,8 +21834,8 @@ function loadAstGrep() {
   } catch {
   }
   try {
-    const projectRoot2 = findProjectRoot3();
-    astGrep = require((0, import_path6.resolve)(projectRoot2, "node_modules", "@ast-grep", "napi"));
+    const projectRoot2 = findProjectRoot();
+    astGrep = require((0, import_path7.resolve)(projectRoot2, "node_modules", "@ast-grep", "napi"));
     astGrepAvailable = true;
     return true;
   } catch {
@@ -21880,21 +21855,13 @@ var LANG_MAP = {
   c: "C",
   cpp: "Cpp"
 };
-function findProjectRoot3() {
-  let dir = process.cwd();
-  while (dir !== "/") {
-    if ((0, import_fs6.existsSync)((0, import_path6.resolve)(dir, ".git"))) return dir;
-    dir = (0, import_path6.resolve)(dir, "..");
-  }
-  return process.cwd();
-}
 function collectFiles(dir, ext, maxDepth = 5, depth = 0) {
   if (depth > maxDepth) return [];
   const files = [];
   try {
-    for (const entry of (0, import_fs6.readdirSync)(dir, { withFileTypes: true })) {
+    for (const entry of (0, import_fs7.readdirSync)(dir, { withFileTypes: true })) {
       if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist") continue;
-      const full = (0, import_path6.resolve)(dir, entry.name);
+      const full = (0, import_path7.resolve)(dir, entry.name);
       if (entry.isDirectory()) {
         files.push(...collectFiles(full, ext, maxDepth, depth + 1));
       } else if (entry.name.endsWith(`.${ext}`)) {
@@ -21916,38 +21883,28 @@ function registerAstTools(server2) {
     },
     async ({ pattern, language, path: searchPath }) => {
       if (!loadAstGrep()) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              error: "@ast-grep/napi not installed",
-              install: "npm install @ast-grep/napi",
-              note: "AST search requires the @ast-grep/napi package. Install it in the project or globally."
-            })
-          }]
-        };
+        return textResult({
+          error: "@ast-grep/napi not installed",
+          install: "npm install @ast-grep/napi",
+          note: "AST search requires the @ast-grep/napi package. Install it in the project or globally."
+        });
       }
       try {
-        const root = findProjectRoot3();
-        const targetPath = searchPath ? (0, import_path6.resolve)(root, searchPath) : root;
+        const root = findProjectRoot();
+        const targetPath = searchPath ? (0, import_path7.resolve)(root, searchPath) : root;
         let lang = language?.toLowerCase() ?? "typescript";
         const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
         const astLang = LANG_MAP[ext];
         if (!astLang) {
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({ error: `Unsupported language: ${lang}`, supported: Object.values(LANG_MAP) })
-            }]
-          };
+          return textResult({ error: `Unsupported language: ${lang}`, supported: Object.values(LANG_MAP) });
         }
-        const isFile = (0, import_fs6.existsSync)(targetPath) && (0, import_fs6.statSync)(targetPath).isFile();
+        const isFile = (0, import_fs7.existsSync)(targetPath) && (0, import_fs7.statSync)(targetPath).isFile();
         const files = isFile ? [targetPath] : collectFiles(targetPath, ext);
         const matches = [];
         const sgLang = astGrep.Lang[astLang];
         for (const file of files) {
           try {
-            const source = (0, import_fs6.readFileSync)(file, "utf-8");
+            const source = (0, import_fs7.readFileSync)(file, "utf-8");
             const sgRoot = astGrep.parse(sgLang, source).root();
             const nodes = sgRoot.findAll(pattern);
             for (const node of nodes) {
@@ -21960,14 +21917,9 @@ function registerAstTools(server2) {
           } catch {
           }
         }
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ matches, count: matches.length, pattern, language: astLang })
-          }]
-        };
+        return textResult({ matches, count: matches.length, pattern, language: astLang });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
@@ -21983,38 +21935,28 @@ function registerAstTools(server2) {
     },
     async ({ pattern, replacement, language, path: searchPath, dryRun }) => {
       if (!loadAstGrep()) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              error: "@ast-grep/napi not installed",
-              install: "npm install @ast-grep/napi"
-            })
-          }]
-        };
+        return textResult({
+          error: "@ast-grep/napi not installed",
+          install: "npm install @ast-grep/napi"
+        });
       }
       const isDryRun = dryRun ?? true;
       try {
-        const root = findProjectRoot3();
-        const targetPath = searchPath ? (0, import_path6.resolve)(root, searchPath) : root;
+        const root = findProjectRoot();
+        const targetPath = searchPath ? (0, import_path7.resolve)(root, searchPath) : root;
         let lang = language?.toLowerCase() ?? "typescript";
         const ext = Object.entries(LANG_MAP).find(([, v]) => v.toLowerCase() === lang)?.[0] ?? lang;
         const astLang = LANG_MAP[ext];
         if (!astLang) {
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({ error: `Unsupported language: ${lang}` })
-            }]
-          };
+          return textResult({ error: `Unsupported language: ${lang}` });
         }
-        const isFile = (0, import_fs6.existsSync)(targetPath) && (0, import_fs6.statSync)(targetPath).isFile();
+        const isFile = (0, import_fs7.existsSync)(targetPath) && (0, import_fs7.statSync)(targetPath).isFile();
         const files = isFile ? [targetPath] : collectFiles(targetPath, ext);
         const sgLang = astGrep.Lang[astLang];
         const changes = [];
         for (const file of files) {
           try {
-            const source = (0, import_fs6.readFileSync)(file, "utf-8");
+            const source = (0, import_fs7.readFileSync)(file, "utf-8");
             const sgRoot = astGrep.parse(sgLang, source).root();
             const nodes = sgRoot.findAll(pattern);
             if (nodes.length === 0) continue;
@@ -22041,46 +21983,34 @@ function registerAstTools(server2) {
           } catch {
           }
         }
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              changes,
-              count: changes.length,
-              dryRun: isDryRun,
-              pattern,
-              replacement,
-              language: astLang
-            })
-          }]
-        };
+        return textResult({ changes, count: changes.length, dryRun: isDryRun, pattern, replacement, language: astLang });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: String(err) }) }] };
+        return textResult({ error: String(err) });
       }
     }
   );
 }
 
 // src/mcp/tools/task.ts
-var import_fs9 = require("fs");
+var import_fs10 = require("fs");
 var import_promises5 = require("fs/promises");
-var import_path9 = require("path");
+var import_path10 = require("path");
 
 // src/mcp/tools/consult.ts
-var import_fs8 = require("fs");
+var import_fs9 = require("fs");
 var import_promises4 = require("fs/promises");
-var import_path8 = require("path");
+var import_path9 = require("path");
 
 // src/mcp/tools/decision.ts
-var import_fs7 = require("fs");
+var import_fs8 = require("fs");
 var import_promises3 = require("fs/promises");
-var import_path7 = require("path");
+var import_path8 = require("path");
 function decisionsPath() {
-  return (0, import_path7.join)(getBranchRoot(), "decisions.json");
+  return (0, import_path8.join)(getBranchRoot(), "decisions.json");
 }
 async function readDecisions() {
   const p = decisionsPath();
-  if (!(0, import_fs7.existsSync)(p)) {
+  if (!(0, import_fs8.existsSync)(p)) {
     return { decisions: [] };
   }
   const raw = await (0, import_promises3.readFile)(p, "utf-8");
@@ -22089,7 +22019,7 @@ async function readDecisions() {
 async function writeDecisions(data) {
   const root = getBranchRoot();
   ensureDir(root);
-  await (0, import_promises3.writeFile)((0, import_path7.join)(root, "decisions.json"), JSON.stringify(data, null, 2));
+  await (0, import_promises3.writeFile)((0, import_path8.join)(root, "decisions.json"), JSON.stringify(data, null, 2));
 }
 function registerDecisionTools(server2) {
   server2.tool(
@@ -22105,32 +22035,25 @@ function registerDecisionTools(server2) {
       const entry = { id: maxId + 1, summary, consult: consult ?? null };
       data.decisions.push(entry);
       await writeDecisions(data);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ decisions: data.decisions })
-          }
-        ]
-      };
+      return textResult({ decisions: data.decisions });
     }
   );
 }
 
 // src/mcp/tools/consult.ts
 function consultPath() {
-  return (0, import_path8.join)(getBranchRoot(), "consult.json");
+  return (0, import_path9.join)(getBranchRoot(), "consult.json");
 }
 async function readConsult() {
   const p = consultPath();
-  if (!(0, import_fs8.existsSync)(p)) return null;
+  if (!(0, import_fs9.existsSync)(p)) return null;
   const raw = await (0, import_promises4.readFile)(p, "utf-8");
   return JSON.parse(raw);
 }
 async function writeConsult(data) {
   const root = getBranchRoot();
   ensureDir(root);
-  await (0, import_promises4.writeFile)((0, import_path8.join)(root, "consult.json"), JSON.stringify(data, null, 2));
+  await (0, import_promises4.writeFile)((0, import_path9.join)(root, "consult.json"), JSON.stringify(data, null, 2));
 }
 function registerConsultTools(server2) {
   server2.tool(
@@ -22150,12 +22073,7 @@ function registerConsultTools(server2) {
         }))
       };
       await writeConsult(data);
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ created: true, topic, issueCount: issues.length })
-        }]
-      };
+      return textResult({ created: true, topic, issueCount: issues.length });
     }
   );
   server2.tool(
@@ -22165,7 +22083,7 @@ function registerConsultTools(server2) {
     async () => {
       const data = await readConsult();
       if (!data) {
-        return { content: [{ type: "text", text: JSON.stringify({ active: false }) }] };
+        return textResult({ active: false });
       }
       const decisionsData = await readDecisions();
       const issueIds = new Set(data.issues.map((i) => i.id));
@@ -22185,17 +22103,12 @@ function registerConsultTools(server2) {
         }
         return result;
       });
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            active: true,
-            topic: data.topic,
-            issues: issuesWithDecisions,
-            summary: { total: data.issues.length, pending, discussing, decided }
-          })
-        }]
-      };
+      return textResult({
+        active: true,
+        topic: data.topic,
+        issues: issuesWithDecisions,
+        summary: { total: data.issues.length, pending, discussing, decided }
+      });
     }
   );
   server2.tool(
@@ -22209,49 +22122,49 @@ function registerConsultTools(server2) {
     async ({ action, issue_id, title }) => {
       const data = await readConsult();
       if (!data) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "No active consultation" }) }] };
+        return textResult({ error: "No active consultation" });
       }
       if (action === "add") {
         if (!title) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: "title is required for add" }) }] };
+          return textResult({ error: "title is required for add" });
         }
         const maxId = data.issues.reduce((max, i) => Math.max(max, i.id), 0);
         const newIssue = { id: maxId + 1, title, status: "pending" };
         data.issues.push(newIssue);
         await writeConsult(data);
-        return { content: [{ type: "text", text: JSON.stringify({ added: true, issue: newIssue }) }] };
+        return textResult({ added: true, issue: newIssue });
       }
       if (action === "remove") {
         if (issue_id === void 0) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: "issue_id is required for remove" }) }] };
+          return textResult({ error: "issue_id is required for remove" });
         }
         const idx = data.issues.findIndex((i) => i.id === issue_id);
         if (idx === -1) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+          return textResult({ error: `Issue ${issue_id} not found` });
         }
         const [removed] = data.issues.splice(idx, 1);
         await writeConsult(data);
-        return { content: [{ type: "text", text: JSON.stringify({ removed: true, issue: removed }) }] };
+        return textResult({ removed: true, issue: removed });
       }
       if (action === "edit") {
         if (issue_id === void 0 || !title) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: "issue_id and title are required for edit" }) }] };
+          return textResult({ error: "issue_id and title are required for edit" });
         }
         const issue2 = data.issues.find((i) => i.id === issue_id);
         if (!issue2) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+          return textResult({ error: `Issue ${issue_id} not found` });
         }
         issue2.title = title;
         await writeConsult(data);
-        return { content: [{ type: "text", text: JSON.stringify({ edited: true, issue: issue2 }) }] };
+        return textResult({ edited: true, issue: issue2 });
       }
       if (action === "reopen") {
         if (issue_id === void 0) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: "issue_id is required for reopen" }) }] };
+          return textResult({ error: "issue_id is required for reopen" });
         }
         const issue2 = data.issues.find((i) => i.id === issue_id);
         if (!issue2) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+          return textResult({ error: `Issue ${issue_id} not found` });
         }
         issue2.status = "discussing";
         await writeConsult(data);
@@ -22261,9 +22174,9 @@ function registerConsultTools(server2) {
         if (decisions.decisions.length !== before) {
           await writeDecisions(decisions);
         }
-        return { content: [{ type: "text", text: JSON.stringify({ reopened: true, issue: issue2 }) }] };
+        return textResult({ reopened: true, issue: issue2 });
       }
-      return { content: [{ type: "text", text: JSON.stringify({ error: "Unknown action" }) }] };
+      return textResult({ error: "Unknown action" });
     }
   );
   server2.tool(
@@ -22276,11 +22189,11 @@ function registerConsultTools(server2) {
     async ({ issue_id, summary }) => {
       const data = await readConsult();
       if (!data) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "No active consultation" }) }] };
+        return textResult({ error: "No active consultation" });
       }
       const issue2 = data.issues.find((i) => i.id === issue_id);
       if (!issue2) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: `Issue ${issue_id} not found` }) }] };
+        return textResult({ error: `Issue ${issue_id} not found` });
       }
       issue2.status = "decided";
       await writeConsult(data);
@@ -22295,49 +22208,39 @@ function registerConsultTools(server2) {
       await writeDecisions(decisions);
       const allDecided = data.issues.every((i) => i.status === "decided");
       if (allDecided) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              decided: true,
-              issue: issue2.title,
-              allComplete: true,
-              message: "\uBAA8\uB4E0 \uB17C\uC810\uC774 \uACB0\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC2E4\uD589\uC774 \uD544\uC694\uD558\uBA74 [dev] \uB610\uB294 [research] \uD0DC\uADF8\uB97C \uC0AC\uC6A9\uD558\uC138\uC694. \uCEE4\uC2A4\uD140 \uADDC\uCE59\uC774 \uD544\uC694\uD558\uBA74 nx_rules_write\uB85C \uC800\uC7A5\uD558\uC138\uC694.",
-              decisions: decisions.decisions
-            })
-          }]
-        };
+        return textResult({
+          decided: true,
+          issue: issue2.title,
+          allComplete: true,
+          message: "\uBAA8\uB4E0 \uB17C\uC810\uC774 \uACB0\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC2E4\uD589\uC774 \uD544\uC694\uD558\uBA74 [dev] \uB610\uB294 [research] \uD0DC\uADF8\uB97C \uC0AC\uC6A9\uD558\uC138\uC694. \uCEE4\uC2A4\uD140 \uADDC\uCE59\uC774 \uD544\uC694\uD558\uBA74 nx_rules_write\uB85C \uC800\uC7A5\uD558\uC138\uC694.",
+          decisions: decisions.decisions
+        });
       }
       const remaining = data.issues.filter((i) => i.status !== "decided");
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            decided: true,
-            issue: issue2.title,
-            allComplete: false,
-            remaining: remaining.map((i) => ({ id: i.id, title: i.title, status: i.status }))
-          })
-        }]
-      };
+      return textResult({
+        decided: true,
+        issue: issue2.title,
+        allComplete: false,
+        remaining: remaining.map((i) => ({ id: i.id, title: i.title, status: i.status }))
+      });
     }
   );
 }
 
 // src/mcp/tools/task.ts
 function tasksPath() {
-  return (0, import_path9.join)(getBranchRoot(), "tasks.json");
+  return (0, import_path10.join)(getBranchRoot(), "tasks.json");
 }
 async function readTasks() {
   const p = tasksPath();
-  if (!(0, import_fs9.existsSync)(p)) return null;
+  if (!(0, import_fs10.existsSync)(p)) return null;
   const raw = await (0, import_promises5.readFile)(p, "utf-8");
   return JSON.parse(raw);
 }
 async function writeTasks(data) {
   const root = getBranchRoot();
   ensureDir(root);
-  await (0, import_promises5.writeFile)((0, import_path9.join)(root, "tasks.json"), JSON.stringify(data, null, 2));
+  await (0, import_promises5.writeFile)((0, import_path10.join)(root, "tasks.json"), JSON.stringify(data, null, 2));
 }
 function computeSummary(tasks) {
   const total = tasks.length;
@@ -22356,17 +22259,10 @@ function registerTaskTools(server2) {
     async () => {
       const data = await readTasks();
       if (!data) {
-        return { content: [{ type: "text", text: JSON.stringify({ exists: false }) }] };
+        return textResult({ exists: false });
       }
       const summary = computeSummary(data.tasks);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ goal: data.goal, tasks: data.tasks, summary })
-          }
-        ]
-      };
+      return textResult({ goal: data.goal, tasks: data.tasks, summary });
     }
   );
   server2.tool(
@@ -22384,7 +22280,7 @@ function registerTaskTools(server2) {
     async ({ caller, title, context, deps, decisions, goal, owner }) => {
       const allowedCallers = ["director", "lead", "principal"];
       if (!allowedCallers.includes(caller)) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: `Only ${allowedCallers.join("/")} can create tasks. You are: ${caller}` }) }] };
+        return textResult({ error: `Only ${allowedCallers.join("/")} can create tasks. You are: ${caller}` });
       }
       let data = await readTasks();
       if (!data) {
@@ -22406,7 +22302,7 @@ function registerTaskTools(server2) {
       };
       data.tasks.push(newTask);
       await writeTasks(data);
-      return { content: [{ type: "text", text: JSON.stringify({ task: newTask }) }] };
+      return textResult({ task: newTask });
     }
   );
   server2.tool(
@@ -22419,23 +22315,15 @@ function registerTaskTools(server2) {
     async ({ id, status }) => {
       const data = await readTasks();
       if (!data) {
-        return {
-          content: [
-            { type: "text", text: JSON.stringify({ error: "tasks.json not found" }) }
-          ]
-        };
+        return textResult({ error: "tasks.json not found" });
       }
       const task = data.tasks.find((t) => t.id === id);
       if (!task) {
-        return {
-          content: [
-            { type: "text", text: JSON.stringify({ error: `Task id ${id} not found` }) }
-          ]
-        };
+        return textResult({ error: `Task id ${id} not found` });
       }
       task.status = status;
       await writeTasks(data);
-      return { content: [{ type: "text", text: JSON.stringify({ task }) }] };
+      return textResult({ task });
     }
   );
   server2.tool(
@@ -22444,16 +22332,16 @@ function registerTaskTools(server2) {
     {},
     async () => {
       const root = getBranchRoot();
-      const historyPath = (0, import_path9.join)(root, "history.json");
-      const consultJsonPath = (0, import_path9.join)(root, "consult.json");
-      const decisionsJsonPath = (0, import_path9.join)(root, "decisions.json");
+      const historyPath = (0, import_path10.join)(root, "history.json");
+      const consultJsonPath = (0, import_path10.join)(root, "consult.json");
+      const decisionsJsonPath = (0, import_path10.join)(root, "decisions.json");
       const consult = await readConsult();
       const decisionsData = await readDecisions();
       const decisions = decisionsData.decisions;
       const tasksData = await readTasks();
       const tasks = tasksData?.tasks ?? [];
       let history = { cycles: [] };
-      if ((0, import_fs9.existsSync)(historyPath)) {
+      if ((0, import_fs10.existsSync)(historyPath)) {
         const raw = await (0, import_promises5.readFile)(historyPath, "utf-8");
         history = JSON.parse(raw);
       }
@@ -22468,30 +22356,25 @@ function registerTaskTools(server2) {
       await (0, import_promises5.writeFile)(historyPath, JSON.stringify(history, null, 2));
       const deleted = [];
       for (const p of [consultJsonPath, decisionsJsonPath, tasksPath()]) {
-        if ((0, import_fs9.existsSync)(p)) {
-          (0, import_fs9.unlinkSync)(p);
+        if ((0, import_fs10.existsSync)(p)) {
+          (0, import_fs10.unlinkSync)(p);
           deleted.push(p.split("/").pop());
         }
       }
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            closed: true,
-            cycle: cycle.completed_at,
-            archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
-            deleted,
-            total_cycles: history.cycles.length
-          })
-        }]
-      };
+      return textResult({
+        closed: true,
+        cycle: cycle.completed_at,
+        archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
+        deleted,
+        total_cycles: history.cycles.length
+      });
     }
   );
 }
 
 // src/mcp/tools/artifact.ts
 var import_promises6 = require("fs/promises");
-var import_path10 = require("path");
+var import_path11 = require("path");
 function registerArtifactTools(server2) {
   server2.tool(
     "nx_artifact_write",
@@ -22501,86 +22384,37 @@ function registerArtifactTools(server2) {
       content: external_exports.string().describe("File content to write")
     },
     async ({ filename, content }) => {
-      const artifactsDir = (0, import_path10.join)(getBranchRoot(), "artifacts");
+      const artifactsDir = (0, import_path11.join)(getBranchRoot(), "artifacts");
       ensureDir(artifactsDir);
-      const path = (0, import_path10.join)(artifactsDir, filename);
+      const path = (0, import_path11.join)(artifactsDir, filename);
       await (0, import_promises6.writeFile)(path, content);
-      return { content: [{ type: "text", text: JSON.stringify({ success: true, path }) }] };
-    }
-  );
-}
-
-// src/mcp/tools/rules.ts
-var import_fs10 = require("fs");
-var import_promises7 = require("fs/promises");
-var import_path11 = require("path");
-function registerRulesTools(server2) {
-  server2.tool(
-    "nx_rules_read",
-    "Read project rules (git-tracked, shared across team)",
-    {
-      name: external_exports.string().optional().describe('Specific rule name (e.g., "coding-style", "review-checklist")'),
-      tags: external_exports.array(external_exports.string()).optional().describe("Filter by tags (searches HTML comment frontmatter)")
-    },
-    async ({ name, tags }) => {
-      const rulesDir = (0, import_path11.join)(KNOWLEDGE_ROOT, "rules");
-      if (name) {
-        const path = rulesPath(name);
-        if (!(0, import_fs10.existsSync)(path)) {
-          return { content: [{ type: "text", text: JSON.stringify({ exists: false, name }) }] };
-        }
-        const content = await (0, import_promises7.readFile)(path, "utf-8");
-        return { content: [{ type: "text", text: content }] };
-      }
-      if (!(0, import_fs10.existsSync)(rulesDir)) {
-        return { content: [{ type: "text", text: JSON.stringify({ rules: [] }) }] };
-      }
-      const files = (await (0, import_promises7.readdir)(rulesDir)).filter((f) => f.endsWith(".md"));
-      const results = [];
-      for (const file of files) {
-        const filePath = (0, import_path11.join)(rulesDir, file);
-        const content = await (0, import_promises7.readFile)(filePath, "utf-8");
-        if (tags && tags.length > 0) {
-          const lowerContent = content.toLowerCase();
-          const matched = tags.some((tag) => lowerContent.includes(tag.toLowerCase()));
-          if (!matched) continue;
-        }
-        const firstLine = content.split("\n").find((l) => l.startsWith("# ")) ?? file;
-        results.push({ name: file.replace(".md", ""), preview: firstLine });
-      }
-      return { content: [{ type: "text", text: JSON.stringify({ rules: results }) }] };
-    }
-  );
-  server2.tool(
-    "nx_rules_write",
-    "Write project rules (git-tracked). Use for team conventions, guidelines, and checklists.",
-    {
-      name: external_exports.string().describe("Rule name (becomes filename: rules/{name}.md)"),
-      content: external_exports.string().describe("Markdown content to write"),
-      tags: external_exports.array(external_exports.string()).optional().describe("Tags for searchability")
-    },
-    async ({ name, content, tags }) => {
-      const rulesDir = (0, import_path11.join)(KNOWLEDGE_ROOT, "rules");
-      ensureDir(rulesDir);
-      let body = content;
-      if (tags && tags.length > 0) {
-        body = `<!-- tags: ${tags.join(", ")} -->
-${content}`;
-      }
-      const path = rulesPath(name);
-      await (0, import_promises7.writeFile)(path, body);
-      return { content: [{ type: "text", text: JSON.stringify({ success: true, name, path }) }] };
+      return textResult({ success: true, path });
     }
   );
 }
 
 // src/mcp/server.ts
+var import_path12 = require("path");
 var server = new McpServer({
   name: "nx",
-  version: "0.2.0"
-  // synced with package.json
+  version: getCurrentVersion() || "0.0.0"
 });
-registerKnowledgeTools(server);
+registerMarkdownStore(server, {
+  toolPrefix: "nx_knowledge",
+  entityName: "topic",
+  dirPath: (0, import_path12.join)(KNOWLEDGE_ROOT, "knowledge"),
+  pathFn: knowledgePath,
+  listKey: "topics",
+  cache: true
+});
+registerMarkdownStore(server, {
+  toolPrefix: "nx_rules",
+  entityName: "name",
+  dirPath: (0, import_path12.join)(KNOWLEDGE_ROOT, "rules"),
+  pathFn: rulesPath,
+  listKey: "rules",
+  cache: false
+});
 registerContextTool(server);
 registerLspTools(server);
 registerAstTools(server);
@@ -22588,7 +22422,6 @@ registerTaskTools(server);
 registerDecisionTools(server);
 registerArtifactTools(server);
 registerConsultTools(server);
-registerRulesTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

@@ -1,19 +1,10 @@
 import { z } from 'zod';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
-import { getBranchRoot } from '../../shared/paths.js';
-import { execSync } from 'child_process';
+import { getBranchRoot, getCurrentBranch } from '../../shared/paths.js';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-
-/** 현재 git 브랜치명 */
-function getCurrentBranch(): string {
-  try {
-    return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
-  } catch {
-    return 'unknown';
-  }
-}
+import { textResult } from '../../shared/mcp-utils.js';
 
 export function registerContextTool(server: McpServer): void {
   server.tool(
@@ -60,7 +51,7 @@ export function registerContextTool(server: McpServer): void {
         decisions,
       };
 
-      return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
+      return textResult(result);
     }
   );
 }

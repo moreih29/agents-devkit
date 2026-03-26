@@ -3,13 +3,13 @@ import { existsSync, mkdirSync, renameSync } from 'fs';
 import { execSync } from 'child_process';
 
 /** 프로젝트 루트 (.git이 있는 디렉토리) */
-function findProjectRoot(): string {
-  let dir = process.cwd();
+export function findProjectRoot(startDir?: string): string {
+  let dir = startDir ?? process.cwd();
   while (dir !== '/') {
     if (existsSync(join(dir, '.git'))) return dir;
     dir = resolve(dir, '..');
   }
-  return process.cwd();
+  return startDir ?? process.cwd();
 }
 
 const PROJECT_ROOT = findProjectRoot();
@@ -38,7 +38,7 @@ export function ensureDir(dir: string): void {
 }
 
 /** 현재 git 브랜치명 반환. 실패 시 '_unknown' */
-function getCurrentBranch(): string {
+export function getCurrentBranch(): string {
   try {
     return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
   } catch {
@@ -75,7 +75,7 @@ function migrateLegacyBranchDir(branchName: string): void {
 
 migrateLegacyBranchDir(CURRENT_BRANCH);
 
-/** @deprecated 정적 값 — MCP 서버처럼 장기 프로세스에서는 getBranchRoot() 사용 */
+/** @deprecated MCP 서버(장기 프로세스)에서 비추천. 훅(단발 프로세스)에서는 안전. */
 export const BRANCH_ROOT = join(RUNTIME_ROOT, 'branches', sanitizeBranch(CURRENT_BRANCH));
 
 /** 호출 시마다 현재 브랜치를 감지하여 경로 반환. MCP 도구에서 사용. */

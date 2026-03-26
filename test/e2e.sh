@@ -152,7 +152,7 @@ rm -f "$E2E_BRANCH_ROOT/tasks.json"
 echo '{"tasks":[{"id":"t1","title":"pending task","status":"pending"},{"id":"t2","title":"done","status":"completed"}]}' > "$E2E_BRANCH_ROOT/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (pending tasks)" '"continue":true' "$result"
-check "Gate/Stop (pending tasks count)" '1 tasks remaining' "$result"
+check "Gate/Stop (pending tasks count)" '1 tasks pending' "$result"
 rm -f "$E2E_BRANCH_ROOT/tasks.json"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
@@ -189,7 +189,7 @@ check "Gate/UserPromptSubmit (dev! tag)" 'Dev team mode' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[dev!] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
 check "Dev team (nx_task_add)" 'nx_task_add' "$result"
-check "Dev team (tasks.json)" 'tasks.json' "$result"
+check "Dev team (nx_task_update)" 'nx_task_update' "$result"
 
 # --- Research ---
 echo ""
@@ -203,7 +203,7 @@ check "Gate/UserPromptSubmit (research! tag)" 'Research team mode' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[research!] 시장 조사"}' | node scripts/gate.cjs 2>/dev/null)
 check "Research team (nx_task_add)" 'nx_task_add' "$result"
-check "Research team (tasks.json)" 'tasks.json' "$result"
+check "Research team (nx_task_update)" 'nx_task_update' "$result"
 
 # --- Statusline ---
 echo ""

@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBranchRoot, ensureDir } from '../../shared/paths.js';
+import { textResult } from '../../shared/mcp-utils.js';
 
 export interface DecisionEntry {
   id: number;
@@ -15,11 +16,7 @@ export interface DecisionsFile {
   decisions: DecisionEntry[];
 }
 
-export function normalizeDecision(d: DecisionEntry): DecisionEntry {
-  return d;
-}
-
-export function decisionsPath(): string {
+function decisionsPath(): string {
   return join(getBranchRoot(), 'decisions.json');
 }
 
@@ -52,14 +49,7 @@ export function registerDecisionTools(server: McpServer): void {
       const entry: DecisionEntry = { id: maxId + 1, summary, consult: consult ?? null };
       data.decisions.push(entry);
       await writeDecisions(data);
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: JSON.stringify({ decisions: data.decisions }),
-          },
-        ],
-      };
+      return textResult({ decisions: data.decisions });
     }
   );
 
