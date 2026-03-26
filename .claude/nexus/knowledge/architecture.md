@@ -72,7 +72,7 @@ dev-sync.mjs (빌드 산출물 → 플러그인 캐시/마켓플레이스 동기
 - **동적 브랜치 감지**: MCP 도구는 `getBranchRoot()` 함수로 호출 시마다 현재 브랜치를 감지. MCP 서버가 장기 프로세스이므로 정적 상수 대신 동적 해결.
 - **CLAUDE.md 자동 동기화**: gate.ts가 세션 시작 시 `templates/nexus-section.md`와 글로벌 CLAUDE.md를 콘텐츠 비교하여 자동 갱신. 프로젝트 CLAUDE.md는 stale 시 알림만.
 - **esbuild CJS 번들**: 플러그인 런타임이 `node`로 실행되므로 CJS 포맷. `@ast-grep/napi`는 네이티브 모듈이라 external 처리.
-- **git fallback `_default`**: git이 없는 환경에서 `getCurrentBranch()`는 `'_default'`를 반환. `.nexus/branches/_default/`에 런타임 상태 저장. 기존 `_unknown` 경로는 자동 마이그레이션.
+- **git fallback `_default`**: `getCurrentBranch()`는 `git rev-parse --abbrev-ref HEAD` → 실패 시 `git symbolic-ref --short HEAD`(커밋 없는 저장소 대응) → 여전히 실패 시 `'_default'` 반환. `.nexus/branches/_default/`에 런타임 상태 저장. 기존 `_unknown` 경로는 자동 마이그레이션.
 - **[consult] 세션 유지**: [consult] 태그 사용 시 기존 consult.json 있으면 세션 이어감. gate.ts가 consult.json 존재 여부를 체크하여 기존 세션 확인/이어가기 안내 또는 새 세션 시작 안내를 분기. cleanupConsult() 제거됨.
 - **통합 아카이브**: nx_task_close가 consult+decisions+tasks를 history.json에 통합 아카이브. 소스 파일(consult.json, decisions.json, tasks.json) 삭제. decision-archives.json 폐기됨.
 - **gate.ts 핸들러 맵**: handleUserPromptSubmit을 PRIMITIVE_HANDLERS 맵 기반 dispatch로 분해. 모드별 핸들러 함수로 분리. TASK_PIPELINE 공통 상수로 파이프라인 규칙 통합.

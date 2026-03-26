@@ -56,8 +56,8 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 `PRIMITIVE_HANDLERS` 맵 기반 dispatch → 모드별 핸들러 함수 호출:
 - consult: consult.json 존재 여부 체크 → 있으면 세션 이어감, 없으면 새 세션 시작 안내.
-- dev/research: TASK_PIPELINE 주입 + Sub/Team 판단 가이드
-- dev!/research!: GUIDELINES (소프트 가이드) + 워크플로우 요약 + Spawn example 주입. "BLOCKED" 아닌 "Avoid" 톤.
+- dev/research: TASK_PIPELINE 주입 + Sub/Team 판단 가이드 + main/master 브랜치 경고 조건부 주입
+- dev!/research!: GUIDELINES (소프트 가이드) + 워크플로우 요약 + Spawn example 주입 + main/master 브랜치 경고 조건부 주입. "BLOCKED" 아닌 "Avoid" 톤.
 
 태그 없음 fallback:
 - tasks.json 없음 → TASK_PIPELINE 선제 주입
@@ -114,7 +114,7 @@ consult.json이 존재하는 동안, 태그 없는 멀티턴 대화에서도 매
 | 스킬 | 트리거 | Sub Path | Team Path |
 |------|--------|----------|-----------|
 | nx-consult | [consult] | 구조화된 5단계 상담 (탐색→논점도출→선택지→결정→완료). consult.json 필수. 사용자 요청 시 nx_rules_write로 커스텀 rules 생성 안내. | — |
-| nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["dev"])로 팀 rules 확인 후 우선 적용. 모드 고지. | Director+Architect 합의→Engineer+QA 실행. Phase 1 briefing에 nx_rules_read(tags: ["dev"]) 결과 포함. 모드 고지. |
-| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["research"])로 팀 rules 확인 후 우선 적용. 모드 고지. 리포트 없음. | Principal+Postdoc 스코프→Researcher 조사→Converge. Phase 1 briefing에 nx_rules_read(tags: ["research"]) 결과 포함. 리포트 필수. 모드 고지. |
+| nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["dev"])로 팀 rules 확인 후 우선 적용. Branch Guard: main/master면 자동 브랜치 생성 (feat/, fix/, chore/). 모드 고지. | Director+Architect 합의→Engineer+QA 실행. Phase 1 briefing에 nx_rules_read(tags: ["dev"]) 결과 포함. Branch Guard 포함. 모드 고지. |
+| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["research"])로 팀 rules 확인 후 우선 적용. Branch Guard: main/master면 자동 브랜치 생성 (research/, feat/). 모드 고지. 리포트 없음. | Principal+Postdoc 스코프→Researcher 조사→Converge. Phase 1 briefing에 nx_rules_read(tags: ["research"]) 결과 포함. Branch Guard 포함. 리포트 필수. 모드 고지. |
 | nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 (templates/nexus-section.md에서 Nexus 섹션 읽기) | — |
 | nx-sync | /claude-nexus:nx-sync | git diff 기반 drift 감지+수정 (첫 실행=자동 생성, --reset=초기화, Phase 0.5=CLAUDE.md 체크) | — |
