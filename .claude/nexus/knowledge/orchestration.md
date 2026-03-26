@@ -114,7 +114,7 @@ consult.json이 존재하는 동안, 태그 없는 멀티턴 대화에서도 매
 | 스킬 | 트리거 | Sub Path | Team Path |
 |------|--------|----------|-----------|
 | nx-consult | [consult] | 구조화된 5단계 상담 (탐색→논점도출→선택지→결정→완료). consult.json 필수. 사용자 요청 시 nx_rules_write로 커스텀 rules 생성 안내. | — |
-| nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["dev"])로 팀 rules 확인 후 우선 적용. Branch Guard: main/master면 자동 브랜치 생성 (feat/, fix/, chore/). 모드 고지. | Director+Architect 합의→Engineer+QA 실행. Phase 1 briefing에 nx_rules_read(tags: ["dev"]) 결과 포함. Branch Guard 포함. 모드 고지. |
-| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["research"])로 팀 rules 확인 후 우선 적용. Branch Guard: main/master면 자동 브랜치 생성 (research/, feat/). 모드 고지. 리포트 없음. | Principal+Postdoc 스코프→Researcher 조사→Converge. Phase 1 briefing에 nx_rules_read(tags: ["research"]) 결과 포함. Branch Guard 포함. 리포트 필수. 모드 고지. |
+| nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["dev"])로 팀 rules 확인 후 우선 적용. Branch Guard: main/master면 자동 브랜치 생성 (feat/, fix/, chore/) + nx_branch_migrate로 상태 이동. 모드 고지 + 판단 근거 표시. | Director+Architect 합의→Engineer+QA 실행. Phase 1 briefing에 nx_rules_read(tags: ["dev"]) 결과 포함. Branch Guard + nx_branch_migrate 포함. 모드 고지 + 판단 근거 표시. |
+| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["research"])로 팀 rules 확인 후 우선 적용. Branch Guard: main/master면 자동 브랜치 생성 (research/, feat/) + nx_branch_migrate로 상태 이동. 모드 고지 + 판단 근거 표시. 리포트 없음. | Principal+Postdoc 스코프→Researcher 조사→Converge. Phase 1 briefing에 nx_rules_read(tags: ["research"]) 결과 포함. Branch Guard + nx_branch_migrate 포함. 리포트 필수. 모드 고지 + 판단 근거 표시. |
 | nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 (templates/nexus-section.md에서 Nexus 섹션 읽기) | — |
 | nx-sync | /claude-nexus:nx-sync | git diff 기반 drift 감지+수정 (첫 실행=자동 생성, --reset=초기화, Phase 0.5=CLAUDE.md 체크) | — |

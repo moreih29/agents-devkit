@@ -22,6 +22,7 @@ MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/
 | `nx_consult_status` | consult.ts | `.nexus/branches/{branch}/consult.json` + `decisions.json` | 현재 상담 상태 조회 (논점 목록/상태 + 결정된 논점의 decisions.json 내용 join) |
 | `nx_consult_update` | consult.ts | `.nexus/branches/{branch}/consult.json` | 활성 상담 세션 논점 수정. action: add/remove/edit/reopen |
 | `nx_consult_decide` | consult.ts | `.nexus/branches/{branch}/consult.json` + `decisions.json` | 논점 결정 처리 (consult.json 갱신 + decisions.json 기록). 모두 decided 시 완료 시그널 반환 — consult.json 삭제 안 함. |
+| `nx_branch_migrate` | branch.ts | `.nexus/branches/{branch}/` | 다른 브랜치 폴더의 consult.json+decisions.json을 현재 브랜치 폴더로 이동. Branch Guard에서 브랜치 생성 직후 호출. |
 
 ## nx_consult_update 액션
 
