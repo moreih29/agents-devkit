@@ -120,8 +120,8 @@ Gate 단일 모듈로 동작합니다.
 
 | 이벤트 | 역할 |
 |--------|------|
-| `UserPromptSubmit` | 태그 감지 → 모드 활성화 + TASK_PIPELINE 주입. mode.json 생성 |
-| `PreToolUse` | Edit/Write: mode.json 존재 시 Lead 차단, tasks.json 없으면 차단. Agent: team 모드에서 직접 호출 차단. TeamCreate: path를 team으로 전환 |
+| `UserPromptSubmit` | 태그 감지 → 모드 활성화 + TASK_PIPELINE 주입 + additionalContext 안내 |
+| `PreToolUse` | Edit/Write: tasks.json 없으면 차단. Nexus 내부 경로는 예외 허용 |
 | `Stop` | pending 태스크 있으면 종료 차단. all completed면 nx_task_close 강제 |
 
 </details>
@@ -150,7 +150,6 @@ Gate 단일 모듈로 동작합니다.
 │       ├── decisions.json  ← 아키텍처 결정 목록
 │       ├── consult.json    ← 상담 논점 추적
 │       ├── history.json    ← 사이클 아카이브 (nx_task_close 시 생성)
-│       ├── mode.json       ← 실행 모드 (dev/research, sub/team)
 │       └── artifacts/      ← 팀 산출물
 └── sync-state.json         ← 마지막 sync 커밋
 ```
