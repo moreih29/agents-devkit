@@ -51,7 +51,7 @@ export function getCurrentBranch(): string {
 }
 
 /** 브랜치명을 파일시스템 안전한 형태로 변환 */
-function sanitizeBranch(branch: string): string {
+export function sanitizeBranch(branch: string): string {
   if (branch === 'HEAD') {
     try {
       const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
