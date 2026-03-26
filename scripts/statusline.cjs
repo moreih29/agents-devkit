@@ -43,7 +43,7 @@ function getCurrentBranch() {
   try {
     return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
   } catch {
-    return "_unknown";
+    return "_default";
   }
 }
 function sanitizeBranch(branch) {
@@ -65,6 +65,12 @@ function migrateLegacyBranchDir(branchName) {
   if ((0, import_fs2.existsSync)(legacyPath) && !(0, import_fs2.existsSync)(newPath)) {
     ensureDir((0, import_path2.join)(RUNTIME_ROOT, "branches"));
     (0, import_fs2.renameSync)(legacyPath, newPath);
+  }
+  if (sanitized === "_default") {
+    const unknownPath = (0, import_path2.join)(RUNTIME_ROOT, "branches", "_unknown");
+    if ((0, import_fs2.existsSync)(unknownPath) && !(0, import_fs2.existsSync)(newPath)) {
+      (0, import_fs2.renameSync)(unknownPath, newPath);
+    }
   }
 }
 migrateLegacyBranchDir(CURRENT_BRANCH);

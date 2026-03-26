@@ -10,6 +10,7 @@ export interface DecisionEntry {
   id: number;
   summary: string;
   consult: number | null;
+  status?: 'active' | 'revoked';
 }
 
 export interface DecisionsFile {
