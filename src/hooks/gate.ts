@@ -121,6 +121,28 @@ function handleStop(): void {
   });
 }
 
+// --- mode.json 헬퍼 ---
+
+function writeMode(mode: string, path: 'sub' | 'team'): void {
+  const modePath = join(BRANCH_ROOT, 'mode.json');
+  const modeDir = dirname(modePath);
+  if (!existsSync(modeDir)) mkdirSync(modeDir, { recursive: true });
+  writeFileSync(modePath, JSON.stringify({ mode, path }));
+}
+
+function readMode(): { mode: string; path: string } | null {
+  const modePath = join(BRANCH_ROOT, 'mode.json');
+  if (!existsSync(modePath)) return null;
+  try {
+    return JSON.parse(readFileSync(modePath, 'utf-8'));
+  } catch { return null; }
+}
+
+function updateModePath(newPath: 'sub' | 'team'): void {
+  const current = readMode();
+  if (current) writeMode(current.mode, newPath);
+}
+
 // --- PreToolUse 이벤트 처리: Agent 직접 호출 차단 + Edit/Write 태스크 강제 ---
 
 /** 예외 경로: Nexus 내부 파일 및 setup/sync 대상 파일은 tasks.json 없이도 수정 허용 */
@@ -145,6 +167,16 @@ function handlePreToolUse(event: Record<string, unknown>): void {
     const filePath = (toolInput?.file_path ?? '') as string;
 
     if (!isNexusInternalPath(filePath)) {
+      // mode.json 존재 시 Lead Edit/Write 차단 (dev/research 모드)
+      const modePath = join(BRANCH_ROOT, 'mode.json');
+      if (existsSync(modePath)) {
+        respond({
+          decision: 'block',
+          reason: '[NEXUS] Dev/Research mode active. Lead cannot edit files directly. Spawn agents (Agent tool) to perform the work.',
+        });
+        return;
+      }
+
       const summary = readTasksSummary(BRANCH_ROOT);
       if (!summary.exists) {
         respond({
@@ -163,6 +195,13 @@ function handlePreToolUse(event: Record<string, unknown>): void {
       }
     }
 
+    pass();
+    return;
+  }
+
+  // TeamCreate → mode.json path를 "team"으로 전환
+  if (toolName === 'TeamCreate') {
+    updateModePath('team');
     pass();
     return;
   }
@@ -187,18 +226,17 @@ function handlePreToolUse(event: Record<string, unknown>): void {
     return;
   }
 
-  // .nexus/<branch>/tasks.json 존재 = team 모드 활성
-  const summary = readTasksSummary(BRANCH_ROOT);
-  if (!summary.exists) {
-    pass();
+  // mode.json path === "team" 일 때만 Agent() 직접 호출 차단
+  const modeData = readMode();
+  if (modeData?.path === 'team') {
+    respond({
+      decision: 'block',
+      reason: '[TEAM] Direct Agent() calls are blocked in team mode. Use TeamCreate + Agent({ team_name }) to spawn teammates, or SendMessage to communicate with existing teammates.',
+    });
     return;
   }
 
-  // team 모드에서 Agent() 직접 호출 차단
-  respond({
-    decision: 'block',
-    reason: '[TEAM] Direct Agent() calls are blocked in team mode. Use TeamCreate + TaskCreate to spawn teammates, or SendMessage to communicate with existing teammates.',
-  });
+  pass();
 }
 
 // --- UserPromptSubmit 이벤트 처리: 키워드 감지 ---
@@ -240,7 +278,7 @@ function isPrimitiveMention(prompt: string): boolean {
 
 function detectKeywords(prompt: string): KeywordMatch | null {
   // 1차: 명시적 태그 [consult], [dev], [dev!], [research], [research!] — 항상 확정
-  const tagMatch = prompt.match(/\[([\w:]+!?)\]/);
+  const tagMatch = prompt.match(/\[(consult|dev!?|research!?)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -308,6 +346,7 @@ Note: To continue an existing session, just continue the conversation without us
 }
 
 function handleDevMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  writeMode('dev', 'sub');
   const base = taskPipelineMessage(`[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (1-3 files): Use direct Agent() spawns
 - Complex (4+ files): Use TeamCreate + full team workflow
@@ -319,6 +358,7 @@ function handleDevMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHa
 }
 
 function handleDevTeamMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  writeMode('dev', 'team');
   respond({
     continue: true,
     additionalContext: withNotices(DEV_TEAM_NUDGE, tasksReminder, claudeMdNotice),
@@ -326,6 +366,7 @@ function handleDevTeamMode({ tasksReminder, claudeMdNotice }: Parameters<Primiti
 }
 
 function handleResearchMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  writeMode('research', 'sub');
   const base = taskPipelineMessage(`[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (1-3 topics, single domain): Use direct Agent() spawns
 - Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow
@@ -337,6 +378,7 @@ function handleResearchMode({ tasksReminder, claudeMdNotice }: Parameters<Primit
 }
 
 function handleResearchTeamMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  writeMode('research', 'team');
   respond({
     continue: true,
     additionalContext: withNotices(RESEARCH_TEAM_NUDGE, tasksReminder, claudeMdNotice),
@@ -355,7 +397,8 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const claudeMdNotice = handleClaudeMdSync();
   const tasksReminder = getTasksReminder();
 
-  const prompt = (event.prompt ?? event.user_prompt ?? '') as string;
+  const raw = event.prompt ?? event.user_prompt ?? '';
+  const prompt = typeof raw === 'string' ? raw : String(raw);
   if (!prompt) { pass(); return; }
 
   // [d] 결정 태그 감지 — consult.json 유무로 도구 분기 + 행동 규칙 주입

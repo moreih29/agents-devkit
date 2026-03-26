@@ -22355,7 +22355,8 @@ function registerTaskTools(server2) {
       ensureDir(root);
       await (0, import_promises5.writeFile)(historyPath, JSON.stringify(history, null, 2));
       const deleted = [];
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath()]) {
+      const modePath = (0, import_path10.join)(root, "mode.json");
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), modePath]) {
         if ((0, import_fs10.existsSync)(p)) {
           (0, import_fs10.unlinkSync)(p);
           deleted.push(p.split("/").pop());

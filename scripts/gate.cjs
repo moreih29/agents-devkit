@@ -189,6 +189,25 @@ function handleStop() {
     additionalContext: `[NEXUS] All ${summary.total} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks \u2192 history.json) before finishing.`
   });
 }
+function writeMode(mode, path) {
+  const modePath = (0, import_path3.join)(BRANCH_ROOT, "mode.json");
+  const modeDir = (0, import_path3.dirname)(modePath);
+  if (!(0, import_fs3.existsSync)(modeDir)) (0, import_fs3.mkdirSync)(modeDir, { recursive: true });
+  (0, import_fs3.writeFileSync)(modePath, JSON.stringify({ mode, path }));
+}
+function readMode() {
+  const modePath = (0, import_path3.join)(BRANCH_ROOT, "mode.json");
+  if (!(0, import_fs3.existsSync)(modePath)) return null;
+  try {
+    return JSON.parse((0, import_fs3.readFileSync)(modePath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+function updateModePath(newPath) {
+  const current = readMode();
+  if (current) writeMode(current.mode, newPath);
+}
 function isNexusInternalPath(filePath) {
   if (/[\\/]\.nexus[\\/]/.test(filePath)) return true;
   if (/[\\/]\.claude[\\/]nexus[\\/]/.test(filePath)) return true;
@@ -202,15 +221,23 @@ function handlePreToolUse(event) {
     const toolInput2 = event.tool_input;
     const filePath = toolInput2?.file_path ?? "";
     if (!isNexusInternalPath(filePath)) {
-      const summary2 = readTasksSummary(BRANCH_ROOT);
-      if (!summary2.exists) {
+      const modePath = (0, import_path3.join)(BRANCH_ROOT, "mode.json");
+      if ((0, import_fs3.existsSync)(modePath)) {
+        respond({
+          decision: "block",
+          reason: "[NEXUS] Dev/Research mode active. Lead cannot edit files directly. Spawn agents (Agent tool) to perform the work."
+        });
+        return;
+      }
+      const summary = readTasksSummary(BRANCH_ROOT);
+      if (!summary.exists) {
         respond({
           decision: "block",
           reason: "[NEXUS] No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: consult \u2192 decisions \u2192 tasks \u2192 execute."
         });
         return;
       }
-      if (summary2.allCompleted || summary2.total === 0) {
+      if (summary.allCompleted || summary.total === 0) {
         respond({
           decision: "block",
           reason: "[NEXUS] All tasks completed. Call nx_task_close to archive this cycle."
@@ -218,6 +245,11 @@ function handlePreToolUse(event) {
         return;
       }
     }
+    pass();
+    return;
+  }
+  if (toolName === "TeamCreate") {
+    updateModePath("team");
     pass();
     return;
   }
@@ -234,15 +266,15 @@ function handlePreToolUse(event) {
     pass();
     return;
   }
-  const summary = readTasksSummary(BRANCH_ROOT);
-  if (!summary.exists) {
-    pass();
+  const modeData = readMode();
+  if (modeData?.path === "team") {
+    respond({
+      decision: "block",
+      reason: "[TEAM] Direct Agent() calls are blocked in team mode. Use TeamCreate + Agent({ team_name }) to spawn teammates, or SendMessage to communicate with existing teammates."
+    });
     return;
   }
-  respond({
-    decision: "block",
-    reason: "[TEAM] Direct Agent() calls are blocked in team mode. Use TeamCreate + TaskCreate to spawn teammates, or SendMessage to communicate with existing teammates."
-  });
+  pass();
 }
 var EXPLICIT_TAGS = {
   consult: { primitive: "consult", skill: "claude-nexus:nx-consult" },
@@ -266,7 +298,7 @@ function isPrimitiveMention(prompt) {
   return false;
 }
 function detectKeywords(prompt) {
-  const tagMatch = prompt.match(/\[([\w:]+!?)\]/);
+  const tagMatch = prompt.match(/\[(consult|dev!?|research!?)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -318,6 +350,7 @@ Note: To continue an existing session, just continue the conversation without us
   });
 }
 function handleDevMode({ tasksReminder, claudeMdNotice }) {
+  writeMode("dev", "sub");
   const base = taskPipelineMessage(`[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (1-3 files): Use direct Agent() spawns
 - Complex (4+ files): Use TeamCreate + full team workflow
@@ -328,12 +361,14 @@ function handleDevMode({ tasksReminder, claudeMdNotice }) {
   });
 }
 function handleDevTeamMode({ tasksReminder, claudeMdNotice }) {
+  writeMode("dev", "team");
   respond({
     continue: true,
     additionalContext: withNotices(DEV_TEAM_NUDGE, tasksReminder, claudeMdNotice)
   });
 }
 function handleResearchMode({ tasksReminder, claudeMdNotice }) {
+  writeMode("research", "sub");
   const base = taskPipelineMessage(`[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (1-3 topics, single domain): Use direct Agent() spawns
 - Complex (4+ topics, multiple domains/sources needed): Use TeamCreate + full team workflow
@@ -344,6 +379,7 @@ function handleResearchMode({ tasksReminder, claudeMdNotice }) {
   });
 }
 function handleResearchTeamMode({ tasksReminder, claudeMdNotice }) {
+  writeMode("research", "team");
   respond({
     continue: true,
     additionalContext: withNotices(RESEARCH_TEAM_NUDGE, tasksReminder, claudeMdNotice)
@@ -359,7 +395,8 @@ var PRIMITIVE_HANDLERS = {
 function handleUserPromptSubmit(event) {
   const claudeMdNotice = handleClaudeMdSync();
   const tasksReminder = getTasksReminder();
-  const prompt = event.prompt ?? event.user_prompt ?? "";
+  const raw = event.prompt ?? event.user_prompt ?? "";
+  const prompt = typeof raw === "string" ? raw : String(raw);
   if (!prompt) {
     pass();
     return;
