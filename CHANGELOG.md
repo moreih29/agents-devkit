@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.15.0 (2026-03-26)
+
+### Refactoring
+- mode.json 제거 + additionalContext 복원
+
 ## 0.14.1 (2026-03-26)
 
 ### Fixes
