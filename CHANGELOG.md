@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.16.0 (2026-03-26)
+
+### Features
+- add nx_branch_migrate tool and sub/team path reasoning display
+
+### Other
+- merge: feat/branch-state-migrate — nx_branch_migrate 도구 및 판단 근거 표시
+
 ## 0.15.2 (2026-03-26)
 
 ### Fixes
