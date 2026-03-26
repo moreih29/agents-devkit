@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.1 (2026-03-26)
+
+### Refactoring
+- Nexus 구조 점검 — 성능/정합성/안정성 개선
+
+### Other
+- merge: chore/full-review — Nexus 구조 점검 개선
+
 ## 0.15.0 (2026-03-26)
 
 ### Refactoring
