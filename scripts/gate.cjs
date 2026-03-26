@@ -39,7 +39,11 @@ function getCurrentBranch() {
   try {
     return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
   } catch {
-    return "_default";
+    try {
+      return (0, import_child_process.execSync)("git symbolic-ref --short HEAD", { encoding: "utf8" }).trim();
+    } catch {
+      return "_default";
+    }
   }
 }
 function sanitizeBranch(branch) {
@@ -345,35 +349,39 @@ Follow the procedure defined in the consult skill (SKILL.md).`;
   });
 }
 function handleDevMode({ tasksReminder, claudeMdNotice }) {
+  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch: You are on main/master. Create a feature branch before making changes (e.g., feat/, fix/, chore/)." : "";
   const base = taskPipelineMessage(`[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (few tasks, no cross-cutting concerns): Spawn engineer for code edits. Do NOT edit files directly. Use parallel spawns for independent tasks.
 - Complex (design decisions needed, cross-cutting concerns): Use TeamCreate + full team workflow
-[dev!] forces team mode.`);
+[dev!] forces team mode.${branchHint}`);
   respond({
     continue: true,
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
   });
 }
 function handleDevTeamMode({ tasksReminder, claudeMdNotice }) {
+  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch: You are on main/master. Create a feature branch before making changes (e.g., feat/, fix/, chore/)." : "";
   respond({
     continue: true,
-    additionalContext: withNotices(DEV_TEAM_NUDGE, tasksReminder, claudeMdNotice)
+    additionalContext: withNotices(DEV_TEAM_NUDGE + branchHint, tasksReminder, claudeMdNotice)
   });
 }
 function handleResearchMode({ tasksReminder, claudeMdNotice }) {
+  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch: You are on main/master. Create a feature branch before making changes (e.g., research/, feat/)." : "";
   const base = taskPipelineMessage(`[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (few tasks, single perspective): Spawn researcher agents directly. Use parallel spawns for independent topics.
 - Complex (multiple perspectives needed, synthesis required): Use TeamCreate + full team workflow
-[research!] forces team mode.`);
+[research!] forces team mode.${branchHint}`);
   respond({
     continue: true,
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
   });
 }
 function handleResearchTeamMode({ tasksReminder, claudeMdNotice }) {
+  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch: You are on main/master. Create a feature branch before making changes (e.g., research/, feat/)." : "";
   respond({
     continue: true,
-    additionalContext: withNotices(RESEARCH_TEAM_NUDGE, tasksReminder, claudeMdNotice)
+    additionalContext: withNotices(RESEARCH_TEAM_NUDGE + branchHint, tasksReminder, claudeMdNotice)
   });
 }
 var PRIMITIVE_HANDLERS = {

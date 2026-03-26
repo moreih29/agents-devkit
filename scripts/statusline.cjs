@@ -43,7 +43,11 @@ function getCurrentBranch() {
   try {
     return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
   } catch {
-    return "_default";
+    try {
+      return (0, import_child_process.execSync)("git symbolic-ref --short HEAD", { encoding: "utf8" }).trim();
+    } catch {
+      return "_default";
+    }
   }
 }
 function sanitizeBranch(branch) {
