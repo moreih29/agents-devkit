@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.0 (2026-03-26)
+
+### Features
+- tasks.json 파이프라인 강제 — PreToolUse 차단 + UserPromptSubmit 리마인드
+
+### Refactoring
+- 구조 리팩토링 — 파이프라인 강제 + 코드 중복 제거 + gate.ts 분해
+
+### Fixes
+- 스킬 트리거 강제 — 태그 정규식 수정 + mode.json path 기반 제어
+
 ## 0.13.1 (2026-03-25)
 
 ### Fixes
