@@ -74,7 +74,7 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 - `[consult]` 태그 사용 시 consult.json 존재 여부로 분기:
   - 있으면: nx_consult_status 확인 후 nx_consult_update(add)로 논점 추가 안내
-  - 없으면: nx_consult_start 호출 + 8단계 새 세션 시작 안내
+  - 없으면: nx_consult_start 호출 + 5단계 새 세션 시작 안내
 - 세션은 nx_task_close 호출 시 history.json에 아카이브되어 종료됨.
 - cleanupConsult() 제거됨 — 모드 전환(dev/research 등) 시 consult.json을 삭제하지 않음.
 
@@ -111,7 +111,7 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 | 스킬 | 트리거 | Sub Path | Team Path |
 |------|--------|----------|-----------|
-| nx-consult | [consult] | 구조화된 8단계 상담 (탐색→논점도출→선택지→결정→완료). consult.json 추적. 사용자 요청 시 nx_rules_write로 커스텀 rules 생성 안내. | — |
+| nx-consult | [consult] | 구조화된 5단계 상담 (탐색→논점도출→선택지→결정→완료). consult.json 필수. 사용자 요청 시 nx_rules_write로 커스텀 rules 생성 안내. | — |
 | nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["dev"])로 팀 rules 확인 후 우선 적용. 모드 고지. | Director+Architect 합의→Engineer+QA 실행. Phase 1 briefing에 nx_rules_read(tags: ["dev"]) 결과 포함. 모드 고지. |
 | nx-research | [research]/[research!] | Lead 분석→Researcher 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["research"])로 팀 rules 확인 후 우선 적용. 모드 고지. 리포트 없음. | Principal+Postdoc 스코프→Researcher 조사→Converge. Phase 1 briefing에 nx_rules_read(tags: ["research"]) 결과 포함. 리포트 필수. 모드 고지. |
 | nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 (templates/nexus-section.md에서 Nexus 섹션 읽기) | — |
