@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.1 (2026-03-26)
+
+### Fixes
+- CLAUDE.md 미존재 경로 제거 + consult 스킬 예외 조항 삭제
+
 ## 0.14.0 (2026-03-26)
 
 ### Features
