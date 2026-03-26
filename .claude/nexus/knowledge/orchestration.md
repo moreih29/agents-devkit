@@ -42,18 +42,13 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 `Edit`/`Write` 도구 호출 시:
 - isNexusInternalPath → 허용
-- `mode.json` 존재 → 차단 (dev/research 모드에서 Lead 직접 수정 금지)
 - `tasks.json` 없음 → 차단 (nx_task_add 필수)
 - all completed / 빈 배열 → 차단 (nx_task_close 필수)
-
-`TeamCreate` 도구 호출 시:
-- mode.json의 path를 `"team"`으로 동적 전환 → 허용
 
 `Agent` 도구 호출 시:
 - Explore agent → 항상 허용
 - `team_name` 있음 → 허용 (TeamCreate 기반 teammate)
-- `mode.json` path === `"team"` → 차단 (팀 모드에서 직접 Agent() 금지)
-- 그 외 → 허용 (sub path에서 Agent 직접 스폰 가능)
+- 그 외 → 허용
 
 ### UserPromptSubmit 이벤트
 
@@ -61,8 +56,8 @@ dev/research는 오탐 위험으로 자연어 패턴 없음 — 태그 전용.
 
 `PRIMITIVE_HANDLERS` 맵 기반 dispatch → 모드별 핸들러 함수 호출:
 - consult: consult.json 존재 여부 체크 → 있으면 세션 이어감, 없으면 새 세션 시작 안내.
-- dev/research: mode.json `{mode, path:"sub"}` 생성 + TASK_PIPELINE 주입 + Sub/Team 판단 가이드 (nudge만)
-- dev!/research!: mode.json `{mode, path:"team"}` 생성 + 팀 모드 nudge (SKILL.md 프로시저 참조)
+- dev/research: TASK_PIPELINE 주입 + Sub/Team 판단 가이드
+- dev!/research!: CRITICAL RULES 5줄 + 워크플로우 요약 + Spawn example 주입 (v0.13.1 수준 상세 안내)
 
 태그 없음 fallback:
 - tasks.json 없음 → TASK_PIPELINE 선제 주입

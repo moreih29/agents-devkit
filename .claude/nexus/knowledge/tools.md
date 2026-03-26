@@ -94,4 +94,4 @@ decisions.json의 각 항목 구조:
 - `nx_consult_decide`는 consult.json + decisions.json을 동시 갱신. 모든 issues decided 시 consult.json **삭제하지 않음** — 완료 시그널(`allComplete: true`) 반환.
 - `nx_consult_update`의 reopen 액션은 decisions.json에서 `consult === issue_id`인 항목을 제거하여 일관성 유지.
 - `nx_consult_status`는 결정된 논점의 decisions.json 항목을 `d.consult === issue.id` 기반으로 join하여 함께 반환.
-- `nx_task_close`는 사이클 완료 시 호출. consult+decisions+tasks를 history.json에 아카이브 후 소스 파일(consult.json, decisions.json, tasks.json, mode.json) 삭제. `nx_task_clear`(구버전) 대체.
+- `nx_task_close`는 사이클 완료 시 호출. consult+decisions+tasks를 history.json에 아카이브 후 소스 파일(consult.json, decisions.json, tasks.json) 삭제. `nx_task_clear`(구버전) 대체.
