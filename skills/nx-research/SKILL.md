@@ -26,6 +26,7 @@ Lead가 요청 복잡도를 판단해 Sub Path 또는 Team Path로 실행한다.
 ### Phase 1: Analyze (Lead 직접)
 
 - 사용자에게 모드 고지: "[research] sub-agent 모드로 처리합니다"
+- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `research/`, `feat/`). 사용자 확인 없이 자동 생성.
 - Lead가 직접 분석 도구 사용 (Read, Grep, WebSearch, WebFetch 등) — team path와 다름
 - decisions.json이 있으면 `nx_context`로 기존 결정 사항을 확인하고 맥락에 반영
 - `nx_rules_read(tags: ["research"])`로 팀 rules 확인. 있으면 스킬 기본 원칙보다 우선 적용.
@@ -65,6 +66,7 @@ Phase: **intake → scope → investigate → converge → complete**
 - 목표, 범위, 의도 정리 → briefing 작성
 - decisions.json이 있으면 기존 결정 사항을 briefing에 포함 (`nx_context`로 조회)
 - `nx_rules_read(tags: ["research"])`로 팀 rules 조회. 있으면 briefing에 포함하여 팀원에게 전달, 스킬 기본 원칙보다 우선.
+- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `research/`, `feat/`). 사용자 확인 없이 자동 생성.
 - TeamCreate + principal/postdoc 병렬 스폰
 
 ```

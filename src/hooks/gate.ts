@@ -1,6 +1,6 @@
 // Gate 훅: Stop (Task 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { BRANCH_ROOT, RUNTIME_ROOT } from '../shared/paths.js';
+import { BRANCH_ROOT, RUNTIME_ROOT, CURRENT_BRANCH } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
 import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
@@ -330,10 +330,13 @@ Follow the procedure defined in the consult skill (SKILL.md).`;
 }
 
 function handleDevMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH)
+    ? '\nBranch: You are on main/master. Create a feature branch before making changes (e.g., feat/, fix/, chore/).'
+    : '';
   const base = taskPipelineMessage(`[NEXUS] Dev mode activated. Assess the request and choose your approach:
 - Simple (few tasks, no cross-cutting concerns): Spawn engineer for code edits. Do NOT edit files directly. Use parallel spawns for independent tasks.
 - Complex (design decisions needed, cross-cutting concerns): Use TeamCreate + full team workflow
-[dev!] forces team mode.`);
+[dev!] forces team mode.${branchHint}`);
   respond({
     continue: true,
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
@@ -341,17 +344,23 @@ function handleDevMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHa
 }
 
 function handleDevTeamMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH)
+    ? '\nBranch: You are on main/master. Create a feature branch before making changes (e.g., feat/, fix/, chore/).'
+    : '';
   respond({
     continue: true,
-    additionalContext: withNotices(DEV_TEAM_NUDGE, tasksReminder, claudeMdNotice),
+    additionalContext: withNotices(DEV_TEAM_NUDGE + branchHint, tasksReminder, claudeMdNotice),
   });
 }
 
 function handleResearchMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH)
+    ? '\nBranch: You are on main/master. Create a feature branch before making changes (e.g., research/, feat/).'
+    : '';
   const base = taskPipelineMessage(`[NEXUS] Research mode activated. Assess the request and choose your approach:
 - Simple (few tasks, single perspective): Spawn researcher agents directly. Use parallel spawns for independent topics.
 - Complex (multiple perspectives needed, synthesis required): Use TeamCreate + full team workflow
-[research!] forces team mode.`);
+[research!] forces team mode.${branchHint}`);
   respond({
     continue: true,
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
@@ -359,9 +368,12 @@ function handleResearchMode({ tasksReminder, claudeMdNotice }: Parameters<Primit
 }
 
 function handleResearchTeamMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH)
+    ? '\nBranch: You are on main/master. Create a feature branch before making changes (e.g., research/, feat/).'
+    : '';
   respond({
     continue: true,
-    additionalContext: withNotices(RESEARCH_TEAM_NUDGE, tasksReminder, claudeMdNotice),
+    additionalContext: withNotices(RESEARCH_TEAM_NUDGE + branchHint, tasksReminder, claudeMdNotice),
   });
 }
 

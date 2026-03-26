@@ -42,7 +42,11 @@ export function getCurrentBranch(): string {
   try {
     return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
   } catch {
-    return '_default';
+    try {
+      return execSync('git symbolic-ref --short HEAD', { encoding: 'utf8' }).trim();
+    } catch {
+      return '_default';
+    }
   }
 }
 
