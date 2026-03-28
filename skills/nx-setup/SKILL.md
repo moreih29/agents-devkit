@@ -209,7 +209,7 @@ AskUserQuestion({
     header: "Init",
     multiSelect: false,
     options: [
-      { label: "Yes (Recommended)", description: "기존 문서(README, CLAUDE.md 등)를 분석해 .claude/nexus/knowledge/ 생성" },
+      { label: "Yes (Recommended)", description: "기존 문서(README, CLAUDE.md 등)를 분석해 .claude/nexus/core/codebase/ 생성" },
       { label: "Skip", description: "나중에 /claude-nexus:nx-sync으로 직접 실행" }
     ]
   }]

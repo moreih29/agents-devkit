@@ -64,8 +64,8 @@ mcp_call() {
   echo -e "$init\n$initialized\n$call" | node "$MCP" 2>/dev/null | tail -1
 }
 
-t1=$(measure_ms "mcp_call nx_knowledge_read '{\"topic\":\"architecture\"}'")
-echo "nx_knowledge_read (cold):   ${t1}ms"
+t1=$(measure_ms "mcp_call nx_core_read '{\"layer\":\"codebase\",\"topic\":\"architecture\"}'")
+echo "nx_core_read (cold):        ${t1}ms"
 echo "(참고: 벤치마크는 매번 새 프로세스. 실사용 시 MCP 서버 상주로 캐시 효과 있음)"
 
 echo ""

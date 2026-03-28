@@ -8,7 +8,9 @@ triggers: ["sync", "sync knowledge", "지식 동기화", "문서 동기화"]
 
 # Sync
 
-knowledge 문서를 코드베이스 현황과 동기화한다. 처음 실행 시 프로젝트를 스캔하여 knowledge를 자동 생성한다.
+core/codebase/ 문서를 코드베이스 현황과 동기화한다. 처음 실행 시 프로젝트를 스캔하여 codebase knowledge를 자동 생성한다.
+
+> **범위**: core/codebase/만 관리. identity(사용자 소유), reference(에이전트/사용자 수동), memory(task_close 시 자동)는 nx-sync의 책임이 아니다. 이 계층의 파일을 수정하거나 덮어쓰지 않는다.
 
 ## Trigger
 
@@ -49,7 +51,7 @@ IF --reset 플래그:
   No 선택 시 → 종료
   Yes 선택 시 → 기존 knowledge 파일 전부 삭제 → First Run 진입
 
-ELSE IF .claude/nexus/knowledge/ 에 .md 파일 0개:
+ELSE IF .claude/nexus/core/codebase/ 에 .md 파일 0개:
   → First Run 진입
 
 ELSE:
@@ -100,13 +102,13 @@ ELSE:
 
 - 스캔 결과를 분석하여 knowledge 파일을 생성한다.
 - 파일명, 구조, 계층은 프로젝트 특성에 맞게 자유 결정. 하드코딩된 템플릿 없음.
-- CLAUDE.md 슬림화: 핵심 지시사항만 유지, 나머지는 knowledge로 이동. 원본은 `.claude/nexus/knowledge/` 에 백업. 사용자 승인은 불필요하지만 "CLAUDE.md를 슬림화합니다" 안내를 출력한다.
+- CLAUDE.md 슬림화: 핵심 지시사항만 유지, 나머지는 knowledge로 이동. 원본은 `.claude/nexus/core/codebase/` 에 백업. 사용자 승인은 불필요하지만 "CLAUDE.md를 슬림화합니다" 안내를 출력한다.
 - CLAUDE.md 슬림화 시 `.nexus/`, `.claude/nexus/` 등 Nexus 내부 경로를 프리앰블에 남기지 않는다. 이러한 경로 정보는 knowledge에서 관리한다. 프리앰블에는 프로젝트 고유 지시사항(빌드 명령, 코딩 컨벤션 등)만 유지한다.
-- `nx_knowledge_write`로 파일 생성.
+- `nx_core_write`(layer: "codebase")로 파일 생성.
 
 #### Sync 모드
 
-- `.claude/nexus/knowledge/` 하위 모든 .md 파일을 읽는다 (하위 디렉토리 포함, 제외 규칙 없음).
+- `nx_core_read`(layer: "codebase")로 `.claude/nexus/core/codebase/` 하위 모든 .md 파일을 읽는다 (하위 디렉토리 포함, 제외 규칙 없음).
 - 각 파일에서 태그(`<!-- tags: ... -->`), 헤더 구조, 소스 참조 경로를 추출하여 커버리지 영역을 파악한다.
 - Phase 1의 High/Medium 변경 파일과 knowledge 커버리지를 대조하여 불일치를 판정한다:
 

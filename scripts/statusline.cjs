@@ -34,6 +34,7 @@ function findProjectRoot(startDir) {
 var PROJECT_ROOT = findProjectRoot();
 var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
 var KNOWLEDGE_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".claude", "nexus");
+var CORE_ROOT = (0, import_path2.join)(KNOWLEDGE_ROOT, "core");
 function ensureDir(dir) {
   if (!(0, import_fs2.existsSync)(dir)) {
     (0, import_fs2.mkdirSync)(dir, { recursive: true });

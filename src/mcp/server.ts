@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { getCurrentVersion } from '../shared/version.js';
 import { registerMarkdownStore } from './tools/markdown-store.js';
+import { registerCoreStore } from './tools/core-store.js';
 import { registerContextTool } from './tools/context.js';
 import { registerLspTools } from './tools/lsp.js';
 import { registerAstTools } from './tools/ast.js';
@@ -10,7 +11,7 @@ import { registerDecisionTools } from './tools/decision.js';
 import { registerArtifactTools } from './tools/artifact.js';
 import { registerConsultTools } from './tools/consult.js';
 import { registerBranchTools } from './tools/branch.js';
-import { knowledgePath, rulesPath, KNOWLEDGE_ROOT } from '../shared/paths.js';
+import { rulesPath, KNOWLEDGE_ROOT } from '../shared/paths.js';
 import { join } from 'path';
 
 const server = new McpServer({
@@ -18,14 +19,7 @@ const server = new McpServer({
   version: getCurrentVersion() || '0.0.0',
 });
 
-registerMarkdownStore(server, {
-  toolPrefix: 'nx_knowledge',
-  entityName: 'topic',
-  dirPath: join(KNOWLEDGE_ROOT, 'knowledge'),
-  pathFn: knowledgePath,
-  listKey: 'topics',
-  cache: true,
-});
+registerCoreStore(server);
 
 registerMarkdownStore(server, {
   toolPrefix: 'nx_rules',
