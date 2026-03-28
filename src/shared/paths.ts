@@ -20,9 +20,20 @@ export const RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || join(PROJECT_ROOT,
 /** .claude/nexus/ — git 추적, 공유 지식 */
 export const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
 
-/** 지식 파일 경로 */
-export function knowledgePath(topic: string): string {
-  return join(KNOWLEDGE_ROOT, 'knowledge', `${topic}.md`);
+/** .claude/nexus/core/ — 4계층 구조 루트 */
+export const CORE_ROOT = join(KNOWLEDGE_ROOT, 'core');
+
+export const LAYERS = ['identity', 'codebase', 'reference', 'memory'] as const;
+export type Layer = typeof LAYERS[number];
+
+/** core 계층 내 특정 토픽 파일 경로 */
+export function corePath(layer: string, topic: string): string {
+  return join(CORE_ROOT, layer, `${topic}.md`);
+}
+
+/** core 계층 디렉토리 경로 */
+export function coreLayerDir(layer: string): string {
+  return join(CORE_ROOT, layer);
 }
 
 /** 룰 파일 경로 */

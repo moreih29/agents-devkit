@@ -123,11 +123,11 @@ CI_PID=$!
 
 echo "=== MCP 도구 ==="
 
-result=$(mcp_call "nx_knowledge_read" '{"topic":"architecture"}')
-check "nx_knowledge_read" 'Nexus' "$result"
+result=$(mcp_call "nx_core_read" '{"layer":"codebase","topic":"architecture"}')
+check "nx_core_read" 'Architecture' "$result"
 
-result=$(mcp_call "nx_knowledge_read" '{}')
-check "nx_knowledge_read (list)" '"topics"' "$result"
+result=$(mcp_call "nx_core_read" '{}')
+check "nx_core_read (list)" '"layers"' "$result"
 
 result=$(mcp_call "nx_context" '{}')
 check "nx_context" '"branch"' "$result"

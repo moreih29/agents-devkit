@@ -79,7 +79,7 @@ Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "<pro
 
 ### Phase 2: Scope (Principal + Postdoc 병렬 → 합의)
 
-- Principal: knowledge/decisions/프로젝트 맥락 → Why/What
+- Principal: core/decisions/프로젝트 맥락 → Why/What
 - Postdoc: 조사 방법론/소스 → How
 - SendMessage로 토론 → 합의
 - Principal이 `nx_task_add()`로 조사 태스크 확정 (task 소유권 = principal)

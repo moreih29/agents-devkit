@@ -75,14 +75,14 @@ Phase: **intake → design → execute → complete**
 ```
 TeamCreate({ team_name: "<project>", description: "..." })
 Agent({ subagent_type: "claude-nexus:director", name: "director", team_name: "<project>",
-  prompt: "knowledge/decisions/프로젝트 맥락 분석 → Why/What 관점 정리. architect와 SendMessage로 토론 후 합의. 합의 완료 후 nx_task_add()로 태스크 확정. 브리핑: {briefing}" })
+  prompt: "core/decisions/프로젝트 맥락 분석 → Why/What 관점 정리. architect와 SendMessage로 토론 후 합의. 합의 완료 후 nx_task_add()로 태스크 확정. 브리핑: {briefing}" })
 Agent({ subagent_type: "claude-nexus:architect", name: "architect", team_name: "<project>",
   prompt: "코드/기술 현황 분석 → How 관점 정리. director와 SendMessage로 토론 후 합의. 기술 이슈 발생 시 engineer에게 에스컬레이션 받아 처리." })
 ```
 
 ### Phase 2: Design (Director + Architect 병렬 → 합의)
 
-- Director: knowledge/decisions/프로젝트 맥락 → Why/What
+- Director: core/decisions/프로젝트 맥락 → Why/What
 - Architect: 코드/기술 현황 → How
 - SendMessage로 토론 → 합의
 - Director가 `nx_task_add()`로 태스크 확정 (task 소유권 = director)

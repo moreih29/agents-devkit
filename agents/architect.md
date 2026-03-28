@@ -40,7 +40,7 @@ When evaluating options:
 2. Is this the simplest solution that works? (YAGNI, avoid premature abstraction)
 3. What breaks if this goes wrong? (risk surface)
 4. Does this introduce new dependencies or coupling? (maintainability)
-5. Is there a precedent in the codebase or decisions log? (check nx_knowledge_read, nx_decision_add)
+5. Is there a precedent in the codebase or decisions log? (check nx_core_read, nx_decision_add)
 
 ## Critical Review Process
 When reviewing code or design proposals:
