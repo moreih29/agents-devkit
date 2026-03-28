@@ -2,7 +2,7 @@
 name: nx-research
 description: Research execution — sub-agent or team mode based on Lead's judgment.
 trigger_display: "[research] / [research!]"
-purpose: "Research execution — principal+postdoc+researcher team"
+purpose: "Research execution — director+postdoc+researcher team"
 triggers: ["research", "research!", "연구", "조사"]
 ---
 # Research
@@ -67,22 +67,22 @@ Phase: **intake → scope → investigate → converge → complete**
 - decisions.json이 있으면 기존 결정 사항을 briefing에 포함 (`nx_context`로 조회)
 - `nx_rules_read(tags: ["research"])`로 팀 rules 조회. 있으면 briefing에 포함하여 팀원에게 전달, 스킬 기본 원칙보다 우선.
 - **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `research/`, `feat/`). 사용자 확인 없이 자동 생성. 생성 직후 `nx_branch_migrate(from_branch)` 호출하여 이전 브랜치의 consult/decisions 상태를 이동.
-- TeamCreate + principal/postdoc 병렬 스폰
+- TeamCreate + director/postdoc 병렬 스폰
 
 ```
 TeamCreate({ team_name: "<project>", description: "..." })
-Agent({ subagent_type: "claude-nexus:principal", name: "principal", team_name: "<project>",
+Agent({ subagent_type: "claude-nexus:director", name: "director", team_name: "<project>",
   prompt: "research 맥락/배경 분석 → Why/What 관점 정리. postdoc와 SendMessage로 범위 토론 후 합의. 합의 완료 후 nx_task_add()로 조사 태스크 확정. 브리핑: {briefing}" })
 Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "<project>",
-  prompt: "조사 방법론/소스 현황 분석 → How 관점 정리. principal와 SendMessage로 토론 후 합의. 기술 이슈 발생 시 researcher에게 에스컬레이션 받아 처리." })
+  prompt: "조사 방법론/소스 현황 분석 → How 관점 정리. director와 SendMessage로 토론 후 합의. 기술 이슈 발생 시 researcher에게 에스컬레이션 받아 처리." })
 ```
 
-### Phase 2: Scope (Principal + Postdoc 병렬 → 합의)
+### Phase 2: Scope (Director + Postdoc 병렬 → 합의)
 
-- Principal: core/decisions/프로젝트 맥락 → Why/What
+- Director: core/decisions/프로젝트 맥락 → Why/What
 - Postdoc: 조사 방법론/소스 → How
 - SendMessage로 토론 → 합의
-- Principal이 `nx_task_add()`로 조사 태스크 확정 (task 소유권 = principal)
+- Director이 `nx_task_add()`로 조사 태스크 확정 (task 소유권 = director)
 
 Gate Stop이 tasks.json 감시 → 등록 즉시 nonstop 시작.
 
@@ -92,16 +92,16 @@ Gate Stop이 tasks.json 감시 → 등록 즉시 nonstop 시작.
 
 ```
 Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_name: "<project>",
-  prompt: "태스크 T1 조사. nx_task_update(in_progress) 착수, 완료 후 nx_task_update(completed) 호출. 완료 후 principal에게 SendMessage 보고. 방법론 문제는 postdoc에게 에스컬레이션." })
+  prompt: "태스크 T1 조사. nx_task_update(in_progress) 착수, 완료 후 nx_task_update(completed) 호출. 완료 후 director에게 SendMessage 보고. 방법론 문제는 postdoc에게 에스컬레이션." })
 ```
 
-- 미흡한 결과 발견 → principal이 nx_task_add/nx_task_update로 태스크 추가/재오픈
+- 미흡한 결과 발견 → director이 nx_task_add/nx_task_update로 태스크 추가/재오픈
 
-### Phase 4: Converge (Principal + Postdoc)
+### Phase 4: Converge (Director + Postdoc)
 
 **리포트 필수** — Team Path는 반드시 최종 리포트를 생성한다.
 
-- 수집된 조사 결과를 principal이 종합
+- 수집된 조사 결과를 director이 종합
 - postdoc와 SendMessage로 결론 검증
 - 최종 인사이트/권고사항 도출
 - 보완 내역 기록: 보완일, 사유, 변경 항목. Lead가 팀 완료 후 내부 교정 요약 1-2줄 보고.
@@ -118,13 +118,13 @@ Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_nam
 ## Key Principles
 
 1. **Lead = 조율 + 사용자 소통** — Team Path에서 분석 도구 금지
-2. **Principal = Why/What + task 소유** — nx_task_add/nx_task_update 권한
+2. **Director = Why/What + task 소유** — nx_task_add/nx_task_update 권한
 3. **Postdoc = How + 방법론 자문** — researcher 에스컬레이션 수신
-4. **Researcher → principal에게 보고** (기본), postdoc에게 에스컬레이션 (방법론 문제)
+4. **Researcher → director에게 보고** (기본), postdoc에게 에스컬레이션 (방법론 문제)
 5. **Teammate 재활용 우선** — idle에 SendMessage 배정 먼저
 6. **tasks.json이 유일한 상태** (Team Path)
 7. **Gate Stop nonstop** — pending 태스크 있으면 종료 불가
-8. **Scope = 합의** (Principal + Postdoc SendMessage 토론)
+8. **Scope = 합의** (Director + Postdoc SendMessage 토론)
 9. **[research] 판단: 도구 0회** — 요청 텍스트만으로 직감 추정
 
 ## Rules Template (참고)
@@ -151,14 +151,14 @@ Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_nam
 ## Lead Awaiting Pattern (Team Path)
 
 - idle teammate → SendMessage로 새 업무 배정
-- Principal 질의 수신 → AskUserQuestion으로 사용자에게 전달
+- Director 질의 수신 → AskUserQuestion으로 사용자에게 전달
 - 타임아웃: 예상 소요 시간 초과 시 해당 팀원에게 진행 상황 확인
 
 ## Teammate 스폰 예시
 
 ```
 TeamCreate({ team_name: "<project>", description: "..." })
-Agent({ subagent_type: "claude-nexus:principal", name: "principal", team_name: "<project>", prompt: "..." })
+Agent({ subagent_type: "claude-nexus:director", name: "director", team_name: "<project>", prompt: "..." })
 Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "<project>", prompt: "..." })
 Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_name: "<project>", prompt: "..." })
 ```

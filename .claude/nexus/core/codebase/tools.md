@@ -7,8 +7,8 @@ MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/
 
 | 도구 | 소스 | 저장 경로 | 용도 |
 |------|------|-----------|------|
-| `nx_knowledge_read` | markdown-store.ts | `.claude/nexus/knowledge/{topic}.md` | knowledge 읽기 (topic 지정 또는 태그 검색) |
-| `nx_knowledge_write` | markdown-store.ts | `.claude/nexus/knowledge/{topic}.md` | knowledge 쓰기 (tags 옵션) |
+| `nx_core_read` | core-store.ts | `.claude/nexus/core/{layer}/{topic}.md` | core 지식 읽기 (4가지 호출 패턴: 전체 overview / layer 목록 / layer+topic 전문 / tags 크로스 검색) |
+| `nx_core_write` | core-store.ts | `.claude/nexus/core/{layer}/{topic}.md` | core 지식 쓰기 (layer enum: identity/codebase/reference/memory, tags 옵션) |
 | `nx_rules_read` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 읽기 (name 지정 또는 태그 검색) |
 | `nx_rules_write` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 쓰기 (tags 옵션, HTML 주석 frontmatter) |
 | `nx_context` | context.ts | `.nexus/branches/{branch}/tasks.json`, `decisions.json` 참조 | 현재 브랜치, 팀 모드, 태스크 요약, 결정 사항 조회 |
@@ -23,6 +23,17 @@ MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/
 | `nx_consult_update` | consult.ts | `.nexus/branches/{branch}/consult.json` | 활성 상담 세션 논점 수정. action: add/remove/edit/reopen |
 | `nx_consult_decide` | consult.ts | `.nexus/branches/{branch}/consult.json` + `decisions.json` | 논점 결정 처리 (consult.json 갱신 + decisions.json 기록). 모두 decided 시 완료 시그널 반환 — consult.json 삭제 안 함. |
 | `nx_branch_migrate` | branch.ts | `.nexus/branches/{branch}/` | 다른 브랜치 폴더의 consult.json+decisions.json을 현재 브랜치 폴더로 이동. Branch Guard에서 브랜치 생성 직후 호출. |
+
+## nx_core_read 호출 패턴
+
+| 파라미터 | 반환 |
+|----------|------|
+| (없음) | 4계층 overview (layer별 파일 수) |
+| `layer` | 해당 layer 내 파일 목록 + preview(첫 헤더) + tags |
+| `layer` + `topic` | 파일 전문 (raw markdown) |
+| `tags` (layer 없음) | 전 계층 크로스 검색 (태그 매칭 파일 목록) |
+
+tags는 `<!-- tags: ... -->` HTML 주석 frontmatter에서 파싱. 대소문자 무시 매칭.
 
 ## nx_consult_update 액션
 
@@ -91,7 +102,7 @@ decisions.json의 각 항목 구조:
 - `nx_task_add`는 `allowedCallers: ['director', 'lead', 'principal']` 검증. 허용되지 않은 caller 호출 시 에러 반환.
 - LSP: 프로젝트 언어 자동 감지 (tsconfig.json → TypeScript 등). 언어별 LSP 클라이언트 맵으로 관리.
 - AST: `@ast-grep/napi`가 optional — 플러그인 캐시 또는 프로젝트 node_modules에서 동적 로드.
-- knowledge_write의 topic 파라미터가 파일명이 됨 (`knowledge/{topic}.md`). 하위 디렉토리 생성은 지원하지 않음.
+- core_write는 `layer` (enum: identity/codebase/reference/memory) + `topic` 파라미터로 `core/{layer}/{topic}.md` 경로에 저장. z.enum 검증으로 path traversal 방지.
 - MCP 도구는 `getBranchRoot()` 동적 함수로 경로를 해결. MCP 서버는 장기 프로세스이므로 정적 `BRANCH_ROOT` 대신 호출 시마다 현재 브랜치를 감지.
 - `nx_consult_decide`는 consult.json + decisions.json을 동시 갱신. 모든 issues decided 시 consult.json **삭제하지 않음** — 완료 시그널(`allComplete: true`) 반환.
 - `nx_consult_update`의 reopen 액션은 decisions.json에서 `consult === issue_id`인 항목을 soft-delete (`status: "revoked"`)하여 audit trail 보존.

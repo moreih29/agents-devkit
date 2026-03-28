@@ -92,22 +92,16 @@ consult.json이 존재하는 동안, 태그 없는 멀티턴 대화에서도 매
 ### 사이클 종료 (nx_task_close)
 모든 태스크 완료 후 `nx_task_close` 호출 → consult+decisions+tasks를 history.json에 아카이브 → 소스 파일 삭제. 모드 전환 시 consult.json은 유지됨 (자동 삭제 없음).
 
-## Agent Catalog (7개)
+## Agent Catalog (6개)
 
-### Dev Team
-| Agent | Model | MaxTurns | 제한 | 역할 |
-|-------|-------|----------|------|------|
-| director | opus | 25 | Edit, Write, NotebookEdit 불가 | Why/What, 태스크 소유, nx_task_add 권한 |
-| architect | opus | 25 | Edit, Write, NotebookEdit 불가 | How, 기술 자문, 읽기 전용 |
-| engineer | sonnet | 20 | 제한 없음 | 코드 구현, 디버깅 |
-| qa | sonnet | 20 | 제한 없음 | 테스트, 검증, 보안 리뷰 |
-
-### Research Team
-| Agent | Model | MaxTurns | 제한 | 역할 |
-|-------|-------|----------|------|------|
-| principal | opus | 25 | Edit, Write, Bash, NotebookEdit 불가 | 리서치 방향, 확증편향 방지 |
-| postdoc | opus | 25 | Edit, Bash, NotebookEdit 불가 | 방법론 설계, synthesis 문서 작성 |
-| researcher | sonnet | 20 | 제한 없음 | 웹 검색, 독립 조사 (3회 실패 시 탈출) |
+| Agent | Model | MaxTurns | 제한 | 카테고리 | 역할 |
+|-------|-------|----------|------|----------|------|
+| director | opus | 30 | Edit, Write, NotebookEdit 불가 | Decide | Why/What, 태스크 소유, nx_task_add 권한 |
+| architect | opus | 25 | Edit, Write, NotebookEdit 불가 | How | 기술 자문, 읽기 전용 |
+| postdoc | opus | 25 | Edit, Bash, NotebookEdit 불가 | How | 방법론 설계, synthesis 문서 작성 |
+| engineer | sonnet | 20 | 제한 없음 | Do | 코드 구현, 디버깅 |
+| researcher | sonnet | 20 | 제한 없음 | Do | 웹 검색, 독립 조사 (3회 실패 시 탈출) |
+| qa | sonnet | 20 | 제한 없음 | Check | 테스트, 검증, 보안 리뷰 |
 
 ## Skill Catalog (5개)
 
@@ -115,6 +109,6 @@ consult.json이 존재하는 동안, 태그 없는 멀티턴 대화에서도 매
 |------|--------|----------|-----------|
 | nx-consult | [consult] | 구조화된 5단계 상담 (탐색→논점도출→선택지→결정→완료). consult.json 필수. 사용자 요청 시 nx_rules_write로 커스텀 rules 생성 안내. | — |
 | nx-dev | [dev]/[dev!] | Lead 분석→Engineer 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["dev"])로 팀 rules 확인 후 우선 적용. Branch Guard: main/master면 자동 브랜치 생성 (feat/, fix/, chore/) + nx_branch_migrate로 상태 이동. 모드 고지 + 판단 근거 표시. | Director+Architect 합의→Engineer+QA 실행. Phase 1 briefing에 nx_rules_read(tags: ["dev"]) 결과 포함. Branch Guard + nx_branch_migrate 포함. 모드 고지 + 판단 근거 표시. |
-| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["research"])로 팀 rules 확인 후 우선 적용. Branch Guard: main/master면 자동 브랜치 생성 (research/, feat/) + nx_branch_migrate로 상태 이동. 모드 고지 + 판단 근거 표시. 리포트 없음. | Principal+Postdoc 스코프→Researcher 조사→Converge. Phase 1 briefing에 nx_rules_read(tags: ["research"]) 결과 포함. Branch Guard + nx_branch_migrate 포함. 리포트 필수. 모드 고지 + 판단 근거 표시. |
+| nx-research | [research]/[research!] | Lead 분석→Researcher 스폰. nx_task_add/close 사용. Phase 1에서 nx_rules_read(tags: ["research"])로 팀 rules 확인 후 우선 적용. Branch Guard: main/master면 자동 브랜치 생성 (research/, feat/) + nx_branch_migrate로 상태 이동. 모드 고지 + 판단 근거 표시. 리포트 없음. | Director+Postdoc 스코프→Researcher 조사→Converge. Phase 1 briefing에 nx_rules_read(tags: ["research"]) 결과 포함. Branch Guard + nx_branch_migrate 포함. 리포트 필수. 모드 고지 + 판단 근거 표시. |
 | nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 (templates/nexus-section.md에서 Nexus 섹션 읽기) | — |
 | nx-sync | /claude-nexus:nx-sync | git diff 기반 drift 감지+수정 (첫 실행=자동 생성, --reset=초기화, Phase 0.5=CLAUDE.md 체크) | — |
