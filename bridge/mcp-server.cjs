@@ -22415,7 +22415,7 @@ function registerTaskTools(server2) {
       owner: external_exports.string().optional().describe("Assignee agent name for this task")
     },
     async ({ caller, title, context, deps, decisions, goal, owner }) => {
-      const allowedCallers = ["director", "lead", "principal"];
+      const allowedCallers = ["director", "lead"];
       if (!allowedCallers.includes(caller)) {
         return textResult({ error: `Only ${allowedCallers.join("/")} can create tasks. You are: ${caller}` });
       }

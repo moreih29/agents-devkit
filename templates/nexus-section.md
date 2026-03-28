@@ -12,7 +12,6 @@
 | Project direction, scope, priorities | director |
 | Code implementation, edits, debugging | engineer |
 | Research methodology, evidence synthesis | postdoc |
-| Research direction, agenda, bias prevention | principal |
 | Testing, verification, security review | qa |
 | Web search, independent investigation | researcher |
 
@@ -24,7 +23,7 @@
 |-------|---------|---------|
 | nx-consult | [consult] | Interactive discovery — understand intent before executing |
 | nx-dev | [dev] / [dev!] | Development execution — sub-agent or team mode |
-| nx-research | [research] / [research!] | Research execution — principal+postdoc+researcher team |
+| nx-research | [research] / [research!] | Research execution — director+postdoc+researcher team |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
 | nx-sync | /claude-nexus:nx-sync | Sync knowledge docs with source files (first run = auto-generate) |
 

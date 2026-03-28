@@ -134,19 +134,19 @@ Teammate spawn example:
 var RESEARCH_TEAM_NUDGE = `[NEXUS] Research team mode activated (forced).
 GUIDELINES:
 1. Avoid direct Agent() calls \u2014 prefer TeamCreate + Agent({ team_name }). Explore and team_name agents are fine.
-2. Lead should not call nx_task_add() or nx_task_update(). Let principal handle task management.
+2. Lead should not call nx_task_add() or nx_task_update(). Let director handle task management.
 3. Lead should not conduct research or read sources directly. Delegate all work through teammates.
 4. Lead should focus on orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion).
-5. If you need tasks created, tell principal via SendMessage instead of calling nx_task_add yourself.
+5. If you need tasks created, tell director via SendMessage instead of calling nx_task_add yourself.
 
-Workflow: INTAKE (summarize + TeamCreate) \u2192 SCOPE (principal+postdoc consensus \u2192 nx_task_add) \u2192 INVESTIGATE (researcher) \u2192 CONVERGE (principal+postdoc synthesis) \u2192 COMPLETE (nx_task_close).
-- principal owns research direction + tasks. postdoc owns methodology + synthesis.
-- researcher reports to principal. Escalate to postdoc for methodology questions.
+Workflow: INTAKE (summarize + TeamCreate) \u2192 SCOPE (director+postdoc consensus \u2192 nx_task_add) \u2192 INVESTIGATE (researcher) \u2192 CONVERGE (director+postdoc synthesis) \u2192 COMPLETE (nx_task_close).
+- director owns research direction + tasks. postdoc owns methodology + synthesis.
+- researcher reports to director. Escalate to postdoc for methodology questions.
 - Reuse idle teammates (SendMessage) before spawning new ones.
 
 Teammate spawn example:
   TeamCreate({ team_name: "proj", description: "..." })
-  Agent({ subagent_type: "claude-nexus:principal", name: "principal", team_name: "proj", prompt: "..." })
+  Agent({ subagent_type: "claude-nexus:director", name: "director", team_name: "proj", prompt: "..." })
   Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "proj", prompt: "..." })`;
 var MARKER_START = "<!-- NEXUS:START -->";
 var MARKER_END = "<!-- NEXUS:END -->";
