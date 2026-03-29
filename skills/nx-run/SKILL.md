@@ -76,6 +76,8 @@ Agent({ subagent_type: "claude-nexus:writer", name: "writer-1", team_name: "<pro
   prompt: "태스크 T2 작성. researcher 결과 기반으로 콘텐츠 작성. 완료 후 Lead에게 SendMessage 보고. 브리핑: {briefing}" })
 ```
 
+**병렬화 규칙**: 독립 태스크(deps 없음)의 수정 대상 파일이 겹치지 않으면 병렬 Engineer 스폰. 겹치면 순차 처리.
+
 - Do agent → Lead에게 완료 보고
 - Lead: 인메모리 세션 내 학습 — 같은 실수 반복 방지, 패턴 누적
 - Lead가 codebase/ 갱신 및 reference/ 기록을 검토
@@ -100,6 +102,11 @@ Agent({ subagent_type: "claude-nexus:reviewer", name: "reviewer", team_name: "<p
 - 미흡/문제 발견 → Lead가 `nx_task_add`/`nx_task_update`로 태스크 추가/재오픈
 
 ### Phase 4: Complete
+
+**QA 역할 분리**:
+- Lead: 빌드+E2E 확인 (사실 확인 — 통과/실패 여부만 판단)
+- QA: 코드 품질/의도 정합성/엣지 케이스/보안 검증 (분석 — Check agent 조건 충족 시 스폰)
+- 파일 3개 이상 변경 시: Lead 빌드 확인 후 QA 스폰 필수. Lead가 직접 검증으로 QA 대체 금지.
 
 - Lead가 모든 태스크 검증 완료 → 사용자에게 최종 보고
 - `nx_task_close` 호출 → history.json 아카이브. 반환값의 `memoryHint` 확인.
@@ -170,6 +177,7 @@ CONTEXT:
 - 현재 상태: {관련 코드/문서 위치}
 - 의존성: {선행 태스크 결과}
 - 기존 결정: {relevant decisions}
+- 수정 대상 파일: {파일 경로 목록}
 
 CONSTRAINTS:
 - {제약 조건 1}

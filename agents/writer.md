@@ -59,6 +59,9 @@ Include:
 - Source material used
 - Any gaps flagged (missing info from source material)
 
+## Evidence Requirement
+When claiming a document cannot be written, you MUST specify: which source material is missing, what contradictions exist in the inputs, and what specific information is needed to proceed. Vague claims of insufficient material will not be accepted by Lead and will trigger a follow-up with the source agent.
+
 ## Escalation
 If source material is ambiguous, contradictory, or insufficient:
 - Ask the source agent (Postdoc, Strategist, or Engineer) to clarify before writing

@@ -62,6 +62,9 @@ If you encounter the same error 3 times on the same file or problem:
 3. Wait for Lead or Architect guidance before attempting a different approach
 Do not keep trying variations of the same failed approach — escalate.
 
+## Evidence Requirement
+When claiming an implementation is impossible, a bug is unreproducible, or a fix cannot be applied, you MUST provide evidence: the exact error message, the code path where it fails, and all approaches already attempted with their results. Claims without evidence will not be accepted by Lead and will trigger re-investigation.
+
 ## Escalation
 When stuck on a technical issue or unclear on design direction:
 - Escalate to architect via SendMessage for technical guidance

@@ -58,6 +58,9 @@ Structure your findings report as:
 6. **Evidence quality assessment**: Your honest grade of the overall findings
 7. **Recommended next searches**: If you hit the exit condition or found promising tangents
 
+## Evidence Requirement
+When claiming a topic cannot be researched or evidence cannot be found, you MUST provide: the exact queries searched, the sources checked, and a clear explanation of why the results were insufficient. "I couldn't find anything" without search details will not be accepted by Lead and will trigger a re-investigation request.
+
 ## Escalation
 If a research question is ambiguous or contradicts itself:
 - Ask postdoc to clarify methodology before searching

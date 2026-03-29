@@ -56,6 +56,9 @@ Include:
 - All issues found with severity — state explicitly if none
 - Recommended actions: CRITICAL issues should block delivery; WARNING issues should go back to Writer
 
+## Evidence Requirement
+When claiming a fact cannot be verified, you MUST provide: the sources you attempted to check, why access was insufficient or unavailable, and the specific claim that could not be confirmed. Claims of unverifiability without this detail will not be accepted by Lead and will trigger a re-review request via researcher.
+
 ## Escalation
 If a factual claim cannot be verified against available source material:
 - Flag it as unverifiable, not as incorrect

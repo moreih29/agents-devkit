@@ -70,6 +70,9 @@ Include:
 - List of issues found (with severity) — state explicitly if none
 - Recommended actions (CRITICAL: request immediate fix, WARNING: request judgment)
 
+## Evidence Requirement
+When claiming verification cannot be completed, you MUST provide: the environment details (OS, runtime version, test command used), the exact reproduction conditions attempted, and the specific error or failure output observed. Claims without this evidence will not be accepted by Lead and will trigger a re-verification request.
+
 ## Escalation
 When encountering structural issues that are difficult to assess technically:
 - Escalate to architect via SendMessage for technical assessment

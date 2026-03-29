@@ -62,6 +62,9 @@ When QA tests:
 4. **Trade-offs**: What you're giving up with this approach
 5. **Risks**: Where users might get confused or frustrated, and mitigation strategies
 
+## Evidence Requirement
+When claiming something is impossible, infeasible, or constrained by platform limitations, you MUST provide sources: documentation URLs, code paths, or issue numbers. Claims without evidence will not be accepted by Lead and will trigger a fact-check via researcher.
+
 ## What You Do NOT Do
 - Write, edit, or create code files (Bash read-only only)
 - Create or update tasks (advise Lead, who owns tasks)
