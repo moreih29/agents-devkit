@@ -282,6 +282,7 @@ interface KeywordMatch {
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   consult: { primitive: 'consult', skill: 'claude-nexus:nx-consult' },
+  run: { primitive: 'run', skill: 'claude-nexus:nx-run' },
 };
 
 const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
@@ -293,7 +294,7 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
 
 // 프리미티브 이름이 에러/버그 맥락에서 언급되면 활성화가 아닌 "대화" — 오탐 방지
 const ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-const PRIMITIVE_NAMES = /\b(consult)\b/i;
+const PRIMITIVE_NAMES = /\b(consult|run)\b/i;
 
 /** 프리미티브 이름이 에러/버그 맥락과 함께 등장하거나, 단순 질문/인용 맥락인지 판별 */
 function isPrimitiveMention(prompt: string): boolean {
@@ -308,7 +309,7 @@ function isPrimitiveMention(prompt: string): boolean {
 
 function detectKeywords(prompt: string): KeywordMatch | null {
   // 1차: 명시적 태그 [consult] — 항상 확정
-  const tagMatch = prompt.match(/\[(consult)\]/i);
+  const tagMatch = prompt.match(/\[(consult|run)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -387,8 +388,20 @@ STEP 2: 조사 결과 바탕으로 nx_consult_start 호출하여 이슈 정리.
   });
 }
 
+function handleRunMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  const consultReminder = getConsultReminder();
+  const base = `[NEXUS] Run mode — full pipeline execution requested.
+MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
+Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.`;
+  respond({
+    continue: true,
+    additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, consultReminder),
+  });
+}
+
 const PRIMITIVE_HANDLERS: Record<string, PrimitiveHandler> = {
   consult: handleConsultMode,
+  run: handleRunMode,
 };
 
 function handleUserPromptSubmit(event: Record<string, unknown>): void {
@@ -434,10 +447,26 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     const branchGuard = /^(main|master)$/.test(getCurrentBranch())
       ? '\nBranch Guard: You are on main/master. Create a feature branch before making changes.'
       : '';
-    const orchestrationHint = `[NEXUS] No active tasks. Refer to nx-run SKILL.md for orchestration guidance.
+
+    // 버그/수정 패턴 감지 → solo route 금지
+    const BUG_FIX_PATTERN = /안\s*된다|안\s*돼|안\s*되|버그|에러|오류|수정해|고쳐|고장|fix\b|bug\b|error\b|broken|not\s+work/i;
+    const isBugFix = BUG_FIX_PATTERN.test(prompt);
+
+    let orchestrationHint: string;
+    if (isBugFix) {
+      orchestrationHint = `[NEXUS] Bug/fix request detected — investigation required.
+SOLO ROUTE FORBIDDEN: Lead must NOT attempt direct file modifications for bug/fix requests.
+1. Spawn How agent (Architect) to diagnose root cause.
+2. After diagnosis, register tasks via nx_task_add.
+3. Dispatch Do agent (Engineer) for implementation.
+Repeated solo attempts without diagnosis waste cycles. Escalate immediately.${branchGuard}`;
+    } else {
+      orchestrationHint = `[NEXUS] No active tasks. Refer to nx-run SKILL.md for orchestration guidance.
 - Direct execution only if ALL 3 conditions met: exact change instruction + single file + no code structure understanding needed.
 - Otherwise: spawn How agent (Architect/Postdoc/Strategist) for design consultation, then Do agents for execution.${branchGuard}
 IMPORTANT: For multi-file or complex tasks, Lead creates tasks via nx_task_add after consulting How agents. Spawn How agents first for design before dispatching Do agents.`;
+    }
+
     respond({
       continue: true,
       additionalContext: withNotices(taskPipelineMessage(orchestrationHint), null, claudeMdNotice, consultReminder),

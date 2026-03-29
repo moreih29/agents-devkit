@@ -19,6 +19,12 @@ Lead가 의도를 정리하고 How agent와 직접 협업하여 팀을 구성한
 2. 단일 파일 수정으로 완결된다
 3. 코드 구조 이해가 불필요하다 (오타, 린트 에러, 상수 변경 등)
 
+**직접 실행 금지 사례** (하나라도 해당 시 반드시 Phase 2):
+- "안된다", "버그", "에러" 등 문제 보고 — 원인 진단이 필요하므로 조건 1,3 불충족
+- 수정 대상 파일 미지정 — 코드 탐색이 필요하므로 조건 1 불충족
+- "왜 이래?", "뭐가 문제야?" 등 원인 불명 — 조사가 필요하므로 조건 3 불충족
+- Lead가 직접 시도 후 실패 — 즉시 How agent 에스컬레이션 (재시도 금지)
+
 ---
 
 ## Flow
@@ -226,6 +232,7 @@ ACCEPTANCE:
 6. **tasks.json이 유일한 상태**
 7. **Gate Stop nonstop** — pending 태스크 있으면 종료 불가
 8. **Design = 합의** (Lead + How agent SendMessage 토론)
+9. **Bash 파일 수정 금지** — sed, echo >, cat <<EOF, tee 등 Bash를 통한 파일 수정 금지. 반드시 Edit/Write 도구 사용 (Gate 감시 대상)
 
 ## Rules Template (참고)
 

@@ -186,6 +186,24 @@ check "Gate/UserPromptSubmit (default orchestration)" 'How agent' "$result"
 check "Default orchestration (task pipeline)" 'nx_task_add' "$result"
 check "Default orchestration (branch guard)" 'TASK PIPELINE' "$result"
 
+# --- Run Tag ---
+echo ""
+echo "=== Run Tag ==="
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[run] API 모듈 구현"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit ([run] tag)" 'Run mode' "$result"
+check "Run tag (skill reference)" 'nx-run' "$result"
+
+# --- Bug/Fix Pattern ---
+echo ""
+echo "=== Bug/Fix Pattern ==="
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이거 안된다 뭐가 문제야"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (bug pattern)" 'SOLO ROUTE FORBIDDEN' "$result"
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"버그인것같아 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (fix pattern)" 'SOLO ROUTE FORBIDDEN' "$result"
+
 # --- Edit Tracker ---
 echo ""
 echo "=== Edit Tracker ==="

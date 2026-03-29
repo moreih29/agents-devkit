@@ -789,6 +789,171 @@
           "created_at": "2026-03-29T12:30:16.085Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-29T13:44:06.072Z",
+      "branch": "feat/lead-control-reinforcement",
+      "consult": null,
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "Lead 단독 실행 제어 강화: C안(이중 방어) 채택. (1) gate.ts에 버그/수정 패턴 감지 → SOLO ROUTE FORBIDDEN 강제 메시지 주입. (2) SKILL.md 3조건에 금지 사례 명시 + 실패 시 즉시 How agent 에스컬레이션 규칙 추가.",
+          "consult": null
+        },
+        {
+          "id": 2,
+          "summary": "[run] 태그 추가: A안 채택. gate.ts에서 [run] 태그 감지 → nx-run 스킬 강제 로딩. 기존 기본 오케스트레이션(gate 힌트 자동 주입)은 그대로 유지. 사용자가 명시적으로 풀 파이프라인을 강제할 수단 확보.",
+          "consult": null
+        },
+        {
+          "id": 3,
+          "summary": "Bash 파일 수정 우회 방지: A안 채택. SKILL.md + 에이전트 프롬프트에 \"Bash로 파일 수정 금지 (sed, echo >, cat <<EOF, tee 등)\" 명시. 게이트 레벨 파싱은 오탐 리스크로 보류.",
+          "consult": null
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "T1: paths.ts 경로 상수 재구성",
+          "context": "RUNTIME_ROOT→NEXUS_ROOT 리네임, KNOWLEDGE_ROOT 제거, CORE_ROOT=.nexus/core, STATE_ROOT=.nexus/state 추가, getBranchRoot/BRANCH_ROOT/getSessionRoot/CURRENT_SESSION_FILE 제거, rulesPath 경로 변경, ensureGitignore() 런타임 보정 함수 추가. 수정 대상: src/shared/paths.ts",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "owner": "engineer-1",
+          "created_at": "2026-03-29T09:57:20.178Z"
+        },
+        {
+          "id": 2,
+          "title": "T2: gate.ts 세션/브랜치 로직 제거 + STATE_ROOT 전환",
+          "context": "모든 BRANCH_ROOT→STATE_ROOT 변경. getSessionRoot/CURRENT_SESSION_FILE 임포트 제거. handleSessionStart: 세션 디렉토리 대신 STATE_ROOT에 agent-tracker 초���화. handleSubagentStart/Stop: STATE_ROOT 사���. handlePreToolUse: edit-tracker/reopen-tracker/agent-tracker 경로 STATE_ROOT. isNexusInternalPath: .claude/nexus 패턴 제거. getTasksReminder/getConsultReminder: STATE_ROOT. 수정 대상: src/hooks/gate.ts",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [
+            2
+          ],
+          "owner": "engineer-2",
+          "created_at": "2026-03-29T09:57:27.554Z"
+        },
+        {
+          "id": 3,
+          "title": "T3: MCP tools 경로 전환 + branch.ts 제거",
+          "context": "모든 getBranchRoot()→getStateRoot() 변경 (task.ts, consult.ts, decision.ts, artifact.ts, context.ts, briefing.ts). task.ts: legacy 브랜치 history migration 코드 제거, RUNTIME_ROOT→NEXUS_ROOT. server.ts: KNOWLEDGE_ROOT→NEXUS_ROOT, registerBranchTools 제거. branch.ts 파일 삭제. 수정 대상: src/mcp/tools/task.ts, consult.ts, decision.ts, artifact.ts, context.ts, briefing.ts, src/mcp/server.ts, branch.ts(삭제)",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [
+            2,
+            3
+          ],
+          "owner": "engineer-3",
+          "created_at": "2026-03-29T09:57:33.702Z"
+        },
+        {
+          "id": 4,
+          "title": "T4: 물리적 파일 이동 + .gitignore 설정",
+          "context": ".claude/nexus/core/ → .nexus/core/ 이동, .claude/nexus/config.json → .nexus/config.json 이동, .claude/nexus/rules/ → .nexus/rules/ 이동(존재시). .nexus/.gitignore 생성(화이트리스트: *, !.gitignore, !core/, !core/**, !config.json, !history.json, !rules/, !rules/**). 프로젝트 .gitignore에서 .nexus/ 라인 제거. .claude/nexus/ 디렉토리 삭제.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            3
+          ],
+          "owner": "lead",
+          "created_at": "2026-03-29T09:57:35.175Z"
+        },
+        {
+          "id": 5,
+          "title": "T5: statusline.ts 경로 변경",
+          "context": "KNOWLEDGE_ROOT 하드코딩 경로를 .nexus/로 변경. 수정 대상: src/statusline/statusline.ts",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [
+            3
+          ],
+          "owner": "engineer-2",
+          "created_at": "2026-03-29T09:57:36.561Z"
+        },
+        {
+          "id": 6,
+          "title": "T6: skills + README + core docs 갱신",
+          "context": "nx-init SKILL.md: .claude/nexus/→.nexus/ 경로 변경 + .gitignore 생성 단계 추가. nx-run SKILL.md: State Management 섹션 경로 갱신 + nx_branch_migrate 참조 제거. README.md: 폴더 구조 갱신, 다중세션 미지원 제약 명시, Director/Principal 등 오래된 에이전트 정보 정리. core docs(architecture, orchestration, tools, design): 새 경로 구조 반영.",
+          "status": "completed",
+          "deps": [
+            1,
+            4
+          ],
+          "decisions": [
+            1,
+            2,
+            3,
+            5
+          ],
+          "owner": "engineer-4",
+          "created_at": "2026-03-29T09:57:40.685Z"
+        },
+        {
+          "id": 7,
+          "title": "T7: 빌드 + E2E 검증",
+          "context": "bun run dev로 빌드 확인. bash test/e2e.sh로 E2E 테스트 실행. 컴파일 에러나 테스트 실패 시 수정.",
+          "status": "in_progress",
+          "deps": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "decisions": [],
+          "owner": "lead",
+          "created_at": "2026-03-29T09:57:42.806Z"
+        },
+        {
+          "id": 8,
+          "title": "gate.ts: 버그/수정 패턴 감지 + [run] 태그 핸들러",
+          "context": "1) 버그/수정 키워드 감지 → SOLO ROUTE FORBIDDEN 메시지 주입. 2) [run] 태그 감지 → nx-run 스킬 강제 로딩 지시. EXPLICIT_TAGS, detectKeywords, handleRunMode 추가.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            2
+          ],
+          "created_at": "2026-03-29T13:38:16.972Z"
+        },
+        {
+          "id": 9,
+          "title": "SKILL.md: 3조건 금지 사례 + Bash 수정 금지 규칙",
+          "context": "1) 직접 실행 금지 사례 섹션 추가 (버그/에러/파일미지정/실패후재시도). 2) Bash 파일 수정 금지 규칙 추가. 3) 실패 시 즉시 How agent 에스컬레이션.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            3
+          ],
+          "created_at": "2026-03-29T13:38:19.676Z"
+        },
+        {
+          "id": 10,
+          "title": "CLAUDE.md + e2e.sh 업데이트",
+          "context": "CLAUDE.md 태그 테이블에 [run] 추가. e2e.sh에 [run] 태그 감지 + 버그 패턴 감지 테스트 추가.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            2
+          ],
+          "created_at": "2026-03-29T13:38:20.838Z"
+        }
+      ]
     }
   ]
 }
