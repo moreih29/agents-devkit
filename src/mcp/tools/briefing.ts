@@ -15,6 +15,10 @@ const MATRIX: Record<string, Record<string, string | null>> = {
   engineer:   { identity: null,  codebase: 'all',  reference: null,   memory: 'all' },
   researcher: { identity: 'all', codebase: null,   reference: 'all',  memory: 'all' },
   qa:         { identity: 'all', codebase: 'all',  reference: null,   memory: 'all' },
+  designer:   { identity: 'all', codebase: 'all',  reference: 'all',  memory: 'all' },
+  strategist: { identity: 'all', codebase: 'all',  reference: 'all',  memory: 'all' },
+  writer:     { identity: null,  codebase: 'all',  reference: null,   memory: 'all' },
+  reviewer:   { identity: 'all', codebase: 'all',  reference: null,   memory: 'all' },
 };
 
 function parseTags(content: string): string[] {
@@ -56,7 +60,7 @@ export function registerBriefingTool(server: McpServer): void {
     'nx_briefing',
     'Assemble a role-specific briefing from the core knowledge store (identity, codebase, reference, memory layers) plus decisions and rules.',
     {
-      role: z.enum(['director', 'architect', 'postdoc', 'engineer', 'researcher', 'qa']).describe('Agent role'),
+      role: z.enum(['director', 'architect', 'postdoc', 'engineer', 'researcher', 'qa', 'designer', 'strategist', 'writer', 'reviewer']).describe('Agent role'),
       hint: z.string().optional().describe('Relevant module/area hint for tag filtering'),
     },
     async (params: Record<string, unknown>) => {

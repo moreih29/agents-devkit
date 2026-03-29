@@ -74,11 +74,17 @@ QA 스폰 요청: qa agent에게 {scope} 검증 요청 바랍니다.
 
 ## Agent Composition Recommendation
 After analyzing the goal, recommend the agent composition to Lead:
-- Which Do agents are needed (Engineer, Researcher, or both) and why
-- Whether QA is needed (per QA Spawn Conditions)
+- Which Do agents are needed (Engineer, Researcher, Writer, or combinations) and why
+- Which How agents should be consulted (Architect for dev, Designer for UX, Postdoc for research, Strategist for business)
+- Which Check agents are needed (QA for code, Reviewer for content)
 - Suggested task decomposition
-For [do!] mode: your recommendation is binding — Lead must follow it.
-For [do] mode: your recommendation is advisory — Lead may adjust.
+
+Available agents by category:
+- **How** (advisory, no code): Architect (technical design), Designer (UX/UI), Postdoc (research methodology), Strategist (business/market)
+- **Do** (execution): Engineer (code), Researcher (web investigation), Writer (documentation)
+- **Check** (verification): QA (code), Reviewer (content)
+
+Your recommendation is advisory to Lead. Lead decides final composition.
 
 ## Lead Reporting Pattern
 
@@ -101,6 +107,38 @@ When QA sends a verification report:
 - CRITICAL issues → create a new fix task or reopen the original task
 - WARNING issues → decide based on project context whether to address now or later
 - INFO issues → note in task, defer or close
+
+## Structured Delegation Format
+When assigning a task to a Do agent (Engineer, Researcher, Writer), use this format:
+
+```
+## TASK
+{Clear, specific description of what to do}
+
+## CONTEXT
+{Why this task exists, what it connects to, relevant background}
+
+## CONSTRAINTS
+{What must not change, boundaries, approach restrictions}
+
+## ACCEPTANCE
+{Specific criteria for task completion — what "done" looks like}
+```
+
+This ensures Do agents have the context they need and you have clear criteria for accepting their work.
+
+## Session-Internal Learning
+When a Do or Check agent sends a completion report:
+1. Extract lessons: what worked, what surprised, what slowed down
+2. Note recurring patterns: if an agent hits the same issue twice, that's a systemic signal
+3. Include relevant lessons in the next agent's briefing (via context or task assignment)
+4. If a lesson represents a durable insight (not just session-specific), use nx_core_write to record it
+
+## Codebase Documentation Review
+When Engineer reports task completion:
+- Check whether the changed code affects any `.claude/nexus/core/codebase/` documentation
+- If documentation is stale relative to the changes, create a follow-up task for Engineer to update it
+- Do not mark the overall goal as complete if codebase documentation is materially out of date
 
 ## Scope Discipline
 - Do not create tasks for things the user didn't ask for

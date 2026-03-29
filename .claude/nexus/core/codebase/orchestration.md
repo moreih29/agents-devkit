@@ -3,16 +3,14 @@
 
 ## Tag System
 
-Gate hook의 `UserPromptSubmit` 이벤트에서 사용자 프롬프트의 태그를 감지하여 모드를 활성화한다.
+Gate hook의 `UserPromptSubmit` 이벤트에서 사용자 프롬프트의 태그를 감지하여 모드를 활성화한다. 태그 없는 메시지는 기본 오케스트레이션으로 동작.
 
-### 명시적 태그 (EXPLICIT_TAGS)
+### 명시적 태그
 
-| 태그 | primitive | 스킬 |
-|------|-----------|------|
-| `[consult]` | consult | nx-consult (기존 consult.json 있으면 세션 이어감, 없으면 새 세션 시작) |
-| `[do]` | do | nx-do |
-| `[do!]` | do! | nx-do |
-| `[d]` | — | consult.json 유무로 분기: 있으면 nx_consult_decide, 없으면 nx_decision_add |
+| 태그 | 동작 |
+|------|------|
+| `[consult]` | nx-consult 스킬 로딩. 기존 consult.json 있으면 세션 이어감, 없으면 새 세션 시작. **조사 강제 프롬프트 주입** |
+| `[d]` | consult.json 유무로 분기: 있으면 nx_consult_decide, 없으면 nx_decision_add |
 
 ### 자연어 패턴 (NATURAL_PATTERNS)
 
@@ -21,10 +19,12 @@ consult만 등록: `상담`, `어떻게 하면 좋을까`, `뭐가 좋을까`, `
 ### 오탐 방지
 
 - 에러/버그 맥락 (fix, bug, error + primitive 이름) → 스킵
-- 질문 맥락 ("do가 뭐야", "explain consult") → 스킵
-- 인용 맥락 (`` `do` ``, `"consult"`) → 스킵
+- 질문 맥락 ("consult가 뭐야") → 스킵
+- 인용 맥락 (`` `consult` ``, `"consult"`) → 스킵
 
 ## Gate Hook 동작
+
+gate.ts 단일 모듈이 7개 이벤트를 처리. 이벤트 판별: `process.env.NEXUS_EVENT`로 SessionStart/SubagentStart/Stop 구분, 그 외는 필드 존재 여부(tool_name→PreToolUse, prompt→UserPromptSubmit, 없음→Stop).
 
 ### CLAUDE.md 자동 동기화 (UserPromptSubmit 시)
 
@@ -32,8 +32,17 @@ consult만 등록: `상담`, `어떻게 하면 좋을까`, `뭐가 좋을까`, `
 - 글로벌 `~/.claude/CLAUDE.md`: 다르면 자동 교체
 - 프로젝트 `./CLAUDE.md`: 다르면 1회 알림 (`.nexus/claudemd-notified` 플래그)
 
+### SessionStart 이벤트
+NEXUS_EVENT=SessionStart. Director 스폰 강한 주입 1회: "Director가 존재하지 않으면 반드시 스폰하라."
+
+### SubagentStart 이벤트
+NEXUS_EVENT=SubagentStart. agent-tracker.json에 에이전트 추가 (type, id, started_at).
+
+### SubagentStop 이벤트
+NEXUS_EVENT=SubagentStop. agent-tracker.json에서 해당 에이전트 상태 업데이트 (completed + last_message).
+
 ### Stop 이벤트
-`tasks.json`에 pending 태스크가 있으면 `continue: true`로 종료 차단 (nonstop). 모두 completed이면 `nx_task_close` 강제 (아카이브 없이 종료 불가).
+`tasks.json`에 pending 태스크가 있으면 `continue: true`로 종료 차단 (nonstop). 모두 completed이면 `nx_task_close` 강제.
 
 ### PreToolUse 이벤트
 
@@ -41,77 +50,96 @@ consult만 등록: `상담`, `어떻게 하면 좋을까`, `뭐가 좋을까`, `
 - isNexusInternalPath → 허용
 - `tasks.json` 없음 → 차단 (nx_task_add 필수)
 - all completed / 빈 배열 → 차단 (nx_task_close 필수)
-- **edit-tracker**: 같은 파일 3회 수정 시 경고 (additionalContext), 5회 시 차단 (block). 에스컬레이션: Director → Lead → 사용자.
+- **edit-tracker**: 같은 파일 3회 수정 시 경고, 5회 시 차단. 에스컬레이션: Director → Lead → 사용자.
 
 `Agent` 도구 호출 시:
 - Explore agent → 항상 허용
-- `team_name` 있음 → 허용 (TeamCreate 기반 teammate)
+- `team_name` 있음 → 허용
 - 그 외 → 허용
+
+`nx_task_update` MCP 도구 호출 시:
+- **reopen-tracker**: status가 "pending"(reopen)이면 해당 태스크 reopen 횟수 카운팅. 3회 경고, 5회 차단. Circuit Breaker 패턴.
+
+`nx_task_close` MCP 도구 호출 시:
+- **Check 경고**: edit-tracker 파일 3개+ AND agent-tracker에 qa/reviewer 없음 → 경고 (block 아님). "Check agent가 스폰되지 않았습니다."
 
 ### UserPromptSubmit 이벤트
 
-태그 정규식: `/\[(consult|do!?)\]/i` — Nexus 태그만 직접 검색 (이미지 `[Image #n]` 등에 간섭 방지).
+태그 정규식: `/\[(consult)\]/i`.
 
-`PRIMITIVE_HANDLERS` 맵 기반 dispatch → 모드별 핸들러 함수 호출:
-- consult: consult.json 존재 여부 체크 → 있으면 세션 이어감, 없으면 새 세션 시작 안내.
-- do: TASK_PIPELINE 주입 + "3조건 충족 시 직접 실행, 그 외 Director SendMessage → 구성 추천 → 에이전트 스폰" 가이드 + main/master 브랜치 경고 조건부 주입
-- do!: "Director 구성 추천 BINDING, Lead 직접 실행 금지" 5단계 GUIDELINES 주입 + main/master 브랜치 경고 조건부 주입. TASK_PIPELINE 미포함 (Director가 task 소유).
+`[consult]` 감지 시:
+- consult.json 존재 여부 분기 (세션 이어감 / 새 세션 시작)
+- **조사 강제 프롬프트**: "선택지 제안 전 관련 코드/외부 자료 반드시 탐색. 추측 기반 제안 금지."
 
-태그 없음 fallback:
-- tasks.json 없음 → TASK_PIPELINE 선제 주입
-- tasks.json 있음 → stale cycle 경고
+`[d]` 감지 시:
+- postDecisionRules 주입 (결정만 기록, 구현 시 task 파이프라인 필수)
+- consult.json 유무로 nx_consult_decide / nx_decision_add 분기
 
-`[d]` 태그: postDecisionRules 주입 (결정만 기록, 구현 시 task 파이프라인 필수).
-
-### Consult 세션 규칙
-
-- `[consult]` 태그 사용 시 consult.json 존재 여부로 분기:
-  - 있으면: nx_consult_status 확인 후 nx_consult_update(add)로 논점 추가 안내
-  - 없으면: MANDATORY nx_consult_start 호출 + SKILL.md 참조 안내 (gate.ts에서 간소화된 지시)
-- 세션은 nx_task_close 호출 시 history.json에 아카이브되어 종료됨.
-- cleanupConsult() 제거됨 — 모드 전환(do 등) 시 consult.json을 삭제하지 않음.
+태그 없음 fallback (기본 오케스트레이션):
+- tasks.json 없음 → TASK_PIPELINE + Director 스폰 안내 + Branch Guard + **Lead task_add 제한** ("대규모 작업 시 Director에게 위임. 3조건 직접 실행 시에만 task_add.")
+- tasks.json 있음 + pending → 스마트 resume ("nx_task_list 확인. stale 판단 → close/재등록 또는 이어가기.")
+- tasks.json 있음 + all completed → nx_task_close 안내
 
 ### Consult 경량 컨텍스트 주입 (consultReminder)
 
-consult.json이 존재하는 동안, 태그 없는 멀티턴 대화에서도 매 UserPromptSubmit마다 경량 컨텍스트를 주입:
-- 주제명 + 현재 논점(discussing 또는 next pending) + remaining 수
-- 최소 가이드: "comparison table + pros/cons, [d]로 기록"
-- withNotices()에 통합되어 모든 additionalContext에 자동 병합
-
-### Rules 커스터마이징 흐름
-
-사용자가 커스텀 규칙/원칙을 요청할 때:
-1. `nx_rules_read`로 기존 rules 확인
-2. 대화로 내용 구체화
-3. `nx_rules_write`로 `.claude/nexus/rules/{name}.md`에 저장
-
-규칙은 자동으로 승격되지 않음 — 사용자가 명시적으로 요청할 때만 생성.
+consult.json이 존재하는 동안, 태그 없는 멀티턴에서도 매 UserPromptSubmit마다 경량 주입:
+- 주제명 + 현재 논점 + remaining 수
+- withNotices()에 통합
 
 ### 사이클 종료 (nx_task_close)
-모든 태스크 완료 후 `nx_task_close` 호출 → consult+decisions+tasks를 history.json에 아카이브 → 소스 파일 삭제. 모드 전환 시 consult.json은 유지됨 (자동 삭제 없음).
+모든 태스크 완료 후 호출 → consult+decisions+tasks를 history.json에 아카이브 → 소스 파일 삭제.
 
-## Agent Catalog (6개)
+## Agent Catalog (10개)
 
 | Agent | Model | MaxTurns | 제한 | 카테고리 | 역할 |
 |-------|-------|----------|------|----------|------|
-| director | opus | 30 | Edit, Write, NotebookEdit 불가 | Decide | Why/What, 태스크 소유, nx_task_add 권한 |
-| architect | opus | 25 | Edit, Write, NotebookEdit 불가 | How | 기술 자문, 읽기 전용 |
-| postdoc | opus | 25 | Edit, Bash, NotebookEdit 불가 | How | 방법론 설계, synthesis 문서 작성 |
-| engineer | sonnet | 20 | 제한 없음 | Do | 코드 구현, 디버깅 |
-| researcher | sonnet | 20 | 제한 없음 | Do | 웹 검색, 독립 조사 (3회 실패 시 탈출) |
-| qa | sonnet | 20 | 제한 없음 | Check | 테스트, 검증, 보안 리뷰 |
+| director | opus | 30 | Edit, Write, NotebookEdit 불가 | Decide | Why/What, 태스크 소유, 의도 검증, 구조화된 위임, 세션 내 학습 |
+| architect | opus | 25 | Edit, Write, NotebookEdit, nx_task_add, nx_task_update 불가 | How | 기술 자문, 계획 검증 gate |
+| postdoc | opus | 25 | Edit, Bash, NotebookEdit, nx_task_add, nx_task_update 불가 | How | 방법론 설계, synthesis, 계획 검증 gate |
+| designer | opus | 25 | Edit, Write, NotebookEdit, nx_task_add, nx_task_update 불가 | How | UI/UX 설계, 인터랙션 패턴 |
+| strategist | opus | 25 | Edit, Write, NotebookEdit, nx_task_add, nx_task_update 불가 | How | 비즈니스 전략, 시장 분석 |
+| engineer | sonnet | 25 | nx_task_add 불가 | Do | 코드 구현, 디버깅, codebase/ 즉시 갱신 |
+| researcher | sonnet | 20 | nx_task_add 불가 | Do | 웹 검색, 독립 조사, reference/ 즉시 기록 |
+| writer | sonnet | 25 | nx_task_add 불가 | Do | 기술 문서, 프레젠테이션 |
+| qa | sonnet | 20 | nx_task_add 불가 | Check | 코드 검증, 테스트, 보안 리뷰 |
+| reviewer | sonnet | 20 | nx_task_add 불가 | Check | 콘텐츠 검증, 출처 확인, 문법/포맷 교정 |
+
+### 카테고리별 병렬 상한
+- How: 최대 4
+- Do/Check: 무제한
+
+### 2 파이프라인
+- 코드: Architect/Designer → Engineer → QA
+- 콘텐츠: Postdoc/Strategist → Researcher/Writer → Reviewer
 
 ## Skill Catalog (4개)
 
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
-| nx-consult | [consult] | 구조화된 5단계 상담 (탐색→논점도출→선택지→결정→완료). consult.json 필수. 사용자 요청 시 nx_rules_write로 커스텀 rules 생성 안내. |
-| nx-do | [do]/[do!] | 동적 구성 실행 스킬. Lead+Director 상시 팀 구조. Lead가 의도 정리 후 3조건 충족 시만 직접 실행, 그 외는 Director 경유. Director가 Do agent + QA 추천. [do!]는 Director 팀 강제. Branch Guard: main/master면 브랜치 생성. |
-| nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 (templates/nexus-section.md에서 Nexus 섹션 읽기) |
-| nx-sync | /claude-nexus:nx-sync | git diff 기반 drift 감지+수정 (첫 실행=자동 생성, --reset=초기화, Phase 0.5=CLAUDE.md 체크) |
+| nx-consult | [consult] | 구조화된 5단계 상담. [consult] 태그 시 조사 강제 주입. |
+| nx-run | (기본 동작) | 동적 구성 실행. Lead 3조건 직접 실행 또는 Director 경유. 10개 에이전트 + 2 파이프라인. 구조화된 위임 포맷(TASK/CONTEXT/CONSTRAINTS/ACCEPTANCE). |
+| nx-init | /claude-nexus:nx-init | 풀 온보딩: 프로젝트 스캔 → identity 수립 → codebase 생성 → rules 설정. --reset, --cleanup 지원. |
+| nx-setup | /claude-nexus:nx-setup | 대화형 config.json 설정 마법사. |
+
+### 하네스 메커니즘 요약
+- **Task Pipeline**: tasks.json 없으면 Edit/Write 차단
+- **edit-tracker**: 파일 수준 루프 감지 (3경고/5차단)
+- **reopen-tracker**: 태스크 수준 Circuit Breaker (3경고/5차단)
+- **agent-tracker**: SubagentStart/Stop 훅으로 에이전트 생명주기 추적
+- **Check 경고**: nx_task_close 시 파일 3개+ AND QA/Reviewer 없으면 경고
+- **SessionStart**: Director 스폰 1회 강한 주입
+- **Stop nonstop**: pending 태스크 시 종료 차단
+- **스마트 Resume**: tasks.json 존재 시 stale 판단 프롬프트
 
 ### Memory 자동 기록
-- 루프 감지 시 edit-tracker.json에 파일별 수정 횟수 기록 (.nexus/branches/{branch}/)
 - nx_task_close 시 memoryHint 반환 (taskCount, decisionCount, hadLoopDetection, cycleTopics)
 - Director가 memoryHint 기반으로 교훈 추출 → nx_core_write(layer: "memory") 기록
-- memory/ 파일은 nx_briefing에 자동 포함되어 다음 세션에 반영
+- Director 인메모리 세션 내 학습: 태스크 완료 보고에서 wisdom 추출 → 다음 에이전트 briefing에 포함
+
+### 정보 기록 패턴 (4계층 일관)
+- codebase/: Engineer 즉시 갱신 + Director 검토
+- reference/: Researcher 즉시 기록 + Director 검토
+- memory/: task_close 자동 + Director 판단
+
+### disallowedTools 선언적 관리
+플랫폼 수준에서 에이전트별 MCP 도구 차단. `mcp__plugin_claude-nexus_nx__nx_task_add` 등. How/Do/Check 에이전트는 nx_task_add 차단. How 에이전트는 nx_task_update도 차단. Director만 task 소유 권한.

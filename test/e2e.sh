@@ -176,19 +176,14 @@ result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[consult] 인증 
 check "Consult (mandatory start)" 'nx_consult_start' "$result"
 check "Consult (skill reference)" 'SKILL.md' "$result"
 
-# --- Dev ---
+# --- Default Orchestration ---
 echo ""
-echo "=== Do ==="
+echo "=== Default Orchestration ==="
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do] API 인증 모듈 구현"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (do tag)" 'Do mode' "$result"
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do!] 게이트 훅 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (do! tag)" 'Do mode activated (forced team)' "$result"
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do!] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Do team (nx_task_add)" 'nx_task_add' "$result"
-check "Do team (BINDING)" 'BINDING' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"API 인증 모듈 구현해줘"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (default orchestration)" 'Director' "$result"
+check "Default orchestration (task pipeline)" 'nx_task_add' "$result"
+check "Default orchestration (branch guard)" 'TASK PIPELINE' "$result"
 
 # --- Edit Tracker ---
 echo ""

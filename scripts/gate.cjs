@@ -197,6 +197,77 @@ function isNexusInternalPath(filePath) {
 }
 function handlePreToolUse(event) {
   const toolName = event.tool_name ?? "";
+  if (toolName === "mcp__plugin_claude-nexus_nx__nx_task_update") {
+    const toolInput2 = event.tool_input;
+    const taskId = String(toolInput2?.id ?? toolInput2?.task_id ?? "");
+    const status = String(toolInput2?.status ?? "");
+    if (status === "pending" && taskId) {
+      const reopenTrackerPath = (0, import_path3.join)(BRANCH_ROOT, "reopen-tracker.json");
+      let tracker = {};
+      if ((0, import_fs3.existsSync)(reopenTrackerPath)) {
+        try {
+          tracker = JSON.parse((0, import_fs3.readFileSync)(reopenTrackerPath, "utf-8"));
+        } catch {
+        }
+      }
+      const count = (tracker[taskId] ?? 0) + 1;
+      tracker[taskId] = count;
+      if (!(0, import_fs3.existsSync)(BRANCH_ROOT)) {
+        (0, import_fs3.mkdirSync)(BRANCH_ROOT, { recursive: true });
+      }
+      (0, import_fs3.writeFileSync)(reopenTrackerPath, JSON.stringify(tracker, null, 2));
+      if (count >= 5) {
+        respond({
+          decision: "block",
+          reason: `[NEXUS] Circuit breaker: task "${taskId}" has been reopened ${count} times. BLOCKED. Report to Director via SendMessage: describe the task, blocking issue, and attempts made.`
+        });
+        return;
+      }
+      if (count >= 3) {
+        respond({
+          decision: "approve",
+          additionalContext: `[NEXUS] Warning: task "${taskId}" has been reopened ${count} times. Possible loop detected. Consider reporting to Director via SendMessage before continuing.`
+        });
+        return;
+      }
+    }
+    pass();
+    return;
+  }
+  if (toolName === "mcp__plugin_claude-nexus_nx__nx_task_close") {
+    const editTrackerPath = (0, import_path3.join)(BRANCH_ROOT, "edit-tracker.json");
+    const agentTrackerPath = (0, import_path3.join)(BRANCH_ROOT, "agent-tracker.json");
+    if (!(0, import_fs3.existsSync)(agentTrackerPath)) {
+      pass();
+      return;
+    }
+    let editTracker = {};
+    if ((0, import_fs3.existsSync)(editTrackerPath)) {
+      try {
+        editTracker = JSON.parse((0, import_fs3.readFileSync)(editTrackerPath, "utf-8"));
+      } catch {
+      }
+    }
+    const modifiedFileCount = Object.keys(editTracker).length;
+    let agents = [];
+    try {
+      agents = JSON.parse((0, import_fs3.readFileSync)(agentTrackerPath, "utf-8"));
+    } catch {
+    }
+    const hasCheckAgent = agents.some((a) => {
+      const type = String(a.agent_type ?? "").toLowerCase();
+      return type.includes("qa") || type.includes("reviewer");
+    });
+    if (modifiedFileCount >= 3 && !hasCheckAgent) {
+      respond({
+        decision: "approve",
+        additionalContext: `WARNING: ${modifiedFileCount} files were modified but no Check agent (QA/Reviewer) was spawned. QA spawn conditions may apply: 3+ files changed. Consider spawning QA before closing the cycle.`
+      });
+      return;
+    }
+    pass();
+    return;
+  }
   if (toolName === "Edit" || toolName === "Write") {
     const toolInput2 = event.tool_input;
     const filePath = toolInput2?.file_path ?? "";
@@ -264,9 +335,7 @@ function handlePreToolUse(event) {
   pass();
 }
 var EXPLICIT_TAGS = {
-  consult: { primitive: "consult", skill: "claude-nexus:nx-consult" },
-  do: { primitive: "do", skill: "claude-nexus:nx-do" },
-  "do!": { primitive: "do!", skill: "claude-nexus:nx-do" }
+  consult: { primitive: "consult", skill: "claude-nexus:nx-consult" }
 };
 var NATURAL_PATTERNS = [
   {
@@ -275,15 +344,15 @@ var NATURAL_PATTERNS = [
   }
 ];
 var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-var PRIMITIVE_NAMES = /\b(do|consult)\b/i;
+var PRIMITIVE_NAMES = /\b(consult)\b/i;
 function isPrimitiveMention(prompt) {
   if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
   if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  if (/[`"'](?:do|consult)[`"']/i.test(prompt)) return true;
+  if (/[`"'](?:consult)[`"']/i.test(prompt)) return true;
   return false;
 }
 function detectKeywords(prompt) {
-  const tagMatch = prompt.match(/\[(consult|do!?)\]/i);
+  const tagMatch = prompt.match(/\[(consult)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -325,53 +394,27 @@ function withNotices(base, tasksReminder, claudeMdNotice, consultReminder) {
 function handleConsultMode({ tasksReminder, claudeMdNotice }) {
   const consultFile = (0, import_path3.join)(BRANCH_ROOT, "consult.json");
   const hasExistingSession = (0, import_fs3.existsSync)(consultFile);
+  const investigationReminder = `IMPORTANT: Before proposing options or choices, you MUST explore relevant codebase (Explore agent, Read, Glob) and external references (WebSearch, reference/ layer). Do NOT present options based on assumptions. Investigation cost is always lower than wrong-direction cost.`;
   let base;
   if (hasExistingSession) {
     base = `[NEXUS] Consult mode activated. An existing session was found.
 MANDATORY: Call nx_consult_status to review current issues and decisions. Do NOT skip this tool call.
 If the new topic is related to the existing session, add issues with nx_consult_update(action="add").
-If the new topic is completely unrelated, you may start fresh with nx_consult_start (this overwrites the existing session).`;
+If the new topic is completely unrelated, you may start fresh with nx_consult_start (this overwrites the existing session).
+${investigationReminder}`;
   } else {
     base = `[NEXUS] Consult mode activated. Starting a new session.
 MANDATORY: Call nx_consult_start to register issues. Do NOT skip this tool call.
-Follow the procedure defined in the consult skill (SKILL.md).`;
+Follow the procedure defined in the consult skill (SKILL.md).
+${investigationReminder}`;
   }
   respond({
     continue: true,
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
   });
 }
-function handleDoMode({ tasksReminder, claudeMdNotice }) {
-  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch: You are on main/master. Create a feature branch before making changes." : "";
-  const base = taskPipelineMessage(`[NEXUS] Do mode activated.
-- If all 3 conditions met (exact change instruction + single file + no code structure understanding needed): Lead may edit directly.
-- Otherwise: Send goal to Director via SendMessage \u2192 Director analyzes and recommends agent composition \u2192 Lead spawns recommended agents.
-- Director present \u2192 Director creates tasks via nx_task_add. Lead direct \u2192 Lead calls nx_task_add.
-[do!] forces Director's recommendation as binding.${branchHint}`);
-  respond({
-    continue: true,
-    additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
-  });
-}
-function handleDoTeamMode({ tasksReminder, claudeMdNotice }) {
-  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch: You are on main/master. Create a feature branch before making changes." : "";
-  const base = `[NEXUS] Do mode activated (forced team).
-Director's agent composition recommendation is BINDING. Lead must not handle tasks directly.
-GUIDELINES:
-1. Send goal to Director via SendMessage. Director analyzes and recommends agent composition.
-2. Spawn recommended agents into the team. Director creates tasks via nx_task_add.
-3. Lead should not write code, edit files, or conduct research directly. Delegate all work through teammates.
-4. Lead should focus on orchestration tools (Agent, SendMessage, AskUserQuestion).
-5. If you need tasks created, tell director via SendMessage instead of calling nx_task_add yourself.${branchHint}`;
-  respond({
-    continue: true,
-    additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
-  });
-}
 var PRIMITIVE_HANDLERS = {
-  consult: handleConsultMode,
-  do: handleDoMode,
-  "do!": handleDoTeamMode
+  consult: handleConsultMode
 };
 function handleUserPromptSubmit(event) {
   const claudeMdNotice = handleClaudeMdSync();
@@ -414,9 +457,22 @@ After recording the decision:
   }
   const summary = readTasksSummary(BRANCH_ROOT);
   if (!summary.exists) {
+    const branchGuard = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch Guard: You are on main/master. Create a feature branch before making changes." : "";
+    const orchestrationHint = `[NEXUS] No active tasks. Refer to nx-do SKILL.md for orchestration guidance.
+- If Director is not present in the team, spawn one: TeamCreate + Agent(claude-nexus:director).
+- Direct execution only if ALL 3 conditions met: exact change instruction + single file + no code structure understanding needed.
+- Otherwise: send goal to Director via SendMessage.${branchGuard}
+IMPORTANT: For multi-file or complex tasks, Director owns task creation (nx_task_add). Lead may only use nx_task_add for 3-condition direct execution (single file, trivial change). Wait for Director's design report before spawning Do agents.`;
     respond({
       continue: true,
-      additionalContext: withNotices(taskPipelineMessage(`[NEXUS] No active tasks.`), null, claudeMdNotice, consultReminder)
+      additionalContext: withNotices(taskPipelineMessage(orchestrationHint), null, claudeMdNotice, consultReminder)
+    });
+    return;
+  }
+  if (summary.pending > 0) {
+    respond({
+      continue: true,
+      additionalContext: withNotices(`[NEXUS] Existing tasks detected (${summary.pending} pending). Smart resume: Review existing tasks with nx_task_list. For each pending task: verify if already implemented/documented. If stale \u2192 nx_task_close + fresh nx_task_add. If genuine \u2192 continue execution.`, tasksReminder, claudeMdNotice, consultReminder)
     });
     return;
   }
@@ -425,9 +481,65 @@ After recording the decision:
     additionalContext: withNotices(`[NEXUS] Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.`, tasksReminder, claudeMdNotice, consultReminder)
   });
 }
+function handleSessionStart() {
+  respond({
+    continue: true,
+    additionalContext: `[NEXUS] Session started. Director\uAC00 \uC874\uC7AC\uD558\uC9C0 \uC54A\uC73C\uBA74 \uBC18\uB4DC\uC2DC \uC2A4\uD3F0\uD558\uB77C. TeamCreate + Agent(claude-nexus:director).`
+  });
+}
+function handleSubagentStart(event) {
+  const agentType = String(event.agent_type ?? event.subagent_type ?? "");
+  const agentId = String(event.agent_id ?? event.session_id ?? "");
+  const trackerPath = (0, import_path3.join)(BRANCH_ROOT, "agent-tracker.json");
+  let tracker = [];
+  if ((0, import_fs3.existsSync)(trackerPath)) {
+    try {
+      tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+    } catch {
+    }
+  }
+  tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
+  if (!(0, import_fs3.existsSync)(BRANCH_ROOT)) {
+    (0, import_fs3.mkdirSync)(BRANCH_ROOT, { recursive: true });
+  }
+  (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
+  pass();
+}
+function handleSubagentStop(event) {
+  const agentId = String(event.agent_id ?? event.session_id ?? "");
+  const lastMsg = String(event.last_message ?? event.stop_reason ?? "");
+  const trackerPath = (0, import_path3.join)(BRANCH_ROOT, "agent-tracker.json");
+  if ((0, import_fs3.existsSync)(trackerPath)) {
+    try {
+      const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+      const entry = tracker.find((a) => a.agent_id === agentId);
+      if (entry) {
+        entry.status = "completed";
+        entry.last_message = lastMsg;
+        entry.stopped_at = (/* @__PURE__ */ new Date()).toISOString();
+      }
+      (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
+    } catch {
+    }
+  }
+  pass();
+}
 async function main() {
   const input = await readStdin();
   const event = JSON.parse(input);
+  const nexusEvent = process.env.NEXUS_EVENT ?? "";
+  if (nexusEvent === "SessionStart") {
+    handleSessionStart();
+    return;
+  }
+  if (nexusEvent === "SubagentStart") {
+    handleSubagentStart(event);
+    return;
+  }
+  if (nexusEvent === "SubagentStop") {
+    handleSubagentStop(event);
+    return;
+  }
   const hasToolName = "tool_name" in event;
   const hasPrompt = "prompt" in event || "user_prompt" in event;
   if (hasToolName) {
