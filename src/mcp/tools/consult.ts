@@ -254,7 +254,7 @@ export function registerConsultTools(server: McpServer): void {
           decided: true,
           issue: issue.title,
           allComplete: true,
-          message: '모든 논점이 결정되었습니다. 실행이 필요하면 [dev] 또는 [research] 태그를 사용하세요. 커스텀 규칙이 필요하면 nx_rules_write로 저장하세요.',
+          message: '모든 논점이 결정되었습니다. 실행이 필요하면 [run] 태그를, 규칙으로 저장하려면 [rule] 또는 [rule:태그] 태그를 사용하세요.',
           decisions: decisions.decisions,
         });
       }

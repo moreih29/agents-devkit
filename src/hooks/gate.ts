@@ -367,6 +367,29 @@ type PrimitiveHandler = (params: {
   claudeMdNotice: string | null;
 }) => void;
 
+function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }: {
+  prompt: string;
+  tasksReminder: string | null;
+  claudeMdNotice: string | null;
+  ruleTags: string[] | null;
+}): void {
+  const tagInfo = ruleTags
+    ? `Tags: [${ruleTags.join(', ')}] — 규칙 파일 상단에 <!-- tags: ${ruleTags.join(', ')} --> 형식으로 포함.`
+    : 'Tags: 없음 — 규칙 내용에 맞는 적절한 태그를 판단하여 추가.';
+
+  const base = `[NEXUS] Rule mode — 사용자 지시를 프로젝트 규칙으로 저장.
+${tagInfo}
+1. 사용자 메시지에서 규칙 내용 추출/정리.
+2. nx_rules_write(name, content)로 .nexus/rules/{name}.md에 저장.
+규칙은 git-tracked이며 nx_briefing의 hint 태그 필터링으로 에이전트에게 자동 전달됩니다.
+Task pipeline 불필요 — 직접 저장하세요.`;
+
+  respond({
+    continue: true,
+    additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
+  });
+}
+
 function handleConsultMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
   const consultFile = join(STATE_ROOT, 'consult.json');
   const hasExistingSession = existsSync(consultFile);
@@ -429,6 +452,15 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
         additionalContext: withNotices(`[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`, tasksReminder, claudeMdNotice, null),
       });
     }
+    return;
+  }
+
+  // [rule] 규칙 저장 태그 감지
+  const ruleMatch = prompt.match(/\[rule(?::([^\]]+))?\]/i);
+  if (ruleMatch) {
+    const rawTags = ruleMatch[1];
+    const ruleTags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : null;
+    handleRuleMode({ prompt, tasksReminder, claudeMdNotice, ruleTags });
     return;
   }
 

@@ -1,5 +1,6 @@
 [
   { "tag": "consult", "purpose": "상담 — 실행 전 의도 파악" },
   { "tag": "d", "purpose": "결정 기록 (nx_decision_add 호출)" },
-  { "tag": "run", "purpose": "실행 — nx-run 풀 파이프라인 강제" }
+  { "tag": "run", "purpose": "실행 — nx-run 풀 파이프라인 강제" },
+  { "tag": "rule", "purpose": "규칙 저장 — [rule:태그] 형식 지원" }
 ]

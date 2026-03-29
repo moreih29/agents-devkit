@@ -375,6 +375,19 @@ Present comparison table with pros/cons/recommendation. Record decisions with [d
 function withNotices(base, tasksReminder, claudeMdNotice, consultReminder) {
   return [consultReminder, tasksReminder, base, claudeMdNotice].filter(Boolean).join("\n");
 }
+function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }) {
+  const tagInfo = ruleTags ? `Tags: [${ruleTags.join(", ")}] \u2014 \uADDC\uCE59 \uD30C\uC77C \uC0C1\uB2E8\uC5D0 <!-- tags: ${ruleTags.join(", ")} --> \uD615\uC2DD\uC73C\uB85C \uD3EC\uD568.` : "Tags: \uC5C6\uC74C \u2014 \uADDC\uCE59 \uB0B4\uC6A9\uC5D0 \uB9DE\uB294 \uC801\uC808\uD55C \uD0DC\uADF8\uB97C \uD310\uB2E8\uD558\uC5EC \uCD94\uAC00.";
+  const base = `[NEXUS] Rule mode \u2014 \uC0AC\uC6A9\uC790 \uC9C0\uC2DC\uB97C \uD504\uB85C\uC81D\uD2B8 \uADDC\uCE59\uC73C\uB85C \uC800\uC7A5.
+${tagInfo}
+1. \uC0AC\uC6A9\uC790 \uBA54\uC2DC\uC9C0\uC5D0\uC11C \uADDC\uCE59 \uB0B4\uC6A9 \uCD94\uCD9C/\uC815\uB9AC.
+2. nx_rules_write(name, content)\uB85C .nexus/rules/{name}.md\uC5D0 \uC800\uC7A5.
+\uADDC\uCE59\uC740 git-tracked\uC774\uBA70 nx_briefing\uC758 hint \uD0DC\uADF8 \uD544\uD130\uB9C1\uC73C\uB85C \uC5D0\uC774\uC804\uD2B8\uC5D0\uAC8C \uC790\uB3D9 \uC804\uB2EC\uB429\uB2C8\uB2E4.
+Task pipeline \uBD88\uD544\uC694 \u2014 \uC9C1\uC811 \uC800\uC7A5\uD558\uC138\uC694.`;
+  respond({
+    continue: true,
+    additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
+  });
+}
 function handleConsultMode({ tasksReminder, claudeMdNotice }) {
   const consultFile = (0, import_path3.join)(STATE_ROOT, "consult.json");
   const hasExistingSession = (0, import_fs3.existsSync)(consultFile);
@@ -438,6 +451,13 @@ After recording the decision:
         additionalContext: withNotices(`[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`, tasksReminder, claudeMdNotice, null)
       });
     }
+    return;
+  }
+  const ruleMatch = prompt.match(/\[rule(?::([^\]]+))?\]/i);
+  if (ruleMatch) {
+    const rawTags = ruleMatch[1];
+    const ruleTags = rawTags ? rawTags.split(",").map((t) => t.trim()).filter(Boolean) : null;
+    handleRuleMode({ prompt, tasksReminder, claudeMdNotice, ruleTags });
     return;
   }
   const match = detectKeywords(prompt);

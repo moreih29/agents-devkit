@@ -954,6 +954,53 @@
           "created_at": "2026-03-29T13:38:20.838Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-29T14:06:06.239Z",
+      "branch": "feat/rule-tag",
+      "consult": null,
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "[rule] 태그 추가 (C안): gate에서 [rule] 및 [rule:tag1,tag2] 형식 감지 → Lead가 nx_rules_write로 .nexus/rules/에 저장. 명시적 태그 있으면 그대로, 없으면 LLM 판단. 스킬은 과잉으로 불필요. consult.ts의 stale 메시지([dev]/[research] 참조 + nx_rules_write 직접 노출)도 함께 수정.",
+          "consult": null
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "gate.ts: [rule] 태그 감지 + handleRuleMode 핸들러",
+          "context": "handleUserPromptSubmit()에서 [d] 블록 아래에 별도 ruleMatch 정규식 추가. handleRuleMode() 함수 — tags 파라미터 받아 additionalContext에 태그 정보 포함. task pipeline 미사용.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "created_at": "2026-03-29T14:02:21.990Z"
+        },
+        {
+          "id": 2,
+          "title": "consult.ts: stale allComplete 메시지 수정",
+          "context": "[dev]/[research] → [run], nx_rules_write 직접 노출 → [rule] 태그 안내로 교체.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "created_at": "2026-03-29T14:02:23.704Z"
+        },
+        {
+          "id": 3,
+          "title": "tags.json + e2e.sh: [rule] 태그 등록 + 테스트",
+          "context": "tags.json에 rule 항목 추가. e2e.sh에 [rule] 및 [rule:dev,test] 감지 테스트 추가.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "created_at": "2026-03-29T14:02:24.786Z"
+        }
+      ]
     }
   ]
 }

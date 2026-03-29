@@ -204,6 +204,17 @@ check "Gate/UserPromptSubmit (bug pattern)" 'SOLO ROUTE FORBIDDEN' "$result"
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"버그인것같아 고쳐줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (fix pattern)" 'SOLO ROUTE FORBIDDEN' "$result"
 
+# --- Rule Tag ---
+echo ""
+echo "=== Rule Tag ==="
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[rule] 코드 리뷰는 2명 이상"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit ([rule] tag)" 'Rule mode' "$result"
+
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[rule:dev,test] 커버리지 80% 이상"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit ([rule:tags] tag)" 'Rule mode' "$result"
+check "Rule tag (explicit tags)" 'dev, test' "$result"
+
 # --- Edit Tracker ---
 echo ""
 echo "=== Edit Tracker ==="
