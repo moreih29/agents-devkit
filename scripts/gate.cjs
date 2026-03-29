@@ -76,6 +76,10 @@ function migrateLegacyBranchDir(branchName) {
 }
 migrateLegacyBranchDir(CURRENT_BRANCH);
 var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
+function getSessionRoot(sessionId) {
+  return (0, import_path.join)(RUNTIME_ROOT, "sessions", sessionId);
+}
+var CURRENT_SESSION_FILE = (0, import_path.join)(RUNTIME_ROOT, "current-session");
 
 // src/shared/tasks.ts
 var import_fs2 = require("fs");
@@ -219,14 +223,14 @@ function handlePreToolUse(event) {
       if (count >= 5) {
         respond({
           decision: "block",
-          reason: `[NEXUS] Circuit breaker: task "${taskId}" has been reopened ${count} times. BLOCKED. Report to Director via SendMessage: describe the task, blocking issue, and attempts made.`
+          reason: `[NEXUS] Circuit breaker: task "${taskId}" has been reopened ${count} times. BLOCKED. Report to Lead via SendMessage: describe the task, blocking issue, and attempts made.`
         });
         return;
       }
       if (count >= 3) {
         respond({
           decision: "approve",
-          additionalContext: `[NEXUS] Warning: task "${taskId}" has been reopened ${count} times. Possible loop detected. Consider reporting to Director via SendMessage before continuing.`
+          additionalContext: `[NEXUS] Warning: task "${taskId}" has been reopened ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing.`
         });
         return;
       }
@@ -236,11 +240,6 @@ function handlePreToolUse(event) {
   }
   if (toolName === "mcp__plugin_claude-nexus_nx__nx_task_close") {
     const editTrackerPath = (0, import_path3.join)(BRANCH_ROOT, "edit-tracker.json");
-    const agentTrackerPath = (0, import_path3.join)(BRANCH_ROOT, "agent-tracker.json");
-    if (!(0, import_fs3.existsSync)(agentTrackerPath)) {
-      pass();
-      return;
-    }
     let editTracker = {};
     if ((0, import_fs3.existsSync)(editTrackerPath)) {
       try {
@@ -249,15 +248,23 @@ function handlePreToolUse(event) {
       }
     }
     const modifiedFileCount = Object.keys(editTracker).length;
-    let agents = [];
-    try {
-      agents = JSON.parse((0, import_fs3.readFileSync)(agentTrackerPath, "utf-8"));
-    } catch {
+    let hasCheckAgent = false;
+    if ((0, import_fs3.existsSync)(CURRENT_SESSION_FILE)) {
+      try {
+        const sessionId = (0, import_fs3.readFileSync)(CURRENT_SESSION_FILE, "utf-8").trim();
+        if (sessionId) {
+          const agentTrackerPath = (0, import_path3.join)(getSessionRoot(sessionId), "agent-tracker.json");
+          if ((0, import_fs3.existsSync)(agentTrackerPath)) {
+            const agents = JSON.parse((0, import_fs3.readFileSync)(agentTrackerPath, "utf-8"));
+            hasCheckAgent = agents.some((a) => {
+              const type = String(a.agent_type ?? "").toLowerCase();
+              return type.includes("qa") || type.includes("reviewer");
+            });
+          }
+        }
+      } catch {
+      }
     }
-    const hasCheckAgent = agents.some((a) => {
-      const type = String(a.agent_type ?? "").toLowerCase();
-      return type.includes("qa") || type.includes("reviewer");
-    });
     if (modifiedFileCount >= 3 && !hasCheckAgent) {
       respond({
         decision: "approve",
@@ -304,14 +311,14 @@ function handlePreToolUse(event) {
       if (count >= 5) {
         respond({
           decision: "block",
-          reason: `[NEXUS] Loop detected: "${filePath}" has been modified ${count} times. BLOCKED. Report to Director via SendMessage: describe the file, error pattern, and approaches tried. Wait for Director or Architect guidance before continuing.`
+          reason: `[NEXUS] Loop detected: "${filePath}" has been modified ${count} times. BLOCKED. Report to Lead via SendMessage: describe the file, error pattern, and approaches tried. Wait for Lead or Architect guidance before continuing.`
         });
         return;
       }
       if (count >= 3) {
         respond({
           decision: "approve",
-          additionalContext: `[NEXUS] Warning: "${filePath}" has been modified ${count} times. Possible loop detected. Consider reporting to Director via SendMessage before continuing. Describe what you're trying to fix and why previous attempts failed.`
+          additionalContext: `[NEXUS] Warning: "${filePath}" has been modified ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing. Describe what you're trying to fix and why previous attempts failed.`
         });
         return;
       }
@@ -394,23 +401,21 @@ function withNotices(base, tasksReminder, claudeMdNotice, consultReminder) {
 function handleConsultMode({ tasksReminder, claudeMdNotice }) {
   const consultFile = (0, import_path3.join)(BRANCH_ROOT, "consult.json");
   const hasExistingSession = (0, import_fs3.existsSync)(consultFile);
-  const investigationReminder = `IMPORTANT: Before proposing options or choices, you MUST explore relevant codebase (Explore agent, Read, Glob) and external references (WebSearch, reference/ layer). Do NOT present options based on assumptions. Investigation cost is always lower than wrong-direction cost.`;
   let base;
   if (hasExistingSession) {
-    base = `[NEXUS] Consult mode activated. An existing session was found.
-MANDATORY: Call nx_consult_status to review current issues and decisions. Do NOT skip this tool call.
-If the new topic is related to the existing session, add issues with nx_consult_update(action="add").
-If the new topic is completely unrelated, you may start fresh with nx_consult_start (this overwrites the existing session).
-${investigationReminder}`;
+    base = `[NEXUS] Consult mode \u2014 \uAE30\uC874 \uC138\uC158 \uBC1C\uACAC.
+STEP 1: nx_consult_status\uB85C \uD604\uC7AC \uC0C1\uD0DC \uD655\uC778.
+STEP 2: Explore+researcher \uBCD1\uB82C \uC2A4\uD3F0\uD558\uC5EC \uCF54\uB4DC+\uC678\uBD80 \uCD94\uAC00 \uD0D0\uC0C9.
+STEP 3: \uC870\uC0AC \uACB0\uACFC \uBC14\uD0D5\uC73C\uB85C \uB17C\uC758 \uC9C4\uD589. \uC870\uC0AC \uC644\uB8CC \uC804 \uAE08\uC9C0.`;
   } else {
-    base = `[NEXUS] Consult mode activated. Starting a new session.
-MANDATORY: Call nx_consult_start to register issues. Do NOT skip this tool call.
-Follow the procedure defined in the consult skill (SKILL.md).
-${investigationReminder}`;
+    base = `[NEXUS] Consult mode.
+STEP 1: researcher \uC2A4\uD3F0\uD558\uC5EC \uCF54\uB4DC+\uC678\uBD80 \uD0D0\uC0C9. Explore agent\uB85C \uCF54\uB4DC\uBCA0\uC774\uC2A4 \uD0D0\uC0C9 \uBCD1\uD589.
+STEP 2: \uC870\uC0AC \uACB0\uACFC \uBC14\uD0D5\uC73C\uB85C nx_consult_start \uD638\uCD9C\uD558\uC5EC \uC774\uC288 \uC815\uB9AC.
+\uC870\uC0AC \uC644\uB8CC \uC804 nx_consult_start \uD638\uCD9C \uAE08\uC9C0.`;
   }
   respond({
     continue: true,
-    additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
+    additionalContext: withNotices(base, tasksReminder, claudeMdNotice, null)
   });
 }
 var PRIMITIVE_HANDLERS = {
@@ -442,7 +447,7 @@ After recording the decision:
     } else {
       respond({
         continue: true,
-        additionalContext: withNotices(`[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`, tasksReminder, claudeMdNotice)
+        additionalContext: withNotices(`[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`, tasksReminder, claudeMdNotice, null)
       });
     }
     return;
@@ -458,11 +463,10 @@ After recording the decision:
   const summary = readTasksSummary(BRANCH_ROOT);
   if (!summary.exists) {
     const branchGuard = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch Guard: You are on main/master. Create a feature branch before making changes." : "";
-    const orchestrationHint = `[NEXUS] No active tasks. Refer to nx-do SKILL.md for orchestration guidance.
-- If Director is not present in the team, spawn one: TeamCreate + Agent(claude-nexus:director).
+    const orchestrationHint = `[NEXUS] No active tasks. Refer to nx-run SKILL.md for orchestration guidance.
 - Direct execution only if ALL 3 conditions met: exact change instruction + single file + no code structure understanding needed.
-- Otherwise: send goal to Director via SendMessage.${branchGuard}
-IMPORTANT: For multi-file or complex tasks, Director owns task creation (nx_task_add). Lead may only use nx_task_add for 3-condition direct execution (single file, trivial change). Wait for Director's design report before spawning Do agents.`;
+- Otherwise: spawn How agent (Architect/Postdoc/Strategist) for design consultation, then Do agents for execution.${branchGuard}
+IMPORTANT: For multi-file or complex tasks, Lead creates tasks via nx_task_add after consulting How agents. Spawn How agents first for design before dispatching Do agents.`;
     respond({
       continue: true,
       additionalContext: withNotices(taskPipelineMessage(orchestrationHint), null, claudeMdNotice, consultReminder)
@@ -481,45 +485,61 @@ IMPORTANT: For multi-file or complex tasks, Director owns task creation (nx_task
     additionalContext: withNotices(`[NEXUS] Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.`, tasksReminder, claudeMdNotice, consultReminder)
   });
 }
-function handleSessionStart() {
+function handleSessionStart(event) {
+  const sessionId = String(event.session_id ?? "");
+  if (sessionId) {
+    const sessionRoot = getSessionRoot(sessionId);
+    (0, import_fs3.mkdirSync)(sessionRoot, { recursive: true });
+    (0, import_fs3.writeFileSync)((0, import_path3.join)(sessionRoot, "agent-tracker.json"), "[]");
+    const runtimeDir = RUNTIME_ROOT;
+    if (!(0, import_fs3.existsSync)(runtimeDir)) {
+      (0, import_fs3.mkdirSync)(runtimeDir, { recursive: true });
+    }
+    (0, import_fs3.writeFileSync)(CURRENT_SESSION_FILE, sessionId);
+  }
   respond({
     continue: true,
-    additionalContext: `[NEXUS] Session started. Director\uAC00 \uC874\uC7AC\uD558\uC9C0 \uC54A\uC73C\uBA74 \uBC18\uB4DC\uC2DC \uC2A4\uD3F0\uD558\uB77C. TeamCreate + Agent(claude-nexus:director).`
+    additionalContext: `[NEXUS] Session started.`
   });
 }
 function handleSubagentStart(event) {
   const agentType = String(event.agent_type ?? event.subagent_type ?? "");
   const agentId = String(event.agent_id ?? event.session_id ?? "");
-  const trackerPath = (0, import_path3.join)(BRANCH_ROOT, "agent-tracker.json");
-  let tracker = [];
-  if ((0, import_fs3.existsSync)(trackerPath)) {
-    try {
-      tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
-    } catch {
+  const parentSessionId = String(event.parent_session_id ?? event.session_id ?? "");
+  if (parentSessionId) {
+    const sessionRoot = getSessionRoot(parentSessionId);
+    const trackerPath = (0, import_path3.join)(sessionRoot, "agent-tracker.json");
+    let tracker = [];
+    if ((0, import_fs3.existsSync)(trackerPath)) {
+      try {
+        tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+      } catch {
+      }
     }
+    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
+    (0, import_fs3.mkdirSync)(sessionRoot, { recursive: true });
+    (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
   }
-  tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
-  if (!(0, import_fs3.existsSync)(BRANCH_ROOT)) {
-    (0, import_fs3.mkdirSync)(BRANCH_ROOT, { recursive: true });
-  }
-  (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
   pass();
 }
 function handleSubagentStop(event) {
   const agentId = String(event.agent_id ?? event.session_id ?? "");
   const lastMsg = String(event.last_message ?? event.stop_reason ?? "");
-  const trackerPath = (0, import_path3.join)(BRANCH_ROOT, "agent-tracker.json");
-  if ((0, import_fs3.existsSync)(trackerPath)) {
-    try {
-      const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
-      const entry = tracker.find((a) => a.agent_id === agentId);
-      if (entry) {
-        entry.status = "completed";
-        entry.last_message = lastMsg;
-        entry.stopped_at = (/* @__PURE__ */ new Date()).toISOString();
+  const parentSessionId = String(event.parent_session_id ?? event.session_id ?? "");
+  if (parentSessionId) {
+    const trackerPath = (0, import_path3.join)(getSessionRoot(parentSessionId), "agent-tracker.json");
+    if ((0, import_fs3.existsSync)(trackerPath)) {
+      try {
+        const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+        const entry = tracker.find((a) => a.agent_id === agentId);
+        if (entry) {
+          entry.status = "completed";
+          entry.last_message = lastMsg;
+          entry.stopped_at = (/* @__PURE__ */ new Date()).toISOString();
+        }
+        (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
+      } catch {
       }
-      (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
-    } catch {
     }
   }
   pass();
@@ -529,7 +549,7 @@ async function main() {
   const event = JSON.parse(input);
   const nexusEvent = process.env.NEXUS_EVENT ?? "";
   if (nexusEvent === "SessionStart") {
-    handleSessionStart();
+    handleSessionStart(event);
     return;
   }
   if (nexusEvent === "SubagentStart") {

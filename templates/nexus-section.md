@@ -10,7 +10,6 @@
 |------|-------|
 | Architecture, technical design, code review | architect |
 | UI/UX design, interaction patterns, user experience | designer |
-| Project direction, scope, priorities | director |
 | Code implementation, edits, debugging | engineer |
 | Research methodology, evidence synthesis | postdoc |
 | Testing, verification, security review | qa |

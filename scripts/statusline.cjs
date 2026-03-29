@@ -80,6 +80,7 @@ function migrateLegacyBranchDir(branchName) {
 }
 migrateLegacyBranchDir(CURRENT_BRANCH);
 var BRANCH_ROOT = (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
+var CURRENT_SESSION_FILE = (0, import_path2.join)(RUNTIME_ROOT, "current-session");
 
 // src/statusline/statusline.ts
 var input = "";

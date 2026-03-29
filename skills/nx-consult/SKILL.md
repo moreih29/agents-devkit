@@ -31,11 +31,18 @@ Progressive Depth에 따라 상담 깊이를 결정한다.
 ### Step 1: 탐색
 
 코드, knowledge, decisions를 먼저 파악한다. 근거 없는 질문을 하지 않는다.
-- **`nx_consult_start` 호출. 건너뛰지 않는다.**
-- 새 상담 시작: 코드베이스, knowledge, decisions.json 탐색
-- Lead 직접: knowledge, 코드 간단 확인, 웹 검색
-- 에이전트 소환 (필요 시): 깊은 코드 분석, 전문 조사, 기술 자문. Director를 스폰하여 분석을 위임하는 것도 가능 — 특히 코드 구조 이해나 기술적 판단이 필요한 상담에서 유용.
-- 탐색 범위는 Progressive Depth의 자연스러운 연장: 깊이가 깊을수록 탐색도 넓어짐
+
+**새 세션** (consult.json 없음):
+- STEP 1: researcher 스폰하여 코드+외부 탐색 병행. Explore agent로 코드베이스 탐색 동시 실행.
+- STEP 2: 조사 완료 후 결과를 바탕으로 `nx_consult_start` 호출하여 이슈 정리.
+- 조사 완료 전 `nx_consult_start` 호출 금지.
+
+**기존 세션** (consult.json 있음):
+- STEP 1: `nx_consult_status`로 현재 상태 확인.
+- STEP 2: 새 주제/추가 조사 필요 시 Explore+researcher 병렬 스폰하여 탐색.
+- STEP 3: 조사 결과 또는 기존 맥락 바탕으로 논의 진행. 조사 완료 전 다음 논점 진행 금지.
+
+탐색 범위는 Progressive Depth의 자연스러운 연장: 깊이가 깊을수록 탐색도 넓어짐
 
 ### Step 2: 논점 도출
 

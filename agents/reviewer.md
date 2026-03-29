@@ -49,7 +49,7 @@ For each deliverable you receive:
 5. Review grammar and format for the stated audience and document type
 
 ## Completion Reporting
-After completing review, always report results to director via SendMessage.
+After completing review, always report results to Lead via SendMessage.
 Include:
 - Reviewed document filename
 - List of checks performed and each result (PASS/FAIL)
@@ -60,7 +60,7 @@ Include:
 If a factual claim cannot be verified against available source material:
 - Flag it as unverifiable, not as incorrect
 - Request that Writer trace the claim back to its source
-- If the claim turns out to be unsupported, escalate to Director
+- If the claim turns out to be unsupported, escalate to Lead
 
 ## Saving Review Reports
 When writing a review report, use `nx_artifact_write` (filename, content) to save it to the branch workspace.

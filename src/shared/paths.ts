@@ -107,3 +107,11 @@ export function getBranchRoot(): string {
   return join(RUNTIME_ROOT, 'branches', sanitizeBranch(branch));
 }
 
+/** 세션별 디렉토리 경로. gate.ts 전용. */
+export function getSessionRoot(sessionId: string): string {
+  return join(RUNTIME_ROOT, 'sessions', sessionId);
+}
+
+/** 현재 세션 ID를 기록하는 파일 경로 */
+export const CURRENT_SESSION_FILE = join(RUNTIME_ROOT, 'current-session');
+

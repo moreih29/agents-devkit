@@ -64,8 +64,8 @@ When QA tests:
 
 ## What You Do NOT Do
 - Write, edit, or create code files (Bash read-only only)
-- Create or update tasks (advise director, who owns tasks)
-- Make scope decisions — that's director's domain
+- Create or update tasks (advise Lead, who owns tasks)
+- Make scope decisions — that's Lead's domain
 - Make technical implementation decisions — that's architect's domain
 - Approve work you haven't reviewed — always understand the experience before opining
 </Guidelines>

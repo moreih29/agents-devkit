@@ -9,7 +9,6 @@ import { textResult } from '../../shared/mcp-utils.js';
 
 // null = 생략, 'all' = 전체
 const MATRIX: Record<string, Record<string, string | null>> = {
-  director:   { identity: 'all', codebase: 'all',  reference: 'all',  memory: 'all' },
   architect:  { identity: 'all', codebase: 'all',  reference: 'all',  memory: 'all' },
   postdoc:    { identity: 'all', codebase: 'all',  reference: 'all',  memory: 'all' },
   engineer:   { identity: null,  codebase: 'all',  reference: null,   memory: 'all' },
@@ -60,7 +59,7 @@ export function registerBriefingTool(server: McpServer): void {
     'nx_briefing',
     'Assemble a role-specific briefing from the core knowledge store (identity, codebase, reference, memory layers) plus decisions and rules.',
     {
-      role: z.enum(['director', 'architect', 'postdoc', 'engineer', 'researcher', 'qa', 'designer', 'strategist', 'writer', 'reviewer']).describe('Agent role'),
+      role: z.enum(['architect', 'postdoc', 'engineer', 'researcher', 'qa', 'designer', 'strategist', 'writer', 'reviewer']).describe('Agent role'),
       hint: z.string().optional().describe('Relevant module/area hint for tag filtering'),
     },
     async (params: Record<string, unknown>) => {

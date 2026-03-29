@@ -52,7 +52,7 @@ Before writing, identify:
 Always save output using `nx_artifact_write` (filename, content). Never use Write or Edit directly for deliverables.
 
 ## Completion Reporting
-After completing a document, report to director via SendMessage.
+After completing a document, report to Lead via SendMessage.
 Include:
 - Completed document filename
 - Target audience and format

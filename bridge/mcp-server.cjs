@@ -21081,6 +21081,7 @@ function getBranchRoot() {
   migrateLegacyBranchDir(branch);
   return (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitizeBranch(branch));
 }
+var CURRENT_SESSION_FILE = (0, import_path2.join)(RUNTIME_ROOT, "current-session");
 
 // src/mcp/tools/markdown-store.ts
 var import_path3 = require("path");
@@ -22406,7 +22407,6 @@ function registerTaskTools(server2) {
     "nx_task_add",
     "Add a new task to .nexus/tasks.json",
     {
-      caller: external_exports.string().describe("Your agent name"),
       title: external_exports.string().describe("Task title"),
       context: external_exports.string().describe("Task context or description"),
       deps: external_exports.array(external_exports.number()).optional().describe("IDs of tasks this task depends on"),
@@ -22414,11 +22414,7 @@ function registerTaskTools(server2) {
       goal: external_exports.string().optional().describe("Set or update the goal for this task list"),
       owner: external_exports.string().optional().describe("Assignee agent name for this task")
     },
-    async ({ caller, title, context, deps, decisions, goal, owner }) => {
-      const allowedCallers = ["director", "lead"];
-      if (!allowedCallers.includes(caller)) {
-        return textResult({ error: `Only ${allowedCallers.join("/")} can create tasks. You are: ${caller}` });
-      }
+    async ({ title, context, deps, decisions, goal, owner }) => {
       let data = await readTasks();
       if (!data) {
         data = { goal: "", tasks: [] };
@@ -22469,28 +22465,50 @@ function registerTaskTools(server2) {
     {},
     async () => {
       const root = getBranchRoot();
-      const historyPath = (0, import_path11.join)(root, "history.json");
+      const projectHistoryPath = (0, import_path11.join)(RUNTIME_ROOT, "history.json");
       const consultJsonPath = (0, import_path11.join)(root, "consult.json");
       const decisionsJsonPath = (0, import_path11.join)(root, "decisions.json");
+      const reopenTrackerPath = (0, import_path11.join)(root, "reopen-tracker.json");
       const consult = await readConsult();
       const decisionsData = await readDecisions();
       const decisions = decisionsData.decisions;
       const tasksData = await readTasks();
       const tasks = tasksData?.tasks ?? [];
+      const branch = getCurrentBranch();
       let history = { cycles: [] };
-      if ((0, import_fs11.existsSync)(historyPath)) {
-        const raw = await (0, import_promises6.readFile)(historyPath, "utf-8");
+      const branchHistoryPath = (0, import_path11.join)(root, "history.json");
+      if ((0, import_fs11.existsSync)(branchHistoryPath)) {
+        try {
+          const raw = await (0, import_promises6.readFile)(branchHistoryPath, "utf-8");
+          const branchHistory = JSON.parse(raw);
+          if (branchHistory.cycles && branchHistory.cycles.length > 0) {
+            const migratedCycles = branchHistory.cycles.map((c) => ({
+              branch,
+              ...c
+            }));
+            if ((0, import_fs11.existsSync)(projectHistoryPath)) {
+              const projectRaw = await (0, import_promises6.readFile)(projectHistoryPath, "utf-8");
+              history = JSON.parse(projectRaw);
+            }
+            history.cycles.push(...migratedCycles);
+          }
+          (0, import_fs11.unlinkSync)(branchHistoryPath);
+        } catch {
+        }
+      } else if ((0, import_fs11.existsSync)(projectHistoryPath)) {
+        const raw = await (0, import_promises6.readFile)(projectHistoryPath, "utf-8");
         history = JSON.parse(raw);
       }
       const cycle = {
         completed_at: (/* @__PURE__ */ new Date()).toISOString(),
+        branch,
         consult,
         decisions,
         tasks
       };
       history.cycles.push(cycle);
-      ensureDir(root);
-      await (0, import_promises6.writeFile)(historyPath, JSON.stringify(history, null, 2));
+      ensureDir(RUNTIME_ROOT);
+      await (0, import_promises6.writeFile)(projectHistoryPath, JSON.stringify(history, null, 2));
       const editTrackerPath = (0, import_path11.join)(root, "edit-tracker.json");
       let hadLoopDetection = false;
       if ((0, import_fs11.existsSync)(editTrackerPath)) {
@@ -22507,7 +22525,7 @@ function registerTaskTools(server2) {
         cycleTopics: [consult?.topic, tasksData?.goal].filter(Boolean)
       };
       const deleted = [];
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath]) {
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath]) {
         if ((0, import_fs11.existsSync)(p)) {
           (0, import_fs11.unlinkSync)(p);
           deleted.push(p.split("/").pop());
@@ -22516,6 +22534,7 @@ function registerTaskTools(server2) {
       return textResult({
         closed: true,
         cycle: cycle.completed_at,
+        branch,
         archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
         deleted,
         total_cycles: history.cycles.length,
@@ -22594,7 +22613,6 @@ var import_fs13 = require("fs");
 var import_promises8 = require("fs/promises");
 var import_path14 = require("path");
 var MATRIX = {
-  director: { identity: "all", codebase: "all", reference: "all", memory: "all" },
   architect: { identity: "all", codebase: "all", reference: "all", memory: "all" },
   postdoc: { identity: "all", codebase: "all", reference: "all", memory: "all" },
   engineer: { identity: null, codebase: "all", reference: null, memory: "all" },
@@ -22635,7 +22653,7 @@ function registerBriefingTool(server2) {
     "nx_briefing",
     "Assemble a role-specific briefing from the core knowledge store (identity, codebase, reference, memory layers) plus decisions and rules.",
     {
-      role: external_exports.enum(["director", "architect", "postdoc", "engineer", "researcher", "qa", "designer", "strategist", "writer", "reviewer"]).describe("Agent role"),
+      role: external_exports.enum(["architect", "postdoc", "engineer", "researcher", "qa", "designer", "strategist", "writer", "reviewer"]).describe("Agent role"),
       hint: external_exports.string().optional().describe("Relevant module/area hint for tag filtering")
     },
     async (params) => {

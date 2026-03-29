@@ -3,7 +3,7 @@ import { existsSync, unlinkSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getBranchRoot, ensureDir } from '../../shared/paths.js';
+import { getBranchRoot, RUNTIME_ROOT, getCurrentBranch, ensureDir } from '../../shared/paths.js';
 import { readConsult, type ConsultFile } from './consult.js';
 import { readDecisions, type DecisionEntry } from './decision.js';
 import { textResult } from '../../shared/mcp-utils.js';
@@ -74,7 +74,6 @@ export function registerTaskTools(server: McpServer): void {
     'nx_task_add',
     'Add a new task to .nexus/tasks.json',
     {
-      caller: z.string().describe('Your agent name'),
       title: z.string().describe('Task title'),
       context: z.string().describe('Task context or description'),
       deps: z.array(z.number()).optional().describe('IDs of tasks this task depends on'),
@@ -82,12 +81,7 @@ export function registerTaskTools(server: McpServer): void {
       goal: z.string().optional().describe('Set or update the goal for this task list'),
       owner: z.string().optional().describe('Assignee agent name for this task'),
     },
-    async ({ caller, title, context, deps, decisions, goal, owner }) => {
-      const allowedCallers = ['director', 'lead'];
-      if (!allowedCallers.includes(caller)) {
-        return textResult({ error: `Only ${allowedCallers.join('/')} can create tasks. You are: ${caller}` });
-      }
-
+    async ({ title, context, deps, decisions, goal, owner }) => {
       let data = await readTasks();
       if (!data) {
         data = { goal: '', tasks: [] };
@@ -149,9 +143,10 @@ export function registerTaskTools(server: McpServer): void {
     {},
     async () => {
       const root = getBranchRoot();
-      const historyPath = join(root, 'history.json');
+      const projectHistoryPath = join(RUNTIME_ROOT, 'history.json');
       const consultJsonPath = join(root, 'consult.json');
       const decisionsJsonPath = join(root, 'decisions.json');
+      const reopenTrackerPath = join(root, 'reopen-tracker.json');
 
       // Read current state (only what exists)
       const consult: ConsultFile | null = await readConsult();
@@ -160,9 +155,12 @@ export function registerTaskTools(server: McpServer): void {
       const tasksData = await readTasks();
       const tasks: Task[] = tasksData?.tasks ?? [];
 
-      // Read or initialize history.json
+      const branch = getCurrentBranch();
+
+      // Read or initialize project-level history.json
       interface Cycle {
         completed_at: string;
+        branch: string;
         consult: ConsultFile | null;
         decisions: DecisionEntry[];
         tasks: Task[];
@@ -172,23 +170,45 @@ export function registerTaskTools(server: McpServer): void {
       }
 
       let history: HistoryFile = { cycles: [] };
-      if (existsSync(historyPath)) {
-        const raw = await readFile(historyPath, 'utf-8');
+
+      // 기존 브랜치별 history.json 마이그레이션
+      const branchHistoryPath = join(root, 'history.json');
+      if (existsSync(branchHistoryPath)) {
+        try {
+          const raw = await readFile(branchHistoryPath, 'utf-8');
+          const branchHistory = JSON.parse(raw) as { cycles: Array<Record<string, unknown>> };
+          if (branchHistory.cycles && branchHistory.cycles.length > 0) {
+            // 기존 사이클에 branch 필드가 없으면 추가
+            const migratedCycles = branchHistory.cycles.map((c) => ({
+              branch,
+              ...c,
+            }));
+            if (existsSync(projectHistoryPath)) {
+              const projectRaw = await readFile(projectHistoryPath, 'utf-8');
+              history = JSON.parse(projectRaw) as HistoryFile;
+            }
+            history.cycles.push(...(migratedCycles as Cycle[]));
+          }
+          unlinkSync(branchHistoryPath);
+        } catch {}
+      } else if (existsSync(projectHistoryPath)) {
+        const raw = await readFile(projectHistoryPath, 'utf-8');
         history = JSON.parse(raw) as HistoryFile;
       }
 
       // Create new cycle and append
       const cycle: Cycle = {
         completed_at: new Date().toISOString(),
+        branch,
         consult,
         decisions,
         tasks,
       };
       history.cycles.push(cycle);
 
-      // Write history.json
-      ensureDir(root);
-      await writeFile(historyPath, JSON.stringify(history, null, 2));
+      // Write project-level history.json
+      ensureDir(RUNTIME_ROOT);
+      await writeFile(projectHistoryPath, JSON.stringify(history, null, 2));
 
       // memoryHint 계산
       const editTrackerPath = join(root, 'edit-tracker.json');
@@ -207,9 +227,9 @@ export function registerTaskTools(server: McpServer): void {
         cycleTopics: [consult?.topic, tasksData?.goal].filter(Boolean) as string[],
       };
 
-      // Delete source files
+      // Delete source files (reopen-tracker 포함)
       const deleted: string[] = [];
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath]) {
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath]) {
         if (existsSync(p)) {
           unlinkSync(p);
           deleted.push(p.split('/').pop()!);
@@ -219,6 +239,7 @@ export function registerTaskTools(server: McpServer): void {
       return textResult({
         closed: true,
         cycle: cycle.completed_at,
+        branch,
         archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
         deleted,
         total_cycles: history.cycles.length,

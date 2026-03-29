@@ -174,14 +174,14 @@ check "Gate/UserPromptSubmit (consult natural)" 'Consult mode' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[consult] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
 check "Consult (mandatory start)" 'nx_consult_start' "$result"
-check "Consult (skill reference)" 'SKILL.md' "$result"
+check "Consult (researcher spawn)" 'researcher' "$result"
 
 # --- Default Orchestration ---
 echo ""
 echo "=== Default Orchestration ==="
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"API 인증 모듈 구현해줘"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (default orchestration)" 'Director' "$result"
+check "Gate/UserPromptSubmit (default orchestration)" 'How agent' "$result"
 check "Default orchestration (task pipeline)" 'nx_task_add' "$result"
 check "Default orchestration (branch guard)" 'TASK PIPELINE' "$result"
 

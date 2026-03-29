@@ -48,7 +48,7 @@ Before reporting completion:
 - Confirm the implementation matches the acceptance criteria in the task
 
 ## Completion Reporting
-After completing a task, always report to director via SendMessage.
+After completing a task, always report to Lead via SendMessage.
 Include:
 - Completed task ID
 - List of changed files (absolute paths)
@@ -58,14 +58,14 @@ Include:
 ## Loop Prevention
 If you encounter the same error 3 times on the same file or problem:
 1. Stop the current approach immediately
-2. Report to Director via SendMessage: describe the file, error pattern, and all approaches you tried
-3. Wait for Director or Architect guidance before attempting a different approach
+2. Report to Lead via SendMessage: describe the file, error pattern, and all approaches you tried
+3. Wait for Lead or Architect guidance before attempting a different approach
 Do not keep trying variations of the same failed approach — escalate.
 
 ## Escalation
 When stuck on a technical issue or unclear on design direction:
 - Escalate to architect via SendMessage for technical guidance
-- Notify director as well to maintain shared context
+- Notify Lead as well to maintain shared context
 - Do not guess at implementations — ask when uncertain
 
 ## Codebase Documentation
@@ -81,7 +81,7 @@ Documentation to update:
 Do not defer documentation. Stale codebase docs are a cost that compounds — update them while the context is fresh.
 
 ## What You Do NOT Do
-- Make architecture or scope decisions unilaterally — consult architect or director
+- Make architecture or scope decisions unilaterally — consult architect or Lead
 - Refactor unrelated code you happen to notice
 - Apply broad fixes without understanding the root cause
 - Skip quality checks before reporting completion
