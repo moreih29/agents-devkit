@@ -315,10 +315,11 @@ Follow the procedure defined in the consult skill (SKILL.md).`;
 }
 function handleDoMode({ tasksReminder, claudeMdNotice }) {
   const branchHint = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch: You are on main/master. Create a feature branch before making changes." : "";
-  const base = taskPipelineMessage(`[NEXUS] Do mode activated. Assess the request and choose your approach:
-- Simple (few tasks, no cross-cutting concerns): Spawn agents directly. Use parallel spawns for independent tasks.
-- Complex (design decisions needed, cross-cutting concerns): Use TeamCreate + full team workflow
-[do!] forces team mode.${branchHint}`);
+  const base = taskPipelineMessage(`[NEXUS] Do mode activated.
+- If all 3 conditions met (exact change instruction + single file + no code structure understanding needed): Lead may edit directly.
+- Otherwise: Send goal to Director via SendMessage \u2192 Director analyzes and recommends agent composition \u2192 Lead spawns recommended agents.
+- Director present \u2192 Director creates tasks via nx_task_add. Lead direct \u2192 Lead calls nx_task_add.
+[do!] forces Director's recommendation as binding.${branchHint}`);
   respond({
     continue: true,
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
@@ -326,12 +327,13 @@ function handleDoMode({ tasksReminder, claudeMdNotice }) {
 }
 function handleDoTeamMode({ tasksReminder, claudeMdNotice }) {
   const branchHint = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch: You are on main/master. Create a feature branch before making changes." : "";
-  const base = `[NEXUS] Team mode activated (forced). Use TeamCreate + full team workflow.
+  const base = `[NEXUS] Do mode activated (forced team).
+Director's agent composition recommendation is BINDING. Lead must not handle tasks directly.
 GUIDELINES:
-1. Avoid direct Agent() calls \u2014 prefer TeamCreate + Agent({ team_name }). Explore and team_name agents are fine.
-2. Lead should not call nx_task_add() or nx_task_update(). Let director handle task management.
+1. Send goal to Director via SendMessage. Director analyzes and recommends agent composition.
+2. Spawn recommended agents into the team. Director creates tasks via nx_task_add.
 3. Lead should not write code, edit files, or conduct research directly. Delegate all work through teammates.
-4. Lead should focus on orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion).
+4. Lead should focus on orchestration tools (Agent, SendMessage, AskUserQuestion).
 5. If you need tasks created, tell director via SendMessage instead of calling nx_task_add yourself.${branchHint}`;
   respond({
     continue: true,

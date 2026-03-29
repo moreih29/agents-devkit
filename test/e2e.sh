@@ -184,11 +184,11 @@ result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do] API 인증 �
 check "Gate/UserPromptSubmit (do tag)" 'Do mode' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do!] 게이트 훅 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (do! tag)" 'Team mode activated' "$result"
+check "Gate/UserPromptSubmit (do! tag)" 'Do mode activated (forced team)' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do!] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
 check "Do team (nx_task_add)" 'nx_task_add' "$result"
-check "Do team (nx_task_update)" 'nx_task_update' "$result"
+check "Do team (BINDING)" 'BINDING' "$result"
 
 # --- Statusline ---
 echo ""
