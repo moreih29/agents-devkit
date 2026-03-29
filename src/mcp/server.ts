@@ -11,6 +11,7 @@ import { registerDecisionTools } from './tools/decision.js';
 import { registerArtifactTools } from './tools/artifact.js';
 import { registerConsultTools } from './tools/consult.js';
 import { registerBranchTools } from './tools/branch.js';
+import { registerBriefingTool } from './tools/briefing.js';
 import { rulesPath, KNOWLEDGE_ROOT } from '../shared/paths.js';
 import { join } from 'path';
 
@@ -38,6 +39,7 @@ registerDecisionTools(server);
 registerArtifactTools(server);
 registerConsultTools(server);
 registerBranchTools(server);
+registerBriefingTool(server);
 
 async function main() {
   const transport = new StdioServerTransport();

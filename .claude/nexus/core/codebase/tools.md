@@ -11,6 +11,7 @@ MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/
 | `nx_core_write` | core-store.ts | `.claude/nexus/core/{layer}/{topic}.md` | core 지식 쓰기 (layer enum: identity/codebase/reference/memory, tags 옵션) |
 | `nx_rules_read` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 읽기 (name 지정 또는 태그 검색) |
 | `nx_rules_write` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 쓰기 (tags 옵션, HTML 주석 frontmatter) |
+| `nx_briefing` | briefing.ts | `.claude/nexus/core/{layer}/` + `decisions.json` + `rules/` | 역할별 briefing 조립. role(director/architect/postdoc/engineer/researcher/qa) + hint(옵션). 매트릭스 기반 계층 수집 (engineer: codebase+memory만, researcher: identity+reference+memory만 등). hint 있으면 태그/파일명 필터링. decisions.json + rules/ 자동 포함. 단일 markdown 문자열 반환. |
 | `nx_context` | context.ts | `.nexus/branches/{branch}/tasks.json`, `decisions.json` 참조 | 현재 브랜치, 팀 모드, 태스크 요약, 결정 사항 조회 |
 | `nx_task_list` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 목록 + summary + ready 태스크 |
 | `nx_task_add` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 추가 (caller=director/lead/principal 허용) |

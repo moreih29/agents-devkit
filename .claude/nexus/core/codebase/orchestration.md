@@ -53,8 +53,8 @@ consult만 등록: `상담`, `어떻게 하면 좋을까`, `뭐가 좋을까`, `
 
 `PRIMITIVE_HANDLERS` 맵 기반 dispatch → 모드별 핸들러 함수 호출:
 - consult: consult.json 존재 여부 체크 → 있으면 세션 이어감, 없으면 새 세션 시작 안내.
-- do: TASK_PIPELINE 주입 + 동적 구성 판단 가이드 (Simple→직접 스폰, Complex→TeamCreate) + main/master 브랜치 경고 조건부 주입
-- do!: GUIDELINES (소프트 가이드) + TeamCreate 강제 주입 + main/master 브랜치 경고 조건부 주입. "BLOCKED" 아닌 "Avoid" 톤.
+- do: TASK_PIPELINE 주입 + "3조건 충족 시 직접 실행, 그 외 Director SendMessage → 구성 추천 → 에이전트 스폰" 가이드 + main/master 브랜치 경고 조건부 주입
+- do!: "Director 구성 추천 BINDING, Lead 직접 실행 금지" 5단계 GUIDELINES 주입 + main/master 브랜치 경고 조건부 주입. TASK_PIPELINE 미포함 (Director가 task 소유).
 
 태그 없음 fallback:
 - tasks.json 없음 → TASK_PIPELINE 선제 주입
@@ -105,6 +105,6 @@ consult.json이 존재하는 동안, 태그 없는 멀티턴 대화에서도 매
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
 | nx-consult | [consult] | 구조화된 5단계 상담 (탐색→논점도출→선택지→결정→완료). consult.json 필수. 사용자 요청 시 nx_rules_write로 커스텀 rules 생성 안내. |
-| nx-do | [do]/[do!] | 동적 구성 실행 스킬. Simple: Lead 판단→필요한 에이전트만 직접 스폰. Complex: TeamCreate + full team workflow. [do!]는 팀 모드 강제. Branch Guard: main/master면 브랜치 생성 안내. |
+| nx-do | [do]/[do!] | 동적 구성 실행 스킬. Lead+Director 상시 팀 구조. Lead가 의도 정리 후 3조건 충족 시만 직접 실행, 그 외는 Director 경유. Director가 Do agent + QA 추천. [do!]는 Director 팀 강제. Branch Guard: main/master면 브랜치 생성. |
 | nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 (templates/nexus-section.md에서 Nexus 섹션 읽기) |
 | nx-sync | /claude-nexus:nx-sync | git diff 기반 drift 감지+수정 (첫 실행=자동 생성, --reset=초기화, Phase 0.5=CLAUDE.md 체크) |

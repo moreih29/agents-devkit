@@ -22573,8 +22573,124 @@ function registerBranchTools(server2) {
   );
 }
 
-// src/mcp/server.ts
+// src/mcp/tools/briefing.ts
+var import_fs13 = require("fs");
+var import_promises8 = require("fs/promises");
 var import_path14 = require("path");
+var MATRIX = {
+  director: { identity: "all", codebase: "all", reference: "all", memory: "all" },
+  architect: { identity: "all", codebase: "all", reference: "all", memory: "all" },
+  postdoc: { identity: "all", codebase: "all", reference: "all", memory: "all" },
+  engineer: { identity: null, codebase: "all", reference: null, memory: "all" },
+  researcher: { identity: "all", codebase: null, reference: "all", memory: "all" },
+  qa: { identity: "all", codebase: "all", reference: null, memory: "all" }
+};
+function parseTags2(content) {
+  const match = content.match(/^<!--\s*tags:\s*(.+?)\s*-->/);
+  if (!match) return [];
+  return match[1].split(",").map((t) => t.trim()).filter(Boolean);
+}
+async function readLayerFiles(layer, hint) {
+  const layerDir = coreLayerDir(layer);
+  if (!(0, import_fs13.existsSync)(layerDir)) return [];
+  const files = (await (0, import_promises8.readdir)(layerDir)).filter((f) => f.endsWith(".md"));
+  const results = [];
+  for (const file of files) {
+    const filePath = (0, import_path14.join)(layerDir, file);
+    const content = await (0, import_promises8.readFile)(filePath, "utf-8");
+    results.push({ filename: file, content });
+  }
+  if (hint && results.length > 0) {
+    const hintLower = hint.toLowerCase();
+    const matched = results.filter(({ filename, content }) => {
+      const tags = parseTags2(content);
+      return tags.some((t) => t.toLowerCase().includes(hintLower)) || filename.toLowerCase().includes(hintLower);
+    });
+    if (matched.length > 0) return matched;
+  }
+  return results;
+}
+function registerBriefingTool(server2) {
+  server2.tool(
+    "nx_briefing",
+    "Assemble a role-specific briefing from the core knowledge store (identity, codebase, reference, memory layers) plus decisions and rules.",
+    {
+      role: external_exports.enum(["director", "architect", "postdoc", "engineer", "researcher", "qa"]).describe("Agent role"),
+      hint: external_exports.string().optional().describe("Relevant module/area hint for tag filtering")
+    },
+    async (params) => {
+      const role = params.role;
+      const hint = params.hint;
+      const matrix = MATRIX[role];
+      if (!matrix) {
+        return textResult({ error: `Unknown role: ${role}` });
+      }
+      const collectedFiles = [];
+      const sections = {};
+      for (const layer of LAYERS) {
+        const policy = matrix[layer];
+        if (policy === null) continue;
+        const files = await readLayerFiles(layer, hint);
+        sections[layer] = files;
+        for (const f of files) {
+          collectedFiles.push(`${layer}/${f.filename}`);
+        }
+      }
+      let decisionsSection = "";
+      const decisionsPath2 = (0, import_path14.join)(getBranchRoot(), "decisions.json");
+      if ((0, import_fs13.existsSync)(decisionsPath2)) {
+        const raw = await (0, import_promises8.readFile)(decisionsPath2, "utf-8");
+        decisionsSection = raw.trim();
+      }
+      let rulesSection = "";
+      const rulesDir = (0, import_path14.join)(KNOWLEDGE_ROOT, "rules");
+      if ((0, import_fs13.existsSync)(rulesDir)) {
+        const ruleFiles = (await (0, import_promises8.readdir)(rulesDir)).filter((f) => f.endsWith(".md"));
+        const parts = [];
+        for (const ruleFile of ruleFiles) {
+          const content = await (0, import_promises8.readFile)((0, import_path14.join)(rulesDir, ruleFile), "utf-8");
+          parts.push(`### ${ruleFile}
+${content.trim()}`);
+        }
+        rulesSection = parts.join("\n\n");
+      }
+      const lines = [];
+      lines.push(`<!-- briefing: role=${role}, hint=${hint ?? "null"}, files=[${collectedFiles.join(", ")}] -->`);
+      lines.push("");
+      if (decisionsSection) {
+        lines.push("## Decisions");
+        lines.push(decisionsSection);
+        lines.push("");
+      }
+      if (rulesSection) {
+        lines.push("## Rules");
+        lines.push(rulesSection);
+        lines.push("");
+      }
+      for (const layer of LAYERS) {
+        const policy = matrix[layer];
+        if (policy === null) continue;
+        const layerName = layer.charAt(0).toUpperCase() + layer.slice(1);
+        lines.push(`## ${layerName}`);
+        const files = sections[layer] ?? [];
+        if (files.length === 0) {
+          lines.push(`No ${layer} files.`);
+        } else {
+          for (const { filename, content } of files) {
+            lines.push(`### ${filename}`);
+            lines.push(content.trim());
+          }
+        }
+        lines.push("");
+      }
+      const markdown = lines.join("\n");
+      return { content: [{ type: "text", text: markdown }] };
+    }
+  );
+}
+
+// src/mcp/server.ts
+var import_path15 = require("path");
 var server = new McpServer({
   name: "nx",
   version: getCurrentVersion() || "0.0.0"
@@ -22583,7 +22699,7 @@ registerCoreStore(server);
 registerMarkdownStore(server, {
   toolPrefix: "nx_rules",
   entityName: "name",
-  dirPath: (0, import_path14.join)(KNOWLEDGE_ROOT, "rules"),
+  dirPath: (0, import_path15.join)(KNOWLEDGE_ROOT, "rules"),
   pathFn: rulesPath,
   listKey: "rules",
   cache: false
@@ -22596,6 +22712,7 @@ registerDecisionTools(server);
 registerArtifactTools(server);
 registerConsultTools(server);
 registerBranchTools(server);
+registerBriefingTool(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
