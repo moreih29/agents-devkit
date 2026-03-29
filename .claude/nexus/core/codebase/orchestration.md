@@ -41,6 +41,7 @@ consult만 등록: `상담`, `어떻게 하면 좋을까`, `뭐가 좋을까`, `
 - isNexusInternalPath → 허용
 - `tasks.json` 없음 → 차단 (nx_task_add 필수)
 - all completed / 빈 배열 → 차단 (nx_task_close 필수)
+- **edit-tracker**: 같은 파일 3회 수정 시 경고 (additionalContext), 5회 시 차단 (block). 에스컬레이션: Director → Lead → 사용자.
 
 `Agent` 도구 호출 시:
 - Explore agent → 항상 허용
@@ -108,3 +109,9 @@ consult.json이 존재하는 동안, 태그 없는 멀티턴 대화에서도 매
 | nx-do | [do]/[do!] | 동적 구성 실행 스킬. Lead+Director 상시 팀 구조. Lead가 의도 정리 후 3조건 충족 시만 직접 실행, 그 외는 Director 경유. Director가 Do agent + QA 추천. [do!]는 Director 팀 강제. Branch Guard: main/master면 브랜치 생성. |
 | nx-setup | /claude-nexus:nx-setup | 대화형 설정 마법사 (templates/nexus-section.md에서 Nexus 섹션 읽기) |
 | nx-sync | /claude-nexus:nx-sync | git diff 기반 drift 감지+수정 (첫 실행=자동 생성, --reset=초기화, Phase 0.5=CLAUDE.md 체크) |
+
+### Memory 자동 기록
+- 루프 감지 시 edit-tracker.json에 파일별 수정 횟수 기록 (.nexus/branches/{branch}/)
+- nx_task_close 시 memoryHint 반환 (taskCount, decisionCount, hadLoopDetection, cycleTopics)
+- Director가 memoryHint 기반으로 교훈 추출 → nx_core_write(layer: "memory") 기록
+- memory/ 파일은 nx_briefing에 자동 포함되어 다음 세션에 반영

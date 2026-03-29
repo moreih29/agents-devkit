@@ -190,9 +190,26 @@ export function registerTaskTools(server: McpServer): void {
       ensureDir(root);
       await writeFile(historyPath, JSON.stringify(history, null, 2));
 
+      // memoryHint 계산
+      const editTrackerPath = join(root, 'edit-tracker.json');
+      let hadLoopDetection = false;
+      if (existsSync(editTrackerPath)) {
+        try {
+          const trackerData = JSON.parse(await readFile(editTrackerPath, 'utf-8')) as Record<string, number>;
+          hadLoopDetection = Object.values(trackerData).some((count) => count >= 3);
+        } catch {}
+      }
+
+      const memoryHint = {
+        taskCount: tasks.length,
+        decisionCount: decisions.length,
+        hadLoopDetection,
+        cycleTopics: [consult?.topic, tasksData?.goal].filter(Boolean) as string[],
+      };
+
       // Delete source files
       const deleted: string[] = [];
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath()]) {
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath]) {
         if (existsSync(p)) {
           unlinkSync(p);
           deleted.push(p.split('/').pop()!);
@@ -205,6 +222,7 @@ export function registerTaskTools(server: McpServer): void {
         archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
         deleted,
         total_cycles: history.cycles.length,
+        memoryHint,
       });
     }
   );

@@ -55,6 +55,7 @@ When Engineer or Researcher sends a completion report:
 - Mark task as complete with `nx_task_update`, or reopen with specific feedback
 - Coordinate next task assignment if needed
 - Report to Lead when all tasks complete or when QA is needed (see Lead Reporting Pattern)
+- If a Do agent reports repeated failures (loop detection), evaluate whether to reassign to a different agent, request Architect/Postdoc consultation, or escalate to Lead
 
 ## QA Spawn Conditions
 Recommend QA verification to Lead when ANY of these conditions are met:

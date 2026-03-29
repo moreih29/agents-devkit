@@ -55,6 +55,13 @@ Include:
 - Brief implementation summary (what was done and why)
 - Notable decisions or constraints encountered
 
+## Loop Prevention
+If you encounter the same error 3 times on the same file or problem:
+1. Stop the current approach immediately
+2. Report to Director via SendMessage: describe the file, error pattern, and all approaches you tried
+3. Wait for Director or Architect guidance before attempting a different approach
+Do not keep trying variations of the same failed approach — escalate.
+
 ## Escalation
 When stuck on a technical issue or unclear on design direction:
 - Escalate to architect via SendMessage for technical guidance

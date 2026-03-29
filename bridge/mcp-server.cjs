@@ -22491,8 +22491,23 @@ function registerTaskTools(server2) {
       history.cycles.push(cycle);
       ensureDir(root);
       await (0, import_promises6.writeFile)(historyPath, JSON.stringify(history, null, 2));
+      const editTrackerPath = (0, import_path11.join)(root, "edit-tracker.json");
+      let hadLoopDetection = false;
+      if ((0, import_fs11.existsSync)(editTrackerPath)) {
+        try {
+          const trackerData = JSON.parse(await (0, import_promises6.readFile)(editTrackerPath, "utf-8"));
+          hadLoopDetection = Object.values(trackerData).some((count) => count >= 3);
+        } catch {
+        }
+      }
+      const memoryHint = {
+        taskCount: tasks.length,
+        decisionCount: decisions.length,
+        hadLoopDetection,
+        cycleTopics: [consult?.topic, tasksData?.goal].filter(Boolean)
+      };
       const deleted = [];
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath()]) {
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath]) {
         if ((0, import_fs11.existsSync)(p)) {
           (0, import_fs11.unlinkSync)(p);
           deleted.push(p.split("/").pop());
@@ -22503,7 +22518,8 @@ function registerTaskTools(server2) {
         cycle: cycle.completed_at,
         archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
         deleted,
-        total_cycles: history.cycles.length
+        total_cycles: history.cycles.length,
+        memoryHint
       });
     }
   );
