@@ -178,31 +178,17 @@ check "Consult (skill reference)" 'SKILL.md' "$result"
 
 # --- Dev ---
 echo ""
-echo "=== Dev ==="
+echo "=== Do ==="
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[dev] API 인증 모듈 구현"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (dev tag)" 'Dev mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do] API 인증 모듈 구현"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (do tag)" 'Do mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[dev!] 게이트 훅 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (dev! tag)" 'Dev team mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do!] 게이트 훅 리팩토링"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (do! tag)" 'Team mode activated' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[dev!] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Dev team (nx_task_add)" 'nx_task_add' "$result"
-check "Dev team (nx_task_update)" 'nx_task_update' "$result"
-
-# --- Research ---
-echo ""
-echo "=== Research ==="
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[research] 마케팅 팀 조사"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (research tag)" 'Research mode' "$result"
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[research!] 경쟁사 분석"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (research! tag)" 'Research team mode' "$result"
-
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[research!] 시장 조사"}' | node scripts/gate.cjs 2>/dev/null)
-check "Research team (nx_task_add)" 'nx_task_add' "$result"
-check "Research team (nx_task_update)" 'nx_task_update' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do!] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
+check "Do team (nx_task_add)" 'nx_task_add' "$result"
+check "Do team (nx_task_update)" 'nx_task_update' "$result"
 
 # --- Statusline ---
 echo ""

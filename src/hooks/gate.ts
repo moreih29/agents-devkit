@@ -18,42 +18,6 @@ function taskPipelineMessage(modeSpecific: string): string {
   return `${modeSpecific}${TASK_PIPELINE}`;
 }
 
-const DEV_TEAM_NUDGE = `[NEXUS] Dev team mode activated (forced).
-GUIDELINES:
-1. Avoid direct Agent() calls — prefer TeamCreate + Agent({ team_name }). Explore and team_name agents are fine.
-2. Lead should not call nx_task_add() or nx_task_update(). Let director handle task management.
-3. Lead should not write code or edit files directly. Delegate all work through teammates.
-4. Lead should focus on orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion).
-5. If you need tasks created, tell director via SendMessage instead of calling nx_task_add yourself.
-
-Workflow: INTAKE (summarize + TeamCreate) → DESIGN (director+architect consensus → nx_task_add) → EXECUTE (engineer+qa) → COMPLETE (nx_task_close).
-- director owns Why/What + tasks. architect owns How + tech review.
-- engineer/qa report to director. Escalate to architect for design questions.
-- Reuse idle teammates (SendMessage) before spawning new ones.
-
-Teammate spawn example:
-  TeamCreate({ team_name: "proj", description: "..." })
-  Agent({ subagent_type: "claude-nexus:director", name: "director", team_name: "proj", prompt: "..." })
-  Agent({ subagent_type: "claude-nexus:architect", name: "architect", team_name: "proj", prompt: "..." })`;
-
-const RESEARCH_TEAM_NUDGE = `[NEXUS] Research team mode activated (forced).
-GUIDELINES:
-1. Avoid direct Agent() calls — prefer TeamCreate + Agent({ team_name }). Explore and team_name agents are fine.
-2. Lead should not call nx_task_add() or nx_task_update(). Let director handle task management.
-3. Lead should not conduct research or read sources directly. Delegate all work through teammates.
-4. Lead should focus on orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion).
-5. If you need tasks created, tell director via SendMessage instead of calling nx_task_add yourself.
-
-Workflow: INTAKE (summarize + TeamCreate) → SCOPE (director+postdoc consensus → nx_task_add) → INVESTIGATE (researcher) → CONVERGE (director+postdoc synthesis) → COMPLETE (nx_task_close).
-- director owns research direction + tasks. postdoc owns methodology + synthesis.
-- researcher reports to director. Escalate to postdoc for methodology questions.
-- Reuse idle teammates (SendMessage) before spawning new ones.
-
-Teammate spawn example:
-  TeamCreate({ team_name: "proj", description: "..." })
-  Agent({ subagent_type: "claude-nexus:director", name: "director", team_name: "proj", prompt: "..." })
-  Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "proj", prompt: "..." })`;
-
 // --- CLAUDE.md 자동 동기화 ---
 
 const MARKER_START = '<!-- NEXUS:START -->';
@@ -215,16 +179,14 @@ function handlePreToolUse(event: Record<string, unknown>): void {
 // --- UserPromptSubmit 이벤트 처리: 키워드 감지 ---
 
 interface KeywordMatch {
-  primitive: 'consult' | 'dev' | 'dev!' | 'research' | 'research!';
+  primitive: 'consult' | 'do' | 'do!';
   skill: string;
 }
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
-  consult:     { primitive: 'consult',    skill: 'claude-nexus:nx-consult' },
-  dev:         { primitive: 'dev',        skill: 'claude-nexus:nx-dev' },
-  'dev!':      { primitive: 'dev!',       skill: 'claude-nexus:nx-dev' },
-  research:    { primitive: 'research',   skill: 'claude-nexus:nx-research' },
-  'research!': { primitive: 'research!',  skill: 'claude-nexus:nx-research' },
+  consult: { primitive: 'consult', skill: 'claude-nexus:nx-consult' },
+  do:      { primitive: 'do',      skill: 'claude-nexus:nx-do' },
+  'do!':   { primitive: 'do!',     skill: 'claude-nexus:nx-do' },
 };
 
 const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
@@ -236,22 +198,22 @@ const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
 
 // 프리미티브 이름이 에러/버그 맥락에서 언급되면 활성화가 아닌 "대화" — 오탐 방지
 const ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-const PRIMITIVE_NAMES = /\b(dev|consult|research)\b/i;
+const PRIMITIVE_NAMES = /\b(do|consult)\b/i;
 
 /** 프리미티브 이름이 에러/버그 맥락과 함께 등장하거나, 단순 질문/인용 맥락인지 판별 */
 function isPrimitiveMention(prompt: string): boolean {
   // 에러/버그 맥락
   if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
-  // 질문 맥락: "dev가 뭐야", "what is consult" 등
+  // 질문 맥락: "do가 뭐야", "what is consult" 등
   if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  // 인용 맥락: `dev`, "consult", `research`
-  if (/[`"'](?:dev|consult|research)[`"']/i.test(prompt)) return true;
+  // 인용 맥락: `do`, "consult"
+  if (/[`"'](?:do|consult)[`"']/i.test(prompt)) return true;
   return false;
 }
 
 function detectKeywords(prompt: string): KeywordMatch | null {
-  // 1차: 명시적 태그 [consult], [dev], [dev!], [research], [research!] — 항상 확정
-  const tagMatch = prompt.match(/\[(consult|dev!?|research!?)\]/i);
+  // 1차: 명시적 태그 [consult], [do], [do!] — 항상 확정
+  const tagMatch = prompt.match(/\[(consult|do!?)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -329,60 +291,41 @@ Follow the procedure defined in the consult skill (SKILL.md).`;
   });
 }
 
-function handleDevMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+function handleDoMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
   const branchHint = /^(main|master)$/.test(CURRENT_BRANCH)
-    ? '\nBranch: You are on main/master. Create a feature branch before making changes (e.g., feat/, fix/, chore/).'
+    ? '\nBranch: You are on main/master. Create a feature branch before making changes.'
     : '';
-  const base = taskPipelineMessage(`[NEXUS] Dev mode activated. Assess the request and choose your approach:
-- Simple (few tasks, no cross-cutting concerns): Spawn engineer for code edits. Do NOT edit files directly. Use parallel spawns for independent tasks.
+  const base = taskPipelineMessage(`[NEXUS] Do mode activated. Assess the request and choose your approach:
+- Simple (few tasks, no cross-cutting concerns): Spawn agents directly. Use parallel spawns for independent tasks.
 - Complex (design decisions needed, cross-cutting concerns): Use TeamCreate + full team workflow
-[dev!] forces team mode.${branchHint}`);
+[do!] forces team mode.${branchHint}`);
   respond({
     continue: true,
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
   });
 }
 
-function handleDevTeamMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+function handleDoTeamMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
   const branchHint = /^(main|master)$/.test(CURRENT_BRANCH)
-    ? '\nBranch: You are on main/master. Create a feature branch before making changes (e.g., feat/, fix/, chore/).'
+    ? '\nBranch: You are on main/master. Create a feature branch before making changes.'
     : '';
-  respond({
-    continue: true,
-    additionalContext: withNotices(DEV_TEAM_NUDGE + branchHint, tasksReminder, claudeMdNotice),
-  });
-}
-
-function handleResearchMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
-  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH)
-    ? '\nBranch: You are on main/master. Create a feature branch before making changes (e.g., research/, feat/).'
-    : '';
-  const base = taskPipelineMessage(`[NEXUS] Research mode activated. Assess the request and choose your approach:
-- Simple (few tasks, single perspective): Spawn researcher agents directly. Use parallel spawns for independent topics.
-- Complex (multiple perspectives needed, synthesis required): Use TeamCreate + full team workflow
-[research!] forces team mode.${branchHint}`);
+  const base = `[NEXUS] Team mode activated (forced). Use TeamCreate + full team workflow.
+GUIDELINES:
+1. Avoid direct Agent() calls — prefer TeamCreate + Agent({ team_name }). Explore and team_name agents are fine.
+2. Lead should not call nx_task_add() or nx_task_update(). Let director handle task management.
+3. Lead should not write code, edit files, or conduct research directly. Delegate all work through teammates.
+4. Lead should focus on orchestration tools (TeamCreate, Agent, SendMessage, AskUserQuestion).
+5. If you need tasks created, tell director via SendMessage instead of calling nx_task_add yourself.${branchHint}`;
   respond({
     continue: true,
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice),
-  });
-}
-
-function handleResearchTeamMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
-  const branchHint = /^(main|master)$/.test(CURRENT_BRANCH)
-    ? '\nBranch: You are on main/master. Create a feature branch before making changes (e.g., research/, feat/).'
-    : '';
-  respond({
-    continue: true,
-    additionalContext: withNotices(RESEARCH_TEAM_NUDGE + branchHint, tasksReminder, claudeMdNotice),
   });
 }
 
 const PRIMITIVE_HANDLERS: Record<string, PrimitiveHandler> = {
-  consult:     handleConsultMode,
-  dev:         handleDevMode,
-  'dev!':      handleDevTeamMode,
-  research:    handleResearchMode,
-  'research!': handleResearchTeamMode,
+  consult: handleConsultMode,
+  do:      handleDoMode,
+  'do!':   handleDoTeamMode,
 };
 
 function handleUserPromptSubmit(event: Record<string, unknown>): void {
@@ -397,7 +340,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   // [d] 결정 태그 감지 — consult.json 유무로 도구 분기 + 행동 규칙 주입
   const dTag = prompt.match(/\[d\]/i);
   if (dTag) {
-    const postDecisionRules = `\n\nAfter recording the decision:\n1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.\n2. If the user explicitly requests implementation: nx_task_add (decisions=[] or relevant IDs) → perform work → nx_task_close (history archive). Follow this pipeline even for simple edits. Edit/Write will be BLOCKED without tasks.json.\n3. You may recommend [dev] or [research] tags for execution, but do not execute yourself unless asked.`;
+    const postDecisionRules = `\n\nAfter recording the decision:\n1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.\n2. If the user explicitly requests implementation: nx_task_add (decisions=[] or relevant IDs) → perform work → nx_task_close (history archive). Follow this pipeline even for simple edits. Edit/Write will be BLOCKED without tasks.json.`;
     const consultFile = join(BRANCH_ROOT, 'consult.json');
     if (existsSync(consultFile)) {
       respond({
