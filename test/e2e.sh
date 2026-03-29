@@ -190,6 +190,32 @@ result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[do!] 인증 모�
 check "Do team (nx_task_add)" 'nx_task_add' "$result"
 check "Do team (BINDING)" 'BINDING' "$result"
 
+# --- Edit Tracker ---
+echo ""
+echo "=== Edit Tracker ==="
+
+# edit-tracker가 동작하려면 tasks.json 필요
+TRACKER_BRANCH_ROOT="$E2E_BRANCH_ROOT"
+echo '{"goal":"test","tasks":[{"id":1,"title":"t","context":"c","status":"in_progress","deps":[],"decisions":[]}]}' > "$TRACKER_BRANCH_ROOT/tasks.json"
+
+# 1회 수정 → pass (continue:true)
+echo '{}' > "$TRACKER_BRANCH_ROOT/edit-tracker.json"
+result=$(echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test_tracker.ts"}}' | node scripts/gate.cjs 2>/dev/null)
+check "Edit tracker (1st edit — pass)" 'continue' "$result"
+
+# 3회 → 경고 (approve + warning)
+printf '{ "/tmp/test_tracker.ts": 2 }' > "$TRACKER_BRANCH_ROOT/edit-tracker.json"
+result=$(echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test_tracker.ts"}}' | node scripts/gate.cjs 2>/dev/null)
+check "Edit tracker (3rd edit — warning)" 'loop detected' "$result"
+
+# 5회 → 차단 (block)
+printf '{ "/tmp/test_tracker.ts": 4 }' > "$TRACKER_BRANCH_ROOT/edit-tracker.json"
+result=$(echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test_tracker.ts"}}' | node scripts/gate.cjs 2>/dev/null)
+check "Edit tracker (5th edit — block)" 'BLOCKED' "$result"
+
+# 정리
+rm -f "$TRACKER_BRANCH_ROOT/edit-tracker.json" "$TRACKER_BRANCH_ROOT/tasks.json"
+
 # --- Statusline ---
 echo ""
 echo "=== Statusline ==="

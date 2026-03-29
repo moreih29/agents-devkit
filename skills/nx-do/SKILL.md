@@ -100,7 +100,13 @@ Agent({ subagent_type: "claude-nexus:qa", name: "qa", team_name: "<project>",
 ### Phase 4: Complete
 
 - Director가 모든 태스크 검증 완료 → Lead에게 최종 보고
-- `nx_task_close` 호출 → consult+decisions+tasks를 history.json에 아카이브 후 삭제
+- `nx_task_close` 호출 → history.json 아카이브. 반환값의 `memoryHint` 확인.
+- **교훈 추출** (Director 판단):
+  - memoryHint의 taskCount ≥ 3, hadLoopDetection, 또는 decisionCount ≥ 2 → 교훈 기록 대상
+  - 기준: "이 정보가 없으면 같은 실수를 반복할 것인가?"
+  - 기록: `nx_core_read(layer: "memory")` → 관련 영역 파일 확인 → `nx_core_write(layer: "memory", topic: "{영역}", tags: [...])` 로 교훈 append
+  - 형식: `## {날짜} — {주제}\n- 교훈 항목`
+  - 해당하지 않으면 → 생략 (사소한 작업에 교훈 남기지 않음)
 - 팀 종료: 전 팀원에게 shutdown 요청 → 전원 종료 확인 → `TeamDelete`
 - 사용자에게 결과 보고
 

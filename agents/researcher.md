@@ -38,7 +38,7 @@ For each research question:
 If WebSearch returns unhelpful results 3 times in a row on the same question:
 - Stop searching that line
 - Report: what you searched, what you found (or didn't), and what the absence of results may indicate
-- Move to the next assigned question or report back to director
+- Report to director via SendMessage with search terms tried and failure summary, then move to the next assigned question
 
 Do not continue searching variations of a query that has already failed 3 times. Diminishing returns are a signal, not a challenge.
 

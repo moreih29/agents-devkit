@@ -147,6 +147,36 @@ function handlePreToolUse(event: Record<string, unknown>): void {
         });
         return;
       }
+
+      // edit-tracker: 파일 수정 횟수 추적
+      const editTrackerPath = join(BRANCH_ROOT, 'edit-tracker.json');
+      let tracker: Record<string, number> = {};
+      if (existsSync(editTrackerPath)) {
+        try { tracker = JSON.parse(readFileSync(editTrackerPath, 'utf-8')); } catch {}
+      }
+      const count = (tracker[filePath] ?? 0) + 1;
+      tracker[filePath] = count;
+      // BRANCH_ROOT 디렉토리 확인
+      if (!existsSync(BRANCH_ROOT)) {
+        mkdirSync(BRANCH_ROOT, { recursive: true });
+      }
+      writeFileSync(editTrackerPath, JSON.stringify(tracker, null, 2));
+
+      if (count >= 5) {
+        respond({
+          decision: 'block',
+          reason: `[NEXUS] Loop detected: "${filePath}" has been modified ${count} times. BLOCKED. Report to Director via SendMessage: describe the file, error pattern, and approaches tried. Wait for Director or Architect guidance before continuing.`,
+        });
+        return;
+      }
+
+      if (count >= 3) {
+        respond({
+          decision: 'approve',
+          additionalContext: `[NEXUS] Warning: "${filePath}" has been modified ${count} times. Possible loop detected. Consider reporting to Director via SendMessage before continuing. Describe what you're trying to fix and why previous attempts failed.`,
+        });
+        return;
+      }
     }
 
     pass();

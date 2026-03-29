@@ -216,6 +216,34 @@ function handlePreToolUse(event) {
         });
         return;
       }
+      const editTrackerPath = (0, import_path3.join)(BRANCH_ROOT, "edit-tracker.json");
+      let tracker = {};
+      if ((0, import_fs3.existsSync)(editTrackerPath)) {
+        try {
+          tracker = JSON.parse((0, import_fs3.readFileSync)(editTrackerPath, "utf-8"));
+        } catch {
+        }
+      }
+      const count = (tracker[filePath] ?? 0) + 1;
+      tracker[filePath] = count;
+      if (!(0, import_fs3.existsSync)(BRANCH_ROOT)) {
+        (0, import_fs3.mkdirSync)(BRANCH_ROOT, { recursive: true });
+      }
+      (0, import_fs3.writeFileSync)(editTrackerPath, JSON.stringify(tracker, null, 2));
+      if (count >= 5) {
+        respond({
+          decision: "block",
+          reason: `[NEXUS] Loop detected: "${filePath}" has been modified ${count} times. BLOCKED. Report to Director via SendMessage: describe the file, error pattern, and approaches tried. Wait for Director or Architect guidance before continuing.`
+        });
+        return;
+      }
+      if (count >= 3) {
+        respond({
+          decision: "approve",
+          additionalContext: `[NEXUS] Warning: "${filePath}" has been modified ${count} times. Possible loop detected. Consider reporting to Director via SendMessage before continuing. Describe what you're trying to fix and why previous attempts failed.`
+        });
+        return;
+      }
     }
     pass();
     return;
