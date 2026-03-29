@@ -22584,13 +22584,21 @@ function registerBriefingTool(server2) {
       const rulesDir = (0, import_path13.join)(NEXUS_ROOT, "rules");
       if ((0, import_fs12.existsSync)(rulesDir)) {
         const ruleFiles = (await (0, import_promises8.readdir)(rulesDir)).filter((f) => f.endsWith(".md"));
-        const parts = [];
+        let parts = [];
         for (const ruleFile of ruleFiles) {
           const content = await (0, import_promises8.readFile)((0, import_path13.join)(rulesDir, ruleFile), "utf-8");
-          parts.push(`### ${ruleFile}
-${content.trim()}`);
+          parts.push({ filename: ruleFile, content });
         }
-        rulesSection = parts.join("\n\n");
+        if (hint && parts.length > 0) {
+          const hintLower = hint.toLowerCase();
+          const matched = parts.filter(({ filename, content }) => {
+            const tags = parseTags2(content);
+            return tags.some((t) => t.toLowerCase().includes(hintLower)) || filename.toLowerCase().includes(hintLower);
+          });
+          if (matched.length > 0) parts = matched;
+        }
+        rulesSection = parts.map(({ filename, content }) => `### ${filename}
+${content.trim()}`).join("\n\n");
       }
       const lines = [];
       lines.push(`<!-- briefing: role=${role}, hint=${hint ?? "null"}, files=[${collectedFiles.join(", ")}] -->`);

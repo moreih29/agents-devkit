@@ -721,6 +721,40 @@
       "consult": null,
       "decisions": [],
       "tasks": []
+    },
+    {
+      "completed_at": "2026-03-29T12:24:42.864Z",
+      "branch": "main",
+      "consult": {
+        "topic": "briefing 내 rules 포함 전략",
+        "issues": [
+          {
+            "id": 1,
+            "title": "briefing에서 rules 포함 방식: 전체 자동 vs 필터링 vs Lead 위임",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "B안 채택: briefing에서 rules에 hint 기반 태그 필터링 적용. core 지식과 동일한 메커니즘(parseTags + hint 매칭). hint 없으면 전체 포함(fallback). Lead Phase 1의 nx_rules_read 별도 호출은 제거 — briefing이 일괄 처리.",
+          "consult": 1
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "briefing.ts rules에 hint 태그 필터링 + nx-run Phase 1 nx_rules_read 제거",
+          "context": "briefing.ts: rules/ 읽을 때 hint가 있으면 parseTags로 태그 필터링 (core 지식과 동일 메커니즘). hint 없으면 전체 포함 (fallback). nx-run SKILL.md: Phase 1에서 nx_rules_read 호출 제거 — briefing이 일괄 처리.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "created_at": "2026-03-29T12:23:55.138Z"
+        }
+      ]
     }
   ]
 }

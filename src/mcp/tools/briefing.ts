@@ -92,17 +92,28 @@ export function registerBriefingTool(server: McpServer): void {
         decisionsSection = raw.trim();
       }
 
-      // rules/
+      // rules/ (hint 기반 태그 필터링 — core 지식과 동일 메커니즘)
       let rulesSection = '';
       const rulesDir = join(NEXUS_ROOT, 'rules');
       if (existsSync(rulesDir)) {
         const ruleFiles = (await readdir(rulesDir)).filter((f) => f.endsWith('.md'));
-        const parts: string[] = [];
+        let parts: Array<{ filename: string; content: string }> = [];
         for (const ruleFile of ruleFiles) {
           const content = await readFile(join(rulesDir, ruleFile), 'utf-8');
-          parts.push(`### ${ruleFile}\n${content.trim()}`);
+          parts.push({ filename: ruleFile, content });
         }
-        rulesSection = parts.join('\n\n');
+        if (hint && parts.length > 0) {
+          const hintLower = hint.toLowerCase();
+          const matched = parts.filter(({ filename, content }) => {
+            const tags = parseTags(content);
+            return (
+              tags.some((t) => t.toLowerCase().includes(hintLower)) ||
+              filename.toLowerCase().includes(hintLower)
+            );
+          });
+          if (matched.length > 0) parts = matched;
+        }
+        rulesSection = parts.map(({ filename, content }) => `### ${filename}\n${content.trim()}`).join('\n\n');
       }
 
       // 조립

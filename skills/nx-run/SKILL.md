@@ -27,8 +27,8 @@ Lead가 의도를 정리하고 How agent와 직접 협업하여 팀을 구성한
 
 - 사용자 요청 의도 정리
 - **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `feat/`, `fix/`, `chore/`, `research/` 등 Lead 판단). 사용자 확인 없이 자동 생성.
-- `nx_rules_read`로 팀 rules 확인. 목표와 관련된 태그를 Lead가 판단. 있으면 스킬 기본 원칙보다 우선 적용.
 - decisions.json이 있으면 `nx_context`로 기존 결정 사항 확인.
+- 팀 rules는 `nx_briefing(hint)` 호출 시 자동 포함 (hint 태그 필터링). Lead가 별도 확인 불필요.
 - **3조건 충족 시**: `nx_task_add` → Edit → `nx_task_close` → 사용자에게 결과 보고. Phase 2 생략.
 - **그 외**: Phase 2로.
 
