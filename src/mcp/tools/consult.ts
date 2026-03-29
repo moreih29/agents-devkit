@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { existsSync } from 'fs';
+import { existsSync, unlinkSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { STATE_ROOT, ensureDir } from '../../shared/paths.js';
+import { STATE_ROOT, NEXUS_ROOT, ensureDir, getCurrentBranch } from '../../shared/paths.js';
 import { readDecisions, writeDecisions, type DecisionEntry } from './decision.js';
 import { textResult } from '../../shared/mcp-utils.js';
 
@@ -44,6 +44,35 @@ export function registerConsultTools(server: McpServer): void {
       issues: z.array(z.string()).describe('List of issue titles to discuss'),
     },
     async ({ topic, issues }) => {
+      // 기존 consult/decisions가 있으면 자동 아카이빙
+      let archived = false;
+      const existingConsult = await readConsult();
+      const existingDecisions = await readDecisions();
+      if (existingConsult || existingDecisions.decisions.length > 0) {
+        const projectHistoryPath = join(NEXUS_ROOT, 'history.json');
+        interface Cycle { completed_at: string; branch: string; consult: ConsultFile | null; decisions: DecisionEntry[]; tasks: never[]; }
+        interface HistoryFile { cycles: Cycle[]; }
+        let history: HistoryFile = { cycles: [] };
+        if (existsSync(projectHistoryPath)) {
+          try { history = JSON.parse(await readFile(projectHistoryPath, 'utf-8')) as HistoryFile; } catch {}
+        }
+        history.cycles.push({
+          completed_at: new Date().toISOString(),
+          branch: getCurrentBranch(),
+          consult: existingConsult,
+          decisions: existingDecisions.decisions,
+          tasks: [],
+        });
+        ensureDir(NEXUS_ROOT);
+        await writeFile(projectHistoryPath, JSON.stringify(history, null, 2));
+        // 소스 파일 삭제
+        const consultJsonPath = join(STATE_ROOT, 'consult.json');
+        const decisionsJsonPath = join(STATE_ROOT, 'decisions.json');
+        if (existsSync(consultJsonPath)) unlinkSync(consultJsonPath);
+        if (existsSync(decisionsJsonPath)) unlinkSync(decisionsJsonPath);
+        archived = true;
+      }
+
       const data: ConsultFile = {
         topic,
         issues: issues.map((title, i) => ({
@@ -53,7 +82,7 @@ export function registerConsultTools(server: McpServer): void {
         })),
       };
       await writeConsult(data);
-      return textResult({ created: true, topic, issueCount: issues.length });
+      return textResult({ created: true, topic, issueCount: issues.length, previousCycleArchived: archived });
     }
   );
 

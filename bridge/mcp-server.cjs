@@ -22160,6 +22160,33 @@ function registerConsultTools(server2) {
       issues: external_exports.array(external_exports.string()).describe("List of issue titles to discuss")
     },
     async ({ topic, issues }) => {
+      let archived = false;
+      const existingConsult = await readConsult();
+      const existingDecisions = await readDecisions();
+      if (existingConsult || existingDecisions.decisions.length > 0) {
+        const projectHistoryPath = (0, import_path10.join)(NEXUS_ROOT, "history.json");
+        let history = { cycles: [] };
+        if ((0, import_fs10.existsSync)(projectHistoryPath)) {
+          try {
+            history = JSON.parse(await (0, import_promises5.readFile)(projectHistoryPath, "utf-8"));
+          } catch {
+          }
+        }
+        history.cycles.push({
+          completed_at: (/* @__PURE__ */ new Date()).toISOString(),
+          branch: getCurrentBranch(),
+          consult: existingConsult,
+          decisions: existingDecisions.decisions,
+          tasks: []
+        });
+        ensureDir(NEXUS_ROOT);
+        await (0, import_promises5.writeFile)(projectHistoryPath, JSON.stringify(history, null, 2));
+        const consultJsonPath = (0, import_path10.join)(STATE_ROOT, "consult.json");
+        const decisionsJsonPath = (0, import_path10.join)(STATE_ROOT, "decisions.json");
+        if ((0, import_fs10.existsSync)(consultJsonPath)) (0, import_fs10.unlinkSync)(consultJsonPath);
+        if ((0, import_fs10.existsSync)(decisionsJsonPath)) (0, import_fs10.unlinkSync)(decisionsJsonPath);
+        archived = true;
+      }
       const data = {
         topic,
         issues: issues.map((title, i) => ({
@@ -22169,7 +22196,7 @@ function registerConsultTools(server2) {
         }))
       };
       await writeConsult(data);
-      return textResult({ created: true, topic, issueCount: issues.length });
+      return textResult({ created: true, topic, issueCount: issues.length, previousCycleArchived: archived });
     }
   );
   server2.tool(

@@ -111,8 +111,10 @@ function handleStop(): void {
 
 /** 예외 경로: Nexus 내부 파일 및 setup/sync 대상 파일은 tasks.json 없이도 수정 허용 */
 function isNexusInternalPath(filePath: string): boolean {
-  // .nexus/ 런타임 상태
-  if (/[\\/]\.nexus[\\/]/.test(filePath)) return true;
+  // .nexus/state/ 런타임 상태 — task 없이 수정 허용
+  if (/[\\/]\.nexus[\\/]state[\\/]/.test(filePath)) return true;
+  // .nexus/config.json — setup 스킬 대상
+  if (/[\\/]\.nexus[\\/]config\.json$/.test(filePath)) return true;
   // .claude/settings.json — setup 스킬 대상
   if (/[\\/]\.claude[\\/]settings\.json$/.test(filePath)) return true;
   // CLAUDE.md — sync 스킬 대상

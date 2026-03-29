@@ -178,7 +178,8 @@ function handleStop() {
   });
 }
 function isNexusInternalPath(filePath) {
-  if (/[\\/]\.nexus[\\/]/.test(filePath)) return true;
+  if (/[\\/]\.nexus[\\/]state[\\/]/.test(filePath)) return true;
+  if (/[\\/]\.nexus[\\/]config\.json$/.test(filePath)) return true;
   if (/[\\/]\.claude[\\/]settings\.json$/.test(filePath)) return true;
   if (/[\\/]CLAUDE\.md$/.test(filePath)) return true;
   return false;

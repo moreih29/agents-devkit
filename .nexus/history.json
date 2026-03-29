@@ -755,6 +755,40 @@
           "created_at": "2026-03-29T12:23:55.138Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-29T12:32:07.425Z",
+      "branch": "main",
+      "consult": {
+        "topic": "stale 상태 파일 정리 전략",
+        "issues": [
+          {
+            "id": 1,
+            "title": "nx_consult_start 시 stale 상태(decisions/consult) 자동 아카이빙 여부",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "두 가지 병행 수정: (1) isNexusInternalPath() 범위 축소 — .nexus/state/ + .nexus/config.json만 예외, .nexus/core/는 task 필수. (2) nx_consult_start 시 기존 consult/decisions 자동 아카이빙 — history.json에 보존 후 삭제, 그 다음 새 consult 생성.",
+          "consult": 1
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "isNexusInternalPath 범위 축소 + nx_consult_start 자동 아카이빙",
+          "context": "gate.ts: isNexusInternalPath()에서 .nexus/ 전체 예외 → .nexus/state/ + .nexus/config.json만 예외. consult.ts: nx_consult_start에서 기존 consult.json/decisions.json 존재 시 history.json에 자동 아카이빙 후 삭제, 그 다음 새 consult 생성.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "created_at": "2026-03-29T12:30:16.085Z"
+        }
+      ]
     }
   ]
 }
