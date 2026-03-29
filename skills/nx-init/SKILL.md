@@ -30,7 +30,7 @@ triggers: ["init", "onboard", "온보딩", "초기화", "프로젝트 설정"]
 
 ### Reset (`--reset`)
 
-기존 `.claude/nexus/core/`를 `.claude/nexus/core.bak.{timestamp}/`로 백업 후 First Run 진입.
+기존 `.nexus/core/`를 `.nexus/core.bak.{timestamp}/`로 백업 후 First Run 진입.
 
 ### Cleanup (`--reset --cleanup`)
 
@@ -44,7 +44,7 @@ triggers: ["init", "onboard", "온보딩", "초기화", "프로젝트 설정"]
 
 ```
 IF --reset --cleanup 플래그:
-  .claude/nexus/core.bak.*/ 디렉토리 목록 표시
+  .nexus/core.bak.*/ 디렉토리 목록 표시
   AskUserQuestion({
     questions: [{
       question: "삭제할 백업을 선택하세요 (없으면 취소)",
@@ -54,11 +54,11 @@ IF --reset --cleanup 플래그:
   선택된 백업 삭제 후 종료
 
 ELSE IF --reset 플래그:
-  기존 .claude/nexus/core/ → .claude/nexus/core.bak.{timestamp}/ 로 이동
+  기존 .nexus/core/ → .nexus/core.bak.{timestamp}/ 로 이동
   안내: "기존 core/를 core.bak.{timestamp}/로 백업했습니다. 재온보딩을 시작합니다."
   → First Run 진입
 
-ELSE IF .claude/nexus/core/ 가 존재:
+ELSE IF .nexus/core/ 가 존재:
   → Resume 진입 (기존 단계 확인 후 재개)
 
 ELSE:
@@ -71,7 +71,7 @@ ELSE:
 
 ### Step 1: 프로젝트 스캔
 
-코드 구조와 기술 스택을 자동 감지한다.
+코드 구조와 기술 스택을 자동 감지한다. `.nexus/` 구조가 없으면 자동 생성됩니다.
 
 수집 항목:
 - **디렉토리 구조**: 최상위 레이아웃, 주요 모듈/패키지
@@ -147,9 +147,9 @@ AskUserQuestion({
 ## Nexus 초기화 완료
 
 ### 생성된 파일
-- identity/: mission.md, design.md, roadmap.md
-- codebase/: {생성된 파일 목록}
-- rules/: {생성된 파일 또는 "없음 (건너뜀)"}
+- .nexus/core/identity/: mission.md, design.md, roadmap.md
+- .nexus/core/codebase/: {생성된 파일 목록}
+- .nexus/rules/: {생성된 파일 또는 "없음 (건너뜀)"}
 
 ### 다음 단계
 - [consult] — 작업 시작 전 요건 정리

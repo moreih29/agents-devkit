@@ -64,14 +64,16 @@
 ## 정보 관리 체계
 
 ```
-.claude/nexus/
-├── core/            ← 정보 (넥서스 관리)
+.nexus/
+├── core/            ← 정보 (넥서스 관리, git 추적)
 │   ├── identity/    ← 철학, 미션, 설계 원칙, 로드맵
 │   ├── codebase/    ← 코드 구조, 아키텍처, 도구 (Engineer 즉시 갱신)
 │   ├── reference/   ← 외부 조사 결과 (Researcher 즉시 기록)
 │   └── memory/      ← 과거 교훈, 실패 패턴 (task_close 시 자동 추출)
-├── rules/           ← 지시 (넥서스 관리, 도메인별 커스텀)
-└── config.json
+├── rules/           ← 지시 (넥서스 관리, 도메인별 커스텀, git 추적)
+├── config.json      ← 넥서스 설정 (git 추적)
+├── history.json     ← 사이클 아카이브 (git 추적)
+└── state/           ← 런타임 상태 (git 무시)
 ```
 
 | 계층 | 갱신 주체 | 검토 주체 | source of truth |
@@ -163,7 +165,7 @@ QA 자동 스폰 조건 (하나라도 해당 시):
 
 **파일 수준 (edit-tracker)**: 같은 파일 3회→경고, 5회→차단.
 
-**에이전트 수준 (agent-tracker)**: SubagentStart/Stop 훅으로 에이전트 생명주기 추적. 세션 기반 (.nexus/sessions/{sessionId}/).
+**에이전트 수준 (agent-tracker)**: SubagentStart/Stop 훅으로 에이전트 생명주기 추적. `.nexus/state/agent-tracker.json`에 기록.
 
 에스컬레이션 체인: 에이전트 중단 → Lead → 사용자 (User Sovereignty).
 
@@ -186,7 +188,7 @@ nx_task_close 시 edit-tracker 파일 3개+ AND agent-tracker에 qa/reviewer 없
 
 task_close 시 사이클 교훈 자동 추출 (.nexus/history.json → memory/).
 
-**history.json**: 프로젝트 레벨 (.nexus/history.json). 세션 간 이력 누적.
+**history.json**: 프로젝트 레벨 (`.nexus/history.json`, git 추적). 세션 간 이력 누적.
 
 ## Consult 원칙
 

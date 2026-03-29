@@ -10,9 +10,8 @@ import { registerTaskTools } from './tools/task.js';
 import { registerDecisionTools } from './tools/decision.js';
 import { registerArtifactTools } from './tools/artifact.js';
 import { registerConsultTools } from './tools/consult.js';
-import { registerBranchTools } from './tools/branch.js';
 import { registerBriefingTool } from './tools/briefing.js';
-import { rulesPath, KNOWLEDGE_ROOT } from '../shared/paths.js';
+import { rulesPath, NEXUS_ROOT } from '../shared/paths.js';
 import { join } from 'path';
 
 const server = new McpServer({
@@ -25,7 +24,7 @@ registerCoreStore(server);
 registerMarkdownStore(server, {
   toolPrefix: 'nx_rules',
   entityName: 'name',
-  dirPath: join(KNOWLEDGE_ROOT, 'rules'),
+  dirPath: join(NEXUS_ROOT, 'rules'),
   pathFn: rulesPath,
   listKey: 'rules',
   cache: false,
@@ -38,7 +37,6 @@ registerTaskTools(server);
 registerDecisionTools(server);
 registerArtifactTools(server);
 registerConsultTools(server);
-registerBranchTools(server);
 registerBriefingTool(server);
 
 async function main() {

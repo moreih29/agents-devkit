@@ -7,23 +7,22 @@ MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/
 
 | 도구 | 소스 | 저장 경로 | 용도 |
 |------|------|-----------|------|
-| `nx_core_read` | core-store.ts | `.claude/nexus/core/{layer}/{topic}.md` | core 지식 읽기 (4가지 호출 패턴: 전체 overview / layer 목록 / layer+topic 전문 / tags 크로스 검색) |
-| `nx_core_write` | core-store.ts | `.claude/nexus/core/{layer}/{topic}.md` | core 지식 쓰기 (layer enum: identity/codebase/reference/memory, tags 옵션) |
-| `nx_rules_read` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 읽기 (name 지정 또는 태그 검색) |
-| `nx_rules_write` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 쓰기 (tags 옵션, HTML 주석 frontmatter) |
-| `nx_briefing` | briefing.ts | `.claude/nexus/core/{layer}/` + `decisions.json` + `rules/` | 역할별 briefing 조립. role(9개: architect/postdoc/designer/strategist/engineer/researcher/writer/qa/reviewer) + hint(옵션). 매트릭스 기반 계층 수집. hint 있으면 태그/파일명 필터링. decisions.json + rules/ 자동 포함. 단일 markdown 문자열 반환. |
-| `nx_context` | context.ts | `.nexus/branches/{branch}/tasks.json`, `decisions.json` 참조 | 현재 브랜치, 팀 모드, 태스크 요약, 결정 사항 조회 |
-| `nx_task_list` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 목록 + summary + ready 태스크 |
-| `nx_task_add` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 추가 (title, context, deps, decisions, goal, owner 파라미터) |
-| `nx_task_update` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 상태 변경 (pending/in_progress/completed) |
-| `nx_task_close` | task.ts | `.nexus/history.json` (프로젝트 레벨) | 현재 사이클 종료: consult+decisions+tasks를 history.json에 아카이브 후 소스 파일 삭제. cycle에 branch 필드 포함. 기존 브랜치별 history.json 자동 마이그레이션. |
-| `nx_decision_add` | decision.ts | `.nexus/branches/{branch}/decisions.json` | 결정 기록 추가 (summary + consult 파라미터, consult는 관련 논점 ID 또는 null) |
-| `nx_artifact_write` | artifact.ts | `.nexus/branches/{branch}/artifacts/{filename}` | 팀 산출물 저장 (report, synthesis 등) |
-| `nx_consult_start` | consult.ts | `.nexus/branches/{branch}/consult.json` | 상담 세션 시작 (토픽 + 논점 목록 등록) |
-| `nx_consult_status` | consult.ts | `.nexus/branches/{branch}/consult.json` + `decisions.json` | 현재 상담 상태 조회 (논점 목록/상태 + 결정된 논점의 decisions.json 내용 join) |
-| `nx_consult_update` | consult.ts | `.nexus/branches/{branch}/consult.json` | 활성 상담 세션 논점 수정. action: add/remove/edit/reopen |
-| `nx_consult_decide` | consult.ts | `.nexus/branches/{branch}/consult.json` + `decisions.json` | 논점 결정 처리 (consult.json 갱신 + decisions.json 기록). 모두 decided 시 완료 시그널 반환 — consult.json 삭제 안 함. |
-| `nx_branch_migrate` | branch.ts | `.nexus/branches/{branch}/` | 다른 브랜치 폴더의 consult.json+decisions.json을 현재 브랜치 폴더로 이동. Branch Guard에서 브랜치 생성 직후 호출. |
+| `nx_core_read` | core-store.ts | `.nexus/core/{layer}/{topic}.md` | core 지식 읽기 (4가지 호출 패턴: 전체 overview / layer 목록 / layer+topic 전문 / tags 크로스 검색) |
+| `nx_core_write` | core-store.ts | `.nexus/core/{layer}/{topic}.md` | core 지식 쓰기 (layer enum: identity/codebase/reference/memory, tags 옵션) |
+| `nx_rules_read` | markdown-store.ts | `.nexus/rules/{name}.md` | rules 읽기 (name 지정 또는 태그 검색) |
+| `nx_rules_write` | markdown-store.ts | `.nexus/rules/{name}.md` | rules 쓰기 (tags 옵션, HTML 주석 frontmatter) |
+| `nx_briefing` | briefing.ts | `.nexus/core/{layer}/` + `decisions.json` + `rules/` | 역할별 briefing 조립. role(9개: architect/postdoc/designer/strategist/engineer/researcher/writer/qa/reviewer) + hint(옵션). 매트릭스 기반 계층 수집. hint 있으면 태그/파일명 필터링. decisions.json + rules/ 자동 포함. 단일 markdown 문자열 반환. |
+| `nx_context` | context.ts | `.nexus/state/tasks.json`, `decisions.json` 참조 | 현재 브랜치, 팀 모드, 태스크 요약, 결정 사항 조회 |
+| `nx_task_list` | task.ts | `.nexus/state/tasks.json` | 태스크 목록 + summary + ready 태스크 |
+| `nx_task_add` | task.ts | `.nexus/state/tasks.json` | 태스크 추가 (title, context, deps, decisions, goal, owner 파라미터) |
+| `nx_task_update` | task.ts | `.nexus/state/tasks.json` | 태스크 상태 변경 (pending/in_progress/completed) |
+| `nx_task_close` | task.ts | `.nexus/history.json` (프로젝트 레벨, git 추적) | 현재 사이클 종료: consult+decisions+tasks를 history.json에 아카이브 후 소스 파일 삭제. cycle에 branch 필드 포함. |
+| `nx_decision_add` | decision.ts | `.nexus/state/decisions.json` | 결정 기록 추가 (summary + consult 파라미터, consult는 관련 논점 ID 또는 null) |
+| `nx_artifact_write` | artifact.ts | `.nexus/state/artifacts/{filename}` | 팀 산출물 저장 (report, synthesis 등) |
+| `nx_consult_start` | consult.ts | `.nexus/state/consult.json` | 상담 세션 시작 (토픽 + 논점 목록 등록) |
+| `nx_consult_status` | consult.ts | `.nexus/state/consult.json` + `decisions.json` | 현재 상담 상태 조회 (논점 목록/상태 + 결정된 논점의 decisions.json 내용 join) |
+| `nx_consult_update` | consult.ts | `.nexus/state/consult.json` | 활성 상담 세션 논점 수정. action: add/remove/edit/reopen |
+| `nx_consult_decide` | consult.ts | `.nexus/state/consult.json` + `decisions.json` | 논점 결정 처리 (consult.json 갱신 + decisions.json 기록). 모두 decided 시 완료 시그널 반환 — consult.json 삭제 안 함. |
 
 ## nx_core_read 호출 패턴
 
@@ -95,18 +94,17 @@ decisions.json의 각 항목 구조:
 }
 ```
 
-- 경로: `.nexus/history.json` (프로젝트 레벨 — 브랜치 무관 전체 아카이브)
+- 경로: `.nexus/history.json` (프로젝트 레벨 — git 추적, 브랜치 무관 전체 아카이브)
 - 각 cycle에 `branch` 필드 포함
-- 기존 `.nexus/branches/{branch}/history.json` 존재 시 자동 마이그레이션 (branch 필드 추가) 후 삭제
-- 아카이브 후 consult.json, decisions.json, tasks.json 삭제
+- 아카이브 후 `.nexus/state/`의 consult.json, decisions.json, tasks.json 삭제
 
 ## 특이사항
 
 - `nx_task_add`는 caller 파라미터 검증 없음. How/Do/Check 에이전트는 disallowedTools로 플랫폼 수준 차단.
 - LSP: 프로젝트 언어 자동 감지 (tsconfig.json → TypeScript 등). 언어별 LSP 클라이언트 맵으로 관리.
 - AST: `@ast-grep/napi`가 optional — 플러그인 캐시 또는 프로젝트 node_modules에서 동적 로드.
-- core_write는 `layer` (enum: identity/codebase/reference/memory) + `topic` 파라미터로 `core/{layer}/{topic}.md` 경로에 저장. z.enum 검증으로 path traversal 방지.
-- MCP 도구는 `getBranchRoot()` 동적 함수로 경로를 해결. MCP 서버는 장기 프로세스이므로 정적 `BRANCH_ROOT` 대신 호출 시마다 현재 브랜치를 감지.
+- core_write는 `layer` (enum: identity/codebase/reference/memory) + `topic` 파라미터로 `.nexus/core/{layer}/{topic}.md` 경로에 저장. z.enum 검증으로 path traversal 방지.
+- MCP 도구는 `STATE_ROOT` 상수로 상태 파일 경로를 해결. `.nexus/state/` 하위 단일 경로.
 - `nx_consult_decide`는 consult.json + decisions.json을 동시 갱신. 모든 issues decided 시 consult.json **삭제하지 않음** — 완료 시그널(`allComplete: true`) 반환.
 - `nx_consult_update`의 reopen 액션은 decisions.json에서 `consult === issue_id`인 항목을 soft-delete (`status: "revoked"`)하여 audit trail 보존.
 - `nx_consult_status`는 결정된 논점의 decisions.json 항목을 `d.consult === issue.id` 기반으로 join하여 함께 반환.

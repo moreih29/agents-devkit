@@ -3,7 +3,7 @@ import { existsSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getBranchRoot, ensureDir } from '../../shared/paths.js';
+import { STATE_ROOT, ensureDir } from '../../shared/paths.js';
 import { textResult } from '../../shared/mcp-utils.js';
 
 export interface DecisionEntry {
@@ -18,7 +18,7 @@ export interface DecisionsFile {
 }
 
 function decisionsPath(): string {
-  return join(getBranchRoot(), 'decisions.json');
+  return join(STATE_ROOT, 'decisions.json');
 }
 
 export async function readDecisions(): Promise<DecisionsFile> {
@@ -31,9 +31,8 @@ export async function readDecisions(): Promise<DecisionsFile> {
 }
 
 export async function writeDecisions(data: DecisionsFile): Promise<void> {
-  const root = getBranchRoot();
-  ensureDir(root);
-  await writeFile(join(root, 'decisions.json'), JSON.stringify(data, null, 2));
+  ensureDir(STATE_ROOT);
+  await writeFile(join(STATE_ROOT, 'decisions.json'), JSON.stringify(data, null, 2));
 }
 
 export function registerDecisionTools(server: McpServer): void {

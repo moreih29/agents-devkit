@@ -3,7 +3,7 @@ import { existsSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getBranchRoot, ensureDir } from '../../shared/paths.js';
+import { STATE_ROOT, ensureDir } from '../../shared/paths.js';
 import { readDecisions, writeDecisions, type DecisionEntry } from './decision.js';
 import { textResult } from '../../shared/mcp-utils.js';
 
@@ -19,7 +19,7 @@ export interface ConsultFile {
 }
 
 function consultPath(): string {
-  return join(getBranchRoot(), 'consult.json');
+  return join(STATE_ROOT, 'consult.json');
 }
 
 export async function readConsult(): Promise<ConsultFile | null> {
@@ -30,9 +30,8 @@ export async function readConsult(): Promise<ConsultFile | null> {
 }
 
 async function writeConsult(data: ConsultFile): Promise<void> {
-  const root = getBranchRoot();
-  ensureDir(root);
-  await writeFile(join(root, 'consult.json'), JSON.stringify(data, null, 2));
+  ensureDir(STATE_ROOT);
+  await writeFile(join(STATE_ROOT, 'consult.json'), JSON.stringify(data, null, 2));
 }
 
 export function registerConsultTools(server: McpServer): void {

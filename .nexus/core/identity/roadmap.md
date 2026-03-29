@@ -13,7 +13,7 @@ Phase 단위로 안정화 후 다음 진행. 완료된 Phase는 이력으로 유
 core/ 4계층 구조를 도입하고, Director+Principal을 병합하여 에이전트 프롬프트에 새 철학을 반영한다.
 
 **달성 목표**:
-- [x] `.claude/nexus/core/` 하위에 계층별 디렉토리 구조 동작
+- [x] `.nexus/core/` 하위에 계층별 디렉토리 구조 동작
 - [x] nx-sync가 codebase/ 범위만 자동 관리
 - [x] MCP 도구가 하위 디렉토리를 지원
 - [x] rules/ 도메인별 분류 체계 동작
@@ -74,7 +74,7 @@ Director 역할을 Lead로 통합하고, 상태 파일 구조를 정비한다.
 **달성 목표**:
 - [x] Director 제거 (10→9 에이전트, Decide 카테고리 폐지 → 3카테고리: How/Do/Check)
 - [x] Lead가 Decide+Orchestration 겸임 (Director의 의도 대변 역할 흡수)
-- [x] 세션 기반 agent-tracker (.nexus/sessions/{sessionId}/)
+- [x] agent-tracker (.nexus/state/agent-tracker.json)
 - [x] history.json → .nexus/history.json 프로젝트 레벨로 이동
 - [x] reopen-tracker task_close에서 제거
 - [x] nx_task_add caller 파라미터 제거 (Lead 단독, disallowedTools로 강제)

@@ -28,9 +28,9 @@ function findProjectRoot(startDir) {
   return startDir ?? process.cwd();
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path.join)(PROJECT_ROOT, ".nexus");
-var KNOWLEDGE_ROOT = (0, import_path.join)(PROJECT_ROOT, ".claude", "nexus");
-var CORE_ROOT = (0, import_path.join)(KNOWLEDGE_ROOT, "core");
+var NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path.join)(PROJECT_ROOT, ".nexus");
+var CORE_ROOT = (0, import_path.join)(NEXUS_ROOT, "core");
+var STATE_ROOT = (0, import_path.join)(NEXUS_ROOT, "state");
 function ensureDir(dir) {
   if (!(0, import_fs.existsSync)(dir)) {
     (0, import_fs.mkdirSync)(dir, { recursive: true });
@@ -47,39 +47,6 @@ function getCurrentBranch() {
     }
   }
 }
-function sanitizeBranch(branch) {
-  if (branch === "HEAD") {
-    try {
-      const hash = (0, import_child_process.execSync)("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
-      return `_detached-${hash}`;
-    } catch {
-      return "_detached";
-    }
-  }
-  return branch.replace(/[/\\:*?"<>|]/g, "-");
-}
-var CURRENT_BRANCH = getCurrentBranch();
-function migrateLegacyBranchDir(branchName) {
-  const sanitized = sanitizeBranch(branchName);
-  const legacyPath = (0, import_path.join)(RUNTIME_ROOT, sanitized);
-  const newPath = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitized);
-  if ((0, import_fs.existsSync)(legacyPath) && !(0, import_fs.existsSync)(newPath)) {
-    ensureDir((0, import_path.join)(RUNTIME_ROOT, "branches"));
-    (0, import_fs.renameSync)(legacyPath, newPath);
-  }
-  if (sanitized === "_default") {
-    const unknownPath = (0, import_path.join)(RUNTIME_ROOT, "branches", "_unknown");
-    if ((0, import_fs.existsSync)(unknownPath) && !(0, import_fs.existsSync)(newPath)) {
-      (0, import_fs.renameSync)(unknownPath, newPath);
-    }
-  }
-}
-migrateLegacyBranchDir(CURRENT_BRANCH);
-var BRANCH_ROOT = (0, import_path.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
-function getSessionRoot(sessionId) {
-  return (0, import_path.join)(RUNTIME_ROOT, "sessions", sessionId);
-}
-var CURRENT_SESSION_FILE = (0, import_path.join)(RUNTIME_ROOT, "current-session");
 
 // src/shared/tasks.ts
 var import_fs2 = require("fs");
@@ -146,7 +113,7 @@ function handleClaudeMdSync() {
     }
   }
   const projectClaudeMd = (0, import_path3.join)(process.cwd(), "CLAUDE.md");
-  const notifiedFlag = (0, import_path3.join)(RUNTIME_ROOT, "claudemd-notified");
+  const notifiedFlag = (0, import_path3.join)(NEXUS_ROOT, "claudemd-notified");
   if ((0, import_fs3.existsSync)(projectClaudeMd)) {
     const projectContent = (0, import_fs3.readFileSync)(projectClaudeMd, "utf-8");
     const projectMarker = extractMarkerContent(projectContent);
@@ -171,7 +138,7 @@ function handleClaudeMdSync() {
   return null;
 }
 function handleStop() {
-  const summary = readTasksSummary(BRANCH_ROOT);
+  const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) {
     pass();
     return;
@@ -194,7 +161,6 @@ function handleStop() {
 }
 function isNexusInternalPath(filePath) {
   if (/[\\/]\.nexus[\\/]/.test(filePath)) return true;
-  if (/[\\/]\.claude[\\/]nexus[\\/]/.test(filePath)) return true;
   if (/[\\/]\.claude[\\/]settings\.json$/.test(filePath)) return true;
   if (/[\\/]CLAUDE\.md$/.test(filePath)) return true;
   return false;
@@ -206,7 +172,7 @@ function handlePreToolUse(event) {
     const taskId = String(toolInput2?.id ?? toolInput2?.task_id ?? "");
     const status = String(toolInput2?.status ?? "");
     if (status === "pending" && taskId) {
-      const reopenTrackerPath = (0, import_path3.join)(BRANCH_ROOT, "reopen-tracker.json");
+      const reopenTrackerPath = (0, import_path3.join)(STATE_ROOT, "reopen-tracker.json");
       let tracker = {};
       if ((0, import_fs3.existsSync)(reopenTrackerPath)) {
         try {
@@ -216,9 +182,7 @@ function handlePreToolUse(event) {
       }
       const count = (tracker[taskId] ?? 0) + 1;
       tracker[taskId] = count;
-      if (!(0, import_fs3.existsSync)(BRANCH_ROOT)) {
-        (0, import_fs3.mkdirSync)(BRANCH_ROOT, { recursive: true });
-      }
+      ensureDir(STATE_ROOT);
       (0, import_fs3.writeFileSync)(reopenTrackerPath, JSON.stringify(tracker, null, 2));
       if (count >= 5) {
         respond({
@@ -239,7 +203,7 @@ function handlePreToolUse(event) {
     return;
   }
   if (toolName === "mcp__plugin_claude-nexus_nx__nx_task_close") {
-    const editTrackerPath = (0, import_path3.join)(BRANCH_ROOT, "edit-tracker.json");
+    const editTrackerPath = (0, import_path3.join)(STATE_ROOT, "edit-tracker.json");
     let editTracker = {};
     if ((0, import_fs3.existsSync)(editTrackerPath)) {
       try {
@@ -248,20 +212,15 @@ function handlePreToolUse(event) {
       }
     }
     const modifiedFileCount = Object.keys(editTracker).length;
+    const agentTrackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
     let hasCheckAgent = false;
-    if ((0, import_fs3.existsSync)(CURRENT_SESSION_FILE)) {
+    if ((0, import_fs3.existsSync)(agentTrackerPath)) {
       try {
-        const sessionId = (0, import_fs3.readFileSync)(CURRENT_SESSION_FILE, "utf-8").trim();
-        if (sessionId) {
-          const agentTrackerPath = (0, import_path3.join)(getSessionRoot(sessionId), "agent-tracker.json");
-          if ((0, import_fs3.existsSync)(agentTrackerPath)) {
-            const agents = JSON.parse((0, import_fs3.readFileSync)(agentTrackerPath, "utf-8"));
-            hasCheckAgent = agents.some((a) => {
-              const type = String(a.agent_type ?? "").toLowerCase();
-              return type.includes("qa") || type.includes("reviewer");
-            });
-          }
-        }
+        const agents = JSON.parse((0, import_fs3.readFileSync)(agentTrackerPath, "utf-8"));
+        hasCheckAgent = agents.some((a) => {
+          const type = String(a.agent_type ?? "").toLowerCase();
+          return type.includes("qa") || type.includes("reviewer");
+        });
       } catch {
       }
     }
@@ -279,7 +238,7 @@ function handlePreToolUse(event) {
     const toolInput2 = event.tool_input;
     const filePath = toolInput2?.file_path ?? "";
     if (!isNexusInternalPath(filePath)) {
-      const summary = readTasksSummary(BRANCH_ROOT);
+      const summary = readTasksSummary(STATE_ROOT);
       if (!summary.exists) {
         respond({
           decision: "block",
@@ -294,7 +253,7 @@ function handlePreToolUse(event) {
         });
         return;
       }
-      const editTrackerPath = (0, import_path3.join)(BRANCH_ROOT, "edit-tracker.json");
+      const editTrackerPath = (0, import_path3.join)(STATE_ROOT, "edit-tracker.json");
       let tracker = {};
       if ((0, import_fs3.existsSync)(editTrackerPath)) {
         try {
@@ -304,9 +263,7 @@ function handlePreToolUse(event) {
       }
       const count = (tracker[filePath] ?? 0) + 1;
       tracker[filePath] = count;
-      if (!(0, import_fs3.existsSync)(BRANCH_ROOT)) {
-        (0, import_fs3.mkdirSync)(BRANCH_ROOT, { recursive: true });
-      }
+      ensureDir(STATE_ROOT);
       (0, import_fs3.writeFileSync)(editTrackerPath, JSON.stringify(tracker, null, 2));
       if (count >= 5) {
         respond({
@@ -373,7 +330,7 @@ function detectKeywords(prompt) {
   return null;
 }
 function getTasksReminder() {
-  const summary = readTasksSummary(BRANCH_ROOT);
+  const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) return null;
   if (summary.pending > 0) {
     return `[NEXUS] ${summary.pending} pending tasks. Complete work \u2192 nx_task_update(id, "completed") for each done task. Archive with nx_task_close when all complete.`;
@@ -381,7 +338,7 @@ function getTasksReminder() {
   return `[NEXUS] All ${summary.total} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.`;
 }
 function getConsultReminder() {
-  const consultPath = (0, import_path3.join)(BRANCH_ROOT, "consult.json");
+  const consultPath = (0, import_path3.join)(STATE_ROOT, "consult.json");
   if (!(0, import_fs3.existsSync)(consultPath)) return null;
   try {
     const data = JSON.parse((0, import_fs3.readFileSync)(consultPath, "utf-8"));
@@ -399,7 +356,7 @@ function withNotices(base, tasksReminder, claudeMdNotice, consultReminder) {
   return [consultReminder, tasksReminder, base, claudeMdNotice].filter(Boolean).join("\n");
 }
 function handleConsultMode({ tasksReminder, claudeMdNotice }) {
-  const consultFile = (0, import_path3.join)(BRANCH_ROOT, "consult.json");
+  const consultFile = (0, import_path3.join)(STATE_ROOT, "consult.json");
   const hasExistingSession = (0, import_fs3.existsSync)(consultFile);
   let base;
   if (hasExistingSession) {
@@ -438,7 +395,7 @@ function handleUserPromptSubmit(event) {
 After recording the decision:
 1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.
 2. If the user explicitly requests implementation: nx_task_add (decisions=[] or relevant IDs) \u2192 perform work \u2192 nx_task_close (history archive). Follow this pipeline even for simple edits. Edit/Write will be BLOCKED without tasks.json.`;
-    const consultFile = (0, import_path3.join)(BRANCH_ROOT, "consult.json");
+    const consultFile = (0, import_path3.join)(STATE_ROOT, "consult.json");
     if ((0, import_fs3.existsSync)(consultFile)) {
       respond({
         continue: true,
@@ -460,9 +417,9 @@ After recording the decision:
       return;
     }
   }
-  const summary = readTasksSummary(BRANCH_ROOT);
+  const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) {
-    const branchGuard = /^(main|master)$/.test(CURRENT_BRANCH) ? "\nBranch Guard: You are on main/master. Create a feature branch before making changes." : "";
+    const branchGuard = /^(main|master)$/.test(getCurrentBranch()) ? "\nBranch Guard: You are on main/master. Create a feature branch before making changes." : "";
     const orchestrationHint = `[NEXUS] No active tasks. Refer to nx-run SKILL.md for orchestration guidance.
 - Direct execution only if ALL 3 conditions met: exact change instruction + single file + no code structure understanding needed.
 - Otherwise: spawn How agent (Architect/Postdoc/Strategist) for design consultation, then Do agents for execution.${branchGuard}
@@ -485,61 +442,45 @@ IMPORTANT: For multi-file or complex tasks, Lead creates tasks via nx_task_add a
     additionalContext: withNotices(`[NEXUS] Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.`, tasksReminder, claudeMdNotice, consultReminder)
   });
 }
-function handleSessionStart(event) {
-  const sessionId = String(event.session_id ?? "");
-  if (sessionId) {
-    const sessionRoot = getSessionRoot(sessionId);
-    (0, import_fs3.mkdirSync)(sessionRoot, { recursive: true });
-    (0, import_fs3.writeFileSync)((0, import_path3.join)(sessionRoot, "agent-tracker.json"), "[]");
-    const runtimeDir = RUNTIME_ROOT;
-    if (!(0, import_fs3.existsSync)(runtimeDir)) {
-      (0, import_fs3.mkdirSync)(runtimeDir, { recursive: true });
-    }
-    (0, import_fs3.writeFileSync)(CURRENT_SESSION_FILE, sessionId);
-  }
+function handleSessionStart(_event) {
+  ensureDir(STATE_ROOT);
+  (0, import_fs3.writeFileSync)((0, import_path3.join)(STATE_ROOT, "agent-tracker.json"), "[]");
   respond({
     continue: true,
-    additionalContext: `[NEXUS] Session started.`
+    additionalContext: "[NEXUS] Session started."
   });
 }
 function handleSubagentStart(event) {
   const agentType = String(event.agent_type ?? event.subagent_type ?? "");
   const agentId = String(event.agent_id ?? event.session_id ?? "");
-  const parentSessionId = String(event.parent_session_id ?? event.session_id ?? "");
-  if (parentSessionId) {
-    const sessionRoot = getSessionRoot(parentSessionId);
-    const trackerPath = (0, import_path3.join)(sessionRoot, "agent-tracker.json");
-    let tracker = [];
-    if ((0, import_fs3.existsSync)(trackerPath)) {
-      try {
-        tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
-      } catch {
-      }
+  const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
+  let tracker = [];
+  if ((0, import_fs3.existsSync)(trackerPath)) {
+    try {
+      tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+    } catch {
     }
-    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
-    (0, import_fs3.mkdirSync)(sessionRoot, { recursive: true });
-    (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
   }
+  tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
+  ensureDir(STATE_ROOT);
+  (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
   pass();
 }
 function handleSubagentStop(event) {
   const agentId = String(event.agent_id ?? event.session_id ?? "");
   const lastMsg = String(event.last_message ?? event.stop_reason ?? "");
-  const parentSessionId = String(event.parent_session_id ?? event.session_id ?? "");
-  if (parentSessionId) {
-    const trackerPath = (0, import_path3.join)(getSessionRoot(parentSessionId), "agent-tracker.json");
-    if ((0, import_fs3.existsSync)(trackerPath)) {
-      try {
-        const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
-        const entry = tracker.find((a) => a.agent_id === agentId);
-        if (entry) {
-          entry.status = "completed";
-          entry.last_message = lastMsg;
-          entry.stopped_at = (/* @__PURE__ */ new Date()).toISOString();
-        }
-        (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
-      } catch {
+  const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
+  if ((0, import_fs3.existsSync)(trackerPath)) {
+    try {
+      const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+      const entry = tracker.find((a) => a.agent_id === agentId);
+      if (entry) {
+        entry.status = "completed";
+        entry.last_message = lastMsg;
+        entry.stopped_at = (/* @__PURE__ */ new Date()).toISOString();
       }
+      (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
+    } catch {
     }
   }
   pass();

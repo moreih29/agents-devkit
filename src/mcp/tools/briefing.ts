@@ -3,8 +3,7 @@ import { existsSync } from 'fs';
 import { readFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { CORE_ROOT, LAYERS, coreLayerDir, KNOWLEDGE_ROOT } from '../../shared/paths.js';
-import { getBranchRoot } from '../../shared/paths.js';
+import { LAYERS, coreLayerDir, NEXUS_ROOT, STATE_ROOT } from '../../shared/paths.js';
 import { textResult } from '../../shared/mcp-utils.js';
 
 // null = 생략, 'all' = 전체
@@ -87,7 +86,7 @@ export function registerBriefingTool(server: McpServer): void {
 
       // decisions.json
       let decisionsSection = '';
-      const decisionsPath = join(getBranchRoot(), 'decisions.json');
+      const decisionsPath = join(STATE_ROOT, 'decisions.json');
       if (existsSync(decisionsPath)) {
         const raw = await readFile(decisionsPath, 'utf-8');
         decisionsSection = raw.trim();
@@ -95,7 +94,7 @@ export function registerBriefingTool(server: McpServer): void {
 
       // rules/
       let rulesSection = '';
-      const rulesDir = join(KNOWLEDGE_ROOT, 'rules');
+      const rulesDir = join(NEXUS_ROOT, 'rules');
       if (existsSync(rulesDir)) {
         const ruleFiles = (await readdir(rulesDir)).filter((f) => f.endsWith('.md'));
         const parts: string[] = [];

@@ -33,13 +33,13 @@ gate.ts 단일 모듈이 7개 이벤트를 처리. 이벤트 판별: `process.en
 - 프로젝트 `./CLAUDE.md`: 다르면 1회 알림 (`.nexus/claudemd-notified` 플래그)
 
 ### SessionStart 이벤트
-NEXUS_EVENT=SessionStart. `sessions/{sessionId}/` 세션 디렉토리 생성 + agent-tracker.json 초기화. `current-session` 파일에 sessionId 기록. "Session started." 컨텍스트 반환.
+NEXUS_EVENT=SessionStart. `STATE_ROOT/agent-tracker.json` 초기화. "Session started." 컨텍스트 반환.
 
 ### SubagentStart 이벤트
-NEXUS_EVENT=SubagentStart. `sessions/{parentSessionId}/agent-tracker.json`에 에이전트 추가 (agent_type, agent_id, started_at, status: running).
+NEXUS_EVENT=SubagentStart. `.nexus/state/agent-tracker.json`에 에이전트 추가 (agent_type, agent_id, started_at, status: running).
 
 ### SubagentStop 이벤트
-NEXUS_EVENT=SubagentStop. `sessions/{parentSessionId}/agent-tracker.json`에서 해당 에이전트 상태 업데이트 (status: completed, last_message, stopped_at).
+NEXUS_EVENT=SubagentStop. `.nexus/state/agent-tracker.json`에서 해당 에이전트 상태 업데이트 (status: completed, last_message, stopped_at).
 
 ### Stop 이벤트
 `tasks.json`에 pending 태스크가 있으면 `continue: true`로 종료 차단 (nonstop). 모두 completed이면 `nx_task_close` 강제.
@@ -61,7 +61,7 @@ NEXUS_EVENT=SubagentStop. `sessions/{parentSessionId}/agent-tracker.json`에서 
 - **reopen-tracker**: status가 "pending"(reopen)이면 해당 태스크 reopen 횟수 카운팅. 3회 경고, 5회 차단. Circuit Breaker 패턴.
 
 `nx_task_close` MCP 도구 호출 시:
-- **Check 경고**: edit-tracker 파일 3개+ AND `sessions/{currentSession}/agent-tracker.json`에 qa/reviewer 없음 → 경고 (block 아님). "Check agent가 스폰되지 않았습니다."
+- **Check 경고**: edit-tracker 파일 3개+ AND `.nexus/state/agent-tracker.json`에 qa/reviewer 없음 → 경고 (block 아님). "Check agent가 스폰되지 않았습니다."
 
 ### UserPromptSubmit 이벤트
 
@@ -124,9 +124,9 @@ consult.json이 존재하는 동안, 태그 없는 멀티턴에서도 매 UserPr
 - **Task Pipeline**: tasks.json 없으면 Edit/Write 차단
 - **edit-tracker**: 파일 수준 루프 감지 (3경고/5차단)
 - **reopen-tracker**: 태스크 수준 Circuit Breaker (3경고/5차단)
-- **agent-tracker**: SubagentStart/Stop 훅으로 세션별(`sessions/{sessionId}/`) 에이전트 생명주기 추적
+- **agent-tracker**: SubagentStart/Stop 훅으로 `.nexus/state/agent-tracker.json`에 에이전트 생명주기 추적
 - **Check 경고**: nx_task_close 시 파일 3개+ AND QA/Reviewer 없으면 경고
-- **SessionStart**: 세션 디렉토리 생성 + agent-tracker 초기화 + current-session 기록
+- **SessionStart**: `STATE_ROOT/agent-tracker.json` 초기화
 - **Stop nonstop**: pending 태스크 시 종료 차단
 - **스마트 Resume**: tasks.json 존재 시 stale 판단 프롬프트
 

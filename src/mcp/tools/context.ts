@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
-import { getBranchRoot, getCurrentBranch } from '../../shared/paths.js';
+import { STATE_ROOT, getCurrentBranch } from '../../shared/paths.js';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { textResult } from '../../shared/mcp-utils.js';
@@ -15,7 +15,7 @@ export function registerContextTool(server: McpServer): void {
     async () => {
       // 활성 모드 감지: tasks.json에서 읽기
       let teamStatus: { activeMode: 'team'; goal: string; tasksSummary: { total: number; completed: number; pending: number } } | { activeMode: null } = { activeMode: null };
-      const tasksFile = join(getBranchRoot(), 'tasks.json');
+      const tasksFile = join(STATE_ROOT, 'tasks.json');
       if (existsSync(tasksFile)) {
         try {
           const data = JSON.parse(await readFile(tasksFile, 'utf-8'));
@@ -35,7 +35,7 @@ export function registerContextTool(server: McpServer): void {
 
       // 결정 사항 읽기
       let decisions: string[] = [];
-      const decisionsFile = join(getBranchRoot(), 'decisions.json');
+      const decisionsFile = join(STATE_ROOT, 'decisions.json');
       if (existsSync(decisionsFile)) {
         try {
           const data = JSON.parse(await readFile(decisionsFile, 'utf-8'));

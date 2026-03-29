@@ -13,11 +13,12 @@ MCP="bridge/mcp-server.cjs"
 # 임시 디렉토리 사용 — 실제 .nexus는 건드리지 않음
 E2E_TMP=$(mktemp -d)
 export NEXUS_RUNTIME_ROOT="$E2E_TMP"
-# gate.cjs는 RUNTIME_ROOT/branches/<sanitized-branch>/tasks.json 에서 읽으므로 branches/ 서브디렉토리 사용
-E2E_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
-E2E_BRANCH_SAFE=$(echo "$E2E_BRANCH" | tr '/\\:*?"<>|' '-')
-E2E_BRANCH_ROOT="$E2E_TMP/branches/$E2E_BRANCH_SAFE"
-mkdir -p "$E2E_BRANCH_ROOT"
+# gate.cjs는 STATE_ROOT(.nexus/state/)에서 tasks.json을 읽음
+E2E_STATE="$E2E_TMP/state"
+mkdir -p "$E2E_STATE"
+# MCP 도구 테스트용 core 파일 생성
+mkdir -p "$E2E_TMP/core/codebase"
+echo '# Architecture' > "$E2E_TMP/core/codebase/architecture.md"
 
 green() { echo -e "\033[32m✔ $1\033[0m"; }
 red() { echo -e "\033[31m✘ $1\033[0m"; }
@@ -138,22 +139,22 @@ echo ""
 echo "=== 훅 ==="
 
 # Stop: tasks.json 없음 → pass
-rm -f "$E2E_BRANCH_ROOT/tasks.json"
+rm -f "$E2E_STATE/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (no tasks.json)" '"continue":true' "$result"
 
 # Stop: tasks.json에 완료된 태스크만 → pass
-echo '{"tasks":[{"id":"t1","title":"done","status":"completed"}]}' > "$E2E_BRANCH_ROOT/tasks.json"
+echo '{"tasks":[{"id":"t1","title":"done","status":"completed"}]}' > "$E2E_STATE/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (all tasks completed)" '"continue":true' "$result"
-rm -f "$E2E_BRANCH_ROOT/tasks.json"
+rm -f "$E2E_STATE/tasks.json"
 
 # Stop: tasks.json에 미완료 태스크 → continue:true (nonstop, block 아님)
-echo '{"tasks":[{"id":"t1","title":"pending task","status":"pending"},{"id":"t2","title":"done","status":"completed"}]}' > "$E2E_BRANCH_ROOT/tasks.json"
+echo '{"tasks":[{"id":"t1","title":"pending task","status":"pending"},{"id":"t2","title":"done","status":"completed"}]}' > "$E2E_STATE/tasks.json"
 result=$(echo '{"hook_event_name":"Stop"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/Stop (pending tasks)" '"continue":true' "$result"
 check "Gate/Stop (pending tasks count)" '1 tasks pending' "$result"
-rm -f "$E2E_BRANCH_ROOT/tasks.json"
+rm -f "$E2E_STATE/tasks.json"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (no keyword)" '"continue":true' "$result"
@@ -190,26 +191,26 @@ echo ""
 echo "=== Edit Tracker ==="
 
 # edit-tracker가 동작하려면 tasks.json 필요
-TRACKER_BRANCH_ROOT="$E2E_BRANCH_ROOT"
-echo '{"goal":"test","tasks":[{"id":1,"title":"t","context":"c","status":"in_progress","deps":[],"decisions":[]}]}' > "$TRACKER_BRANCH_ROOT/tasks.json"
+TRACKER_STATE="$E2E_STATE"
+echo '{"goal":"test","tasks":[{"id":1,"title":"t","context":"c","status":"in_progress","deps":[],"decisions":[]}]}' > "$TRACKER_STATE/tasks.json"
 
 # 1회 수정 → pass (continue:true)
-echo '{}' > "$TRACKER_BRANCH_ROOT/edit-tracker.json"
+echo '{}' > "$TRACKER_STATE/edit-tracker.json"
 result=$(echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test_tracker.ts"}}' | node scripts/gate.cjs 2>/dev/null)
 check "Edit tracker (1st edit — pass)" 'continue' "$result"
 
 # 3회 → 경고 (approve + warning)
-printf '{ "/tmp/test_tracker.ts": 2 }' > "$TRACKER_BRANCH_ROOT/edit-tracker.json"
+printf '{ "/tmp/test_tracker.ts": 2 }' > "$TRACKER_STATE/edit-tracker.json"
 result=$(echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test_tracker.ts"}}' | node scripts/gate.cjs 2>/dev/null)
 check "Edit tracker (3rd edit — warning)" 'loop detected' "$result"
 
 # 5회 → 차단 (block)
-printf '{ "/tmp/test_tracker.ts": 4 }' > "$TRACKER_BRANCH_ROOT/edit-tracker.json"
+printf '{ "/tmp/test_tracker.ts": 4 }' > "$TRACKER_STATE/edit-tracker.json"
 result=$(echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test_tracker.ts"}}' | node scripts/gate.cjs 2>/dev/null)
 check "Edit tracker (5th edit — block)" 'BLOCKED' "$result"
 
 # 정리
-rm -f "$TRACKER_BRANCH_ROOT/edit-tracker.json" "$TRACKER_BRANCH_ROOT/tasks.json"
+rm -f "$TRACKER_STATE/edit-tracker.json" "$TRACKER_STATE/tasks.json"
 
 # --- Statusline ---
 echo ""

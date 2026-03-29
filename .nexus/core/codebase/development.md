@@ -32,8 +32,8 @@ src/ 수정 → bun run dev (빌드 + 템플릿 생성 + 플러그인 캐시 동
 ## Conventions
 
 - Hook I/O: stdin으로 JSON 수신 → `readStdin()` 파싱 → `respond(obj)` 또는 `pass()`로 응답
-- MCP 도구: `server.tool(name, description, schema, handler)` 패턴. zod 스키마. 경로는 `getBranchRoot()` 동적 해결.
-- 경로: `src/shared/paths.ts`에서 중앙 관리. `PROJECT_ROOT`, `KNOWLEDGE_ROOT`, `CORE_ROOT`, `LAYERS`, `corePath()`, `coreLayerDir()`(core 계층용), `BRANCH_ROOT`(정적, 훅용), `getBranchRoot()`(동적, MCP용).
+- MCP 도구: `server.tool(name, description, schema, handler)` 패턴. zod 스키마. 경로는 `STATE_ROOT` 상수로 해결.
+- 경로: `src/shared/paths.ts`에서 중앙 관리. `PROJECT_ROOT`, `NEXUS_ROOT`, `STATE_ROOT`, `CORE_ROOT`, `LAYERS`, `corePath()`, `coreLayerDir()`(core 계층용).
 - 에이전트 정의: `agents/{name}.md` frontmatter에 model, maxTurns, task, disallowedTools 등 명시.
 - 스킬 정의: `skills/{name}/SKILL.md` frontmatter에 name, description, trigger_display, purpose, triggers, disable-model-invocation 등.
 

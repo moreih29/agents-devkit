@@ -22,54 +22,44 @@ claude plugin install claude-nexus@nexus
 
 **온보딩**
 
-`/claude-nexus:nx-sync`를 처음 실행하면 프로젝트를 스캔해 `.claude/nexus/knowledge/`에 지식을 자동 생성합니다.
+`/claude-nexus:nx-init`을 처음 실행하면 프로젝트를 스캔해 `.nexus/core/`에 지식을 자동 생성합니다.
+
+> **Important**: 하나의 워크스페이스에서 동시에 여러 Claude Code 세션을 실행하는 것은 지원되지 않습니다. 상태 파일 충돌이 발생할 수 있습니다.
 
 **첫 사용**
 
-- **상담**: `[consult] 인증 시스템 어떻게 설계하면 좋을까?` — 실행 전 의도 파악, 설계 상담
-- **개발**: `[dev] 로그인 API 구현해줘` — 에이전트 팀이 분석부터 구현까지 실행
-- **리서치**: `[research] React vs Svelte 성능 비교` — 독립 조사 후 synthesis 문서 작성
+- **상담**: `[consult] 인증 시스템 어떻게 설계하면 좋을까?`
+- **결정 기록**: `응 그 방향으로 [d]`
 
 ## 사용법
 
 | 태그 | 동작 | 예시 |
 |------|------|------|
-| `[consult]` | 실행 전 상담, 의도 파악 | `[consult] DB 마이그레이션 전략 논의` |
-| `[dev]` | 개발 실행 (Sub/Team 자동 판단) | `[dev] 결제 모듈 리팩토링` |
-| `[dev!]` | 팀 모드 강제 | `[dev!] 인증 시스템 전면 개편` |
-| `[research]` | 리서치 실행 (Sub/Team 자동 판단) | `[research] 캐싱 전략 비교 분석` |
-| `[research!]` | 리서치 팀 강제 | `[research!] 경쟁사 기술 스택 조사` |
-
-흐름: `[consult]`로 방향을 잡은 뒤 `[dev]` 또는 `[research]`로 실행합니다.
+| `[consult]` | 상담 모드 활성화 | `[consult] DB 마이그레이션 전략 논의` |
+| `[d]` | 결정 기록 | `응 그 방향으로 [d]` |
 
 ## 에이전트
 
-### 개발 팀 (4개)
-
-| 에이전트 | 호출 | 역할 | 모델 |
-|----------|------|------|------|
-| **Director** | `claude-nexus:director` | 프로젝트 방향, 스코프, 우선순위 판단 | opus |
-| **Architect** | `claude-nexus:architect` | 기술 설계, 아키텍처 리뷰 (읽기 전용) | opus |
-| **Engineer** | `claude-nexus:engineer` | 코드 구현, 디버깅 | sonnet |
-| **QA** | `claude-nexus:qa` | 검증, 테스트, 보안 리뷰 | sonnet |
-
-### 리서치 팀 (3개)
-
-| 에이전트 | 호출 | 역할 | 모델 |
-|----------|------|------|------|
-| **Principal** | `claude-nexus:principal` | 리서치 방향, 아젠다, 확증편향 방지 | opus |
-| **Postdoc** | `claude-nexus:postdoc` | 방법론 설계, 증거 평가, synthesis 문서 작성 | opus |
-| **Researcher** | `claude-nexus:researcher` | 웹 검색, 독립 조사, 출처 보고 | sonnet |
+| 카테고리 | 에이전트 | 역할 | 모델 |
+|----------|----------|------|------|
+| **How** | Architect | 기술 설계, 아키텍처 리뷰 | opus |
+| **How** | Designer | UI/UX 설계, 인터랙션 패턴 | opus |
+| **How** | Postdoc | 방법론 설계, 증거 평가 | opus |
+| **How** | Strategist | 콘텐츠 전략, 방향 설정 | opus |
+| **Do** | Engineer | 코드 구현, 디버깅 | sonnet |
+| **Do** | Researcher | 웹 검색, 독립 조사 | sonnet |
+| **Do** | Writer | 기술 문서, 프레젠테이션 | sonnet |
+| **Check** | QA | 코드 검증, 테스트, 보안 | sonnet |
+| **Check** | Reviewer | 콘텐츠 검증, 출처 확인 | sonnet |
 
 ## 스킬
 
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
-| **nx-consult** | `[consult]` | 구조화된 상담. 요구사항 정리 → 결정 기록(`[d]`) → 실행 태그 추천 |
-| **nx-dev** | `[dev]` / `[dev!]` | 개발 실행. 복잡도에 따라 단독 또는 팀(Director→Architect→Engineer→QA) 자동 편성 |
-| **nx-research** | `[research]` / `[research!]` | 리서치 실행. 복잡도에 따라 단독 또는 팀(Principal→Postdoc→Researcher) 자동 편성 |
-| **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정. CLAUDE.md에 에이전트/스킬/태그 설정 주입 |
-| **nx-sync** | `/claude-nexus:nx-sync` | 첫 실행 시 knowledge 자동 생성, 이후 소스 변경과의 불일치 감지 및 수정. --reset으로 초기화 가능 |
+| **nx-consult** | `[consult]` | 구조화된 상담. 요구사항 정리 → 결정 기록 |
+| **nx-run** | (기본 동작) | 동적 에이전트 구성 실행 |
+| **nx-init** | `/claude-nexus:nx-init` | 프로젝트 온보딩. 코드 스캔 → 지식 생성 |
+| **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정 |
 
 ## 고급 기능
 
@@ -78,21 +68,20 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (14개)
+### Core (13개)
 
 | 도구 | 용도 |
 |------|------|
-| `nx_knowledge_read/write` | 프로젝트 지식 관리 (git 추적) |
-| `nx_rules_read/write` | 팀 커스텀 규칙 관리 (git 추적) |
+| `nx_core_read/write` | 프로젝트 지식 관리 (`.nexus/core/`, git 추적) |
+| `nx_rules_read/write` | 팀 커스텀 규칙 관리 (`.nexus/rules/`, git 추적) |
 | `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 결정) |
-| `nx_task_list/add/update/close` | tasks.json 기반 태스크 관리 + history.json 아카이브 |
-| `nx_decision_add` | 아키텍처 결정 기록 |
-| `nx_artifact_write` | 팀 산출물 저장 (브랜치별 격리) |
+| `nx_task_list/add/update/close` | `.nexus/state/tasks.json` 기반 태스크 관리 + `.nexus/history.json` 아카이브 |
+| `nx_decision_add` | 아키텍처 결정 기록 (`.nexus/state/decisions.json`) |
+| `nx_artifact_write` | 팀 산출물 저장 (`.nexus/state/artifacts/`) |
 | `nx_consult_start` | 상담 세션 시작 (토픽 + 논점 등록) |
 | `nx_consult_status` | 상담 상태 조회 (decisions.json join) |
 | `nx_consult_decide` | 논점 결정 처리 (consult.json + decisions.json) |
 | `nx_consult_update` | 상담 논점 수정 (add/remove/edit/reopen) |
-| `nx_branch_migrate` | 브랜치 전환 시 상태 파일 이동 (consult/decisions) |
 
 ### Code Intelligence (10개)
 
@@ -130,29 +119,30 @@ Gate 단일 모듈로 동작합니다.
 <details>
 <summary>프로젝트 지식</summary>
 
-`.claude/nexus/`에 프로젝트 지식과 규칙을 저장합니다. git으로 추적됩니다.
+`.nexus/`에 프로젝트 지식과 런타임 상태를 저장합니다.
 
-- `knowledge/` — 프로젝트 지식. `nx-sync` 첫 실행 시 자동 생성 (구조 고정 아님)
-- `rules/` — 팀 커스텀 규칙. 사용자 요청 시 `nx_rules_write`로 생성
-- `config.json` — Nexus 설정
+- `core/` — 4계층 지식 (identity/codebase/reference/memory). git 추적.
+- `rules/` — 팀 커스텀 규칙. git 추적.
+- `config.json` — Nexus 설정. git 추적.
+- `history.json` — 사이클 아카이브. git 추적.
+- `state/` — 런타임 상태 (tasks, decisions, consult 등). git 무시.
 
 </details>
 
 <details>
 <summary>런타임 상태</summary>
 
-`.nexus/` 디렉토리에 런타임 상태가 저장됩니다. gitignore 대상입니다.
+`.nexus/state/` 디렉토리에 런타임 상태가 저장됩니다. `.nexus/.gitignore`의 화이트리스트에 의해 자동 무시됩니다.
 
 ```
-.nexus/
-├── branches/               ← 브랜치별 격리
-│   └── {branch}/
-│       ├── tasks.json      ← 태스크 목록
-│       ├── decisions.json  ← 아키텍처 결정 목록
-│       ├── consult.json    ← 상담 논점 추적
-│       ├── history.json    ← 사이클 아카이브 (nx_task_close 시 생성)
-│       └── artifacts/      ← 팀 산출물
-└── sync-state.json         ← 마지막 sync 커밋
+.nexus/state/
+├── tasks.json
+├── decisions.json
+├── consult.json
+├── edit-tracker.json
+├── reopen-tracker.json
+├── agent-tracker.json
+└── artifacts/
 ```
 
 </details>

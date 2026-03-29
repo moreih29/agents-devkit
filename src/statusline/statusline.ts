@@ -27,7 +27,7 @@ function getNum(key: string): number {
 // --- 프로젝트 루트 찾기 ---
 
 const PROJECT_ROOT = findProjectRoot(getVal('cwd') || process.cwd());
-const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
+const NEXUS_ROOT = join(PROJECT_ROOT, '.nexus');
 
 // --- Preset ---
 
@@ -36,7 +36,7 @@ type Preset = 'minimal' | 'full';
 function getPreset(): Preset {
   const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
   if (env === 'minimal' || env === 'full') return env;
-  const configFile = join(KNOWLEDGE_ROOT, 'config.json');
+  const configFile = join(NEXUS_ROOT, 'config.json');
   if (existsSync(configFile)) {
     try {
       const data = JSON.parse(readFileSync(configFile, 'utf-8'));

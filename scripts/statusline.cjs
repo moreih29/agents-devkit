@@ -4,7 +4,7 @@
 // src/statusline/statusline.ts
 var import_fs3 = require("fs");
 var import_path3 = require("path");
-var import_child_process2 = require("child_process");
+var import_child_process = require("child_process");
 
 // src/shared/version.ts
 var import_fs = require("fs");
@@ -22,7 +22,6 @@ function getCurrentVersion() {
 // src/shared/paths.ts
 var import_path2 = require("path");
 var import_fs2 = require("fs");
-var import_child_process = require("child_process");
 function findProjectRoot(startDir) {
   let dir = startDir ?? process.cwd();
   while (dir !== "/") {
@@ -32,55 +31,9 @@ function findProjectRoot(startDir) {
   return startDir ?? process.cwd();
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
-var KNOWLEDGE_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".claude", "nexus");
-var CORE_ROOT = (0, import_path2.join)(KNOWLEDGE_ROOT, "core");
-function ensureDir(dir) {
-  if (!(0, import_fs2.existsSync)(dir)) {
-    (0, import_fs2.mkdirSync)(dir, { recursive: true });
-  }
-}
-function getCurrentBranch() {
-  try {
-    return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-  } catch {
-    try {
-      return (0, import_child_process.execSync)("git symbolic-ref --short HEAD", { encoding: "utf8" }).trim();
-    } catch {
-      return "_default";
-    }
-  }
-}
-function sanitizeBranch(branch) {
-  if (branch === "HEAD") {
-    try {
-      const hash = (0, import_child_process.execSync)("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
-      return `_detached-${hash}`;
-    } catch {
-      return "_detached";
-    }
-  }
-  return branch.replace(/[/\\:*?"<>|]/g, "-");
-}
-var CURRENT_BRANCH = getCurrentBranch();
-function migrateLegacyBranchDir(branchName) {
-  const sanitized = sanitizeBranch(branchName);
-  const legacyPath = (0, import_path2.join)(RUNTIME_ROOT, sanitized);
-  const newPath = (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitized);
-  if ((0, import_fs2.existsSync)(legacyPath) && !(0, import_fs2.existsSync)(newPath)) {
-    ensureDir((0, import_path2.join)(RUNTIME_ROOT, "branches"));
-    (0, import_fs2.renameSync)(legacyPath, newPath);
-  }
-  if (sanitized === "_default") {
-    const unknownPath = (0, import_path2.join)(RUNTIME_ROOT, "branches", "_unknown");
-    if ((0, import_fs2.existsSync)(unknownPath) && !(0, import_fs2.existsSync)(newPath)) {
-      (0, import_fs2.renameSync)(unknownPath, newPath);
-    }
-  }
-}
-migrateLegacyBranchDir(CURRENT_BRANCH);
-var BRANCH_ROOT = (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
-var CURRENT_SESSION_FILE = (0, import_path2.join)(RUNTIME_ROOT, "current-session");
+var NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
+var CORE_ROOT = (0, import_path2.join)(NEXUS_ROOT, "core");
+var STATE_ROOT = (0, import_path2.join)(NEXUS_ROOT, "state");
 
 // src/statusline/statusline.ts
 var input = "";
@@ -97,11 +50,11 @@ function getNum(key) {
   return m ? parseFloat(m[1]) : 0;
 }
 var PROJECT_ROOT2 = findProjectRoot(getVal("cwd") || process.cwd());
-var KNOWLEDGE_ROOT2 = (0, import_path3.join)(PROJECT_ROOT2, ".claude", "nexus");
+var NEXUS_ROOT2 = (0, import_path3.join)(PROJECT_ROOT2, ".nexus");
 function getPreset() {
   const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
   if (env === "minimal" || env === "full") return env;
-  const configFile = (0, import_path3.join)(KNOWLEDGE_ROOT2, "config.json");
+  const configFile = (0, import_path3.join)(NEXUS_ROOT2, "config.json");
   if ((0, import_fs3.existsSync)(configFile)) {
     try {
       const data = JSON.parse((0, import_fs3.readFileSync)(configFile, "utf-8"));
@@ -176,9 +129,9 @@ function buildLine1() {
   const project = require("path").basename(PROJECT_ROOT2);
   let gitPart = `${DIM}\u2014${RESET}`;
   try {
-    const branch = (0, import_child_process2.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT2, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-    const staged = (0, import_child_process2.execSync)("git diff --cached --numstat", { cwd: PROJECT_ROOT2, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim().split("\n").filter(Boolean).length;
-    const unstaged = (0, import_child_process2.execSync)("git diff --numstat", { cwd: PROJECT_ROOT2, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim().split("\n").filter(Boolean).length;
+    const branch = (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { cwd: PROJECT_ROOT2, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    const staged = (0, import_child_process.execSync)("git diff --cached --numstat", { cwd: PROJECT_ROOT2, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim().split("\n").filter(Boolean).length;
+    const unstaged = (0, import_child_process.execSync)("git diff --numstat", { cwd: PROJECT_ROOT2, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim().split("\n").filter(Boolean).length;
     let dirty = "";
     if (staged > 0) dirty += `\x1B[32m+${staged}${RESET}`;
     if (unstaged > 0) dirty += `\x1B[33m~${unstaged}${RESET}`;
@@ -273,14 +226,14 @@ function getUsage() {
   try {
     let credJson = "";
     if (process.platform === "darwin") {
-      credJson = (0, import_child_process2.execSync)('security find-generic-password -s "Claude Code-credentials" -w', { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+      credJson = (0, import_child_process.execSync)('security find-generic-password -s "Claude Code-credentials" -w', { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
     } else {
       const credFile = (0, import_path3.join)(process.env.HOME || "~", ".claude", ".credentials.json");
       if ((0, import_fs3.existsSync)(credFile)) credJson = (0, import_fs3.readFileSync)(credFile, "utf-8");
     }
     const tokenMatch = credJson.match(/"accessToken"\s*:\s*"([^"]+)"/);
     if (tokenMatch) {
-      const resp = (0, import_child_process2.execSync)(`curl -s --max-time 2 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+      const resp = (0, import_child_process.execSync)(`curl -s --max-time 2 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer ${tokenMatch[1]}" -H "anthropic-beta: oauth-2025-04-20"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
       if (resp && resp.includes("five_hour")) {
         writeCacheAtomic(`${now}
 ${now + CACHE_TTL_DEFAULT}
@@ -332,7 +285,7 @@ function isApiMode() {
 function fetchApiCost(adminKey) {
   try {
     const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-    const resp = (0, import_child_process2.execSync)(
+    const resp = (0, import_child_process.execSync)(
       `curl -s --max-time 3 "https://api.anthropic.com/v1/organizations/cost_report?start_date=${today}&end_date=${today}" -H "x-api-key: ${adminKey}" -H "anthropic-version: 2023-06-01"`,
       { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
     ).trim();

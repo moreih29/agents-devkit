@@ -1,6 +1,6 @@
 // Gate 훅: Stop (Task 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { BRANCH_ROOT, RUNTIME_ROOT, CURRENT_BRANCH, getSessionRoot, CURRENT_SESSION_FILE } from '../shared/paths.js';
+import { STATE_ROOT, NEXUS_ROOT, ensureDir, getCurrentBranch } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
 import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
@@ -56,7 +56,7 @@ function handleClaudeMdSync(): string | null {
 
   // --- Project CLAUDE.md stale notification ---
   const projectClaudeMd = join(process.cwd(), 'CLAUDE.md');
-  const notifiedFlag = join(RUNTIME_ROOT, 'claudemd-notified');
+  const notifiedFlag = join(NEXUS_ROOT, 'claudemd-notified');
 
   if (existsSync(projectClaudeMd)) {
     const projectContent = readFileSync(projectClaudeMd, 'utf-8');
@@ -86,7 +86,7 @@ function handleClaudeMdSync(): string | null {
 // --- Stop 이벤트 처리 ---
 
 function handleStop(): void {
-  const summary = readTasksSummary(BRANCH_ROOT);
+  const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) {
     pass();
     return;
@@ -113,8 +113,6 @@ function handleStop(): void {
 function isNexusInternalPath(filePath: string): boolean {
   // .nexus/ 런타임 상태
   if (/[\\/]\.nexus[\\/]/.test(filePath)) return true;
-  // .claude/nexus/ 지식 저장소
-  if (/[\\/]\.claude[\\/]nexus[\\/]/.test(filePath)) return true;
   // .claude/settings.json — setup 스킬 대상
   if (/[\\/]\.claude[\\/]settings\.json$/.test(filePath)) return true;
   // CLAUDE.md — sync 스킬 대상
@@ -131,16 +129,14 @@ function handlePreToolUse(event: Record<string, unknown>): void {
     const taskId = String(toolInput?.id ?? toolInput?.task_id ?? '');
     const status = String(toolInput?.status ?? '');
     if (status === 'pending' && taskId) {
-      const reopenTrackerPath = join(BRANCH_ROOT, 'reopen-tracker.json');
+      const reopenTrackerPath = join(STATE_ROOT, 'reopen-tracker.json');
       let tracker: Record<string, number> = {};
       if (existsSync(reopenTrackerPath)) {
         try { tracker = JSON.parse(readFileSync(reopenTrackerPath, 'utf-8')); } catch {}
       }
       const count = (tracker[taskId] ?? 0) + 1;
       tracker[taskId] = count;
-      if (!existsSync(BRANCH_ROOT)) {
-        mkdirSync(BRANCH_ROOT, { recursive: true });
-      }
+      ensureDir(STATE_ROOT);
       writeFileSync(reopenTrackerPath, JSON.stringify(tracker, null, 2));
 
       if (count >= 5) {
@@ -165,7 +161,7 @@ function handlePreToolUse(event: Record<string, unknown>): void {
 
   // nx_task_close: QA/Reviewer 없이 3개 이상 파일 수정 시 경고
   if (toolName === 'mcp__plugin_claude-nexus_nx__nx_task_close') {
-    const editTrackerPath = join(BRANCH_ROOT, 'edit-tracker.json');
+    const editTrackerPath = join(STATE_ROOT, 'edit-tracker.json');
 
     let editTracker: Record<string, number> = {};
     if (existsSync(editTrackerPath)) {
@@ -173,21 +169,15 @@ function handlePreToolUse(event: Record<string, unknown>): void {
     }
     const modifiedFileCount = Object.keys(editTracker).length;
 
-    // 현재 세션 ID로 agent-tracker 경로 조회
+    const agentTrackerPath = join(STATE_ROOT, 'agent-tracker.json');
     let hasCheckAgent = false;
-    if (existsSync(CURRENT_SESSION_FILE)) {
+    if (existsSync(agentTrackerPath)) {
       try {
-        const sessionId = readFileSync(CURRENT_SESSION_FILE, 'utf-8').trim();
-        if (sessionId) {
-          const agentTrackerPath = join(getSessionRoot(sessionId), 'agent-tracker.json');
-          if (existsSync(agentTrackerPath)) {
-            const agents = JSON.parse(readFileSync(agentTrackerPath, 'utf-8')) as Array<Record<string, unknown>>;
-            hasCheckAgent = agents.some((a) => {
-              const type = String(a.agent_type ?? '').toLowerCase();
-              return type.includes('qa') || type.includes('reviewer');
-            });
-          }
-        }
+        const agents = JSON.parse(readFileSync(agentTrackerPath, 'utf-8')) as Array<Record<string, unknown>>;
+        hasCheckAgent = agents.some((a) => {
+          const type = String(a.agent_type ?? '').toLowerCase();
+          return type.includes('qa') || type.includes('reviewer');
+        });
       } catch {}
     }
 
@@ -209,7 +199,7 @@ function handlePreToolUse(event: Record<string, unknown>): void {
     const filePath = (toolInput?.file_path ?? '') as string;
 
     if (!isNexusInternalPath(filePath)) {
-      const summary = readTasksSummary(BRANCH_ROOT);
+      const summary = readTasksSummary(STATE_ROOT);
       if (!summary.exists) {
         respond({
           decision: 'block',
@@ -227,17 +217,14 @@ function handlePreToolUse(event: Record<string, unknown>): void {
       }
 
       // edit-tracker: 파일 수정 횟수 추적
-      const editTrackerPath = join(BRANCH_ROOT, 'edit-tracker.json');
+      const editTrackerPath = join(STATE_ROOT, 'edit-tracker.json');
       let tracker: Record<string, number> = {};
       if (existsSync(editTrackerPath)) {
         try { tracker = JSON.parse(readFileSync(editTrackerPath, 'utf-8')); } catch {}
       }
       const count = (tracker[filePath] ?? 0) + 1;
       tracker[filePath] = count;
-      // BRANCH_ROOT 디렉토리 확인
-      if (!existsSync(BRANCH_ROOT)) {
-        mkdirSync(BRANCH_ROOT, { recursive: true });
-      }
+      ensureDir(STATE_ROOT);
       writeFileSync(editTrackerPath, JSON.stringify(tracker, null, 2));
 
       if (count >= 5) {
@@ -337,7 +324,7 @@ function detectKeywords(prompt: string): KeywordMatch | null {
 }
 
 function getTasksReminder(): string | null {
-  const summary = readTasksSummary(BRANCH_ROOT);
+  const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) return null;
   if (summary.pending > 0) {
     return `[NEXUS] ${summary.pending} pending tasks. Complete work → nx_task_update(id, "completed") for each done task. Archive with nx_task_close when all complete.`;
@@ -346,7 +333,7 @@ function getTasksReminder(): string | null {
 }
 
 function getConsultReminder(): string | null {
-  const consultPath = join(BRANCH_ROOT, 'consult.json');
+  const consultPath = join(STATE_ROOT, 'consult.json');
   if (!existsSync(consultPath)) return null;
   try {
     const data = JSON.parse(readFileSync(consultPath, 'utf-8'));
@@ -378,7 +365,7 @@ type PrimitiveHandler = (params: {
 }) => void;
 
 function handleConsultMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
-  const consultFile = join(BRANCH_ROOT, 'consult.json');
+  const consultFile = join(STATE_ROOT, 'consult.json');
   const hasExistingSession = existsSync(consultFile);
   let base: string;
   if (hasExistingSession) {
@@ -415,7 +402,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   const dTag = prompt.match(/\[d\]/i);
   if (dTag) {
     const postDecisionRules = `\n\nAfter recording the decision:\n1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.\n2. If the user explicitly requests implementation: nx_task_add (decisions=[] or relevant IDs) → perform work → nx_task_close (history archive). Follow this pipeline even for simple edits. Edit/Write will be BLOCKED without tasks.json.`;
-    const consultFile = join(BRANCH_ROOT, 'consult.json');
+    const consultFile = join(STATE_ROOT, 'consult.json');
     if (existsSync(consultFile)) {
       respond({
         continue: true,
@@ -440,9 +427,9 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   }
 
   // 태그 없음 + tasks.json 없음 → 파이프라인 선제 안내 + 기본 오케스트레이션 주입
-  const summary = readTasksSummary(BRANCH_ROOT);
+  const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) {
-    const branchGuard = /^(main|master)$/.test(CURRENT_BRANCH)
+    const branchGuard = /^(main|master)$/.test(getCurrentBranch())
       ? '\nBranch Guard: You are on main/master. Create a feature branch before making changes.'
       : '';
     const orchestrationHint = `[NEXUS] No active tasks. Refer to nx-run SKILL.md for orchestration guidance.
@@ -474,67 +461,47 @@ IMPORTANT: For multi-file or complex tasks, Lead creates tasks via nx_task_add a
 
 // --- 세션 이벤트 핸들러 ---
 
-function handleSessionStart(event: Record<string, unknown>): void {
-  const sessionId = String(event.session_id ?? '');
-  if (sessionId) {
-    // 세션 디렉토리 생성 + agent-tracker 초기화
-    const sessionRoot = getSessionRoot(sessionId);
-    mkdirSync(sessionRoot, { recursive: true });
-    writeFileSync(join(sessionRoot, 'agent-tracker.json'), '[]');
-    // 현재 세션 ID 기록
-    const runtimeDir = RUNTIME_ROOT;
-    if (!existsSync(runtimeDir)) {
-      mkdirSync(runtimeDir, { recursive: true });
-    }
-    writeFileSync(CURRENT_SESSION_FILE, sessionId);
-  }
+function handleSessionStart(_event: Record<string, unknown>): void {
+  ensureDir(STATE_ROOT);
+  writeFileSync(join(STATE_ROOT, 'agent-tracker.json'), '[]');
 
   respond({
     continue: true,
-    additionalContext: `[NEXUS] Session started.`,
+    additionalContext: '[NEXUS] Session started.',
   });
 }
 
 function handleSubagentStart(event: Record<string, unknown>): void {
   const agentType = String(event.agent_type ?? event.subagent_type ?? '');
   const agentId = String(event.agent_id ?? event.session_id ?? '');
-  const parentSessionId = String(event.parent_session_id ?? event.session_id ?? '');
 
-  // 세션 경로에 기록
-  if (parentSessionId) {
-    const sessionRoot = getSessionRoot(parentSessionId);
-    const trackerPath = join(sessionRoot, 'agent-tracker.json');
-    let tracker: Record<string, unknown>[] = [];
-    if (existsSync(trackerPath)) {
-      try { tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')); } catch {}
-    }
-    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: new Date().toISOString(), status: 'running' });
-    mkdirSync(sessionRoot, { recursive: true });
-    writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
+  const trackerPath = join(STATE_ROOT, 'agent-tracker.json');
+  let tracker: Record<string, unknown>[] = [];
+  if (existsSync(trackerPath)) {
+    try { tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')); } catch {}
   }
+  tracker.push({ agent_type: agentType, agent_id: agentId, started_at: new Date().toISOString(), status: 'running' });
+  ensureDir(STATE_ROOT);
+  writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
   pass();
 }
 
 function handleSubagentStop(event: Record<string, unknown>): void {
   const agentId = String(event.agent_id ?? event.session_id ?? '');
   const lastMsg = String(event.last_message ?? event.stop_reason ?? '');
-  const parentSessionId = String(event.parent_session_id ?? event.session_id ?? '');
 
-  // 세션 경로에서 업데이트
-  if (parentSessionId) {
-    const trackerPath = join(getSessionRoot(parentSessionId), 'agent-tracker.json');
-    if (existsSync(trackerPath)) {
-      try {
-        const tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')) as Record<string, unknown>[];
-        const entry = tracker.find((a) => a.agent_id === agentId);
-        if (entry) {
-          entry.status = 'completed';
-          entry.last_message = lastMsg;
-          entry.stopped_at = new Date().toISOString();
-        }
-        writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
-      } catch {}
-    }
+  const trackerPath = join(STATE_ROOT, 'agent-tracker.json');
+  if (existsSync(trackerPath)) {
+    try {
+      const tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')) as Record<string, unknown>[];
+      const entry = tracker.find((a) => a.agent_id === agentId);
+      if (entry) {
+        entry.status = 'completed';
+        entry.last_message = lastMsg;
+        entry.stopped_at = new Date().toISOString();
+      }
+      writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
+    } catch {}
   }
   pass();
 }

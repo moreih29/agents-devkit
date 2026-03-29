@@ -107,7 +107,7 @@ Progressive Depth에 따라 상담 깊이를 결정한다.
 
 ### consult.json
 
-`.nexus/branches/{branch}/consult.json` — MCP 도구로 관리.
+`.nexus/state/consult.json` — MCP 도구로 관리.
 
 ```json
 {

@@ -28,7 +28,7 @@ AskUserQuestion({
     multiSelect: false,
     options: [
       { label: "User (Global)", description: "모든 프로젝트에 적용 (~/.claude/CLAUDE.md, ~/.claude/settings.json 상태라인)" },
-      { label: "Project", description: "이 프로젝트에만 적용 (CLAUDE.md, .claude/settings.local.json, .claude/nexus/config.json)" }
+      { label: "Project", description: "이 프로젝트에만 적용 (CLAUDE.md, .claude/settings.local.json, .nexus/config.json)" }
     ]
   }]
 })
@@ -36,7 +36,7 @@ AskUserQuestion({
 
 선택에 따라 이후 모든 파일 쓰기 경로가 결정됨:
 - User: `~/.claude/CLAUDE.md`, `~/.claude/settings.json` (상태라인 래퍼)
-- Project: `./CLAUDE.md`, `./.claude/nexus/config.json`
+- Project: `./CLAUDE.md`, `./.nexus/config.json`
 
 ### Step 2: Statusline Preset
 
@@ -83,7 +83,7 @@ chmod +x ~/.claude/hooks/nexus-statusline.sh
   { "statusLine": { "type": "command", "command": "bash $HOME/.claude/hooks/nexus-statusline.sh" } }
   ```
 - `.claude/settings.local.json`에 `statusLine` 필드가 **이미 있으면**: 래퍼만 생성하고 settings.local.json은 수정하지 않음 — Step 4의 "OMC Statusline 공존 처리"에서 교체/유지 여부를 결정
-- `.claude/nexus/config.json`의 `statuslinePreset` 필드에도 선택값 저장 (기존 유지)
+- `.nexus/config.json`의 `statuslinePreset` 필드에도 선택값 저장 (기존 유지)
 
 **(3) Skip:**
 - 래퍼 생성도, settings.json 수정도 하지 않음.
@@ -209,8 +209,8 @@ AskUserQuestion({
     header: "Init",
     multiSelect: false,
     options: [
-      { label: "Yes (Recommended)", description: "기존 문서(README, CLAUDE.md 등)를 분석해 .claude/nexus/core/codebase/ 생성" },
-      { label: "Skip", description: "나중에 /claude-nexus:nx-sync으로 직접 실행" }
+      { label: "Yes (Recommended)", description: "기존 문서(README, CLAUDE.md 등)를 분석해 .nexus/core/codebase/ 생성" },
+      { label: "Skip", description: "나중에 /claude-nexus:nx-init으로 직접 실행" }
     ]
   }]
 })
@@ -236,4 +236,4 @@ Skip 시: 다음 단계로.
 ## State Management
 
 setup은 상태 파일 없이 순차 AskUserQuestion으로 동작.
-설정 결과는 각 단계에서 즉시 `.claude/nexus/config.json`에 기록 (Project scope의 경우).
+설정 결과는 각 단계에서 즉시 `.nexus/config.json`에 기록 (Project scope의 경우).

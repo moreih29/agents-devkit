@@ -21018,9 +21018,9 @@ function findProjectRoot(startDir) {
   return startDir ?? process.cwd();
 }
 var PROJECT_ROOT = findProjectRoot();
-var RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
-var KNOWLEDGE_ROOT = (0, import_path2.join)(PROJECT_ROOT, ".claude", "nexus");
-var CORE_ROOT = (0, import_path2.join)(KNOWLEDGE_ROOT, "core");
+var NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
+var CORE_ROOT = (0, import_path2.join)(NEXUS_ROOT, "core");
+var STATE_ROOT = (0, import_path2.join)(NEXUS_ROOT, "state");
 var LAYERS = ["identity", "codebase", "reference", "memory"];
 function corePath(layer, topic) {
   return (0, import_path2.join)(CORE_ROOT, layer, `${topic}.md`);
@@ -21029,7 +21029,7 @@ function coreLayerDir(layer) {
   return (0, import_path2.join)(CORE_ROOT, layer);
 }
 function rulesPath(name) {
-  return (0, import_path2.join)(KNOWLEDGE_ROOT, "rules", `${name}.md`);
+  return (0, import_path2.join)(NEXUS_ROOT, "rules", `${name}.md`);
 }
 function ensureDir(dir) {
   if (!(0, import_fs2.existsSync)(dir)) {
@@ -21047,41 +21047,6 @@ function getCurrentBranch() {
     }
   }
 }
-function sanitizeBranch(branch) {
-  if (branch === "HEAD") {
-    try {
-      const hash = (0, import_child_process.execSync)("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
-      return `_detached-${hash}`;
-    } catch {
-      return "_detached";
-    }
-  }
-  return branch.replace(/[/\\:*?"<>|]/g, "-");
-}
-var CURRENT_BRANCH = getCurrentBranch();
-function migrateLegacyBranchDir(branchName) {
-  const sanitized = sanitizeBranch(branchName);
-  const legacyPath = (0, import_path2.join)(RUNTIME_ROOT, sanitized);
-  const newPath = (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitized);
-  if ((0, import_fs2.existsSync)(legacyPath) && !(0, import_fs2.existsSync)(newPath)) {
-    ensureDir((0, import_path2.join)(RUNTIME_ROOT, "branches"));
-    (0, import_fs2.renameSync)(legacyPath, newPath);
-  }
-  if (sanitized === "_default") {
-    const unknownPath = (0, import_path2.join)(RUNTIME_ROOT, "branches", "_unknown");
-    if ((0, import_fs2.existsSync)(unknownPath) && !(0, import_fs2.existsSync)(newPath)) {
-      (0, import_fs2.renameSync)(unknownPath, newPath);
-    }
-  }
-}
-migrateLegacyBranchDir(CURRENT_BRANCH);
-var BRANCH_ROOT = (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitizeBranch(CURRENT_BRANCH));
-function getBranchRoot() {
-  const branch = getCurrentBranch();
-  migrateLegacyBranchDir(branch);
-  return (0, import_path2.join)(RUNTIME_ROOT, "branches", sanitizeBranch(branch));
-}
-var CURRENT_SESSION_FILE = (0, import_path2.join)(RUNTIME_ROOT, "current-session");
 
 // src/mcp/tools/markdown-store.ts
 var import_path3 = require("path");
@@ -21308,7 +21273,7 @@ function registerContextTool(server2) {
     {},
     async () => {
       let teamStatus = { activeMode: null };
-      const tasksFile = (0, import_path5.join)(getBranchRoot(), "tasks.json");
+      const tasksFile = (0, import_path5.join)(STATE_ROOT, "tasks.json");
       if ((0, import_fs5.existsSync)(tasksFile)) {
         try {
           const data = JSON.parse(await (0, import_promises3.readFile)(tasksFile, "utf-8"));
@@ -21325,7 +21290,7 @@ function registerContextTool(server2) {
         }
       }
       let decisions = [];
-      const decisionsFile = (0, import_path5.join)(getBranchRoot(), "decisions.json");
+      const decisionsFile = (0, import_path5.join)(STATE_ROOT, "decisions.json");
       if ((0, import_fs5.existsSync)(decisionsFile)) {
         try {
           const data = JSON.parse(await (0, import_promises3.readFile)(decisionsFile, "utf-8"));
@@ -22110,8 +22075,8 @@ function registerAstTools(server2) {
               }
             }
             if (!isDryRun && newSource !== source) {
-              const { writeFileSync } = require("fs");
-              writeFileSync(file, newSource);
+              const { writeFileSync: writeFileSync2 } = require("fs");
+              writeFileSync2(file, newSource);
             }
           } catch {
           }
@@ -22139,7 +22104,7 @@ var import_fs9 = require("fs");
 var import_promises4 = require("fs/promises");
 var import_path9 = require("path");
 function decisionsPath() {
-  return (0, import_path9.join)(getBranchRoot(), "decisions.json");
+  return (0, import_path9.join)(STATE_ROOT, "decisions.json");
 }
 async function readDecisions() {
   const p = decisionsPath();
@@ -22150,9 +22115,8 @@ async function readDecisions() {
   return JSON.parse(raw);
 }
 async function writeDecisions(data) {
-  const root = getBranchRoot();
-  ensureDir(root);
-  await (0, import_promises4.writeFile)((0, import_path9.join)(root, "decisions.json"), JSON.stringify(data, null, 2));
+  ensureDir(STATE_ROOT);
+  await (0, import_promises4.writeFile)((0, import_path9.join)(STATE_ROOT, "decisions.json"), JSON.stringify(data, null, 2));
 }
 function registerDecisionTools(server2) {
   server2.tool(
@@ -22175,7 +22139,7 @@ function registerDecisionTools(server2) {
 
 // src/mcp/tools/consult.ts
 function consultPath() {
-  return (0, import_path10.join)(getBranchRoot(), "consult.json");
+  return (0, import_path10.join)(STATE_ROOT, "consult.json");
 }
 async function readConsult() {
   const p = consultPath();
@@ -22184,9 +22148,8 @@ async function readConsult() {
   return JSON.parse(raw);
 }
 async function writeConsult(data) {
-  const root = getBranchRoot();
-  ensureDir(root);
-  await (0, import_promises5.writeFile)((0, import_path10.join)(root, "consult.json"), JSON.stringify(data, null, 2));
+  ensureDir(STATE_ROOT);
+  await (0, import_promises5.writeFile)((0, import_path10.join)(STATE_ROOT, "consult.json"), JSON.stringify(data, null, 2));
 }
 function registerConsultTools(server2) {
   server2.tool(
@@ -22367,7 +22330,7 @@ function registerConsultTools(server2) {
 
 // src/mcp/tools/task.ts
 function tasksPath() {
-  return (0, import_path11.join)(getBranchRoot(), "tasks.json");
+  return (0, import_path11.join)(STATE_ROOT, "tasks.json");
 }
 async function readTasks() {
   const p = tasksPath();
@@ -22376,9 +22339,8 @@ async function readTasks() {
   return JSON.parse(raw);
 }
 async function writeTasks(data) {
-  const root = getBranchRoot();
-  ensureDir(root);
-  await (0, import_promises6.writeFile)((0, import_path11.join)(root, "tasks.json"), JSON.stringify(data, null, 2));
+  ensureDir(STATE_ROOT);
+  await (0, import_promises6.writeFile)((0, import_path11.join)(STATE_ROOT, "tasks.json"), JSON.stringify(data, null, 2));
 }
 function computeSummary(tasks) {
   const total = tasks.length;
@@ -22464,8 +22426,8 @@ function registerTaskTools(server2) {
     "Close the current cycle: archive consult+decisions+tasks into history.json, then delete source files",
     {},
     async () => {
-      const root = getBranchRoot();
-      const projectHistoryPath = (0, import_path11.join)(RUNTIME_ROOT, "history.json");
+      const root = STATE_ROOT;
+      const projectHistoryPath = (0, import_path11.join)(NEXUS_ROOT, "history.json");
       const consultJsonPath = (0, import_path11.join)(root, "consult.json");
       const decisionsJsonPath = (0, import_path11.join)(root, "decisions.json");
       const reopenTrackerPath = (0, import_path11.join)(root, "reopen-tracker.json");
@@ -22476,26 +22438,7 @@ function registerTaskTools(server2) {
       const tasks = tasksData?.tasks ?? [];
       const branch = getCurrentBranch();
       let history = { cycles: [] };
-      const branchHistoryPath = (0, import_path11.join)(root, "history.json");
-      if ((0, import_fs11.existsSync)(branchHistoryPath)) {
-        try {
-          const raw = await (0, import_promises6.readFile)(branchHistoryPath, "utf-8");
-          const branchHistory = JSON.parse(raw);
-          if (branchHistory.cycles && branchHistory.cycles.length > 0) {
-            const migratedCycles = branchHistory.cycles.map((c) => ({
-              branch,
-              ...c
-            }));
-            if ((0, import_fs11.existsSync)(projectHistoryPath)) {
-              const projectRaw = await (0, import_promises6.readFile)(projectHistoryPath, "utf-8");
-              history = JSON.parse(projectRaw);
-            }
-            history.cycles.push(...migratedCycles);
-          }
-          (0, import_fs11.unlinkSync)(branchHistoryPath);
-        } catch {
-        }
-      } else if ((0, import_fs11.existsSync)(projectHistoryPath)) {
+      if ((0, import_fs11.existsSync)(projectHistoryPath)) {
         const raw = await (0, import_promises6.readFile)(projectHistoryPath, "utf-8");
         history = JSON.parse(raw);
       }
@@ -22507,7 +22450,7 @@ function registerTaskTools(server2) {
         tasks
       };
       history.cycles.push(cycle);
-      ensureDir(RUNTIME_ROOT);
+      ensureDir(NEXUS_ROOT);
       await (0, import_promises6.writeFile)(projectHistoryPath, JSON.stringify(history, null, 2));
       const editTrackerPath = (0, import_path11.join)(root, "edit-tracker.json");
       let hadLoopDetection = false;
@@ -22556,7 +22499,7 @@ function registerArtifactTools(server2) {
       content: external_exports.string().describe("File content to write")
     },
     async ({ filename, content }) => {
-      const artifactsDir = (0, import_path12.join)(getBranchRoot(), "artifacts");
+      const artifactsDir = (0, import_path12.join)(STATE_ROOT, "artifacts");
       ensureDir(artifactsDir);
       const path = (0, import_path12.join)(artifactsDir, filename);
       await (0, import_promises7.writeFile)(path, content);
@@ -22565,53 +22508,10 @@ function registerArtifactTools(server2) {
   );
 }
 
-// src/mcp/tools/branch.ts
-var import_fs12 = require("fs");
-var import_path13 = require("path");
-var MIGRATE_FILES = ["consult.json", "decisions.json"];
-function registerBranchTools(server2) {
-  server2.tool(
-    "nx_branch_migrate",
-    "Migrate state files (consult.json, decisions.json) from another branch folder into the current branch folder",
-    {
-      from_branch: external_exports.string().describe('Source branch name to migrate files from (e.g. "main")')
-    },
-    ({ from_branch }) => {
-      const fromDir = (0, import_path13.join)(RUNTIME_ROOT, "branches", sanitizeBranch(from_branch));
-      const toDir = getBranchRoot();
-      if (fromDir === toDir) {
-        return textResult({ error: "Source and current branch are the same" });
-      }
-      if (!(0, import_fs12.existsSync)(fromDir)) {
-        return textResult({ migrated: [], skipped: [], from: from_branch, to: getCurrentBranch(), message: "nothing to migrate" });
-      }
-      ensureDir(toDir);
-      const migrated = [];
-      const skipped = [];
-      for (const file of MIGRATE_FILES) {
-        const src = (0, import_path13.join)(fromDir, file);
-        const dst = (0, import_path13.join)(toDir, file);
-        if (!(0, import_fs12.existsSync)(src)) continue;
-        if ((0, import_fs12.existsSync)(dst)) {
-          skipped.push(file);
-          continue;
-        }
-        (0, import_fs12.renameSync)(src, dst);
-        migrated.push(file);
-      }
-      try {
-        (0, import_fs12.rmdirSync)(fromDir);
-      } catch {
-      }
-      return textResult({ migrated, skipped, from: from_branch, to: getCurrentBranch() });
-    }
-  );
-}
-
 // src/mcp/tools/briefing.ts
-var import_fs13 = require("fs");
+var import_fs12 = require("fs");
 var import_promises8 = require("fs/promises");
-var import_path14 = require("path");
+var import_path13 = require("path");
 var MATRIX = {
   architect: { identity: "all", codebase: "all", reference: "all", memory: "all" },
   postdoc: { identity: "all", codebase: "all", reference: "all", memory: "all" },
@@ -22630,11 +22530,11 @@ function parseTags2(content) {
 }
 async function readLayerFiles(layer, hint) {
   const layerDir = coreLayerDir(layer);
-  if (!(0, import_fs13.existsSync)(layerDir)) return [];
+  if (!(0, import_fs12.existsSync)(layerDir)) return [];
   const files = (await (0, import_promises8.readdir)(layerDir)).filter((f) => f.endsWith(".md"));
   const results = [];
   for (const file of files) {
-    const filePath = (0, import_path14.join)(layerDir, file);
+    const filePath = (0, import_path13.join)(layerDir, file);
     const content = await (0, import_promises8.readFile)(filePath, "utf-8");
     results.push({ filename: file, content });
   }
@@ -22675,18 +22575,18 @@ function registerBriefingTool(server2) {
         }
       }
       let decisionsSection = "";
-      const decisionsPath2 = (0, import_path14.join)(getBranchRoot(), "decisions.json");
-      if ((0, import_fs13.existsSync)(decisionsPath2)) {
+      const decisionsPath2 = (0, import_path13.join)(STATE_ROOT, "decisions.json");
+      if ((0, import_fs12.existsSync)(decisionsPath2)) {
         const raw = await (0, import_promises8.readFile)(decisionsPath2, "utf-8");
         decisionsSection = raw.trim();
       }
       let rulesSection = "";
-      const rulesDir = (0, import_path14.join)(KNOWLEDGE_ROOT, "rules");
-      if ((0, import_fs13.existsSync)(rulesDir)) {
+      const rulesDir = (0, import_path13.join)(NEXUS_ROOT, "rules");
+      if ((0, import_fs12.existsSync)(rulesDir)) {
         const ruleFiles = (await (0, import_promises8.readdir)(rulesDir)).filter((f) => f.endsWith(".md"));
         const parts = [];
         for (const ruleFile of ruleFiles) {
-          const content = await (0, import_promises8.readFile)((0, import_path14.join)(rulesDir, ruleFile), "utf-8");
+          const content = await (0, import_promises8.readFile)((0, import_path13.join)(rulesDir, ruleFile), "utf-8");
           parts.push(`### ${ruleFile}
 ${content.trim()}`);
         }
@@ -22728,7 +22628,7 @@ ${content.trim()}`);
 }
 
 // src/mcp/server.ts
-var import_path15 = require("path");
+var import_path14 = require("path");
 var server = new McpServer({
   name: "nx",
   version: getCurrentVersion() || "0.0.0"
@@ -22737,7 +22637,7 @@ registerCoreStore(server);
 registerMarkdownStore(server, {
   toolPrefix: "nx_rules",
   entityName: "name",
-  dirPath: (0, import_path15.join)(KNOWLEDGE_ROOT, "rules"),
+  dirPath: (0, import_path14.join)(NEXUS_ROOT, "rules"),
   pathFn: rulesPath,
   listKey: "rules",
   cache: false
@@ -22749,7 +22649,6 @@ registerTaskTools(server);
 registerDecisionTools(server);
 registerArtifactTools(server);
 registerConsultTools(server);
-registerBranchTools(server);
 registerBriefingTool(server);
 async function main() {
   const transport = new StdioServerTransport();

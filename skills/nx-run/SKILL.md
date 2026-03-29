@@ -26,7 +26,7 @@ Lead가 의도를 정리하고 How agent와 직접 협업하여 팀을 구성한
 ### Phase 1: Intake (Lead)
 
 - 사용자 요청 의도 정리
-- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `feat/`, `fix/`, `chore/`, `research/` 등 Lead 판단). 사용자 확인 없이 자동 생성. 생성 직후 `nx_branch_migrate(from_branch)` 호출하여 이전 브랜치의 consult/decisions 상태를 이동.
+- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `feat/`, `fix/`, `chore/`, `research/` 등 Lead 판단). 사용자 확인 없이 자동 생성.
 - `nx_rules_read`로 팀 rules 확인. 목표와 관련된 태그를 Lead가 판단. 있으면 스킬 기본 원칙보다 우선 적용.
 - decisions.json이 있으면 `nx_context`로 기존 결정 사항 확인.
 - **3조건 충족 시**: `nx_task_add` → Edit → `nx_task_close` → 사용자에게 결과 보고. Phase 2 생략.
@@ -229,7 +229,7 @@ ACCEPTANCE:
 
 ## Rules Template (참고)
 
-팀 커스텀 규칙이 필요할 때 `nx_rules_write`로 `.claude/nexus/rules/`에 생성.
+팀 커스텀 규칙이 필요할 때 `nx_rules_write`로 `.nexus/rules/`에 생성.
 
 ```markdown
 <!-- tags: dev -->
@@ -288,5 +288,5 @@ TeamDelete()
 
 ## State Management
 
-`.nexus/{branch}/tasks.json` — `nx_task_add`/`nx_task_update`로 관리. Gate Stop 감시.
-사이클 종료 시 `nx_task_close`로 consult+decisions+tasks를 history.json에 아카이브.
+`.nexus/state/tasks.json` — `nx_task_add`/`nx_task_update`로 관리. Gate Stop 감시.
+사이클 종료 시 `nx_task_close`로 consult+decisions+tasks를 `.nexus/history.json`에 아카이브.

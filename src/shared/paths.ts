@@ -1,5 +1,5 @@
 import { resolve, join } from 'path';
-import { existsSync, mkdirSync, renameSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { execSync } from 'child_process';
 
 /** 프로젝트 루트 (.git이 있는 디렉토리) */
@@ -14,14 +14,14 @@ export function findProjectRoot(startDir?: string): string {
 
 const PROJECT_ROOT = findProjectRoot();
 
-/** .nexus/ — gitignore, 런타임 상태 */
-export const RUNTIME_ROOT = process.env.NEXUS_RUNTIME_ROOT || join(PROJECT_ROOT, '.nexus');
+/** .nexus/ — 런타임 상태 */
+export const NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || join(PROJECT_ROOT, '.nexus');
 
-/** .claude/nexus/ — git 추적, 공유 지식 */
-export const KNOWLEDGE_ROOT = join(PROJECT_ROOT, '.claude', 'nexus');
+/** .nexus/core/ — 4계층 구조 루트 */
+export const CORE_ROOT = join(NEXUS_ROOT, 'core');
 
-/** .claude/nexus/core/ — 4계층 구조 루트 */
-export const CORE_ROOT = join(KNOWLEDGE_ROOT, 'core');
+/** .nexus/state/ — 런타임 상태 파일 */
+export const STATE_ROOT = join(NEXUS_ROOT, 'state');
 
 export const LAYERS = ['identity', 'codebase', 'reference', 'memory'] as const;
 export type Layer = typeof LAYERS[number];
@@ -38,7 +38,7 @@ export function coreLayerDir(layer: string): string {
 
 /** 룰 파일 경로 */
 export function rulesPath(name: string): string {
-  return join(KNOWLEDGE_ROOT, 'rules', `${name}.md`);
+  return join(NEXUS_ROOT, 'rules', `${name}.md`);
 }
 
 /** 디렉토리 생성 (재귀) */
@@ -61,57 +61,22 @@ export function getCurrentBranch(): string {
   }
 }
 
-/** 브랜치명을 파일시스템 안전한 형태로 변환 */
-export function sanitizeBranch(branch: string): string {
-  if (branch === 'HEAD') {
-    try {
-      const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
-      return `_detached-${hash}`;
-    } catch {
-      return '_detached';
-    }
-  }
-  return branch.replace(/[/\\:*?"<>|]/g, '-');
-}
+const GITIGNORE_CONTENT = `# Nexus: whitelist tracked files, ignore everything else
+*
+!.gitignore
+!core/
+!core/**
+!config.json
+!history.json
+!rules/
+!rules/**
+`;
 
-/** @deprecated 정적 값 — MCP 서버처럼 장기 프로세스에서는 getBranchRoot() 사용 */
-export const CURRENT_BRANCH = getCurrentBranch();
-
-/** 레거시 .nexus/{branch}/ → .nexus/branches/{branch}/ 마이그레이션 (멱등적) */
-function migrateLegacyBranchDir(branchName: string): void {
-  const sanitized = sanitizeBranch(branchName);
-  const legacyPath = join(RUNTIME_ROOT, sanitized);
-  const newPath = join(RUNTIME_ROOT, 'branches', sanitized);
-  if (existsSync(legacyPath) && !existsSync(newPath)) {
-    ensureDir(join(RUNTIME_ROOT, 'branches'));
-    renameSync(legacyPath, newPath);
-  }
-  // _unknown → _default 마이그레이션
-  if (sanitized === '_default') {
-    const unknownPath = join(RUNTIME_ROOT, 'branches', '_unknown');
-    if (existsSync(unknownPath) && !existsSync(newPath)) {
-      renameSync(unknownPath, newPath);
-    }
+export function ensureNexusStructure(): void {
+  ensureDir(NEXUS_ROOT);
+  ensureDir(STATE_ROOT);
+  const gitignorePath = join(NEXUS_ROOT, '.gitignore');
+  if (!existsSync(gitignorePath)) {
+    writeFileSync(gitignorePath, GITIGNORE_CONTENT);
   }
 }
-
-migrateLegacyBranchDir(CURRENT_BRANCH);
-
-/** @deprecated MCP 서버(장기 프로세스)에서 비추천. 훅(단발 프로세스)에서는 안전. */
-export const BRANCH_ROOT = join(RUNTIME_ROOT, 'branches', sanitizeBranch(CURRENT_BRANCH));
-
-/** 호출 시마다 현재 브랜치를 감지하여 경로 반환. MCP 도구에서 사용. */
-export function getBranchRoot(): string {
-  const branch = getCurrentBranch();
-  migrateLegacyBranchDir(branch);
-  return join(RUNTIME_ROOT, 'branches', sanitizeBranch(branch));
-}
-
-/** 세션별 디렉토리 경로. gate.ts 전용. */
-export function getSessionRoot(sessionId: string): string {
-  return join(RUNTIME_ROOT, 'sessions', sessionId);
-}
-
-/** 현재 세션 ID를 기록하는 파일 경로 */
-export const CURRENT_SESSION_FILE = join(RUNTIME_ROOT, 'current-session');
-

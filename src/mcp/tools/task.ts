@@ -3,13 +3,13 @@ import { existsSync, unlinkSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getBranchRoot, RUNTIME_ROOT, getCurrentBranch, ensureDir } from '../../shared/paths.js';
+import { STATE_ROOT, NEXUS_ROOT, getCurrentBranch, ensureDir } from '../../shared/paths.js';
 import { readConsult, type ConsultFile } from './consult.js';
 import { readDecisions, type DecisionEntry } from './decision.js';
 import { textResult } from '../../shared/mcp-utils.js';
 
 function tasksPath(): string {
-  return join(getBranchRoot(), 'tasks.json');
+  return join(STATE_ROOT, 'tasks.json');
 }
 
 interface Task {
@@ -36,9 +36,8 @@ async function readTasks(): Promise<TasksFile | null> {
 }
 
 async function writeTasks(data: TasksFile): Promise<void> {
-  const root = getBranchRoot();
-  ensureDir(root);
-  await writeFile(join(root, 'tasks.json'), JSON.stringify(data, null, 2));
+  ensureDir(STATE_ROOT);
+  await writeFile(join(STATE_ROOT, 'tasks.json'), JSON.stringify(data, null, 2));
 }
 
 function computeSummary(tasks: Task[]) {
@@ -142,8 +141,8 @@ export function registerTaskTools(server: McpServer): void {
     'Close the current cycle: archive consult+decisions+tasks into history.json, then delete source files',
     {},
     async () => {
-      const root = getBranchRoot();
-      const projectHistoryPath = join(RUNTIME_ROOT, 'history.json');
+      const root = STATE_ROOT;
+      const projectHistoryPath = join(NEXUS_ROOT, 'history.json');
       const consultJsonPath = join(root, 'consult.json');
       const decisionsJsonPath = join(root, 'decisions.json');
       const reopenTrackerPath = join(root, 'reopen-tracker.json');
@@ -170,28 +169,7 @@ export function registerTaskTools(server: McpServer): void {
       }
 
       let history: HistoryFile = { cycles: [] };
-
-      // 기존 브랜치별 history.json 마이그레이션
-      const branchHistoryPath = join(root, 'history.json');
-      if (existsSync(branchHistoryPath)) {
-        try {
-          const raw = await readFile(branchHistoryPath, 'utf-8');
-          const branchHistory = JSON.parse(raw) as { cycles: Array<Record<string, unknown>> };
-          if (branchHistory.cycles && branchHistory.cycles.length > 0) {
-            // 기존 사이클에 branch 필드가 없으면 추가
-            const migratedCycles = branchHistory.cycles.map((c) => ({
-              branch,
-              ...c,
-            }));
-            if (existsSync(projectHistoryPath)) {
-              const projectRaw = await readFile(projectHistoryPath, 'utf-8');
-              history = JSON.parse(projectRaw) as HistoryFile;
-            }
-            history.cycles.push(...(migratedCycles as Cycle[]));
-          }
-          unlinkSync(branchHistoryPath);
-        } catch {}
-      } else if (existsSync(projectHistoryPath)) {
+      if (existsSync(projectHistoryPath)) {
         const raw = await readFile(projectHistoryPath, 'utf-8');
         history = JSON.parse(raw) as HistoryFile;
       }
@@ -207,7 +185,7 @@ export function registerTaskTools(server: McpServer): void {
       history.cycles.push(cycle);
 
       // Write project-level history.json
-      ensureDir(RUNTIME_ROOT);
+      ensureDir(NEXUS_ROOT);
       await writeFile(projectHistoryPath, JSON.stringify(history, null, 2));
 
       // memoryHint 계산
