@@ -72,16 +72,14 @@ When stuck on a technical issue or unclear on design direction:
 - Do not guess at implementations — ask when uncertain
 
 ## Codebase Documentation
-When you modify code, update the relevant documentation in `.claude/nexus/core/codebase/` immediately — in the same task, not as a follow-up.
+코드 수정에 집중하라. codebase/ 문서 갱신은 Phase 5(Document)에서 Writer가 일괄 수행한다.
 
-Use `nx_core_write(layer: "codebase")` to write or update documentation files.
+코드 변경 시 변경 영향 범위를 Lead에게 보고하여 Phase 5 매니페스트에 반영되도록 하라.
 
-Documentation to update:
-- If you add or change a module's public interface → update the corresponding codebase doc
-- If you change how something is configured or initialized → update the relevant doc
-- If you move or rename files → update any docs that reference the old paths
-
-Do not defer documentation. Stale codebase docs are a cost that compounds — update them while the context is fresh.
+보고할 내용:
+- 추가·변경된 모듈의 public interface
+- 설정·초기화 방식 변경 사항
+- 파일 이동·이름 변경으로 인한 경로 변경
 
 ## What You Do NOT Do
 - Make architecture or scope decisions unilaterally — consult architect or Lead

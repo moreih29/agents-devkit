@@ -41,7 +41,7 @@ generate-template.mjs      ← 템플릿 생성 스크립트 (esbuild 후 실행
 - `.claude-plugin/plugin.json` — 메타데이터 (name, version, skills, mcpServers)
 - `hooks/hooks.json` — 훅 등록 (PreToolUse:Edit/Write/Agent/nx_task_update/nx_task_close, Stop:*, UserPromptSubmit:*, SessionStart:*, SubagentStart:*, SubagentStop:*)
 - `.mcp.json` — MCP 서버 경로
-- `agents/*.md` — 에이전트 정의 (10개, frontmatter에 task/disallowedTools 필드 포함)
+- `agents/*.md` — 에이전트 정의 (9개, frontmatter에 task/disallowedTools 필드 포함)
 - `skills/*/SKILL.md` — 스킬 정의 (4개: nx-run, nx-consult, nx-init, nx-setup)
 
 ## Data Paths
@@ -51,7 +51,10 @@ generate-template.mjs      ← 템플릿 생성 스크립트 (esbuild 후 실행
 | `.claude/nexus/core/` | git | 4계층 지식 (identity/codebase/reference/memory) |
 | `.claude/nexus/rules/` | git | 팀 커스텀 행동 규칙 (사용자 요청 시 nx_rules_write로 생성) |
 | `.claude/nexus/config.json` | git | Nexus 설정 |
-| `.nexus/branches/{branch}/` | gitignore | 런타임 상태 (tasks.json, decisions.json, consult.json, history.json, artifacts/) |
+| `.nexus/branches/{branch}/` | gitignore | 런타임 상태 (tasks.json, decisions.json, consult.json, artifacts/) |
+| `.nexus/sessions/{sessionId}/` | gitignore | 세션별 에이전트 추적 (agent-tracker.json) |
+| `.nexus/current-session` | gitignore | 현재 세션 ID 파일 |
+| `.nexus/history.json` | gitignore | 전체 사이클 아카이브 (프로젝트 레벨, branch 필드 포함) |
 | `.nexus/sync-state.json` | gitignore | 마지막 sync 커밋 |
 | `templates/nexus-section.md` | git | CLAUDE.md Nexus 섹션 템플릿 (빌드 산출물) |
 
@@ -67,14 +70,16 @@ dev-sync.mjs (빌드 산출물 → 플러그인 캐시/마켓플레이스 동기
 
 ## Key Design Decisions
 
-- **Gate 단일 모듈**: Stop/PreToolUse/UserPromptSubmit을 하나의 gate.ts에서 처리. 이벤트 구분은 필드 존재 여부로 판별 (tool_name → PreToolUse, prompt → UserPromptSubmit, 없음 → Stop).
+- **Gate 단일 모듈**: Stop/PreToolUse/UserPromptSubmit/SessionStart/SubagentStart/Stop을 하나의 gate.ts에서 처리. 이벤트 구분: `NEXUS_EVENT` 환경변수(SessionStart/SubagentStart/SubagentStop), 그 외 필드 존재 여부(tool_name → PreToolUse, prompt → UserPromptSubmit, 없음 → Stop).
 - **브랜치 격리**: 런타임 상태는 `.nexus/branches/{sanitized-branch}/` 하위에 격리. 레거시 `.nexus/{branch}/` 경로는 자동 마이그레이션.
 - **동적 브랜치 감지**: MCP 도구는 `getBranchRoot()` 함수로 호출 시마다 현재 브랜치를 감지. MCP 서버가 장기 프로세스이므로 정적 상수 대신 동적 해결.
 - **CLAUDE.md 자동 동기화**: gate.ts가 세션 시작 시 `templates/nexus-section.md`와 글로벌 CLAUDE.md를 콘텐츠 비교하여 자동 갱신. 프로젝트 CLAUDE.md는 stale 시 알림만.
 - **esbuild CJS 번들**: 플러그인 런타임이 `node`로 실행되므로 CJS 포맷. `@ast-grep/napi`는 네이티브 모듈이라 external 처리.
 - **git fallback `_default`**: `getCurrentBranch()`는 `git rev-parse --abbrev-ref HEAD` → 실패 시 `git symbolic-ref --short HEAD`(커밋 없는 저장소 대응) → 여전히 실패 시 `'_default'` 반환. `.nexus/branches/_default/`에 런타임 상태 저장. 기존 `_unknown` 경로는 자동 마이그레이션.
 - **[consult] 세션 유지**: [consult] 태그 사용 시 기존 consult.json 있으면 세션 이어감. gate.ts가 consult.json 존재 여부를 체크하여 기존 세션 확인/이어가기 안내 또는 새 세션 시작 안내를 분기. cleanupConsult() 제거됨.
-- **통합 아카이브**: nx_task_close가 consult+decisions+tasks를 history.json에 통합 아카이브. 소스 파일(consult.json, decisions.json, tasks.json) 삭제. decision-archives.json 폐기됨.
+- **통합 아카이브**: nx_task_close가 consult+decisions+tasks를 `.nexus/history.json`(프로젝트 레벨)에 통합 아카이브. cycle에 branch 필드 포함. 기존 브랜치별 history.json 자동 마이그레이션. 소스 파일(consult.json, decisions.json, tasks.json) 삭제. decision-archives.json 폐기됨.
+- **세션 기반 agent-tracker**: SubagentStart/Stop 이벤트 시 `.nexus/sessions/{sessionId}/agent-tracker.json`에 기록. SessionStart에서 세션 디렉토리 초기화 + `current-session` 파일 갱신.
+- **Director 제거**: 9개 에이전트(How 4개 + Do 3개 + Check 2개). task 소유는 Lead가 담당.
 - **gate.ts 핸들러 맵**: handleUserPromptSubmit을 PRIMITIVE_HANDLERS 맵 기반 dispatch로 분해. 모드별 핸들러 함수로 분리. TASK_PIPELINE 공통 상수로 파이프라인 규칙 통합.
 - **모드 안내는 additionalContext만**: mode.json 제거됨. [dev]/[research] 태그 시 UserPromptSubmit additionalContext로 안내. hard block 없이 넛지만 — 파이프라인 강제는 tasks.json PreToolUse 차단이 담당.
 - **core-store 분리**: core/ 4계층은 3-level 네비게이션(layer→list→file)으로 markdown-store(2-level)과 의미론이 다름. 별도 core-store.ts 모듈로 구현. z.enum으로 layer 검증 (path traversal 방지).

@@ -11,12 +11,12 @@ MCP 서버(`bridge/mcp-server.cjs`)가 제공하는 도구 목록. 소스: `src/
 | `nx_core_write` | core-store.ts | `.claude/nexus/core/{layer}/{topic}.md` | core 지식 쓰기 (layer enum: identity/codebase/reference/memory, tags 옵션) |
 | `nx_rules_read` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 읽기 (name 지정 또는 태그 검색) |
 | `nx_rules_write` | markdown-store.ts | `.claude/nexus/rules/{name}.md` | rules 쓰기 (tags 옵션, HTML 주석 frontmatter) |
-| `nx_briefing` | briefing.ts | `.claude/nexus/core/{layer}/` + `decisions.json` + `rules/` | 역할별 briefing 조립. role(10개: director/architect/postdoc/designer/strategist/engineer/researcher/writer/qa/reviewer) + hint(옵션). 매트릭스 기반 계층 수집. hint 있으면 태그/파일명 필터링. decisions.json + rules/ 자동 포함. 단일 markdown 문자열 반환. |
+| `nx_briefing` | briefing.ts | `.claude/nexus/core/{layer}/` + `decisions.json` + `rules/` | 역할별 briefing 조립. role(9개: architect/postdoc/designer/strategist/engineer/researcher/writer/qa/reviewer) + hint(옵션). 매트릭스 기반 계층 수집. hint 있으면 태그/파일명 필터링. decisions.json + rules/ 자동 포함. 단일 markdown 문자열 반환. |
 | `nx_context` | context.ts | `.nexus/branches/{branch}/tasks.json`, `decisions.json` 참조 | 현재 브랜치, 팀 모드, 태스크 요약, 결정 사항 조회 |
 | `nx_task_list` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 목록 + summary + ready 태스크 |
-| `nx_task_add` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 추가 (caller=director/lead/principal 허용) |
+| `nx_task_add` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 추가 (title, context, deps, decisions, goal, owner 파라미터) |
 | `nx_task_update` | task.ts | `.nexus/branches/{branch}/tasks.json` | 태스크 상태 변경 (pending/in_progress/completed) |
-| `nx_task_close` | task.ts | `.nexus/branches/{branch}/history.json` | 현재 사이클 종료: consult+decisions+tasks를 history.json에 아카이브 후 소스 파일 삭제 |
+| `nx_task_close` | task.ts | `.nexus/history.json` (프로젝트 레벨) | 현재 사이클 종료: consult+decisions+tasks를 history.json에 아카이브 후 소스 파일 삭제. cycle에 branch 필드 포함. 기존 브랜치별 history.json 자동 마이그레이션. |
 | `nx_decision_add` | decision.ts | `.nexus/branches/{branch}/decisions.json` | 결정 기록 추가 (summary + consult 파라미터, consult는 관련 논점 ID 또는 null) |
 | `nx_artifact_write` | artifact.ts | `.nexus/branches/{branch}/artifacts/{filename}` | 팀 산출물 저장 (report, synthesis 등) |
 | `nx_consult_start` | consult.ts | `.nexus/branches/{branch}/consult.json` | 상담 세션 시작 (토픽 + 논점 목록 등록) |
@@ -86,7 +86,8 @@ decisions.json의 각 항목 구조:
   "cycles": [
     {
       "completed_at": "ISO 타임스탬프",
-      "consult": { ... } ,
+      "branch": "브랜치명",
+      "consult": { ... },
       "decisions": [ ... ],
       "tasks": [ ... ]
     }
@@ -94,13 +95,14 @@ decisions.json의 각 항목 구조:
 }
 ```
 
-- 경로: `.nexus/branches/{branch}/history.json`
-- 각 cycle은 consult.json + decisions.json + tasks.json 스냅샷
+- 경로: `.nexus/history.json` (프로젝트 레벨 — 브랜치 무관 전체 아카이브)
+- 각 cycle에 `branch` 필드 포함
+- 기존 `.nexus/branches/{branch}/history.json` 존재 시 자동 마이그레이션 (branch 필드 추가) 후 삭제
 - 아카이브 후 consult.json, decisions.json, tasks.json 삭제
 
 ## 특이사항
 
-- `nx_task_add`는 `allowedCallers: ['director', 'lead']` 검증. 허용되지 않은 caller 호출 시 에러 반환. How/Do/Check 에이전트는 disallowedTools로 플랫폼 수준 차단.
+- `nx_task_add`는 caller 파라미터 검증 없음. How/Do/Check 에이전트는 disallowedTools로 플랫폼 수준 차단.
 - LSP: 프로젝트 언어 자동 감지 (tsconfig.json → TypeScript 등). 언어별 LSP 클라이언트 맵으로 관리.
 - AST: `@ast-grep/napi`가 optional — 플러그인 캐시 또는 프로젝트 node_modules에서 동적 로드.
 - core_write는 `layer` (enum: identity/codebase/reference/memory) + `topic` 파라미터로 `core/{layer}/{topic}.md` 경로에 저장. z.enum 검증으로 path traversal 방지.
@@ -108,4 +110,4 @@ decisions.json의 각 항목 구조:
 - `nx_consult_decide`는 consult.json + decisions.json을 동시 갱신. 모든 issues decided 시 consult.json **삭제하지 않음** — 완료 시그널(`allComplete: true`) 반환.
 - `nx_consult_update`의 reopen 액션은 decisions.json에서 `consult === issue_id`인 항목을 soft-delete (`status: "revoked"`)하여 audit trail 보존.
 - `nx_consult_status`는 결정된 논점의 decisions.json 항목을 `d.consult === issue.id` 기반으로 join하여 함께 반환.
-- `nx_task_close`는 사이클 완료 시 호출. consult+decisions+tasks를 history.json에 아카이브 후 소스 파일(consult.json, decisions.json, tasks.json) 삭제. `nx_task_clear`(구버전) 대체.
+- `nx_task_close`는 사이클 완료 시 호출. consult+decisions+tasks를 `.nexus/history.json`(프로젝트 레벨)에 아카이브 후 소스 파일(consult.json, decisions.json, tasks.json) 삭제. `nx_task_clear`(구버전) 대체.
