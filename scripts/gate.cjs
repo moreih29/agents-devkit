@@ -47,6 +47,24 @@ function getCurrentBranch() {
     }
   }
 }
+var GITIGNORE_CONTENT = `# Nexus: whitelist tracked files, ignore everything else
+*
+!.gitignore
+!core/
+!core/**
+!config.json
+!history.json
+!rules/
+!rules/**
+`;
+function ensureNexusStructure() {
+  ensureDir(NEXUS_ROOT);
+  ensureDir(STATE_ROOT);
+  const gitignorePath = (0, import_path.join)(NEXUS_ROOT, ".gitignore");
+  if (!(0, import_fs.existsSync)(gitignorePath)) {
+    (0, import_fs.writeFileSync)(gitignorePath, GITIGNORE_CONTENT);
+  }
+}
 
 // src/shared/tasks.ts
 var import_fs2 = require("fs");
@@ -443,7 +461,7 @@ IMPORTANT: For multi-file or complex tasks, Lead creates tasks via nx_task_add a
   });
 }
 function handleSessionStart(_event) {
-  ensureDir(STATE_ROOT);
+  ensureNexusStructure();
   (0, import_fs3.writeFileSync)((0, import_path3.join)(STATE_ROOT, "agent-tracker.json"), "[]");
   respond({
     continue: true,

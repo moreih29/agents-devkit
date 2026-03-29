@@ -1,6 +1,6 @@
 // Gate 훅: Stop (Task 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { STATE_ROOT, NEXUS_ROOT, ensureDir, getCurrentBranch } from '../shared/paths.js';
+import { STATE_ROOT, NEXUS_ROOT, ensureDir, getCurrentBranch, ensureNexusStructure } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
 import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
@@ -462,7 +462,7 @@ IMPORTANT: For multi-file or complex tasks, Lead creates tasks via nx_task_add a
 // --- 세션 이벤트 핸들러 ---
 
 function handleSessionStart(_event: Record<string, unknown>): void {
-  ensureDir(STATE_ROOT);
+  ensureNexusStructure();
   writeFileSync(join(STATE_ROOT, 'agent-tracker.json'), '[]');
 
   respond({
