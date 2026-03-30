@@ -39,6 +39,7 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 | nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish identity, generate core knowledge |
 | nx-run | nx-run | Execution — user-directed agent composition |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
+| nx-sync | /claude-nexus:nx-sync | Synchronize core knowledge with current project state |
 
 ### Tags
 

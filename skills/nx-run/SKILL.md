@@ -62,7 +62,7 @@ Within [run], Lead has full autonomy to determine team composition and agent sel
 
 ### Step 5: Complete
 
-- If core knowledge updates are needed: spawn Writer to update relevant layers.
+- Invoke /claude-nexus:nx-sync to synchronize core knowledge with changes made in this cycle.
 - Call `nx_task_close` → archive to history.json. Check `memoryHint` in the return value.
 - Shutdown Do/Check/Writer(doc) agents individually (How agents have session lifetime — keep them).
 - Report final result to user.
@@ -77,7 +77,7 @@ Within [run], Lead has full autonomy to determine team composition and agent sel
 | 2. Design | Lead + How agent | Team composition, consensus, approach |
 | 3. Execute | Do agent | Register tasks, implement / research / write |
 | 4. Verify | Lead + Check agent | Build check, quality verification |
-| 5. Complete | Lead | Core updates, nx_task_close, shutdown, report |
+| 5. Complete | Lead | nx-sync, nx_task_close, shutdown, report |
 
 ---
 

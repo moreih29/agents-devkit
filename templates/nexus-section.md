@@ -28,6 +28,7 @@
 | nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish identity, generate core knowledge |
 | nx-run | nx-run | Execution — user-directed agent composition |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
+| nx-sync | /claude-nexus:nx-sync | Synchronize core knowledge with current project state |
 
 ### Tags
 

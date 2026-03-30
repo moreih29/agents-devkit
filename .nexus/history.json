@@ -1732,6 +1732,118 @@
           "created_at": "2026-03-30T09:16:20.410Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-30T10:34:15.999Z",
+      "branch": "feat/nx-sync-skill",
+      "consult": {
+        "topic": "core 동기화 문제 해결 — sync 메커니즘 설계",
+        "issues": [
+          {
+            "id": 1,
+            "title": "Step 5 역할 재정의 — 현행 유지 vs 알림으로 축소 vs 삭제",
+            "status": "decided"
+          },
+          {
+            "id": 2,
+            "title": "sync 트리거 방식 — 사용자 명시 호출 vs 세션 종료 시 vs task_close 시",
+            "status": "decided"
+          },
+          {
+            "id": 3,
+            "title": "sync 소스 — history.json vs git diff vs 대화 컨텍스트",
+            "status": "decided"
+          },
+          {
+            "id": 4,
+            "title": "sync 범위 — 4계층 전체 vs 변경된 계층만 vs stale 감지",
+            "status": "decided"
+          },
+          {
+            "id": 5,
+            "title": "sync 구현 형태 — 스킬 vs 태그 vs gate 자동화",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "sync 트리거: E안. 사용자 명시 호출(/sync) 기본 + nx_task_close 시 조건부 알림 (memoryHint의 taskCount>=3 또는 decisionCount>=2일 때 \"core sync recommended\" 표시). 작은 사이클은 알림 없이 넘어감.",
+          "consult": 2
+        },
+        {
+          "id": 2,
+          "summary": "sync 소스: E안. 가용한 소스 전부 활용 — codebase 갱신은 git diff, identity/reference/memory는 history.json, 대화 컨텍스트는 있으면 보조. Writer가 판단하여 필요한 부분만 갱신.",
+          "consult": 3
+        },
+        {
+          "id": 3,
+          "summary": "sync 범위: E안. 기본은 4계층 전체 스캔, 사용자가 /sync codebase처럼 계층 지정 가능. codebase는 git diff 활용, 나머지는 history+대화 참조.",
+          "consult": 4
+        },
+        {
+          "id": 4,
+          "summary": "sync 구현: A안. 스킬(/claude-nexus:nx-sync)로 구현. 복잡한 프로세스(git diff, history 읽기, 4계층 스캔, Writer 스폰)에 SKILL.md 필요. 태그 불필요 — 자연어 \"sync 해줘\"로 Lead가 호출.",
+          "consult": 5
+        },
+        {
+          "id": 5,
+          "summary": "Step 5 역할: B'안. [run] 파이프라인의 Step 5에서 Lead가 자동으로 nx-sync 스킬 호출 (사용자 개입 없이). [run] 밖에서는 사용자가 /claude-nexus:nx-sync로 명시 호출. nx_task_close 조건부 알림도 정확한 스킬명(/claude-nexus:nx-sync) 사용.",
+          "consult": 1
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nx-sync SKILL.md 신규 작성",
+          "context": "D1-D4 기반. 소스: git diff + history.json + 대화. 범위: 기본 전체, 계층 지정 가능. 트리거: /claude-nexus:nx-sync 또는 자연어. context-standard 준수 (role/constraints/guidelines XML 태그, 영어).",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "created_at": "2026-03-30T10:31:19.911Z"
+        },
+        {
+          "id": 2,
+          "title": "nx-run SKILL.md Step 5 수정 — nx-sync 자동 호출",
+          "context": "D5 기반. Step 5에서 Writer 직접 스폰 대신 Lead가 nx-sync 스킬 호출. \"If core knowledge updates are needed: spawn Writer\" → \"Invoke /claude-nexus:nx-sync to synchronize core knowledge.\"",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            5
+          ],
+          "created_at": "2026-03-30T10:31:22.637Z"
+        },
+        {
+          "id": 3,
+          "title": "gate.ts — nx_task_close 조건부 sync 알림",
+          "context": "D1 기반. handleStop의 all-completed 경로에서 memoryHint 반환 후, taskCount>=3 또는 decisionCount>=2이면 sync 알림 추가. 실제로는 nx_task_close MCP 도구의 반환값에 memoryHint가 있으므로, gate의 Stop이 아닌 다른 위치에서 처리해야 할 수 있음 — 구현 시 확인 필요.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "created_at": "2026-03-30T10:31:26.049Z"
+        },
+        {
+          "id": 4,
+          "title": "빌드 + 테스트 + 템플릿 갱신 확인",
+          "context": "bun run dev (5 skills 확인) + bash test/e2e.sh",
+          "status": "completed",
+          "deps": [
+            1,
+            2,
+            3
+          ],
+          "decisions": [],
+          "created_at": "2026-03-30T10:31:27.717Z"
+        }
+      ]
     }
   ]
 }
