@@ -1644,6 +1644,50 @@
           "created_at": "2026-03-30T08:57:14.816Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-30T09:09:51.166Z",
+      "branch": "main",
+      "consult": null,
+      "decisions": [],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "core/codebase 문서 레거시 정리 (orchestration.md, architecture.md)",
+          "context": "orchestration.md: edit-tracker/reopen-tracker/Check경고 삭제, director→Lead, 3조건 참조 제거, 한국어→영어. architecture.md: edit-tracker/reopen-tracker 삭제, director 참조 제거.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T09:04:43.651Z"
+        },
+        {
+          "id": 2,
+          "title": "core/identity 문서 레거시 정리 (design.md, roadmap.md)",
+          "context": "design.md: edit-tracker 참조 삭제, 6단계→5 steps. roadmap.md: 한국어→영어 전환 + 완료된 phase는 유지하되 현재 용어로 정리.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T09:04:45.869Z"
+        },
+        {
+          "id": 3,
+          "title": "core/reference 문서 한국어→영어 전환 + 용어 정리",
+          "context": "4개 파일: llm-engineering-5layer.md, competitor-analysis.md, multi-agent-orchestration-autonomy-limits.md, omc-orchestration-failure-patterns.md. 한국어→영어 + edit-tracker/director/Dynamic Composition 등 구 용어 정리.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T09:04:47.750Z"
+        },
+        {
+          "id": 4,
+          "title": "README.en.md + CLAUDE.md + deploy SKILL.md 레거시 정리",
+          "context": "README.en.md: director/principal 삭제, [dev]/[research]→[run]/[rule], .claude/nexus/→.nexus/, nx_knowledge→nx_core. CLAUDE.md L6 경로 수정. .claude/skills/deploy/SKILL.md 경로 수정.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T09:04:49.521Z"
+        }
+      ]
     }
   ]
 }

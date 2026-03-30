@@ -9,7 +9,7 @@ Agent orchestration plugin for Claude Code.
 
 ## Why
 
-Specialized agent teams handle development and research systematically — director, architect, engineer, QA for development; principal, postdoc, researcher for research. One tag triggers automatic orchestration of complex tasks across the right agents without manual coordination.
+Specialized agent teams handle development and research systematically — architect, engineer, QA, researcher, and more. One tag triggers automatic orchestration of complex tasks across the right agents without manual coordination.
 
 ## Quick Start
 
@@ -22,13 +22,12 @@ claude plugin install claude-nexus@nexus
 
 **2. Onboard your project**
 
-Run `/claude-nexus:nx-sync` — on first run it scans your project and auto-generates structured knowledge under `.claude/nexus/knowledge/`.
+Run `/claude-nexus:nx-init` — scans your project and auto-generates structured knowledge under `.nexus/core/`.
 
 **3. Start using**
 
 - **Consult**: `[consult] How should we design the auth system?` — clarify intent and align before executing
-- **Develop**: `[dev] Implement login API` — agent team handles analysis through implementation
-- **Research**: `[research] React vs Svelte performance comparison` — independent investigation with synthesis report
+- **Run**: `[run] Implement login API` — agent team handles analysis through implementation
 
 ## Usage
 
@@ -37,41 +36,46 @@ Tag your message to route it to the right workflow:
 | Tag | Action | Example |
 |-----|--------|---------|
 | `[consult]` | Pre-execution consultation | `[consult] Discuss DB migration strategy` |
-| `[dev]` | Development (auto Sub/Team) | `[dev] Refactor payment module` |
-| `[dev!]` | Force team mode | `[dev!] Overhaul auth system` |
-| `[research]` | Research execution | `[research] Compare caching strategies` |
-| `[research!]` | Force research team | `[research!] Investigate competitor tech stacks` |
+| `[run]` | Execution (agent team) | `[run] Refactor payment module` |
+| `[d]` | Record a decision | `[d] Use PostgreSQL for primary storage` |
+| `[rule]` | Save a rule | `[rule] Always use bun instead of npm` |
 
-Typical flow: use `[consult]` to discuss and align → decide → use `[dev]` or `[research]` to execute.
+Typical flow: use `[consult]` to discuss and align → decide → use `[run]` to execute.
 
 ## Agents
 
-### Dev Team (4 agents)
+### How Team (4 agents)
 
 | Agent | Invocation | Role | Model |
 |-------|-----------|------|-------|
-| **Director** | `claude-nexus:director` | Project direction, scope, and priority decisions | opus |
-| **Architect** | `claude-nexus:architect` | Technical design and architecture review (read-only) | opus |
+| **Architect** | `claude-nexus:architect` | Technical design and architecture review | opus |
+| **Designer** | `claude-nexus:designer` | UI/UX design and interaction patterns | opus |
+| **Postdoc** | `claude-nexus:postdoc` | Research methodology and evidence synthesis | opus |
+| **Strategist** | `claude-nexus:strategist` | Business strategy and competitive positioning | opus |
+
+### Do Team (3 agents)
+
+| Agent | Invocation | Role | Model |
+|-------|-----------|------|-------|
 | **Engineer** | `claude-nexus:engineer` | Code implementation and debugging | sonnet |
-| **QA** | `claude-nexus:qa` | Verification, testing, and security review | sonnet |
+| **Researcher** | `claude-nexus:researcher` | Web search, independent investigation | sonnet |
+| **Writer** | `claude-nexus:writer` | Technical writing and documentation | sonnet |
 
-### Research Team (3 agents)
+### Check Team (2 agents)
 
 | Agent | Invocation | Role | Model |
 |-------|-----------|------|-------|
-| **Principal** | `claude-nexus:principal` | Research direction, agenda, and confirmation bias prevention | opus |
-| **Postdoc** | `claude-nexus:postdoc` | Methodology design, evidence evaluation, synthesis documents | opus |
-| **Researcher** | `claude-nexus:researcher` | Web search, independent investigation, source reporting | sonnet |
+| **QA** | `claude-nexus:qa` | Verification, testing, and security review | sonnet |
+| **Reviewer** | `claude-nexus:reviewer` | Content verification and fact-checking | sonnet |
 
 ## Skills
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
 | **nx-consult** | `[consult]` | Structured consultation. Clarify requirements → record decisions (`[d]`) → recommend execution tag |
-| **nx-dev** | `[dev]` / `[dev!]` | Development execution. Auto-selects solo or team (Director→Architect→Engineer→QA) based on complexity |
-| **nx-research** | `[research]` / `[research!]` | Research execution. Auto-selects solo or team (Principal→Postdoc→Researcher) based on complexity |
+| **nx-run** | `[run]` | Execution. User-directed agent composition for development, research, and more |
+| **nx-init** | `/claude-nexus:nx-init` | Full project onboarding: scan codebase, establish identity, generate core knowledge |
 | **nx-setup** | `/claude-nexus:nx-setup` | Interactive setup. Injects agent/skill/tag configuration into CLAUDE.md |
-| **nx-sync** | `/claude-nexus:nx-sync` | Auto-generates knowledge on first run, then detects and fixes drift with source changes. --reset for re-initialization |
 
 ## Advanced
 
@@ -84,7 +88,7 @@ Claude-callable tools exposed by the Nexus MCP server.
 
 | Tool | Purpose |
 |------|---------|
-| `nx_knowledge_read/write` | Project knowledge management (git-tracked) |
+| `nx_core_read/write` | Project knowledge management (git-tracked) |
 | `nx_rules_read/write` | Team custom rules management (git-tracked) |
 | `nx_context` | Current session state lookup (branch, tasks, decisions) |
 | `nx_task_list/add/update/close` | Task management + history.json archiving |
@@ -132,11 +136,18 @@ Nexus registers a single Gate module as a Claude Code hook.
 <details>
 <summary>Project Knowledge</summary>
 
-Project knowledge and rules are stored under `.claude/nexus/` and tracked by git.
+Project knowledge and rules are stored under `.nexus/` and tracked by git.
 
-- `knowledge/` — Project knowledge. Auto-generated on first `nx-sync` run (structure is not fixed)
-- `rules/` — Team custom rules. Created via `nx_rules_write` on user request
-- `config.json` — Nexus configuration
+```
+.nexus/
+├── core/               ← Project knowledge (4 layers)
+│   ├── identity/       ← Project identity and purpose
+│   ├── codebase/       ← Architecture and structure
+│   ├── reference/      ← Reference materials
+│   └── memory/         ← Session memory and context
+├── rules/              ← Team custom rules (created via nx_rules_write)
+└── config.json         ← Nexus configuration
+```
 
 </details>
 

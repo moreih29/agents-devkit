@@ -1,82 +1,82 @@
 <!-- tags: architecture, structure, entry-points, data-paths, build -->
 # Architecture
 
-Claude Code 플러그인. 3개 런타임 진입점이 esbuild로 번들되어 동작한다.
+Claude Code plugin. Three runtime entry points are bundled by esbuild.
 
 ## Entry Points
 
-| 진입점 | 소스 | 빌드 산출물 | 역할 |
-|--------|------|-------------|------|
-| MCP Server | `src/mcp/server.ts` | `bridge/mcp-server.cjs` | 도구 제공 (core, rules, task, decision, consult, branch, LSP, AST) |
-| Gate Hook | `src/hooks/gate.ts` | `scripts/gate.cjs` | 이벤트 처리 (Stop, PreToolUse, UserPromptSubmit, SessionStart, SubagentStart/Stop) + CLAUDE.md 자동 동기화 |
-| Statusline | `src/statusline/statusline.ts` | `scripts/statusline.cjs` | 상태바 (모델, 브랜치, 사용량) |
+| Entry Point | Source | Build Output | Role |
+|-------------|--------|--------------|------|
+| MCP Server | `src/mcp/server.ts` | `bridge/mcp-server.cjs` | Tool provision (core, rules, task, decision, consult, branch, LSP, AST) |
+| Gate Hook | `src/hooks/gate.ts` | `scripts/gate.cjs` | Event handling (Stop, PreToolUse, UserPromptSubmit, SessionStart, SubagentStart/Stop) + CLAUDE.md auto-sync |
+| Statusline | `src/statusline/statusline.ts` | `scripts/statusline.cjs` | Status bar (model, branch, usage) |
 
 ## Directory Structure
 
 ```
 src/
-├── hooks/gate.ts          ← 유일한 훅 모듈 (3개 이벤트 + CLAUDE.md 동기화)
+├── hooks/gate.ts          ← single hook module (3 events + CLAUDE.md sync)
 ├── mcp/
-│   ├── server.ts          ← McpServer 인스턴스 + 도구 등록
-│   └── tools/             ← 도구별 모듈 (core-store, markdown-store, context, task, decision, artifact, consult, branch, lsp, ast)
+│   ├── server.ts          ← McpServer instance + tool registration
+│   └── tools/             ← per-tool modules (core-store, markdown-store, context, task, decision, artifact, consult, branch, lsp, ast)
 ├── shared/
-│   ├── paths.ts           ← PROJECT_ROOT, NEXUS_ROOT, STATE_ROOT, CORE_ROOT, LAYERS, corePath(), coreLayerDir(), findProjectRoot(), getCurrentBranch() 등 경로
-│   ├── hook-io.ts         ← readStdin/respond/pass — 훅 I/O 프로토콜
-│   ├── mcp-utils.ts       ← textResult() — MCP 응답 헬퍼
-│   ├── tasks.ts           ← readTasksSummary() — tasks.json 읽기 유틸
-│   └── version.ts         ← VERSION 파일 읽기
+│   ├── paths.ts           ← PROJECT_ROOT, NEXUS_ROOT, STATE_ROOT, CORE_ROOT, LAYERS, corePath(), coreLayerDir(), findProjectRoot(), getCurrentBranch() etc.
+│   ├── hook-io.ts         ← readStdin/respond/pass — hook I/O protocol
+│   ├── mcp-utils.ts       ← textResult() — MCP response helper
+│   ├── tasks.ts           ← readTasksSummary() — tasks.json read utility
+│   └── version.ts         ← VERSION file reader
 ├── data/
-│   └── tags.json          ← 태그 메타데이터 (빌드 시 템플릿 생성용)
-├── code-intel/            ← LSP 클라이언트, 언어 감지 (lsp.ts에서 import)
-└── statusline/            ← 상태바 렌더링
+│   └── tags.json          ← tag metadata (used for template generation at build time)
+├── code-intel/            ← LSP client, language detection (imported by lsp.ts)
+└── statusline/            ← status bar rendering
 
 templates/
-└── nexus-section.md       ← 빌드 시 자동 생성 (agents/skills/tags → CLAUDE.md Nexus 섹션)
+└── nexus-section.md       ← auto-generated at build time (agents/skills/tags → CLAUDE.md Nexus section)
 
-generate-template.mjs      ← 템플릿 생성 스크립트 (esbuild 후 실행)
+generate-template.mjs      ← template generation script (runs after esbuild)
 ```
 
 ## Plugin Manifest
 
-- `.claude-plugin/plugin.json` — 메타데이터 (name, version, skills, mcpServers)
-- `hooks/hooks.json` — 훅 등록 (PreToolUse:Edit/Write/Agent/nx_task_update/nx_task_close, Stop:*, UserPromptSubmit:*, SessionStart:*, SubagentStart:*, SubagentStop:*)
-- `.mcp.json` — MCP 서버 경로
-- `agents/*.md` — 에이전트 정의 (9개, frontmatter에 task/disallowedTools 필드 포함)
-- `skills/*/SKILL.md` — 스킬 정의 (4개: nx-run, nx-consult, nx-init, nx-setup)
+- `.claude-plugin/plugin.json` — metadata (name, version, skills, mcpServers)
+- `hooks/hooks.json` — hook registration (PreToolUse:Edit/Write/Agent/nx_task_update/nx_task_close, Stop:*, UserPromptSubmit:*, SessionStart:*, SubagentStart:*, SubagentStop:*)
+- `.mcp.json` — MCP server path
+- `agents/*.md` — agent definitions (9 agents, frontmatter includes task/disallowedTools fields)
+- `skills/*/SKILL.md` — skill definitions (4 skills: nx-run, nx-consult, nx-init, nx-setup)
 
 ## Data Paths
 
-| 경로 | 추적 | 용도 |
-|------|------|------|
-| `.nexus/core/` | git | 4계층 지식 (identity/codebase/reference/memory) |
-| `.nexus/rules/` | git | 팀 커스텀 행동 규칙 (사용자 요청 시 nx_rules_write로 생성) |
-| `.nexus/config.json` | git | Nexus 설정 |
-| `.nexus/history.json` | git | 전체 사이클 아카이브 (프로젝트 레벨, branch 필드 포함) |
-| `.nexus/state/` | gitignore | 런타임 상태 (tasks.json, decisions.json, consult.json, edit-tracker.json, reopen-tracker.json, agent-tracker.json, artifacts/) |
-| `templates/nexus-section.md` | git | CLAUDE.md Nexus 섹션 템플릿 (빌드 산출물) |
+| Path | Tracked | Purpose |
+|------|---------|---------|
+| `.nexus/core/` | git | 4-layer knowledge store (identity/codebase/reference/memory) |
+| `.nexus/rules/` | git | Team custom behavior rules (created via nx_rules_write on user request) |
+| `.nexus/config.json` | git | Nexus configuration |
+| `.nexus/history.json` | git | Full cycle archive (project-level, includes branch field) |
+| `.nexus/state/` | gitignore | Runtime state (tasks.json, decisions.json, consult.json, agent-tracker.json, artifacts/) |
+| `templates/nexus-section.md` | git | CLAUDE.md Nexus section template (build output) |
 
 ## Build Pipeline
 
 ```
-esbuild (TS → CJS 번들)
+esbuild (TS → CJS bundle)
   ↓
-generate-template.mjs (agents/skills/tags.json → templates/nexus-section.md + CLAUDE.md 마커 갱신)
+generate-template.mjs (agents/skills/tags.json → templates/nexus-section.md + CLAUDE.md marker update)
   ↓
-dev-sync.mjs (빌드 산출물 → 플러그인 캐시/마켓플레이스 동기화, semver 정렬)
+dev-sync.mjs (build output → plugin cache/marketplace sync, semver sort)
 ```
 
 ## Key Design Decisions
 
-- **Gate 단일 모듈**: Stop/PreToolUse/UserPromptSubmit/SessionStart/SubagentStart/Stop을 하나의 gate.ts에서 처리. 이벤트 구분: `NEXUS_EVENT` 환경변수(SessionStart/SubagentStart/SubagentStop), 그 외 필드 존재 여부(tool_name → PreToolUse, prompt → UserPromptSubmit, 없음 → Stop).
-- **평탄 상태 구조**: 런타임 상태는 `.nexus/state/`에 통합. 브랜치 무관 단일 경로. `STATE_ROOT` 상수로 참조.
-- **CLAUDE.md 자동 동기화**: gate.ts가 세션 시작 시 `templates/nexus-section.md`와 글로벌 CLAUDE.md를 콘텐츠 비교하여 자동 갱신. 프로젝트 CLAUDE.md는 stale 시 알림만.
-- **esbuild CJS 번들**: 플러그인 런타임이 `node`로 실행되므로 CJS 포맷. `@ast-grep/napi`는 네이티브 모듈이라 external 처리.
-- **git fallback**: `getCurrentBranch()`는 `git rev-parse --abbrev-ref HEAD` → 실패 시 `git symbolic-ref --short HEAD` → 여전히 실패 시 `'_default'` 반환. 브랜치명은 컨텍스트 정보로만 사용 (상태 경로에 영향 없음).
-- **[consult] 세션 유지**: [consult] 태그 사용 시 기존 consult.json 있으면 세션 이어감. gate.ts가 consult.json 존재 여부를 체크하여 기존 세션 확인/이어가기 안내 또는 새 세션 시작 안내를 분기. cleanupConsult() 제거됨.
-- **통합 아카이브**: nx_task_close가 consult+decisions+tasks를 `.nexus/history.json`(프로젝트 레벨)에 통합 아카이브. cycle에 branch 필드 포함. 기존 브랜치별 history.json 자동 마이그레이션. 소스 파일(consult.json, decisions.json, tasks.json) 삭제. decision-archives.json 폐기됨.
-- **agent-tracker**: SubagentStart/Stop 이벤트 시 `.nexus/state/agent-tracker.json`에 기록. SessionStart에서 agent-tracker 초기화.
-- **Director 제거**: 9개 에이전트(How 4개 + Do 3개 + Check 2개). task 소유는 Lead가 담당.
-- **gate.ts 핸들러 맵**: handleUserPromptSubmit을 PRIMITIVE_HANDLERS 맵 기반 dispatch로 분해. 모드별 핸들러 함수로 분리. TASK_PIPELINE 공통 상수로 파이프라인 규칙 통합.
-- **모드 안내는 additionalContext만**: mode.json 제거됨. [dev]/[research] 태그 시 UserPromptSubmit additionalContext로 안내. hard block 없이 넛지만 — 파이프라인 강제는 tasks.json PreToolUse 차단이 담당.
-- **core-store 분리**: core/ 4계층은 3-level 네비게이션(layer→list→file)으로 markdown-store(2-level)과 의미론이 다름. 별도 core-store.ts 모듈로 구현. z.enum으로 layer 검증 (path traversal 방지).
-- **코드 중복 제거**: registerMarkdownStore 팩토리로 rules 관리, textResult() 헬퍼, readTasksSummary() 유틸, findProjectRoot/getCurrentBranch 단일 export.
+- **Single gate module**: Stop/PreToolUse/UserPromptSubmit/SessionStart/SubagentStart/Stop all handled in one gate.ts. Event discrimination: `NEXUS_EVENT` env var (SessionStart/SubagentStart/SubagentStop); otherwise field presence (tool_name → PreToolUse, prompt → UserPromptSubmit, neither → Stop).
+- **Flat state structure**: Runtime state consolidated under `.nexus/state/`. Branch-agnostic single path. Referenced via `STATE_ROOT` constant.
+- **CLAUDE.md auto-sync**: gate.ts compares `templates/nexus-section.md` content against global CLAUDE.md at session start and auto-updates. Project CLAUDE.md only triggers a notification when stale.
+- **esbuild CJS bundle**: Plugin runtime executes via `node`, so CJS format is required. `@ast-grep/napi` is a native module and handled as external.
+- **git fallback**: `getCurrentBranch()` tries `git rev-parse --abbrev-ref HEAD` → on failure `git symbolic-ref --short HEAD` → still fails → returns `'_default'`. Branch name is used as context only (no effect on state paths).
+- **[consult] session persistence**: On [consult] tag, continues existing session if consult.json is present. gate.ts checks consult.json existence to branch between resume/start guidance. cleanupConsult() removed.
+- **Unified archive**: nx_task_close archives consult+decisions+tasks to `.nexus/history.json` (project-level). cycle includes branch field. Auto-migrates legacy per-branch history.json. Deletes source files (consult.json, decisions.json, tasks.json). decision-archives.json deprecated.
+- **agent-tracker**: Records to `.nexus/state/agent-tracker.json` on SubagentStart/Stop events. Initialized by SessionStart.
+- **Lead owns tasks**: 9 agents (How 4 + Do 3 + Check 2). Task ownership managed by Lead.
+- **gate.ts handler map**: handleUserPromptSubmit decomposed into PRIMITIVE_HANDLERS map-based dispatch. Separated into per-mode handler functions. TASK_PIPELINE unified as a shared constant for pipeline rules.
+- **Mode guidance via additionalContext only**: mode.json removed. [dev]/[research] tags provide guidance via UserPromptSubmit additionalContext. No hard block — pipeline enforcement is handled by the tasks.json PreToolUse block.
+- **core-store separation**: The core/ 4-layer uses 3-level navigation (layer→list→file), semantically distinct from markdown-store (2-level). Implemented as a separate core-store.ts module. Layer validated with z.enum (prevents path traversal).
+- **Code deduplication**: registerMarkdownStore factory for rules management, textResult() helper, readTasksSummary() utility, findProjectRoot/getCurrentBranch single export.

@@ -1,198 +1,195 @@
 <!-- tags: identity, design, roles, tags, harness, information, context -->
 # Design
 
-## 역할 구조
+## Role Structure
 
-### Lead (메인)
+### Lead (Main)
 
-사용자 지시 해석 + 조율 + 소통. 에이전트 위임이 기본값.
+Interprets user instructions, coordinates agents, and communicates results. Agent delegation is the default.
 
-**기본 동작**: 태그 없는 메시지는 CLAUDE.md의 Agent Routing 테이블에 따라 에이전트 위임. [run] 태그 시 풀 파이프라인 작동.
+**Default behavior**: Messages without tags are delegated to agents per the CLAUDE.md Agent Routing table. The [run] tag activates the full pipeline.
 
-**직접 실행**: 사용자가 범위를 결정한다. 단순 작업은 CLAUDE.md 지시에 따라 Lead가 직접 처리.
+**Direct execution**: The user decides scope. Simple tasks are handled directly by Lead per CLAUDE.md instructions.
 
-**참조**: core 정보(codebase, memory 등)와 사용자 지시. 사실 확인은 허용, 분석/판단은 에이전트에 위임.
+**References**: Core information (codebase, memory, etc.) and user instructions. Fact-checking is allowed; analysis and judgment are delegated to agents.
 
-**조율 규칙**:
-- 병렬화 기준: 파일 겹침 없으면 병렬, 겹치면 순차
-- QA 역할 분리: Lead = 빌드+E2E, QA = 코드 품질
-- 사용자 지시 실행 + task 소유 + 팀 관리
+**Coordination rules**:
+- Parallelization: parallel if no file overlap, sequential if overlap exists
+- QA role separation: Lead = build + E2E, QA = code quality
+- Execute user instructions + own tasks + manage team
 
-### 에이전트 (9개)
+### Agents (9)
 
-| 역할 | 기능 | 카테고리 | 모델 |
-|------|------|----------|------|
-| **Architect** | 기술적 실현 가능성, 코드 설계, 계획 검증 gate | How | opus |
-| **Postdoc** | 방법론, 증거 평가, synthesis, 계획 검증 gate | How | opus |
-| **Designer** | UI/UX 설계, 인터랙션 패턴, 사용자 경험 | How | opus |
-| **Strategist** | 비즈니스 전략, 시장 분석, 경쟁 포지셔닝 | How | opus |
-| **Engineer** | 코드 구현, 디버깅, codebase/ 문서 즉시 갱신 | Do | sonnet |
-| **Researcher** | 웹 조사, 실험, reference/ 즉시 기록 | Do | sonnet |
-| **Writer** | 기술 문서, 프레젠테이션, 외부 소통 산출물 | Do | sonnet |
-| **QA** | 코드 검증, 테스트, 보안 리뷰 | Check | sonnet |
-| **Reviewer** | 콘텐츠 검증, 출처 확인, 문법/포맷 교정 | Check | sonnet |
+| Role | Function | Category | Model |
+|------|----------|----------|-------|
+| **Architect** | Technical feasibility, code design, plan validation gate | How | opus |
+| **Postdoc** | Methodology, evidence evaluation, synthesis, plan validation gate | How | opus |
+| **Designer** | UI/UX design, interaction patterns, user experience | How | opus |
+| **Strategist** | Business strategy, market analysis, competitive positioning | How | opus |
+| **Engineer** | Code implementation, debugging, immediate codebase/ doc updates | Do | sonnet |
+| **Researcher** | Web research, experiments, immediate reference/ recording | Do | sonnet |
+| **Writer** | Technical docs, presentations, external communication artifacts | Do | sonnet |
+| **QA** | Code verification, testing, security review | Check | sonnet |
+| **Reviewer** | Content verification, source checking, grammar/format correction | Check | sonnet |
 
-**카테고리**: How / Do / Check — 3카테고리 (Decide는 Lead가 겸임).
+**Categories**: How / Do / Check — 3 categories (Decide is handled by Lead).
 
-**2 파이프라인**:
-- 코드: Architect/Designer → Engineer → QA
-- 콘텐츠: Postdoc/Strategist → Researcher/Writer → Reviewer
+**2 pipelines**:
+- Code: Architect/Designer → Engineer → QA
+- Content: Postdoc/Strategist → Researcher/Writer → Reviewer
 
-**카테고리별 병렬 상한**:
-- How: 최대 4 (판단+합의 필요)
-- Do: 무제한 (독립 실행)
-- Check: 무제한 (독립 검증)
+**Parallelism limits by category**:
+- How: max 4 (judgment + consensus required)
+- Do: unlimited (independent execution)
+- Check: unlimited (independent verification)
 
-**Evidence Requirement**: How/Do/Check 전 에이전트 공통. 분석·판단에 근거 명시 필수.
+**Evidence Requirement**: Common to all How/Do/Check agents. Evidence must be cited for all analysis and judgment.
 
-## 태그 체계
+## Tag System
 
-| 태그 | 모드 | 설명 |
-|------|------|------|
-| `[consult]` | 상담 | 의도 발굴. task 파이프라인 없이 대화. 명시적 태그 시 조사 강제 주입 |
-| `[d]` | 기록 | 결정 기록 |
-| `[run]` | 실행 | 풀 파이프라인 강제 실행 |
-| `[rule]` | 규칙 | 규칙 저장. [rule:태그] 형식으로 도메인 지정 가능 |
+| Tag | Mode | Description |
+|-----|------|-------------|
+| `[consult]` | Consult | Intent discovery. Conversation without task pipeline. Explicit tag forces investigation injection. |
+| `[d]` | Record | Log a decision |
+| `[run]` | Execute | Force full pipeline |
+| `[rule]` | Rule | Save a rule. Domain can be specified with [rule:tag] format. |
 
-태그 없는 메시지 = CLAUDE.md Agent Routing 기반 위임.
+Messages without tags = CLAUDE.md Agent Routing-based delegation.
 
-"풀팀 동원" 같은 오버라이드는 자연어로 Lead에게 전달 (User Sovereignty).
+Overrides like "deploy the full team" are communicated to Lead in natural language (User Sovereignty).
 
-## 정보 관리 체계
+## Information Management
 
 ```
 .nexus/
-├── core/            ← 정보 (넥서스 관리, git 추적)
-│   ├── identity/    ← 철학, 미션, 설계 원칙, 로드맵
-│   ├── codebase/    ← 코드 구조, 아키텍처, 도구 (Engineer 즉시 갱신)
-│   ├── reference/   ← 외부 조사 결과 (Researcher 즉시 기록)
-│   └── memory/      ← 과거 교훈, 실패 패턴 (task_close 시 자동 추출)
-├── rules/           ← 지시 (넥서스 관리, 도메인별 커스텀, git 추적)
-├── config.json      ← 넥서스 설정 (git 추적)
-├── history.json     ← 사이클 아카이브 (git 추적)
-└── state/           ← 런타임 상태 (git 무시)
+├── core/            ← information (nexus-managed, git-tracked)
+│   ├── identity/    ← philosophy, mission, design principles, roadmap
+│   ├── codebase/    ← code structure, architecture, tools (Engineer updates immediately)
+│   ├── reference/   ← external research results (Researcher records immediately)
+│   └── memory/      ← past lessons, failure patterns (auto-extracted on task_close)
+├── rules/           ← instructions (nexus-managed, domain-custom, git-tracked)
+├── config.json      ← nexus config (git-tracked)
+├── history.json     ← cycle archive (git-tracked)
+└── state/           ← runtime state (git-ignored)
 ```
 
-| 계층 | 갱신 주체 | 검토 주체 | source of truth |
-|------|----------|----------|----------------|
-| identity | 넥서스가 사용자에게 물어서 | 사용자 | 사용자 |
-| codebase | Engineer 즉시 갱신 | Lead | 프로젝트 코드 |
-| reference | Researcher 즉시 기록 | Lead | 외부 세계 |
-| memory | task_close 시 자동 | Lead | 과거 경험 |
+| Layer | Updated by | Reviewed by | Source of truth |
+|-------|-----------|-------------|-----------------|
+| identity | Nexus asks user | User | User |
+| codebase | Engineer immediately | Lead | Project code |
+| reference | Researcher immediately | Lead | External world |
+| memory | Automatic on task_close | Lead | Past experience |
 
-Memory 기준: "이 정보가 없으면 같은 실수를 반복할 것인가?" — 실수 방지 + 자기 발전 메커니즘.
+Memory criterion: "Would we repeat the same mistake without this information?" — mistake prevention + self-improvement mechanism.
 
-## 컨텍스트 엔지니어링
+## Context Engineering
 
-### 역할별 Briefing 매트릭스
+### Per-Role Briefing Matrix
 
-`nx_briefing(role, hint?)` 도구가 역할별 매트릭스 기반으로 4계층에서 필요한 정보를 자동 수집.
+The `nx_briefing(role, hint?)` tool auto-collects needed information from the 4 layers based on a per-role matrix.
 
-| 역할 | identity | codebase | reference | memory |
+| Role | identity | codebase | reference | memory |
 |------|----------|----------|-----------|--------|
-| Architect | 전체 | 전체 | 전체 | 전체 |
-| Postdoc | 전체 | 전체 | 전체 | 전체 |
-| Designer | 전체 | 전체 | 전체 | 전체 |
-| Strategist | 전체 | 전체 | 전체 | 전체 |
-| Engineer | — | 전체 (hint 필터) | — | 전체 (hint 필터) |
-| Researcher | 전체 | — | 전체 | 전체 |
-| Writer | — | 전체 (hint 필터) | — | 전체 (hint 필터) |
-| QA | 전체 | 전체 (hint 필터) | — | 전체 |
-| Reviewer | 전체 | 전체 | — | 전체 |
+| Architect | full | full | full | full |
+| Postdoc | full | full | full | full |
+| Designer | full | full | full | full |
+| Strategist | full | full | full | full |
+| Engineer | — | full (hint filter) | — | full (hint filter) |
+| Researcher | full | — | full | full |
+| Writer | — | full (hint filter) | — | full (hint filter) |
+| QA | full | full (hint filter) | — | full |
+| Reviewer | full | full | — | full |
 
-### 구조화된 위임 포맷
+### Structured Delegation Format
 
-Lead가 에이전트에게 태스크를 위임할 때 4섹션 포맷 사용:
+Lead uses a 4-section format when delegating tasks to agents:
 
 ```
 ## TASK
-무엇을 해야 하는가
+What needs to be done
 
 ## CONTEXT
-관련 배경 (nx_briefing + 세션 내 wisdom)
+Relevant background (nx_briefing + in-session wisdom)
 
 ## CONSTRAINTS
-하지 말아야 할 것, 범위 제한
+What not to do, scope limits
 
 ## ACCEPTANCE
-완료 기준
+Completion criteria
 ```
 
-### 세션 내 학습
+### In-Session Learning
 
-Lead가 태스크 완료 보고에서 교훈을 추출 → 다음 에이전트 briefing에 포함. 파일 기록 없이 인메모리 전달. 장기 기억은 task_close 시 memory/에 기록.
+Lead extracts lessons from task completion reports → includes in the next agent briefing. Passed in-memory without file recording. Long-term memory is written to memory/ on task_close.
 
-## Phase 파이프라인
+## Phase Pipeline
 
-[run] 태그 시에만 활성화. 태그 없는 작업은 CLAUDE.md 라우팅으로 처리.
+Activated only with the [run] tag. Tasks without the tag are handled via CLAUDE.md routing.
 
-6단계 실행 구조:
+5-step execution structure:
 
-| Phase | 이름 | 주체 | 설명 |
-|-------|------|------|------|
-| 1 | Intake | Lead | 사용자 지시 정리, 범위 확�� |
-| 2 | Design | How 에이전트 | 설계·계획 수립 |
-| 3 | Execute | Do 에이전트 | 구현·조사·작성 |
-| 4 | Check | Check 에이전트 | 검증·품질 확인 |
-| 5 | Document | Writer | 코어 계층별 병렬 갱신 |
-| 6 | Complete | Lead | 태스크 종료, memory 기록 |
+| Phase | Name | Owner | Description |
+|-------|------|-------|-------------|
+| 1 | Intake | Lead | Clarify user instructions, scope confirmation |
+| 2 | Design | How agents | Design and planning |
+| 3 | Execute | Do agents | Implementation, research, writing |
+| 4 | Verify | Check agents | Verification, quality assurance |
+| 5 | Complete | Lead | Close task, record memory |
 
-**되돌림 규칙**:
-- Phase 4(Check)에서 코드 문제 발견 → Phase 3(Execute)으로
-- Phase 4(Check)에서 설계 문제 발견 → Phase 2(Design)으로
+**Rollback rules**:
+- Phase 4 (Verify) finds code issue → back to Phase 3 (Execute)
+- Phase 4 (Verify) finds design issue → back to Phase 2 (Design)
 
-## 하네스 메커니즘
+## Harness Mechanisms
 
 ### Task Pipeline
 
-tasks.json 없으면 Edit/Write 차단. 계획→수행 파이프라인을 구조적으로 강제.
+Edit/Write are blocked without tasks.json. Structurally enforces a plan-then-execute pipeline.
 
-**nx_task_add**: Lead 단독 소유. disallowedTools로 How/Do/Check 에이전트에 차단 강제.
+**nx_task_add**: Lead-owned exclusively. disallowedTools forces blocking for How/Do/Check agents.
 
-### 2단계 검증
+### 2-Stage Verification
 
-- **Lead**: 의도 검증 (항상)
-- **QA/Reviewer**: 산출물 검증 (Lead 재량 + 자동 스폰 조건)
+- **Lead**: Intent verification (always)
+- **QA/Reviewer**: Output verification (Lead discretion + auto-spawn conditions)
 
-QA 자동 스폰 조건 (하나라도 해당 시):
-- 변경 파일 3개 이상
-- 기존 테스트 파일 수정
-- 외부 API/DB 접근 코드 변경
-- memory에 해당 영역 실패 이력 존재
+QA auto-spawn conditions (any one triggers):
+- 3 or more files changed
+- Existing test files modified
+- External API/DB access code changed
+- Failure history for that area exists in memory
 
-### 루프/실패 감지 + 단계적 에스컬레이션
+### Loop/Failure Detection and Escalation
 
-**파일 수준 (edit-tracker)**: 같은 파일 3회→경고, 5회→차단.
+Agents handle loop prevention via prompt-level rules. Lead escalates to user when needed.
 
-**에이전트 수준 (agent-tracker)**: SubagentStart/Stop 훅으로 에이전트 생명주기 추적. `.nexus/state/agent-tracker.json`에 기록.
+Escalation chain: agent stops → Lead → user (User Sovereignty).
 
-에스컬레이션 체인: 에이전트 중단 → Lead → 사용자 (User Sovereignty).
+### Smart Resume
 
-### 스마트 Resume
+Team session initialized on SessionStart. If tasks.json exists with pending tasks, staleness of each task is assessed → close/re-register or continue.
 
-SessionStart 시 팀 세션 초기화. tasks.json 존재 + pending 시 각 태스크의 stale 여부 판단 → close/재등록 또는 이어가기.
+### Cycle Archival
 
-### Check 경고
+nx_task_close archives the cycle to history.json.
 
-nx_task_close 시 edit-tracker 파일 3개+ AND agent-tracker에 qa/reviewer 없음 → 경고. QA 누락 방지 안전망.
+### Declarative disallowedTools Management
 
-### disallowedTools 선언적 관리
+Agent-level MCP tool blocking at the platform level.
+- How/Do/Check agents: nx_task_add blocked (Lead-only task ownership)
+- How agents: nx_task_update also blocked
+- Lead: delegation based on CLAUDE.md Agent Routing table
 
-플랫폼 수준에서 에이전트별 MCP 도구 차단.
-- How/Do/Check 에이전트: nx_task_add 차단 (Lead만 task 소유)
-- How 에이전트: nx_task_update도 차단
-- Lead: CLAUDE.md Agent Routing 테이블 기반 위임
+### Automatic Memory Recording
 
-### Memory 자동 기록
+Cycle lessons auto-extracted on task_close (.nexus/history.json → memory/).
 
-task_close 시 사이클 교훈 자동 추출 (.nexus/history.json → memory/).
+**history.json**: Project level (`.nexus/history.json`, git-tracked). Accumulates history across sessions.
 
-**history.json**: 프로젝트 레벨 (`.nexus/history.json`, git 추적). 세션 간 이력 누적.
+## Consult Principles
 
-## Consult 원칙
-
-1. **적극적 의도 발굴** — 사용자가 명확히 하지 못하는 것을 적극적으로 찾아라.
-2. **선제적 탐색 확장** — [consult] 명시 시 gate.ts가 조사 강제 프롬프트를 주입. Explore + researcher 병렬 스폰, 조사 완료 전 제안 금지.
-3. **가설 기반 질문** — 빈 질문이 아닌 탐색 결과에 근거한 가설을 세우고 사용자에게 확인.
-4. **Progressive Depth** — 요청 복잡도에 따라 상담 깊이 자동 조절.
-5. **객관적 반박** — 반론 근거가 있으면 적극 반박. 넥서스는 예스맨이 아니다.
+1. **Active intent discovery** — Actively uncover what the user has not made explicit.
+2. **Proactive exploration** — Explicit [consult] tag causes gate.ts to inject a forced investigation prompt. Explore + researcher spawned in parallel; no proposals until research is complete.
+3. **Hypothesis-based questions** — Form hypotheses grounded in exploration results, then confirm with the user rather than asking open-ended questions.
+4. **Progressive Depth** — Consultation depth auto-adjusts to request complexity.
+5. **Objective pushback** — Actively push back when evidence supports a counter-argument. Nexus is not a yes-machine.
