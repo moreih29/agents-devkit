@@ -22,30 +22,34 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes a
 </constraints>
 
 <guidelines>
-## Default Behavior
-
-- **User specifies agents/direction** → follow the instruction.
-- **[run] only (no additional instruction)** → confirm direction with user before proceeding.
-- User decides scope and composition. Lead fills in what is not instructed.
-
----
-
 ## Flow
 
 ### Step 1: Intake (Lead)
 
-- Clarify user request intent + confirm direction if needed.
+- **User specifies agents/direction** → follow the instruction as given.
+- **[run] only (no direction)** → confirm direction with user before proceeding.
+- User decides scope and composition. Lead fills in what is not specified.
 - **Branch Guard**: if on main/master, create a branch appropriate to the task type before proceeding (prefix: `feat/`, `fix/`, `chore/`, `research/`, etc. — Lead's judgment). Auto-create without user confirmation.
 - If decisions.json exists, check prior decisions with `nx_context`.
 - Team rules are auto-included when `nx_briefing(hint)` is called (hint tag filtering).
 
-### Step 2: Execute (Do agents)
+### Step 2: Design (Lead + How agent)
 
-- Compose agents according to user direction. Lead fills in unspecified areas.
-- Finalize tasks with `nx_task_add` → spawn Do agents (call `nx_briefing(role, hint?)` to include briefing).
+Within [run], Lead has full autonomy to determine team composition and agent selection.
+
+- Create team with `TeamCreate`.
+- Determine How agent based on goal (code → Architect, content → Strategist/Postdoc, mixed → both).
+- Spawn How agent with `nx_briefing(role, hint?)` for briefing.
+- Lead ↔ How agent discussion via SendMessage → reach consensus on approach.
+- **Skip condition**: if user directly specifies Do agents (e.g., "Engineer, implement this"), skip Step 2 and proceed to Step 3.
+
+### Step 3: Execute (Do agents)
+
+- Register tasks with `nx_task_add` based on Design consensus or user direction.
+- Spawn Do agents with `nx_briefing(role, hint?)` for briefing.
 - For independent tasks (no deps) with non-overlapping target files, spawn Engineers in parallel. Overlapping files → serialize.
 
-### Step 3: Verify (Lead + Check agent)
+### Step 4: Verify (Lead + Check agent)
 
 - Lead: confirm build + E2E pass/fail only.
 - QA/Reviewer: verify quality, intent alignment, edge cases, security (spawn Check agent when conditions are met).
@@ -54,11 +58,11 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes a
   - Existing test files modified
   - External API/DB access code changed
   - Failure history for this area exists in memory
-- If issues found: code problems → Do agent rework; design problems → How agent redesign.
+- If issues found: code problems → Step 3 rework (reopen task); design problems → Step 2 (even if Step 2 was originally skipped — design issues require Design phase).
 
-### Step 4: Complete
+### Step 5: Complete
 
-- If Phase 5 (Document) is needed: spawn Writer to update knowledge.
+- If core knowledge updates are needed: spawn Writer to update relevant layers.
 - Call `nx_task_close` → archive to history.json. Check `memoryHint` in the return value.
 - Shutdown Do/Check/Writer(doc) agents individually (How agents have session lifetime — keep them).
 - Report final result to user.
@@ -69,12 +73,11 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes a
 
 | Phase | Owner | Content |
 |-------|-------|---------|
-| 1. Intake | Lead | Clarify intent, Branch Guard, check context |
-| 2. Design | Lead + How agent | Structure design, consensus, finalize tasks |
-| 3. Execute | Do agent | Implement / research / write |
-| 4. Check | Lead + Check agent | Confirm build, verify quality |
-| 5. Document | Lead + Writer | Update knowledge, record lessons |
-| 6. Complete | Lead | nx_task_close, agent shutdown, report |
+| 1. Intake | Lead | Clarify intent, confirm direction, Branch Guard |
+| 2. Design | Lead + How agent | Team composition, consensus, approach |
+| 3. Execute | Do agent | Register tasks, implement / research / write |
+| 4. Verify | Lead + Check agent | Build check, quality verification |
+| 5. Complete | Lead | Core updates, nx_task_close, shutdown, report |
 
 ---
 
@@ -151,7 +154,7 @@ ACCEPTANCE:
 
 1. **Lead = interpret user direction + coordinate + communicate + own tasks**
 2. **User decides scope and composition**
-3. **Do agents = execute** — Lead decides. Engineers focus on code changes. Doc updates are done in bulk by Writer in Phase 5. Researcher records to reference/ immediately.
+3. **Do agents = execute** — Lead decides. Engineers focus on code changes. Doc updates are done in bulk by Writer in Step 5. Researcher records to reference/ immediately.
 4. **Check agents = verify** — Lead's discretion + 4 conditions
 5. **Reuse idle teammates first** — assign via SendMessage to idle agents before spawning new ones
 6. **tasks.json is the single source of state**
@@ -189,17 +192,17 @@ When team custom rules are needed, create them in `.nexus/rules/` with `nx_rules
 TeamCreate({ team_name: "<project>", description: "..." })
 Agent({ subagent_type: "claude-nexus:architect", name: "architect", team_name: "<project>", prompt: "..." })
 
-// Step 2: After Lead↔How agent discussion, finalize tasks, bring in Do agents
+// Step 3: After Lead↔How agent discussion, register tasks, bring in Do agents
 Agent({ subagent_type: "claude-nexus:engineer", name: "engineer-1", team_name: "<project>", prompt: "..." })
 
-// Step 3: Bring in Check agent when conditions are met
+// Step 4: Bring in Check agent when conditions are met
 Agent({ subagent_type: "claude-nexus:qa", name: "qa", team_name: "<project>", prompt: "..." })
-// If issues found: code problems → Do agent rework, design problems → How agent redesign
+// If issues found: code problems → Step 3 rework, design problems → Step 2
 
-// Step 4: After Check passes, spawn Writer (only for needed layers)
+// Step 5: After Check passes, spawn Writer (only for needed layers)
 Agent({ subagent_type: "claude-nexus:writer", name: "writer-doc", team_name: "<project>", prompt: "..." })
 
-// Step 4: Exit Do/Check/Writer(doc) (How agents have session lifetime)
+// Step 5: Exit Do/Check/Writer(doc) (How agents have session lifetime)
 SendMessage({ to: "engineer-1", message: { type: "shutdown_request", reason: "task complete" } })
 SendMessage({ to: "qa", message: { type: "shutdown_request", reason: "task complete" } })
 SendMessage({ to: "writer-doc", message: { type: "shutdown_request", reason: "documentation complete" } })

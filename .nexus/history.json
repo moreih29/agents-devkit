@@ -1378,6 +1378,145 @@
           "created_at": "2026-03-30T08:10:22.327Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-30T08:33:51.585Z",
+      "branch": "main",
+      "consult": {
+        "topic": "스킬 명세 검토",
+        "issues": [
+          {
+            "id": 1,
+            "title": "nx-run SKILL.md 검토",
+            "status": "decided"
+          },
+          {
+            "id": 2,
+            "title": "nx-consult SKILL.md 검토",
+            "status": "decided"
+          },
+          {
+            "id": 3,
+            "title": "nx-init SKILL.md 검토",
+            "status": "decided"
+          },
+          {
+            "id": 4,
+            "title": "nx-setup SKILL.md 검토",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "nx-run SKILL.md 재정비: (1) Default Behavior 삭제→Step 1로 이동. (2) Step 2 Design 신규 추가 — Lead 자율 판단 명시, TeamCreate+How agent+토론+합의. (3) Design 스킵 조건: 사용자가 Do agent 직접 지정 시 스킵, 그 외 필수. (4) nx_task_add는 Step 3 시작으로 통일. (5) Step 4 되돌림: Design 스킵했더라도 설계 문제 시 Step 2 진입 (Lead 자율). (6) Step 5: Document+Complete 합친 채 유지. (7) knowledge→core 용어 정리. triggers 한국어 유지, Dynamic Composition 유지.",
+          "consult": 1
+        },
+        {
+          "id": 2,
+          "summary": "nx-consult 텍스트 정리 7건: (1) knowledge→core. (2) Lead auto-saves rules → 삭제, 사용자 [rule] 태그로 결정. (3) .claude/nexus/rules/→.nexus/rules/. (4) [do]→[run]. (5) triggers 한국어 유지. (6) Step 0 자율 판단 유지 (consult 모드에서 적절). (7) nx_task_close 문구 명확화 — consult+decisions 아카이브 용도.",
+          "consult": 2
+        },
+        {
+          "id": 3,
+          "summary": "nx-init 텍스트 정리 4건: (1) purpose \"generate knowledge\"→\"generate core knowledge\". (2) role \"knowledge base\"→\"core knowledge\". (3) constraints \"write it to knowledge\"→\"write it to core\". (4) Next Steps에서 /claude-nexus:nx-run→[run].",
+          "consult": 3
+        },
+        {
+          "id": 4,
+          "summary": "nx-setup 텍스트 정리 3건: (1) \"project knowledge\"→\"project core knowledge\". (2) [dev]/[research]→[run]/[rule]. (3) \"SCAN→TRIAGE→PROPOSE→GENERATE→VERIFY\"→\"run the nx-init skill\" 간소화.",
+          "consult": 4
+        }
+      ],
+      "tasks": []
+    },
+    {
+      "completed_at": "2026-03-30T08:41:40.995Z",
+      "branch": "main",
+      "consult": null,
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "nx-run SKILL.md 재정비: (1) Default Behavior 삭제→Step 1로 이동. (2) Step 2 Design 신규 추가 — Lead 자율 판단 명시, TeamCreate+How agent+토론+합의. (3) Design 스킵 조건: 사용자가 Do agent 직접 지정 시 스킵, 그 외 필수. (4) nx_task_add는 Step 3 시작으로 통일. (5) Step 4 되돌림: Design 스킵했더라도 설계 문제 시 Step 2 진입 (Lead 자율). (6) Step 5: Document+Complete 합친 채 유지. (7) knowledge→core 용어 정리. triggers 한국어 유지, Dynamic Composition 유지.",
+          "consult": null
+        },
+        {
+          "id": 2,
+          "summary": "nx-consult 텍스트 정리 7건: (1) knowledge→core. (2) Lead auto-saves rules → 삭제, 사용자 [rule] 태그로 결정. (3) .claude/nexus/rules/→.nexus/rules/. (4) [do]→[run]. (5) triggers 한국어 유지. (6) Step 0 자율 판단 유지 (consult 모드에서 적절). (7) nx_task_close 문구 명확화 — consult+decisions 아카이브 용도.",
+          "consult": null
+        },
+        {
+          "id": 3,
+          "summary": "nx-init 텍스트 정리 4건: (1) purpose \"generate knowledge\"→\"generate core knowledge\". (2) role \"knowledge base\"→\"core knowledge\". (3) constraints \"write it to knowledge\"→\"write it to core\". (4) Next Steps에서 /claude-nexus:nx-run→[run].",
+          "consult": null
+        },
+        {
+          "id": 4,
+          "summary": "nx-setup 텍스트 정리 3건: (1) \"project knowledge\"→\"project core knowledge\". (2) [dev]/[research]→[run]/[rule]. (3) \"SCAN→TRIAGE→PROPOSE→GENERATE→VERIFY\"→\"run the nx-init skill\" 간소화.",
+          "consult": null
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nx-run SKILL.md 재정비 — Step 2 Design 추가 + 구조 개선",
+          "context": "결정 D1 기반. (1) Default Behavior 삭제→Step 1로 이동 (C안). (2) Step 2 Design 신규 추가 — Lead 자율 판단 명시 (A안), TeamCreate+How agent+토론+합의. (3) Design 스킵: 사용자가 Do agent 직접 지정 시 스킵 (C안). (4) nx_task_add는 Step 3 시작으로 통일 (C안). (5) Step 4 되돌림: 스킵했더라도 Step 2 진입 (A안). (6) Step 5: Document+Complete 합쳐 유지 (A안). (7) knowledge→core.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "created_at": "2026-03-30T08:37:50.755Z"
+        },
+        {
+          "id": 2,
+          "title": "nx-consult SKILL.md 텍스트 정리 7건",
+          "context": "결정 D2 기반. knowledge→core, Lead auto-saves rules 삭제, .claude/nexus/rules/→.nexus/rules/, [do]→[run], nx_task_close 문구 명확화.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            2
+          ],
+          "created_at": "2026-03-30T08:37:52.238Z"
+        },
+        {
+          "id": 3,
+          "title": "nx-init SKILL.md 텍스트 정리 4건",
+          "context": "결정 D3 기반. purpose/role/constraints의 knowledge→core, Next Steps /claude-nexus:nx-run→[run].",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            3
+          ],
+          "created_at": "2026-03-30T08:37:53.575Z"
+        },
+        {
+          "id": 4,
+          "title": "nx-setup SKILL.md 텍스트 정리 3건",
+          "context": "결정 D4 기반. project knowledge→project core knowledge, [dev]/[research]→[run]/[rule], SCAN→TRIAGE...→run the nx-init skill 간소화.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            4
+          ],
+          "created_at": "2026-03-30T08:37:54.302Z"
+        },
+        {
+          "id": 5,
+          "title": "빌드 + E2E 테스트 검증",
+          "context": "bun run dev + bash test/e2e.sh",
+          "status": "completed",
+          "deps": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "decisions": [],
+          "created_at": "2026-03-30T08:37:56.058Z"
+        }
+      ]
     }
   ]
 }

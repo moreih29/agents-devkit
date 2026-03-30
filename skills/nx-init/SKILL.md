@@ -2,17 +2,17 @@
 name: nx-init
 description: "Project onboarding — scan, identity, codebase generation"
 trigger_display: "/claude-nexus:nx-init"
-purpose: "Full project onboarding: scan codebase, establish identity, generate knowledge"
+purpose: "Full project onboarding: scan codebase, establish identity, generate core knowledge"
 triggers: ["init", "onboard", "온보딩", "초기화", "프로젝트 설정"]
 ---
 
 <role>
-Scans the project and builds the Nexus knowledge base. On first run, performs a 5-step full onboarding sequence.
+Scans the project and builds the Nexus core knowledge. On first run, performs a 5-step full onboarding sequence.
 </role>
 
 <constraints>
 - NEVER modify source code. Slimming down CLAUDE.md is not this skill's responsibility.
-- NEVER infer or guess information that cannot be confirmed from code — do not write it to knowledge.
+- NEVER infer or guess information that cannot be confirmed from code — do not write it to core.
 - NEVER store secrets (API keys, credentials, etc.) in knowledge files.
 - NEVER overwrite existing files without `--reset`. On resume, preserve existing files.
 - `identity/` MUST go through user confirmation — only `codebase/` is auto-generated.
@@ -162,7 +162,7 @@ Output a summary of the onboarding results.
 
 ### Next Steps
 - [consult] — clarify requirements before starting a task
-- /claude-nexus:nx-run — execute with an agent team
+- [run] — execute with an agent team
 - /claude-nexus:nx-init --reset — re-run onboarding (existing core/ will be backed up)
 ```
 </guidelines>

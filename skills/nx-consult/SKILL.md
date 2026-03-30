@@ -42,7 +42,7 @@ Guideline: "Light touch for specific requests, deep dive for abstract ones." Lea
 
 ### Step 1: Exploration
 
-Understand code, knowledge, and decisions first. Do not ask groundless questions.
+Understand code, core, and decisions first. Do not ask groundless questions.
 
 **New session** (no consult.json):
 - STEP 1: Spawn researcher for code + external exploration in parallel. Run Explore agent for codebase exploration simultaneously.
@@ -99,7 +99,7 @@ When the user decides, record with the `[d]` tag.
 - If pending issues remain → naturally transition to the next issue.
 - All issues decided → **Gap check**: compare original question/topic against the issue list to verify nothing was missed.
 - Gap found → register additional issues, return to Step 3.
-- No gap → return completion signal. Cycle cleanup via `nx_task_close` for full archive (consult+decisions+tasks → history.json).
+- No gap → return completion signal. Archive via `nx_task_close` (consult+decisions → history.json). Tasks may not exist in consult-only cycles.
 
 ---
 
@@ -145,8 +145,6 @@ When the user decides, record with the `[d]` tag.
 
 ### rules (on user request)
 
-Lead auto-saves to rules when judged as a recurring pattern. Also created when the user explicitly requests it.
-
 - One-time decisions: recorded in decisions.json only (automatic)
 - User requests custom rules/principles: check existing rules with `nx_rules_read` → refine through conversation → guide saving with `nx_rules_write`
 
@@ -159,7 +157,7 @@ Lead auto-saves to rules when judged as a recurring pattern. Also created when t
 
 ## Rules Template (Reference)
 
-When domain customization is needed, guide saving to `.claude/nexus/rules/` with `nx_rules_write`.
+When domain customization is needed, guide saving to `.nexus/rules/` with `nx_rules_write`.
 
 **blog.md example:**
 ```markdown
@@ -195,4 +193,4 @@ gate.ts detects `[d]` and auto-branches based on consult.json presence.
 
 ## Deactivation
 
-When user switches to an execution tag (e.g., [do]), clean up the full cycle with `nx_task_close` (consult+decisions+tasks → history.json) then exit.
+When user switches to an execution tag (e.g., [run]), clean up the full cycle with `nx_task_close` (consult+decisions+tasks → history.json) then exit.

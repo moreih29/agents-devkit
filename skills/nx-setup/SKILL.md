@@ -212,7 +212,7 @@ Note: Once added to `enabledPlugins`, Claude Code automatically installs the plu
 ```
 AskUserQuestion({
   questions: [{
-    question: "Auto-generate project knowledge?",
+    question: "Auto-generate project core knowledge?",
     header: "Init",
     multiSelect: false,
     options: [
@@ -223,7 +223,7 @@ AskUserQuestion({
 })
 ```
 
-If "Yes": run the init skill workflow (SCAN → TRIAGE → PROPOSE → GENERATE → VERIFY).
+If "Yes": run the nx-init skill.
 If "Skip": proceed to next step.
 
 ### Step 7: Complete
@@ -231,7 +231,7 @@ If "Skip": proceed to next step.
 Output a setup completion message:
 - Summary of applied settings
 - Brief introduction to available skills/agents
-- "To get started, describe a task, or use [consult] for consultation, [dev] for development, [research] for research"
+- "To get started, describe a task, or use [consult] for consultation, [run] for execution, [rule] for saving rules"
 
 ---
 
