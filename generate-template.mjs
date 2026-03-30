@@ -43,7 +43,9 @@ const skills = skillDirs
 const tags = JSON.parse(readFileSync(join(__dirname, 'src/data/tags.json'), 'utf8'));
 
 // Generate table rows
-const agentRows = agents.map(a => `| ${a.alias_ko || a.name} | ${a.task} | ${a.name} |`).join('\n');
+const categoryOrder = { how: 0, do: 1, check: 2 };
+const sortedAgents = [...agents].sort((a, b) => (categoryOrder[a.category] ?? 9) - (categoryOrder[b.category] ?? 9) || a.name.localeCompare(b.name));
+const agentRows = sortedAgents.map(a => `| ${a.alias_ko || a.name} | ${(a.category || '').toUpperCase()} | ${a.task} | ${a.name} |`).join('\n');
 const skillRows = skills.map(s => `| ${s.name} | ${s.trigger_display} | ${s.purpose} |`).join('\n');
 const tagRows = tags.map(t => `| [${t.tag}] | ${t.purpose} |`).join('\n');
 
@@ -55,8 +57,8 @@ const template = `## Nexus Agent Orchestration
 
 병렬 작업이나 다른 관점이 필요할 때 에이전트를 활용하라.
 
-| 이름 | Task | Agent |
-|------|------|-------|
+| 이름 | Category | Task | Agent |
+|------|----------|------|-------|
 ${agentRows}
 
 단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.

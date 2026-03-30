@@ -1297,6 +1297,87 @@
           "created_at": "2026-03-30T04:12:03.896Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-30T08:14:57.224Z",
+      "branch": "main",
+      "consult": {
+        "topic": "에이전트 프롬프트 검토 + 프론트매터 활용",
+        "issues": [
+          {
+            "id": 1,
+            "title": "frontmatter 확장 — category(how/do/check), depends_on 등 추가 필드",
+            "status": "decided"
+          },
+          {
+            "id": 2,
+            "title": "공통 섹션 표준화 — Evidence Requirement, Escalation 등 9개 에이전트 반복 내용 처리",
+            "status": "decided"
+          },
+          {
+            "id": 3,
+            "title": "개별 에이전트 검토 — 불필요/중복/추가 내용",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "frontmatter 확장: A안. category 필드만 추가 (how/do/check). CLAUDE.md 테이블 자동 그룹핑 + 브리핑 매트릭스 단순화 가능. depends_on/phase는 불필요 (사용자 지시 모델에서 Lead 자율 판단 안 함).",
+          "consult": 1
+        },
+        {
+          "id": 2,
+          "summary": "공통 섹션 표준화: C안. 문구만 통일, 각 에이전트에 개별 유지. Evidence Requirement, Escalation, Completion Reporting 등 공통 섹션의 표현을 동일하게 표준화. 별도 파일 분리 불필요 (Claude Code 에이전트 로딩이 단일 .md).",
+          "consult": 2
+        },
+        {
+          "id": 3,
+          "summary": "개별 에이전트 검토 완료. 수정사항: (1) 공통 9개: constraints 형식 통일 + Evidence Requirement 문구 표준화. (2) director 잔재 5개: architect/designer/postdoc/strategist/engineer/reviewer에서 director→Lead. (3) Bash/도구 4개 How: role에서 Bash 언급 제거, grep/cat→Glob/Grep/Read. (4) architect/postdoc Planning Gate: 마지막 줄(proactively request) 삭제, 섹션 유지. strategist/designer는 Planning Gate 없이 유지. (5) nx_decision_add→nx_context 3개. (6) engineer 한국어 번역 누락.",
+          "consult": 3
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "에이전트 9개 프롬프트 정비",
+          "context": "공통: constraints 형식 통일 + Evidence Requirement 표준화. director→Lead (5개). Bash/도구 수정 (4개 How). Planning Gate 마지막줄 삭제 (architect/postdoc). nx_decision_add→nx_context (3개). engineer 한국어 번역. category frontmatter 추가.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            2,
+            3
+          ],
+          "created_at": "2026-03-30T08:10:18.734Z"
+        },
+        {
+          "id": 2,
+          "title": "generate-template.mjs category 컬럼 반영",
+          "context": "frontmatter의 category 필드를 읽어 CLAUDE.md 테이블에 카테고리 컬럼 추가 또는 그룹핑.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [
+            1
+          ],
+          "created_at": "2026-03-30T08:10:21.057Z"
+        },
+        {
+          "id": 3,
+          "title": "빌드 + E2E 테스트 검증",
+          "context": "bun run dev + bash test/e2e.sh",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "decisions": [],
+          "created_at": "2026-03-30T08:10:22.327Z"
+        }
+      ]
     }
   ]
 }
