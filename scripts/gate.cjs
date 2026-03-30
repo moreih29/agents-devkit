@@ -142,7 +142,7 @@ function handleClaudeMdSync() {
           (0, import_fs3.mkdirSync)(notifiedDir, { recursive: true });
         }
         (0, import_fs3.writeFileSync)(notifiedFlag, "");
-        return "[NEXUS] \uD504\uB85C\uC81D\uD2B8 CLAUDE.md\uC758 Nexus \uC139\uC158\uC774 \uCD5C\uC2E0 \uBC84\uC804\uACFC \uB2E4\uB985\uB2C8\uB2E4. /claude-nexus:nx-sync\uB85C \uAC31\uC2E0\uD558\uC138\uC694.";
+        return "<nexus>Project CLAUDE.md Nexus section is out of date. Run /claude-nexus:nx-sync to update.</nexus>";
       }
     } else if (projectMarker !== null && projectMarker === template) {
       if ((0, import_fs3.existsSync)(notifiedFlag)) {
@@ -164,17 +164,17 @@ function handleStop() {
   if (summary.pending > 0) {
     respond({
       continue: true,
-      additionalContext: `[NEXUS] ${summary.pending} tasks pending in tasks.json. Before stopping:
+      additionalContext: `<nexus>${summary.pending} tasks pending in tasks.json. Before stopping:
 1. Review each pending task \u2014 verify if work is actually done.
 2. Done \u2192 nx_task_update(id, "completed").
 3. Not done \u2192 complete the work first.
-4. When all completed \u2192 nx_task_close to archive.`
+4. When all completed \u2192 nx_task_close to archive.</nexus>`
     });
     return;
   }
   respond({
     continue: true,
-    additionalContext: `[NEXUS] All ${summary.total} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks \u2192 history.json) before finishing.`
+    additionalContext: `<nexus>All ${summary.total} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks \u2192 history.json) before finishing.</nexus>`
   });
 }
 function isNexusInternalPath(filePath) {
@@ -206,14 +206,14 @@ function handlePreToolUse(event) {
       if (count >= 5) {
         respond({
           decision: "block",
-          reason: `[NEXUS] Circuit breaker: task "${taskId}" has been reopened ${count} times. BLOCKED. Report to Lead via SendMessage: describe the task, blocking issue, and attempts made.`
+          reason: `<nexus>Circuit breaker: task "${taskId}" has been reopened ${count} times. BLOCKED. Report to Lead via SendMessage: describe the task, blocking issue, and attempts made.</nexus>`
         });
         return;
       }
       if (count >= 3) {
         respond({
           decision: "approve",
-          additionalContext: `[NEXUS] Warning: task "${taskId}" has been reopened ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing.`
+          additionalContext: `<nexus>Warning: task "${taskId}" has been reopened ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing.</nexus>`
         });
         return;
       }
@@ -261,14 +261,14 @@ function handlePreToolUse(event) {
       if (!summary.exists) {
         respond({
           decision: "block",
-          reason: "[NEXUS] No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: consult \u2192 decisions \u2192 tasks \u2192 execute."
+          reason: "<nexus>No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: consult \u2192 decisions \u2192 tasks \u2192 execute.</nexus>"
         });
         return;
       }
       if (summary.allCompleted || summary.total === 0) {
         respond({
           decision: "block",
-          reason: "[NEXUS] All tasks completed. Call nx_task_close to archive this cycle."
+          reason: "<nexus>All tasks completed. Call nx_task_close to archive this cycle.</nexus>"
         });
         return;
       }
@@ -287,14 +287,14 @@ function handlePreToolUse(event) {
       if (count >= 5) {
         respond({
           decision: "block",
-          reason: `[NEXUS] Loop detected: "${filePath}" has been modified ${count} times. BLOCKED. Report to Lead via SendMessage: describe the file, error pattern, and approaches tried. Wait for Lead or Architect guidance before continuing.`
+          reason: `<nexus>Loop detected: "${filePath}" has been modified ${count} times. BLOCKED. Report to Lead via SendMessage: describe the file, error pattern, and approaches tried. Wait for Lead or Architect guidance before continuing.</nexus>`
         });
         return;
       }
       if (count >= 3) {
         respond({
           decision: "approve",
-          additionalContext: `[NEXUS] Warning: "${filePath}" has been modified ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing. Describe what you're trying to fix and why previous attempts failed.`
+          additionalContext: `<nexus>Warning: "${filePath}" has been modified ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing. Describe what you're trying to fix and why previous attempts failed.</nexus>`
         });
         return;
       }
@@ -353,9 +353,9 @@ function getTasksReminder() {
   const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) return null;
   if (summary.pending > 0) {
-    return `[NEXUS] ${summary.pending} pending tasks. Complete work \u2192 nx_task_update(id, "completed") for each done task. Archive with nx_task_close when all complete.`;
+    return `<nexus>${summary.pending} pending tasks. Complete work \u2192 nx_task_update(id, "completed") for each done task. Archive with nx_task_close when all complete.</nexus>`;
   }
-  return `[NEXUS] All ${summary.total} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.`;
+  return `<nexus>All ${summary.total} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.</nexus>`;
 }
 function getConsultReminder() {
   const consultPath = (0, import_path3.join)(STATE_ROOT, "consult.json");
@@ -366,8 +366,8 @@ function getConsultReminder() {
     const discussing = issues.find((i) => i.status === "discussing");
     const pending = issues.filter((i) => i.status === "pending");
     const current = discussing ? `Current: #${discussing.id} "${discussing.title}"` : pending.length > 0 ? `Next: #${pending[0].id} "${pending[0].title}"` : "All issues decided.";
-    return `[NEXUS] Consult: "${data.topic}" | ${current} | ${pending.length} pending
-Present comparison table with pros/cons/recommendation. Record decisions with [d].`;
+    return `<nexus>Consult: "${data.topic}" | ${current} | ${pending.length} pending
+Present comparison table with pros/cons/recommendation. Record decisions with [d].</nexus>`;
   } catch {
     return null;
   }
@@ -376,13 +376,13 @@ function withNotices(base, tasksReminder, claudeMdNotice, consultReminder) {
   return [consultReminder, tasksReminder, base, claudeMdNotice].filter(Boolean).join("\n");
 }
 function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }) {
-  const tagInfo = ruleTags ? `Tags: [${ruleTags.join(", ")}] \u2014 \uADDC\uCE59 \uD30C\uC77C \uC0C1\uB2E8\uC5D0 <!-- tags: ${ruleTags.join(", ")} --> \uD615\uC2DD\uC73C\uB85C \uD3EC\uD568.` : "Tags: \uC5C6\uC74C \u2014 \uADDC\uCE59 \uB0B4\uC6A9\uC5D0 \uB9DE\uB294 \uC801\uC808\uD55C \uD0DC\uADF8\uB97C \uD310\uB2E8\uD558\uC5EC \uCD94\uAC00.";
-  const base = `[NEXUS] Rule mode \u2014 \uC0AC\uC6A9\uC790 \uC9C0\uC2DC\uB97C \uD504\uB85C\uC81D\uD2B8 \uADDC\uCE59\uC73C\uB85C \uC800\uC7A5.
+  const tagInfo = ruleTags ? `Tags: [${ruleTags.join(", ")}] \u2014 include at top of rule file as <!-- tags: ${ruleTags.join(", ")} -->.` : "Tags: none \u2014 infer appropriate tags from rule content and add them.";
+  const base = `<nexus>Rule mode \u2014 saving user instruction as a project rule.
 ${tagInfo}
-1. \uC0AC\uC6A9\uC790 \uBA54\uC2DC\uC9C0\uC5D0\uC11C \uADDC\uCE59 \uB0B4\uC6A9 \uCD94\uCD9C/\uC815\uB9AC.
-2. nx_rules_write(name, content)\uB85C .nexus/rules/{name}.md\uC5D0 \uC800\uC7A5.
-\uADDC\uCE59\uC740 git-tracked\uC774\uBA70 nx_briefing\uC758 hint \uD0DC\uADF8 \uD544\uD130\uB9C1\uC73C\uB85C \uC5D0\uC774\uC804\uD2B8\uC5D0\uAC8C \uC790\uB3D9 \uC804\uB2EC\uB429\uB2C8\uB2E4.
-Task pipeline \uBD88\uD544\uC694 \u2014 \uC9C1\uC811 \uC800\uC7A5\uD558\uC138\uC694.`;
+1. Extract and clean up rule content from the user message.
+2. Save to .nexus/rules/{name}.md via nx_rules_write(name, content).
+Rules are git-tracked and auto-delivered to agents via nx_briefing hint tag filtering.
+Task pipeline not required \u2014 save directly.</nexus>`;
   respond({
     continue: true,
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
@@ -393,15 +393,15 @@ function handleConsultMode({ tasksReminder, claudeMdNotice }) {
   const hasExistingSession = (0, import_fs3.existsSync)(consultFile);
   let base;
   if (hasExistingSession) {
-    base = `[NEXUS] Consult mode \u2014 \uAE30\uC874 \uC138\uC158 \uBC1C\uACAC.
-STEP 1: nx_consult_status\uB85C \uD604\uC7AC \uC0C1\uD0DC \uD655\uC778.
-STEP 2: Explore+researcher \uBCD1\uB82C \uC2A4\uD3F0\uD558\uC5EC \uCF54\uB4DC+\uC678\uBD80 \uCD94\uAC00 \uD0D0\uC0C9.
-STEP 3: \uC870\uC0AC \uACB0\uACFC \uBC14\uD0D5\uC73C\uB85C \uB17C\uC758 \uC9C4\uD589. \uC870\uC0AC \uC644\uB8CC \uC804 \uAE08\uC9C0.`;
+    base = `<nexus>Consult mode \u2014 existing session found.
+STEP 1: Check current status with nx_consult_status.
+STEP 2: Spawn Explore+researcher in parallel for additional code+external research.
+STEP 3: Proceed with discussion based on research results. Do not discuss before research is complete.</nexus>`;
   } else {
-    base = `[NEXUS] Consult mode.
-STEP 1: researcher \uC2A4\uD3F0\uD558\uC5EC \uCF54\uB4DC+\uC678\uBD80 \uD0D0\uC0C9. Explore agent\uB85C \uCF54\uB4DC\uBCA0\uC774\uC2A4 \uD0D0\uC0C9 \uBCD1\uD589.
-STEP 2: \uC870\uC0AC \uACB0\uACFC \uBC14\uD0D5\uC73C\uB85C nx_consult_start \uD638\uCD9C\uD558\uC5EC \uC774\uC288 \uC815\uB9AC.
-\uC870\uC0AC \uC644\uB8CC \uC804 nx_consult_start \uD638\uCD9C \uAE08\uC9C0.`;
+    base = `<nexus>Consult mode.
+STEP 1: Spawn researcher for code+external research. Run Explore agent in parallel for codebase exploration.
+STEP 2: Call nx_consult_start with findings to organize issues.
+Do not call nx_consult_start before research is complete.</nexus>`;
   }
   respond({
     continue: true,
@@ -410,9 +410,9 @@ STEP 2: \uC870\uC0AC \uACB0\uACFC \uBC14\uD0D5\uC73C\uB85C nx_consult_start \uD6
 }
 function handleRunMode({ tasksReminder, claudeMdNotice }) {
   const consultReminder = getConsultReminder();
-  const base = `[NEXUS] Run mode \u2014 full pipeline execution requested.
+  const base = `<nexus>Run mode \u2014 full pipeline execution requested.
 MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
-Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.`;
+Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.</nexus>`;
   respond({
     continue: true,
     additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, consultReminder)
@@ -443,12 +443,12 @@ After recording the decision:
     if ((0, import_fs3.existsSync)(consultFile)) {
       respond({
         continue: true,
-        additionalContext: withNotices(`[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record \u2014 updates consult.json + decisions.json simultaneously.${postDecisionRules}`, tasksReminder, claudeMdNotice, consultReminder)
+        additionalContext: withNotices(`<nexus>Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record \u2014 updates consult.json + decisions.json simultaneously.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, consultReminder)
       });
     } else {
       respond({
         continue: true,
-        additionalContext: withNotices(`[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`, tasksReminder, claudeMdNotice, null)
+        additionalContext: withNotices(`<nexus>Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, null)
       });
     }
     return;
@@ -473,20 +473,20 @@ After recording the decision:
     const branchGuard = /^(main|master)$/.test(getCurrentBranch()) ? "\nBranch Guard: You are on main/master. Create a feature branch before making changes." : "";
     respond({
       continue: true,
-      additionalContext: withNotices(taskPipelineMessage(`[NEXUS] No active tasks.${branchGuard}`), null, claudeMdNotice, consultReminder)
+      additionalContext: withNotices(taskPipelineMessage(`<nexus>No active tasks.${branchGuard}</nexus>`), null, claudeMdNotice, consultReminder)
     });
     return;
   }
   if (summary.pending > 0) {
     respond({
       continue: true,
-      additionalContext: withNotices(`[NEXUS] Existing tasks detected (${summary.pending} pending). Smart resume: Review existing tasks with nx_task_list. For each pending task: verify if already implemented/documented. If stale \u2192 nx_task_close + fresh nx_task_add. If genuine \u2192 continue execution.`, tasksReminder, claudeMdNotice, consultReminder)
+      additionalContext: withNotices(`<nexus>Existing tasks detected (${summary.pending} pending). Smart resume: Review existing tasks with nx_task_list. For each pending task: verify if already implemented/documented. If stale \u2192 nx_task_close + fresh nx_task_add. If genuine \u2192 continue execution.</nexus>`, tasksReminder, claudeMdNotice, consultReminder)
     });
     return;
   }
   respond({
     continue: true,
-    additionalContext: withNotices(`[NEXUS] Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.`, tasksReminder, claudeMdNotice, consultReminder)
+    additionalContext: withNotices(`<nexus>Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.</nexus>`, tasksReminder, claudeMdNotice, consultReminder)
   });
 }
 function handleSessionStart(_event) {
@@ -494,7 +494,7 @@ function handleSessionStart(_event) {
   (0, import_fs3.writeFileSync)((0, import_path3.join)(STATE_ROOT, "agent-tracker.json"), "[]");
   respond({
     continue: true,
-    additionalContext: "[NEXUS] Session started."
+    additionalContext: "<nexus>Session started.</nexus>"
   });
 }
 function handleSubagentStart(event) {

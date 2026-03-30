@@ -5,16 +5,23 @@ trigger_display: "/claude-nexus:nx-setup"
 purpose: "Configure Nexus interactively"
 disable-model-invocation: true
 ---
-# Setup
 
-Interactive project setup wizard — configure Nexus for a new project with minimal token cost.
+<role>
+Interactive project setup wizard — configure Nexus for a new project with minimal token cost. Every step is a concrete choice via `AskUserQuestion`, with no open-ended exploration.
+</role>
 
+<constraints>
+- NEVER accept free-text input — every step must use `AskUserQuestion` with explicit options.
+- NEVER skip the "Skip" option — all steps are optional.
+- NEVER modify files outside the selected scope without explicit user confirmation.
+- NEVER overwrite an existing `statusLine` field in settings.json without going through the OMC conflict detection step.
+</constraints>
+
+<guidelines>
 ## Trigger
 - Direct invocation: `/claude-nexus:nx-setup`
 
-## What It Does
-
-Step-by-step wizard using `AskUserQuestion` at each step. Designed for minimal token usage — every step is a concrete choice, no open-ended exploration.
+---
 
 ## Steps
 
@@ -23,19 +30,19 @@ Step-by-step wizard using `AskUserQuestion` at each step. Designed for minimal t
 ```
 AskUserQuestion({
   questions: [{
-    question: "Nexus 설정을 어느 범위에 적용할까요?",
+    question: "Where should the Nexus configuration be applied?",
     header: "Scope",
     multiSelect: false,
     options: [
-      { label: "User (Global)", description: "모든 프로젝트에 적용 (~/.claude/CLAUDE.md, ~/.claude/settings.json 상태라인)" },
-      { label: "Project", description: "이 프로젝트에만 적용 (CLAUDE.md, .claude/settings.local.json, .nexus/config.json)" }
+      { label: "User (Global)", description: "Apply to all projects (~/.claude/CLAUDE.md, ~/.claude/settings.json statusline)" },
+      { label: "Project", description: "Apply to this project only (CLAUDE.md, .claude/settings.local.json, .nexus/config.json)" }
     ]
   }]
 })
 ```
 
-선택에 따라 이후 모든 파일 쓰기 경로가 결정됨:
-- User: `~/.claude/CLAUDE.md`, `~/.claude/settings.json` (상태라인 래퍼)
+All file write paths for subsequent steps are determined by this selection:
+- User: `~/.claude/CLAUDE.md`, `~/.claude/settings.json` (statusline wrapper)
 - Project: `./CLAUDE.md`, `./.nexus/config.json`
 
 ### Step 2: Statusline Preset
@@ -43,19 +50,19 @@ AskUserQuestion({
 ```
 AskUserQuestion({
   questions: [{
-    question: "상태라인 표시 수준을 선택하세요.",
+    question: "Select the statusline display level.",
     header: "Statusline",
     multiSelect: false,
     options: [
-      { label: "Full (Recommended)", description: "2줄: 모델+브랜치, 태스크+사용량" },
-      { label: "Minimal", description: "1줄: 모델+브랜치만" },
-      { label: "Skip", description: "상태라인 설정 건너뛰기" }
+      { label: "Full (Recommended)", description: "2 lines: model+branch, task+usage" },
+      { label: "Minimal", description: "1 line: model+branch only" },
+      { label: "Skip", description: "Skip statusline configuration" }
     ]
   }]
 })
 ```
 
-**래퍼 스크립트 생성** (Full/Minimal 공통, Bash 도구로 실행):
+**Create wrapper script** (for Full/Minimal, run via Bash tool):
 ```bash
 mkdir -p ~/.claude/hooks
 cat > ~/.claude/hooks/nexus-statusline.sh << 'EOF'
@@ -66,27 +73,27 @@ EOF
 chmod +x ~/.claude/hooks/nexus-statusline.sh
 ```
 
-**선택 시 scope에 따라:**
+**On selection, depending on scope:**
 
 **(1) User scope:**
-- 래퍼 스크립트 생성 (위 단계 실행)
-- `~/.claude/settings.json`에 `statusLine` 필드가 **없으면**: statusLine 설정 바로 추가:
+- Create wrapper script (run step above)
+- If `statusLine` field is **absent** in `~/.claude/settings.json`: add statusLine setting directly:
   ```json
   { "statusLine": { "type": "command", "command": "bash $HOME/.claude/hooks/nexus-statusline.sh" } }
   ```
-- `~/.claude/settings.json`에 `statusLine` 필드가 **이미 있으면**: 래퍼만 생성하고 settings.json은 수정하지 않음 — Step 4의 "OMC Statusline 공존 처리"에서 교체/유지 여부를 결정
+- If `statusLine` field **already exists** in `~/.claude/settings.json`: create wrapper only, do not modify settings.json — defer to Step 4's "OMC Statusline coexistence handling" to decide whether to replace or keep
 
 **(2) Project scope:**
-- 래퍼 스크립트 생성 (위 단계 실행)
-- `.claude/settings.local.json`에 `statusLine` 필드가 **없으면**: statusLine 설정 바로 추가:
+- Create wrapper script (run step above)
+- If `statusLine` field is **absent** in `.claude/settings.local.json`: add statusLine setting directly:
   ```json
   { "statusLine": { "type": "command", "command": "bash $HOME/.claude/hooks/nexus-statusline.sh" } }
   ```
-- `.claude/settings.local.json`에 `statusLine` 필드가 **이미 있으면**: 래퍼만 생성하고 settings.local.json은 수정하지 않음 — Step 4의 "OMC Statusline 공존 처리"에서 교체/유지 여부를 결정
-- `.nexus/config.json`의 `statuslinePreset` 필드에도 선택값 저장 (기존 유지)
+- If `statusLine` field **already exists** in `.claude/settings.local.json`: create wrapper only, do not modify settings.local.json — defer to Step 4's "OMC Statusline coexistence handling"
+- Also save the selected value to the `statuslinePreset` field in `.nexus/config.json` (preserve existing values)
 
 **(3) Skip:**
-- 래퍼 생성도, settings.json 수정도 하지 않음.
+- Do not create wrapper or modify settings.json.
 
 ### Step 3: CLAUDE.md Nexus Section
 
@@ -99,7 +106,7 @@ Write location depends on scope selected in Step 1.
 **Section content is read from the plugin's template file at runtime:**
 
 1. **Read `$CLAUDE_PLUGIN_ROOT/templates/nexus-section.md`** — this file is auto-generated at build time from agents/skills/tags source files
-2. **If not found:** Error — "Nexus 섹션 템플릿을 찾을 수 없습니다. 플러그인이 올바르게 설치되었는지 확인하세요."
+2. **If not found:** Error — "Nexus section template not found. Please verify that the plugin is installed correctly."
 
 Write the template content wrapped in `<!-- NEXUS:START -->` / `<!-- NEXUS:END -->` markers to the target CLAUDE.md (respecting scope from Step 1).
 
@@ -114,126 +121,129 @@ If found:
 ```
 AskUserQuestion({
   questions: [{
-    question: "oh-my-claudecode (OMC) 플러그인이 감지되었습니다. Nexus와 충돌할 수 있습니다.",
+    question: "The oh-my-claudecode (OMC) plugin was detected. It may conflict with Nexus.",
     header: "OMC Conflict",
     multiSelect: false,
     options: [
-      { label: "Disable OMC", description: ".claude/settings.json에서 OMC 비활성화. Nexus만 사용." },
-      { label: "Keep Both", description: "두 플러그인을 함께 유지. 충돌 위험은 사용자 책임." }
+      { label: "Disable OMC", description: "Remove OMC from .claude/settings.json. Use Nexus only." },
+      { label: "Keep Both", description: "Keep both plugins. Conflict risk is user's responsibility." }
     ]
   }]
 })
 ```
 
-- Disable OMC 선택 시: `.claude/settings.json`의 plugins 배열에서 omc/oh-my-claudecode 항목 제거
-- Keep Both 선택 시: 경고 메모만 남기고 진행
+- If "Disable OMC": remove omc/oh-my-claudecode entries from the plugins array in `.claude/settings.json`
+- If "Keep Both": leave a warning note and proceed
 
-OMC가 감지되지 않으면 이 단계는 건너뜀.
+If OMC is not detected, skip this step.
 
-**OMC Statusline 공존 처리:**
+**OMC Statusline coexistence handling:**
 
-Step 2에서 settings.json 수정을 보류한 경우(기존 statusLine이 감지되어 래퍼만 생성한 경우)에만 실행.
-Step 2에서 statusLine 설정을 이미 적용했으면 이 하위 단계는 건너뜀.
+Run only if settings.json modification was deferred in Step 2 (i.e., wrapper was created but existing statusLine was detected).
+If statusLine settings were already applied in Step 2, skip this sub-step.
 
-구체적으로, Step 2 실행 시점에 다음 조건 중 하나라도 해당하면 기존 statusline 설정이 있는 것으로 판단:
-- `~/.claude/hooks/statusline.sh` 파일이 존재
-- 또는 scope에 따른 settings.json(`~/.claude/settings.json` 또는 `.claude/settings.local.json`)에 `statusLine` 필드가 이미 존재
+Specifically, treat an existing statusline setting as detected if any of the following are true at the time Step 2 runs:
+- `~/.claude/hooks/statusline.sh` file exists
+- Or the scope-appropriate settings.json (`~/.claude/settings.json` or `.claude/settings.local.json`) already has a `statusLine` field
 
-감지 시:
+If detected:
 
 ```
 AskUserQuestion({
   questions: [{
-    question: "기존 상태라인 설정이 감지되었습니다. Nexus 상태라인으로 교체할까요?",
+    question: "An existing statusline configuration was detected. Replace it with the Nexus statusline?",
     header: "Statusline",
     multiSelect: false,
     options: [
-      { label: "Replace (Recommended)", description: "Nexus 상태라인으로 교체 (래퍼 스크립트 설정)" },
-      { label: "Keep Existing", description: "기존 상태라인 유지. Nexus 래퍼는 생성하되 settings.json은 수정하지 않음." }
+      { label: "Replace (Recommended)", description: "Replace with Nexus statusline (wrapper script configuration)" },
+      { label: "Keep Existing", description: "Keep existing statusline. Nexus wrapper is created but settings.json is not modified." }
     ]
   }]
 })
 ```
 
-- Replace (Recommended) 선택: scope에 따른 settings.json의 statusLine을 Nexus 래퍼로 교체 (래퍼 스크립트는 Step 2에서 이미 생성됨)
-- Keep Existing 선택: settings.json의 statusLine은 기존 설정을 유지 (래퍼 스크립트는 Step 2에서 이미 생성됨 — 사용자가 나중에 수동 전환 가능)
+- "Replace (Recommended)": replace the `statusLine` in the scope-appropriate settings.json with the Nexus wrapper (wrapper script already created in Step 2)
+- "Keep Existing": keep the existing `statusLine` in settings.json (wrapper script already created in Step 2 — user can switch manually later)
 
-기존 statusline 설정이 감지되지 않으면 이 하위 단계는 건너뜀.
+If no existing statusline configuration is detected, skip this sub-step.
 
 ### Step 5: Recommended Plugin
 
 Check if `context7@claude-plugins-official` is in `enabledPlugins` (global or project settings.json).
 
-**이미 설치됨:**
+**Already installed:**
 
-설치 상태를 알리고 건너뜀:
+Notify and skip:
 ```
-"추천 플러그인이 설치되어 있습니다: context7 ✓"
+"Recommended plugin already installed: context7 ✓"
 ```
 
-**미설치:**
+**Not installed:**
 
 ```
 AskUserQuestion({
   questions: [{
-    question: "context7 플러그인을 설치할까요? 에이전트가 라이브러리 문서를 실시간 조회할 수 있습니다.",
+    question: "Install the context7 plugin? It enables agents to look up library docs in real time.",
     header: "Plugin",
     multiSelect: false,
     options: [
-      { label: "Install (Recommended)", description: "context7 — 라이브러리 문서 실시간 조회 (Upstash Context7)" },
-      { label: "Skip", description: "추천 플러그인 설치 건너뛰기" }
+      { label: "Install (Recommended)", description: "context7 — real-time library documentation lookup (Upstash Context7)" },
+      { label: "Skip", description: "Skip recommended plugin installation" }
     ]
   }]
 })
 ```
 
-**Install 선택 시:**
-scope에 따른 settings.json (`~/.claude/settings.json` 또는 `.claude/settings.local.json`)의 `enabledPlugins`에 추가:
+**If "Install":**
+Add to `enabledPlugins` in the scope-appropriate settings.json (`~/.claude/settings.json` or `.claude/settings.local.json`):
 ```json
 {
   "context7@claude-plugins-official": true
 }
 ```
-Claude Code가 다음 세션 시작 시 자동으로 플러그인을 설치합니다.
+Claude Code will automatically install the plugin at the start of the next session.
 
-**Skip 선택 시:** 다음 단계로 진행.
+**If "Skip":** proceed to the next step.
 
-참고: `enabledPlugins`에 추가하면 Claude Code가 다음 세션 시작 시 자동으로 플러그인을 설치합니다.
+Note: Once added to `enabledPlugins`, Claude Code automatically installs the plugin at the start of the next session.
 
 ### Step 6: Knowledge Init
 
 ```
 AskUserQuestion({
   questions: [{
-    question: "프로젝트 knowledge를 자동 생성할까요?",
+    question: "Auto-generate project knowledge?",
     header: "Init",
     multiSelect: false,
     options: [
-      { label: "Yes (Recommended)", description: "기존 문서(README, CLAUDE.md 등)를 분석해 .nexus/core/codebase/ 생성" },
-      { label: "Skip", description: "나중에 /claude-nexus:nx-init으로 직접 실행" }
+      { label: "Yes (Recommended)", description: "Analyze existing docs (README, CLAUDE.md, etc.) to generate .nexus/core/codebase/" },
+      { label: "Skip", description: "Run manually later with /claude-nexus:nx-init" }
     ]
   }]
 })
 ```
 
-Yes 선택 시: init 스킬 워크플로우 실행 (SCAN → TRIAGE → PROPOSE → GENERATE → VERIFY).
-Skip 시: 다음 단계로.
+If "Yes": run the init skill workflow (SCAN → TRIAGE → PROPOSE → GENERATE → VERIFY).
+If "Skip": proceed to next step.
 
 ### Step 7: Complete
 
-설정 완료 메시지 출력:
-- 적용된 설정 요약
-- 사용 가능한 스킬/에이전트 간략 소개
-- "시작하려면 작업을 말하거나 [consult]로 상담, [dev]로 개발, [research]로 리서치하세요"
+Output a setup completion message:
+- Summary of applied settings
+- Brief introduction to available skills/agents
+- "To get started, describe a task, or use [consult] for consultation, [dev] for development, [research] for research"
+
+---
 
 ## Key Principles
 
-1. **모든 단계는 AskUserQuestion** — 자유 텍스트 입력 없음
-2. **토큰 최소화** — 각 단계를 구체적 선택지로 한정하여 불필요한 탐색 방지
-3. **Skip 옵션 항상 제공** — 강제 없음
-4. **확장 가능한 구조** — 추천 플러그인 단계 포함, 향후 카테고리 확장 가능
+1. **Every step uses AskUserQuestion** — no free-text input
+2. **Minimize tokens** — limit each step to concrete choices to prevent unnecessary exploration
+3. **Always provide a Skip option** — nothing is forced
+4. **Extensible structure** — includes recommended plugin step, expandable to additional categories in the future
 
 ## State Management
 
-setup은 상태 파일 없이 순차 AskUserQuestion으로 동작.
-설정 결과는 각 단계에서 즉시 `.nexus/config.json`에 기록 (Project scope의 경우).
+Setup operates via sequential AskUserQuestion calls with no state file.
+Configuration results are written immediately to `.nexus/config.json` at each step (for Project scope).
+</guidelines>

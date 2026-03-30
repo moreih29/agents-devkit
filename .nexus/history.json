@@ -1137,6 +1137,166 @@
           "created_at": "2026-03-30T02:22:11.107Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-30T04:11:47.974Z",
+      "branch": "chore/docs-review",
+      "consult": {
+        "topic": "넥서스 컨텍스트 포맷 표준 수립",
+        "issues": [
+          {
+            "id": 1,
+            "title": "섹션 구조 표준화 — 표준 태그 세트 정의 (Role/Context/Guidelines/Constraints 등)",
+            "status": "decided"
+          },
+          {
+            "id": 2,
+            "title": "제약 이중 배치 — 핵심 제약(NEVER/MUST)을 처음+끝 반복할지",
+            "status": "decided"
+          },
+          {
+            "id": 3,
+            "title": "스킬/gate 포맷 통일 — 스킬도 XML 래핑할지, 에이전트만 유지할지",
+            "status": "decided"
+          },
+          {
+            "id": 4,
+            "title": "표준 정의 위치 — core docs? rules? 별도 파일?",
+            "status": "decided"
+          },
+          {
+            "id": 5,
+            "title": "언어 표준 — 스킬/에이전트/gate 프롬프트 언어 통일 (영어 vs 한국어 vs 혼합)",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "섹션 구조 표준: B안(원칙 레벨 표준 + 유형별 자율). 순서: 역할/정체성 → 제약 → 배경/컨텍스트 → 가이드라인 → 예시(선택). 제약은 역할 바로 뒤 primacy 위치에 단일 배치. 이중 배치 불필요 (에이전트 평균 800토큰, 스킬 2000토큰으로 충분히 짧음).",
+          "consult": 1
+        },
+        {
+          "id": 2,
+          "summary": "이중 배치 불필요. 제약을 역할 바로 뒤 단일 배치로 충분. 에이전트/��킬 모두 6K 토큰 미만이라 Lost in the Middle 리스크 낮음.",
+          "consult": 2
+        },
+        {
+          "id": 3,
+          "summary": "포맷 통일: B안. 에이전트/스킬은 Markdown 본문 + XML 섹션 태그 (Anthropic 공식 하이브리드 패턴). gate는 [NEXUS] prefix → XML 래퍼 태그로 전환. 전체 문서 XML 래핑은 폐지.",
+          "consult": 3
+        },
+        {
+          "id": 4,
+          "summary": "표준 정의 위치: A안. .nexus/core/identity/에 별도 파일(context-standard.md)로 관리. 넥서스의 소통 방식에 해당하는 설계 원칙.",
+          "consult": 4
+        },
+        {
+          "id": 5,
+          "summary": "언어 표준: C안. 에이전트/스킬/gate 전부 영어 통일. 사용자 대면 출력 언어는 Claude Code 플랫폼 설정(# Language)이 제어하므로 넥서스 내부 영어화가 사용자 경험에 영향 없음. 토큰 4-5배 절약 + instruction following 개선.",
+          "consult": 5
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "mission.md Intent Discovery on Demand 문구 수���",
+          "context": "C안: \"코드베이스와 knowledge를 먼저 탐색하고\" → \"조사를 먼저 수행하고\"",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T02:30:44.006Z"
+        },
+        {
+          "id": 2,
+          "title": "design.md 아이덴티티 재정의 후속 수정 6건",
+          "context": "1) 판단참조 문구 수정 + knowledge 용어 제거, 2) Decide+Orchestration → 사용자 지시 실행, 3) Phase 1 의도발굴→사용자 지시 정리, 4) Lead 프롬프트 수준 제한 수정, 5) 6단계 테이블 SKILL.md 일관성 확인",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T02:35:10.862Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-03-30T04:38:35.885Z",
+      "branch": "chore/docs-review",
+      "consult": null,
+      "decisions": [],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "context-standard.md 작성",
+          "context": "identity/에 컨텍스트 표준 문서 작성. 순서: Role → Constraints → Context → Guidelines → Examples. 포맷: Markdown + XML 섹션 태그. 언어: 영어. 유형별(에이전트/스킬/gate) 적용 가이드 포함.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "created_at": "2026-03-30T04:11:55.325Z"
+        },
+        {
+          "id": 2,
+          "title": "에이전트 9개 포맷 변환",
+          "context": "현재 &lt;Role&gt;+&lt;Guidelines&gt; 전체 래핑 → Markdown 본문 + XML 섹션 태그. 순서: role → constraints → context → guidelines. 내용은 이미 영어.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [
+            1,
+            3
+          ],
+          "created_at": "2026-03-30T04:11:57.681Z"
+        },
+        {
+          "id": 3,
+          "title": "스킬 4개 영어 전환 + XML 섹션 태그",
+          "context": "nx-run, nx-consult, nx-init, nx-setup SKILL.md 한국어→영어 전환 + XML 섹션 태그 적용. 순서 표준 준수.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [
+            1,
+            3,
+            5
+          ],
+          "created_at": "2026-03-30T04:12:00.036Z"
+        },
+        {
+          "id": 4,
+          "title": "gate.ts 메시지 영어화 + XML 래퍼",
+          "context": "[NEXUS] prefix → XML 래퍼 태그 전환. 한국어 메시지 → 영어. handleConsultMode, handleRunMode, handleRuleMode, task pipeline, 스마트 resume 등 모든 additionalContext.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [
+            3,
+            5
+          ],
+          "created_at": "2026-03-30T04:12:02.292Z"
+        },
+        {
+          "id": 5,
+          "title": "e2e.sh 테스트 업데이트",
+          "context": "gate 메시지 변경에 맞춰 기대값 업데이트. XML 래퍼 태그 검증 추가.",
+          "status": "completed",
+          "deps": [
+            4
+          ],
+          "decisions": [
+            3
+          ],
+          "created_at": "2026-03-30T04:12:03.896Z"
+        }
+      ]
     }
   ]
 }

@@ -11,12 +11,12 @@
 
 **직접 실행**: 사용자가 범위를 결정한다. 단순 작업은 CLAUDE.md 지시에 따라 Lead가 직접 처리.
 
-**판단 참조**: codebase knowledge, memory, 요청 텍스트 복잡도 신호. 사실 확인은 허용, 분석/판단은 에이전트에 위임.
+**참조**: core 정보(codebase, memory 등)와 사용자 지시. 사실 확인은 허용, 분석/판단은 에이전트에 위임.
 
 **조율 규칙**:
 - 병렬화 기준: 파일 겹침 없으면 병렬, 겹치면 순차
 - QA 역할 분리: Lead = 빌드+E2E, QA = 코드 품질
-- Decide+Orchestration 겸임: 의도 대변 + task 소유 + 팀 구성
+- 사용자 지시 실행 + task 소유 + 팀 관리
 
 ### 에이전트 (9개)
 
@@ -130,7 +130,7 @@ Lead가 태스크 완료 보고에서 교훈을 추출 → 다음 에이전트 b
 
 | Phase | 이름 | 주체 | 설명 |
 |-------|------|------|------|
-| 1 | Intake | Lead | 의도 발굴, 범위 확정 |
+| 1 | Intake | Lead | 사용자 지시 정리, 범위 확�� |
 | 2 | Design | How 에이전트 | 설계·계획 수립 |
 | 3 | Execute | Do 에이전트 | 구현·조사·작성 |
 | 4 | Check | Check 에이전트 | 검증·품질 확인 |
@@ -181,7 +181,7 @@ nx_task_close 시 edit-tracker 파일 3개+ AND agent-tracker에 qa/reviewer 없
 플랫폼 수준에서 에이전트별 MCP 도구 차단.
 - How/Do/Check 에이전트: nx_task_add 차단 (Lead만 task 소유)
 - How 에이전트: nx_task_update도 차단
-- Lead: 프롬프트 수준 제한 ("대규모 작업 시 에이전트에게 위임")
+- Lead: CLAUDE.md Agent Routing 테이블 기반 위임
 
 ### Memory 자동 기록
 

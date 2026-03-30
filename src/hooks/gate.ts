@@ -70,7 +70,7 @@ function handleClaudeMdSync(): string | null {
           mkdirSync(notifiedDir, { recursive: true });
         }
         writeFileSync(notifiedFlag, '');
-        return '[NEXUS] 프로젝트 CLAUDE.md의 Nexus 섹션이 최신 버전과 다릅니다. /claude-nexus:nx-sync로 갱신하세요.';
+        return '<nexus>Project CLAUDE.md Nexus section is out of date. Run /claude-nexus:nx-sync to update.</nexus>';
       }
     } else if (projectMarker !== null && projectMarker === template) {
       // Up to date — reset flag
@@ -95,7 +95,7 @@ function handleStop(): void {
   if (summary.pending > 0) {
     respond({
       continue: true,
-      additionalContext: `[NEXUS] ${summary.pending} tasks pending in tasks.json. Before stopping:\n1. Review each pending task — verify if work is actually done.\n2. Done → nx_task_update(id, "completed").\n3. Not done → complete the work first.\n4. When all completed → nx_task_close to archive.`,
+      additionalContext: `<nexus>${summary.pending} tasks pending in tasks.json. Before stopping:\n1. Review each pending task — verify if work is actually done.\n2. Done → nx_task_update(id, "completed").\n3. Not done → complete the work first.\n4. When all completed → nx_task_close to archive.</nexus>`,
     });
     return;
   }
@@ -103,7 +103,7 @@ function handleStop(): void {
   // all completed → nx_task_close 강제 호출
   respond({
     continue: true,
-    additionalContext: `[NEXUS] All ${summary.total} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks → history.json) before finishing.`,
+    additionalContext: `<nexus>All ${summary.total} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks → history.json) before finishing.</nexus>`,
   });
 }
 
@@ -144,7 +144,7 @@ function handlePreToolUse(event: Record<string, unknown>): void {
       if (count >= 5) {
         respond({
           decision: 'block',
-          reason: `[NEXUS] Circuit breaker: task "${taskId}" has been reopened ${count} times. BLOCKED. Report to Lead via SendMessage: describe the task, blocking issue, and attempts made.`,
+          reason: `<nexus>Circuit breaker: task "${taskId}" has been reopened ${count} times. BLOCKED. Report to Lead via SendMessage: describe the task, blocking issue, and attempts made.</nexus>`,
         });
         return;
       }
@@ -152,7 +152,7 @@ function handlePreToolUse(event: Record<string, unknown>): void {
       if (count >= 3) {
         respond({
           decision: 'approve',
-          additionalContext: `[NEXUS] Warning: task "${taskId}" has been reopened ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing.`,
+          additionalContext: `<nexus>Warning: task "${taskId}" has been reopened ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing.</nexus>`,
         });
         return;
       }
@@ -205,7 +205,7 @@ function handlePreToolUse(event: Record<string, unknown>): void {
       if (!summary.exists) {
         respond({
           decision: 'block',
-          reason: '[NEXUS] No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: consult → decisions → tasks → execute.',
+          reason: '<nexus>No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: consult → decisions → tasks → execute.</nexus>',
         });
         return;
       }
@@ -213,7 +213,7 @@ function handlePreToolUse(event: Record<string, unknown>): void {
       if (summary.allCompleted || summary.total === 0) {
         respond({
           decision: 'block',
-          reason: '[NEXUS] All tasks completed. Call nx_task_close to archive this cycle.',
+          reason: '<nexus>All tasks completed. Call nx_task_close to archive this cycle.</nexus>',
         });
         return;
       }
@@ -232,7 +232,7 @@ function handlePreToolUse(event: Record<string, unknown>): void {
       if (count >= 5) {
         respond({
           decision: 'block',
-          reason: `[NEXUS] Loop detected: "${filePath}" has been modified ${count} times. BLOCKED. Report to Lead via SendMessage: describe the file, error pattern, and approaches tried. Wait for Lead or Architect guidance before continuing.`,
+          reason: `<nexus>Loop detected: "${filePath}" has been modified ${count} times. BLOCKED. Report to Lead via SendMessage: describe the file, error pattern, and approaches tried. Wait for Lead or Architect guidance before continuing.</nexus>`,
         });
         return;
       }
@@ -240,7 +240,7 @@ function handlePreToolUse(event: Record<string, unknown>): void {
       if (count >= 3) {
         respond({
           decision: 'approve',
-          additionalContext: `[NEXUS] Warning: "${filePath}" has been modified ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing. Describe what you're trying to fix and why previous attempts failed.`,
+          additionalContext: `<nexus>Warning: "${filePath}" has been modified ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing. Describe what you're trying to fix and why previous attempts failed.</nexus>`,
         });
         return;
       }
@@ -330,9 +330,9 @@ function getTasksReminder(): string | null {
   const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) return null;
   if (summary.pending > 0) {
-    return `[NEXUS] ${summary.pending} pending tasks. Complete work → nx_task_update(id, "completed") for each done task. Archive with nx_task_close when all complete.`;
+    return `<nexus>${summary.pending} pending tasks. Complete work → nx_task_update(id, "completed") for each done task. Archive with nx_task_close when all complete.</nexus>`;
   }
-  return `[NEXUS] All ${summary.total} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.`;
+  return `<nexus>All ${summary.total} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.</nexus>`;
 }
 
 function getConsultReminder(): string | null {
@@ -348,7 +348,7 @@ function getConsultReminder(): string | null {
       : pending.length > 0
         ? `Next: #${pending[0].id} "${pending[0].title}"`
         : 'All issues decided.';
-    return `[NEXUS] Consult: "${data.topic}" | ${current} | ${pending.length} pending\nPresent comparison table with pros/cons/recommendation. Record decisions with [d].`;
+    return `<nexus>Consult: "${data.topic}" | ${current} | ${pending.length} pending\nPresent comparison table with pros/cons/recommendation. Record decisions with [d].</nexus>`;
   } catch {
     return null;
   }
@@ -374,15 +374,15 @@ function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }: {
   ruleTags: string[] | null;
 }): void {
   const tagInfo = ruleTags
-    ? `Tags: [${ruleTags.join(', ')}] — 규칙 파일 상단에 <!-- tags: ${ruleTags.join(', ')} --> 형식으로 포함.`
-    : 'Tags: 없음 — 규칙 내용에 맞는 적절한 태그를 판단하여 추가.';
+    ? `Tags: [${ruleTags.join(', ')}] — include at top of rule file as <!-- tags: ${ruleTags.join(', ')} -->.`
+    : 'Tags: none — infer appropriate tags from rule content and add them.';
 
-  const base = `[NEXUS] Rule mode — 사용자 지시를 프로젝트 규칙으로 저장.
+  const base = `<nexus>Rule mode — saving user instruction as a project rule.
 ${tagInfo}
-1. 사용자 메시지에서 규칙 내용 추출/정리.
-2. nx_rules_write(name, content)로 .nexus/rules/{name}.md에 저장.
-규칙은 git-tracked이며 nx_briefing의 hint 태그 필터링으로 에이전트에게 자동 전달됩니다.
-Task pipeline 불필요 — 직접 저장하세요.`;
+1. Extract and clean up rule content from the user message.
+2. Save to .nexus/rules/{name}.md via nx_rules_write(name, content).
+Rules are git-tracked and auto-delivered to agents via nx_briefing hint tag filtering.
+Task pipeline not required — save directly.</nexus>`;
 
   respond({
     continue: true,
@@ -395,15 +395,15 @@ function handleConsultMode({ tasksReminder, claudeMdNotice }: Parameters<Primiti
   const hasExistingSession = existsSync(consultFile);
   let base: string;
   if (hasExistingSession) {
-    base = `[NEXUS] Consult mode — 기존 세션 발견.
-STEP 1: nx_consult_status로 현재 상태 확인.
-STEP 2: Explore+researcher 병렬 스폰하여 코드+외부 추가 탐색.
-STEP 3: 조사 결과 바탕으로 논의 진행. 조사 완료 전 금지.`;
+    base = `<nexus>Consult mode — existing session found.
+STEP 1: Check current status with nx_consult_status.
+STEP 2: Spawn Explore+researcher in parallel for additional code+external research.
+STEP 3: Proceed with discussion based on research results. Do not discuss before research is complete.</nexus>`;
   } else {
-    base = `[NEXUS] Consult mode.
-STEP 1: researcher 스폰하여 코드+외부 탐색. Explore agent로 코드베이스 탐색 병행.
-STEP 2: 조사 결과 바탕으로 nx_consult_start 호출하여 이슈 정리.
-조사 완료 전 nx_consult_start 호출 금지.`;
+    base = `<nexus>Consult mode.
+STEP 1: Spawn researcher for code+external research. Run Explore agent in parallel for codebase exploration.
+STEP 2: Call nx_consult_start with findings to organize issues.
+Do not call nx_consult_start before research is complete.</nexus>`;
   }
   respond({
     continue: true,
@@ -413,9 +413,9 @@ STEP 2: 조사 결과 바탕으로 nx_consult_start 호출하여 이슈 정리.
 
 function handleRunMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
   const consultReminder = getConsultReminder();
-  const base = `[NEXUS] Run mode — full pipeline execution requested.
+  const base = `<nexus>Run mode — full pipeline execution requested.
 MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
-Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.`;
+Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.</nexus>`;
   respond({
     continue: true,
     additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, consultReminder),
@@ -444,12 +444,12 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     if (existsSync(consultFile)) {
       respond({
         continue: true,
-        additionalContext: withNotices(`[NEXUS] Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record — updates consult.json + decisions.json simultaneously.${postDecisionRules}`, tasksReminder, claudeMdNotice, consultReminder),
+        additionalContext: withNotices(`<nexus>Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record — updates consult.json + decisions.json simultaneously.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, consultReminder),
       });
     } else {
       respond({
         continue: true,
-        additionalContext: withNotices(`[NEXUS] Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}`, tasksReminder, claudeMdNotice, null),
+        additionalContext: withNotices(`<nexus>Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, null),
       });
     }
     return;
@@ -482,7 +482,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
 
     respond({
       continue: true,
-      additionalContext: withNotices(taskPipelineMessage(`[NEXUS] No active tasks.${branchGuard}`), null, claudeMdNotice, consultReminder),
+      additionalContext: withNotices(taskPipelineMessage(`<nexus>No active tasks.${branchGuard}</nexus>`), null, claudeMdNotice, consultReminder),
     });
     return;
   }
@@ -491,7 +491,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   if (summary.pending > 0) {
     respond({
       continue: true,
-      additionalContext: withNotices(`[NEXUS] Existing tasks detected (${summary.pending} pending). Smart resume: Review existing tasks with nx_task_list. For each pending task: verify if already implemented/documented. If stale → nx_task_close + fresh nx_task_add. If genuine → continue execution.`, tasksReminder, claudeMdNotice, consultReminder),
+      additionalContext: withNotices(`<nexus>Existing tasks detected (${summary.pending} pending). Smart resume: Review existing tasks with nx_task_list. For each pending task: verify if already implemented/documented. If stale → nx_task_close + fresh nx_task_add. If genuine → continue execution.</nexus>`, tasksReminder, claudeMdNotice, consultReminder),
     });
     return;
   }
@@ -499,7 +499,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   // tasks.json 있음 + all completed → stale cycle 감지
   respond({
     continue: true,
-    additionalContext: withNotices(`[NEXUS] Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.`, tasksReminder, claudeMdNotice, consultReminder),
+    additionalContext: withNotices(`<nexus>Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.</nexus>`, tasksReminder, claudeMdNotice, consultReminder),
   });
 }
 
@@ -511,7 +511,7 @@ function handleSessionStart(_event: Record<string, unknown>): void {
 
   respond({
     continue: true,
-    additionalContext: '[NEXUS] Session started.',
+    additionalContext: '<nexus>Session started.</nexus>',
   });
 }
 

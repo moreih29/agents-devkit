@@ -15,7 +15,7 @@ Nexus는 사용자의 오케스트레이션 인프라다. 에이전트 카탈로
 
 ### 3. Intent Discovery on Demand
 
-[consult] 태그 시에만 의도 발굴 모드로 진입한다. 코드베이스와 knowledge를 먼저 탐색하고, 그 근거 위에서 사용자에게 질문한다.
+[consult] 태그 시에만 의도 발굴 모드로 진입한다. 조사를 먼저 수행하고, 그 근거 위에서 사용자에게 질문한다.
 
 ### 4. User-Directed Composition
 
