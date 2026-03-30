@@ -6,6 +6,7 @@ task: "Architecture, technical design, code review"
 maxTurns: 20
 disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_task_add, mcp__plugin_claude-nexus_nx__nx_task_update]
 tags: [architecture, design, review, technical]
+alias_ko: 아키텍트
 ---
 
 <Role>

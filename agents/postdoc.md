@@ -6,6 +6,7 @@ task: "Research methodology, evidence synthesis"
 maxTurns: 25
 disallowedTools: [Edit, Bash, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_task_add, mcp__plugin_claude-nexus_nx__nx_task_update]
 tags: [research, synthesis, methodology]
+alias_ko: 포닥
 ---
 
 <Role>

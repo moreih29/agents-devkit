@@ -6,6 +6,7 @@ task: "UI/UX design, interaction patterns, user experience"
 maxTurns: 25
 disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_task_add, mcp__plugin_claude-nexus_nx__nx_task_update]
 tags: [design, ux, ui, interaction, experience]
+alias_ko: 디자이너
 ---
 
 <Role>

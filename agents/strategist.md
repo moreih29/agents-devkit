@@ -6,6 +6,7 @@ task: "Business strategy, market analysis, competitive positioning"
 maxTurns: 25
 disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_task_add, mcp__plugin_claude-nexus_nx__nx_task_update]
 tags: [strategy, business, market, competitive, positioning]
+alias_ko: 전략가
 ---
 
 <Role>

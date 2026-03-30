@@ -1,161 +1,75 @@
 ---
 name: nx-run
-description: Execution — dynamic agent composition based on goal.
+description: Execution — user-directed agent composition.
 trigger_display: "nx-run"
-purpose: "Execution — dynamic agent composition based on goal"
+purpose: "Execution — user-directed agent composition"
 triggers: ["실행", "개발", "구현", "연구", "조사"]
 ---
 # Run
 
-Lead가 의도를 정리하고 How agent와 직접 협업하여 팀을 구성한다.
+사용자의 [run] 태그 호출 시 Lead가 따라야 할 실행 규범.
 
 ---
 
-## Lead 직접 실행 조건
+## 기본 동작
 
-다음 3조건을 **모두** 충족할 때만 Lead가 직접 실행한다. 하나라도 불충족 시 Phase 2로.
-
-1. 사용자가 정확한 변경 지시를 했다 (명확한 위치 + 내용)
-2. 단일 파일 수정으로 완결된다
-3. 코드 구조 이해가 불필요하다 (오타, 린트 에러, 상수 변경 등)
-
-**직접 실행 금지 사례** (하나라도 해당 시 반드시 Phase 2):
-- "안된다", "버그", "에러" 등 문제 보고 — 원인 진단이 필요하므로 조건 1,3 불충족
-- 수정 대상 파일 미지정 — 코드 탐색이 필요하므로 조건 1 불충족
-- "왜 이래?", "뭐가 문제야?" 등 원인 불명 — 조사가 필요하므로 조건 3 불충족
-- Lead가 직접 시도 후 실패 — 즉시 How agent 에스컬레이션 (재시도 금지)
+- **사용자가 에이전트/방향을 지시** → 지시에 따른다.
+- **[run]만 (추가 지시 없음)** → 사용자에게 방향 확인 후 진행.
+- 사용자가 범위와 구성을 결정한다. 지시 없는 영역은 Lead가 보충.
 
 ---
 
 ## Flow
 
-### Phase 1: Intake (Lead)
+### Step 1: Intake (Lead)
 
-- 사용자 요청 의도 정리
-- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치를 생성하고 진행 (prefix: `feat/`, `fix/`, `chore/`, `research/` 등 Lead 판단). 사용자 확인 없이 자동 생성.
+- 사용자 요청 의도 정리 + 방향 확인 (필요 시)
+- **Branch Guard**: main/master 브랜치면 작업 성격에 맞는 브랜치 생성 후 진행 (prefix: `feat/`, `fix/`, `chore/`, `research/` 등 Lead 판단). 사용자 확인 없이 자동 생성.
 - decisions.json이 있으면 `nx_context`로 기존 결정 사항 확인.
-- 팀 rules는 `nx_briefing(hint)` 호출 시 자동 포함 (hint 태그 필터링). Lead가 별도 확인 불필요.
-- **3조건 충족 시**: `nx_task_add` → Edit → `nx_task_close` → 사용자에게 결과 보고. Phase 2 생략.
-- **그 외**: Phase 2로.
+- 팀 rules는 `nx_briefing(hint)` 호출 시 자동 포함 (hint 태그 필터링).
 
-### Phase 2: Design (Lead + How agent)
+### Step 2: Execute (Do agents)
 
-- How agent 결정 (Lead 판단):
-  - 코드 변경이 주 산출물 → **Architect**
-  - 콘텐츠/문서 생성이 주 산출물 → **Strategist** 또는 **Postdoc**
-  - 혼합 → 둘 다
-- Lead가 `nx_briefing(role, hint?)` 호출 → How agent briefing 수집
-- 팀 구성:
+- 사용자 지시에 따라 에이전트를 구성. 지시가 없는 영역은 Lead가 보충.
+- `nx_task_add`로 태스크 확정 → Do agent 스폰 (`nx_briefing(role, hint?)` 호출하여 briefing 포함)
+- 독립 태스크(deps 없음)의 수정 대상 파일이 겹치지 않으면 병렬 Engineer 스폰. 겹치면 순차 처리.
 
-```
-TeamCreate({ team_name: "<project>", description: "..." })
-// 코드 파이프라인 — How:
-Agent({ subagent_type: "claude-nexus:architect", name: "architect", team_name: "<project>",
-  prompt: "코드/기술 현황 분석 → How 관점 정리. Lead와 SendMessage로 토론 후 합의. 브리핑: {briefing}" })
-// 콘텐츠 파이프라인 — How:
-Agent({ subagent_type: "claude-nexus:strategist", name: "strategist", team_name: "<project>",
-  prompt: "콘텐츠 전략/방향 분석 → How 관점 정리. Lead와 SendMessage로 토론 후 합의. 브리핑: {briefing}" })
-// 리서치 기반:
-Agent({ subagent_type: "claude-nexus:postdoc", name: "postdoc", team_name: "<project>",
-  prompt: "조사 방법론/소스 현황 분석 → How 관점 정리. Lead와 SendMessage로 토론 후 합의. 브리핑: {briefing}" })
-```
+### Step 3: Verify (Lead + Check agent)
 
-- Lead + How agent: SendMessage로 토론 → 합의
-- Lead가 `nx_task_add()`로 태스크 확정
-- Lead가 에이전트 구성 결정 + 태스크 목록 확인
-
-Gate Stop이 tasks.json 감시 → 등록 즉시 nonstop 시작.
-
-### Phase 3: Execute (Do agent)
-
-- Lead가 판단한 Do agent 스폰 (`nx_briefing(role, hint?)` 호출하여 briefing 포함)
-
-```
-// 코드 파이프라인 — Do:
-Agent({ subagent_type: "claude-nexus:engineer", name: "engineer-1", team_name: "<project>",
-  prompt: "태스크 T1 구현. nx_task_update(in_progress) 착수, 완료 후 nx_task_update(completed) 호출. 코드 수정에 집중. Lead에게 SendMessage 보고. 기술 문제는 architect에게 에스컬레이션. 브리핑: {briefing}" })
-
-// 콘텐츠 파이프라인 — Do:
-Agent({ subagent_type: "claude-nexus:researcher", name: "researcher-1", team_name: "<project>",
-  prompt: "태스크 T1 조사. nx_task_update(in_progress) 착수, 완료 후 nx_task_update(completed) 호출. reference/에 결과를 즉시 기록하고 Lead에게 SendMessage 보고. 방법론 문제는 postdoc에게 에스컬레이션. 브리핑: {briefing}" })
-Agent({ subagent_type: "claude-nexus:writer", name: "writer-1", team_name: "<project>",
-  prompt: "태스크 T2 작성. researcher 결과 기반으로 콘텐츠 작성. 완료 후 Lead에게 SendMessage 보고. 브리핑: {briefing}" })
-```
-
-**병렬화 규칙**: 독립 태스크(deps 없음)의 수정 대상 파일이 겹치지 않으면 병렬 Engineer 스폰. 겹치면 순차 처리.
-
-- Do agent → Lead에게 완료 보고
-- Lead: 인메모리 세션 내 학습 — 같은 실수 반복 방지, 패턴 누적
-- Phase 4로 진입
-
-### Phase 4: Check (Lead + Check agent)
-
-**QA 역할 분리**:
-- Lead: 빌드+E2E 확인 (사실 확인 — 통과/실패 여부만 판단)
-- QA/Reviewer: 품질/의도 정합성/엣지 케이스/보안 검증 (분석 — Check agent 조건 충족 시 스폰)
-- 파일 3개 이상 변경 시: Lead 빌드 확인 후 QA 스폰 필수. Lead가 직접 검증으로 QA 대체 금지.
-
-Check agent 자동 스폰 조건 (Lead 재량 + 4조건 중 하나라도 해당):
+- Lead: 빌드+E2E 확인 (통과/실패 여부만 판단)
+- QA/Reviewer: 품질/의도 정합성/엣지 케이스/보안 검증 (Check agent 조건 충족 시 스폰)
+- Check agent 스폰 조건 (하나라도 해당):
   - 변경 파일 3개 이상
   - 기존 테스트 파일 수정
   - 외부 API/DB 접근 코드 변경
   - memory에 해당 영역 실패 이력 존재
+- 문제 발견 시: 코드 문제 → Do agent 재작업, 설계 문제 → How agent 재설계
 
-```
-// 코드 파이프라인 — Check:
-Agent({ subagent_type: "claude-nexus:qa", name: "qa", team_name: "<project>",
-  prompt: "태스크별 검증. 문제 발견 시 Lead에게 SendMessage 보고. 브리핑: {briefing}" })
+### Step 4: Complete
 
-// 콘텐츠 파이프라인 — Check:
-Agent({ subagent_type: "claude-nexus:reviewer", name: "reviewer", team_name: "<project>",
-  prompt: "콘텐츠 검토 및 품질 검증. 문제 발견 시 Lead에게 SendMessage 보고. 브리핑: {briefing}" })
-```
-
-**되돌림 흐름** (QA/Reviewer 보고 기반 — Lead가 판단):
-- **코드 문제** (버그, 구현 오류) → Phase 3으로: Do agent 재작업 (`nx_task_update`로 재오픈)
-- **설계 문제** (구조적 결함, 방향 오류) → Phase 2로: How agent 재설계 (합의 재개)
-- 문제 없음 → Phase 5로
-
-### Phase 5: Document (Lead + Writer)
-
-**Phase 4 통과 후에만 진입.**
-
-- Lead가 변경점 매니페스트 정리:
-  - 어떤 결정이 내려졌는가 (decisions 참조)
-  - 어떤 코드/콘텐츠가 변경되었는가 (태스크 결과 참조)
-- Lead가 갱신이 필요한 knowledge 계층 판단:
-  - `identity/` — 프로젝트 정체성/목적 변경 시
-  - `codebase/` — 코드 구조/아키텍처 변경 시
-  - `reference/` — 외부 참조/리서치 결과 추가 시
-  - `memory/` — 교훈/패턴 기록 대상 시 (memoryHint 기준)
-- Lead가 **Phase 5 태스크 등록 (의무)**: `nx_task_add`로 Writer 태스크 명시
-- 필요한 계층에 Writer를 병렬 스폰:
-
-```
-// 코어 계층 갱신 — Writer:
-Agent({ subagent_type: "claude-nexus:writer", name: "writer-doc", team_name: "<project>",
-  prompt: "변경점 매니페스트 기반으로 {계층}/ knowledge 갱신. nx_core_read로 현재 내용 확인 후 nx_core_write로 업데이트. 완료 후 Lead에게 SendMessage 보고. 매니페스트: {manifest}" })
-```
-
-- **교훈 추출** (Lead 판단 — Writer에게 위임 또는 Lead 직접):
-  - memoryHint의 taskCount ≥ 3, hadLoopDetection, 또는 decisionCount ≥ 2 → 교훈 기록 대상
-  - 기준: "이 정보가 없으면 같은 실수를 반복할 것인가?"
-  - 기록: `nx_core_write(layer: "memory", topic: "{영역}", tags: [...])` 로 교훈 append
-  - 형식: `## {날짜} — {주제}\n- 교훈 항목`
-  - 해당하지 않으면 → 생략 (사소한 작업에 교훈 남기지 않음)
-- Writer 완료 보고 → Phase 6으로
-
-### Phase 6: Complete
-
+- Phase 5(Document) 필요 시: Writer 스폰하여 knowledge 갱신
 - `nx_task_close` 호출 → history.json 아카이브. 반환값의 `memoryHint` 확인.
 - Do/Check/Writer(doc) 에이전트 개별 shutdown (How agents는 세션 수명 — 유지)
 - 사용자에게 최종 결과 보고
 
 ---
 
+## 참고 프레임워크
+
+| Phase | 담당 | 내용 |
+|-------|------|------|
+| 1. Intake | Lead | 의도 정리, Branch Guard, context 확인 |
+| 2. Design | Lead + How agent | 구조 설계, 합의, 태스크 확정 |
+| 3. Execute | Do agent | 구현/조사/작성 |
+| 4. Check | Lead + Check agent | 빌드 확인, 품질 검증 |
+| 5. Document | Lead + Writer | knowledge 갱신, 교훈 기록 |
+| 6. Complete | Lead | nx_task_close, 에이전트 shutdown, 보고 |
+
+---
+
 ## Dynamic Composition
 
-Lead 판단으로 에이전트를 구성한다. 도메인 고정 조합이 아닌 목표 기반 자유 구성.
+사용자 지시에 따라 에이전트를 구성. 지시가 없는 영역은 Lead가 보충.
 
 ### 에이전트 카탈로그
 
@@ -224,8 +138,8 @@ ACCEPTANCE:
 
 ## Key Principles
 
-1. **Lead = 의도 정리 + 조율 + 사용자 소통 + nx_briefing 호출 + 태스크 소유** — 사실 확인 허용, 분석/판단은 위임
-2. **How agents = 자문** — Lead가 목표에 따라 선택. 상한 4명. 세션 수명.
+1. **Lead = 사용자 지시 해석 + 조율 + 소통 + 태스크 소유**
+2. **사용자가 범위와 구성을 결정**
 3. **Do agents = 실행** — Lead가 결정. Engineer는 코드 수정에 집중. 문서 갱신은 Phase 5에서 Writer가 일괄 수행. Researcher는 reference/ 즉시 기록.
 4. **Check agents = 검증** — Lead 재량 + 4조건
 5. **Teammate 재활용 우선** — idle에 SendMessage 배정 먼저
@@ -260,21 +174,21 @@ ACCEPTANCE:
 ## Teammate 스폰 예시
 
 ```
-// Phase 2: 팀 생성 + How agent 스폰
+// Step 2: 팀 생성 + How agent 스폰 (필요 시)
 TeamCreate({ team_name: "<project>", description: "..." })
 Agent({ subagent_type: "claude-nexus:architect", name: "architect", team_name: "<project>", prompt: "..." })
 
-// Phase 3: Lead↔How agent 토론 후 태스크 확정, Do agent 합류
+// Step 2: Lead↔How agent 토론 후 태스크 확정, Do agent 합류
 Agent({ subagent_type: "claude-nexus:engineer", name: "engineer-1", team_name: "<project>", prompt: "..." })
 
-// Phase 4: 조건 충족 시 Check agent 합류
+// Step 3: 조건 충족 시 Check agent 합류
 Agent({ subagent_type: "claude-nexus:qa", name: "qa", team_name: "<project>", prompt: "..." })
-// 문제 발견 시: 코드 문제 → Phase 3 재진입, 설계 문제 → Phase 2 재진입
+// 문제 발견 시: 코드 문제 → Do agent 재작업, 설계 문제 → How agent 재설계
 
-// Phase 5: Check 통과 후 Writer 스폰 (필요한 계층만)
+// Step 4: Check 통과 후 Writer 스폰 (필요한 계층만)
 Agent({ subagent_type: "claude-nexus:writer", name: "writer-doc", team_name: "<project>", prompt: "..." })
 
-// Phase 6: Do/Check/Writer(doc) 퇴장 (How agents는 세션 수명)
+// Step 4: Do/Check/Writer(doc) 퇴장 (How agents는 세션 수명)
 SendMessage({ to: "engineer-1", message: { type: "shutdown_request", reason: "태스크 완료" } })
 SendMessage({ to: "qa", message: { type: "shutdown_request", reason: "태스크 완료" } })
 SendMessage({ to: "writer-doc", message: { type: "shutdown_request", reason: "문서화 완료" } })

@@ -6,6 +6,7 @@ task: "Testing, verification, security review"
 maxTurns: 20
 disallowedTools: [mcp__plugin_claude-nexus_nx__nx_task_add]
 tags: [verification, testing, security, quality]
+alias_ko: QA
 ---
 
 <Role>

@@ -6,6 +6,7 @@ task: "Code implementation, edits, debugging"
 maxTurns: 25
 disallowedTools: [mcp__plugin_claude-nexus_nx__nx_task_add]
 tags: [implementation, coding, debugging]
+alias_ko: 엔지니어
 ---
 
 <Role>

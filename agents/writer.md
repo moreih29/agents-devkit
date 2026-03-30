@@ -6,6 +6,7 @@ task: "Technical writing, documentation, presentations"
 maxTurns: 25
 disallowedTools: [mcp__plugin_claude-nexus_nx__nx_task_add]
 tags: [writing, documentation, communication, presentation]
+alias_ko: 라이터
 ---
 
 <Role>

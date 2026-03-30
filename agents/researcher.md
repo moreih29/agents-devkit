@@ -6,6 +6,7 @@ task: "Web search, independent investigation"
 maxTurns: 20
 disallowedTools: [mcp__plugin_claude-nexus_nx__nx_task_add]
 tags: [research, investigation, web-search, analysis]
+alias_ko: 리서처
 ---
 
 <Role>

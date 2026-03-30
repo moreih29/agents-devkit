@@ -17,17 +17,17 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 
 병렬 작업이나 다른 관점이 필요할 때 에이전트를 활용하라.
 
-| Task | Agent |
-|------|-------|
-| Architecture, technical design, code review | architect |
-| UI/UX design, interaction patterns, user experience | designer |
-| Code implementation, edits, debugging | engineer |
-| Research methodology, evidence synthesis | postdoc |
-| Testing, verification, security review | qa |
-| Web search, independent investigation | researcher |
-| Content verification, fact-checking, grammar review | reviewer |
-| Business strategy, market analysis, competitive positioning | strategist |
-| Technical writing, documentation, presentations | writer |
+| 이름 | Task | Agent |
+|------|------|-------|
+| 아키텍트 | Architecture, technical design, code review | architect |
+| 디자이너 | UI/UX design, interaction patterns, user experience | designer |
+| 엔지니어 | Code implementation, edits, debugging | engineer |
+| 포닥 | Research methodology, evidence synthesis | postdoc |
+| QA | Testing, verification, security review | qa |
+| 리서처 | Web search, independent investigation | researcher |
+| 리뷰어 | Content verification, fact-checking, grammar review | reviewer |
+| 전략가 | Business strategy, market analysis, competitive positioning | strategist |
+| 라이터 | Technical writing, documentation, presentations | writer |
 
 단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.
 
@@ -37,7 +37,7 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 |-------|---------|---------|
 | nx-consult | [consult] | Interactive discovery — understand intent before executing |
 | nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish identity, generate knowledge |
-| nx-run | nx-run | Execution — dynamic agent composition based on goal |
+| nx-run | nx-run | Execution — user-directed agent composition |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
 
 ### Tags

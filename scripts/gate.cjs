@@ -471,25 +471,9 @@ After recording the decision:
   const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) {
     const branchGuard = /^(main|master)$/.test(getCurrentBranch()) ? "\nBranch Guard: You are on main/master. Create a feature branch before making changes." : "";
-    const BUG_FIX_PATTERN = /안\s*된다|안\s*돼|안\s*되|버그|에러|오류|수정해|고쳐|고장|fix\b|bug\b|error\b|broken|not\s+work/i;
-    const isBugFix = BUG_FIX_PATTERN.test(prompt);
-    let orchestrationHint;
-    if (isBugFix) {
-      orchestrationHint = `[NEXUS] Bug/fix request detected \u2014 investigation required.
-SOLO ROUTE FORBIDDEN: Lead must NOT attempt direct file modifications for bug/fix requests.
-1. Spawn How agent (Architect) to diagnose root cause.
-2. After diagnosis, register tasks via nx_task_add.
-3. Dispatch Do agent (Engineer) for implementation.
-Repeated solo attempts without diagnosis waste cycles. Escalate immediately.${branchGuard}`;
-    } else {
-      orchestrationHint = `[NEXUS] No active tasks. Refer to nx-run SKILL.md for orchestration guidance.
-- Direct execution only if ALL 3 conditions met: exact change instruction + single file + no code structure understanding needed.
-- Otherwise: spawn How agent (Architect/Postdoc/Strategist) for design consultation, then Do agents for execution.${branchGuard}
-IMPORTANT: For multi-file or complex tasks, Lead creates tasks via nx_task_add after consulting How agents. Spawn How agents first for design before dispatching Do agents.`;
-    }
     respond({
       continue: true,
-      additionalContext: withNotices(taskPipelineMessage(orchestrationHint), null, claudeMdNotice, consultReminder)
+      additionalContext: withNotices(taskPipelineMessage(`[NEXUS] No active tasks.${branchGuard}`), null, claudeMdNotice, consultReminder)
     });
     return;
   }
