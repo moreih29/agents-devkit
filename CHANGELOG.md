@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.17.0 (2026-03-30)
+
+### Features
+- nx-sync 스킬 신규 + nx-run Step 5 연동
+- [rule] 태그 추가 + consult allComplete 메시지 수정
+- Lead 단독 실행 제어 강화 + [run] 태그 + Bash 수정 금지
+- briefing rules hint 태그 필터링
+- Phase 6단계 재설계 + 코어 문서 갱신 체계 + 52개 stale 참조 해소
+- 전 에이전트 Evidence Requirement + Lead 조율 규칙
+- 상태파일 관리 개선 + Director 제거
+- 구조 재설계 Phase 5 — 10개 에이전트, 기본 오케스트레이션, 하네스 강화
+- 하네스 강화 — 루프 감지 + 에스컬레이션 + Memory 자동 기록 (Phase 4)
+- 실행 개선 — Lead+Director 상시 팀, nx_briefing, 2단계 검증 (Phase 3)
+- 태그+스킬 통합 — [dev]/[research] → [do]/[do!], nx-do 단일 스킬 (Phase 2)
+- 에이전트 통합 — Director+Principal 병합 (7→6) (Phase 1b)
+- core/ 4계층 구조 도입 (Phase 1a)
+- consult 스킬 Intent-First 반영 (Phase 0 완료)
+
+### Refactoring
+- 스킬 명세 검토 결정사항 구현
+- 에이전트 프롬프트 정비 + category frontmatter
+- 컨텍스트 포맷 표준 적용 — 전 문서 영어화 + XML 섹션 태그 통일
+- 아이덴티티 재정의 — 자율 오케스트레이터 → 사용자 오케스트레이션 인프라
+- .nexus/ 폴더 단일화 + 내부 구조 재설계
+
+### Fixes
+- KeywordMatch primitive type union — add 'run'
+- gate.ts 프롬프트 검토 결정사항 — 트래커 삭제 + 메시지 정비
+- stale 상태 정리 — isNexusInternalPath 범위 축소 + consult_start 자동 아카이빙
+- ensureNexusStructure() SessionStart 호출 연결
+
+### Other
+- merge: phase-4/harness-reinforcement — 루프 감지 + Memory 자동 기록
+- merge: phase-3/execution-improvement — Lead+Director 상시 팀 + nx_briefing + 2단계 검증
+- merge: phase-2/tag-skill-unification — [do] 통합 + nx-do 단일 스킬
+- merge: phase-1b/agent-consolidation — Director+Principal 병합 (7→6)
+- merge: phase-1a/core-structure — core/ 4계층 구조 도입
+- merge: phase-0/consult-intent-first — Phase 0 완료
+- merge: roadmap — Nexus 재설계 철학/설계/로드맵 수립
+
 ## 0.16.0 (2026-03-26)
 
 ### Features
