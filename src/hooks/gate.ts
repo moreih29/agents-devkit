@@ -167,7 +167,7 @@ function handlePreToolUse(event: Record<string, unknown>): void {
 // --- UserPromptSubmit 이벤트 처리: 키워드 감지 ---
 
 interface KeywordMatch {
-  primitive: 'consult';
+  primitive: 'consult' | 'run';
   skill: string;
 }
 
