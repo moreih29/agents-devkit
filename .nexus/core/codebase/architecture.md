@@ -7,7 +7,7 @@ Claude Code plugin. Three runtime entry points are bundled by esbuild.
 
 | Entry Point | Source | Build Output | Role |
 |-------------|--------|--------------|------|
-| MCP Server | `src/mcp/server.ts` | `bridge/mcp-server.cjs` | Tool provision (core, rules, task, decision, consult, branch, LSP, AST) |
+| MCP Server | `src/mcp/server.ts` | `bridge/mcp-server.cjs` | Tool provision (core, rules, context, task, decision, artifact, consult, briefing, LSP, AST) |
 | Gate Hook | `src/hooks/gate.ts` | `scripts/gate.cjs` | Event handling (Stop, PreToolUse, UserPromptSubmit, SessionStart, SubagentStart/Stop) + CLAUDE.md auto-sync |
 | Statusline | `src/statusline/statusline.ts` | `scripts/statusline.cjs` | Status bar (model, branch, usage) |
 

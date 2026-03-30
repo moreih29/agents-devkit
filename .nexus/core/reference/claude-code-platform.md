@@ -1,79 +1,79 @@
 <!-- tags: claude-code, hooks, events, platform, team, agent, skills -->
 <!-- tags: claude-code, hooks, events, platform, team, agent, skills -->
-# Claude Code 플랫폼 레퍼런스
+# Claude Code Platform Reference
 
-조사일: 2026-03-29. 출처: code.claude.com/docs, GitHub Issues.
+Research date: 2026-03-29. Sources: code.claude.com/docs, GitHub Issues.
 
-## 훅 이벤트 (25개)
+## Hook Events (25 total)
 
-| 이벤트 | 설명 | Nexus 활용 |
-|--------|------|-----------|
-| PreToolUse | 도구 실행 전. matcher로 도구명 필터 | **사용 중** (Edit/Write/Agent/nx_task_update/nx_task_close) |
-| PostToolUse | 도구 실행 후. 결과 분석 가능 | 미사용 |
-| Stop | 세션 종료 시도 | **사용 중** |
-| UserPromptSubmit | 사용자 프롬프트 제출 | **사용 중** |
-| SessionStart | 세션 시작/resume | **사용 중** (Director 스폰) |
-| SessionEnd | 세션 종료 | 미사용 |
-| SubagentStart | 에이전트 스폰 시 | **사용 중** (에이전트 추적) |
-| SubagentStop | 에이전트 종료 시 | **사용 중** (실패 추적) |
-| PreCompact | 컨텍스트 압축 전 | 미사용 |
-| PostCompact | 컨텍스트 압축 후 | 미사용 |
-| TeammateIdle | 팀원 idle 전환 직전 | 미사용 |
-| TaskCreated | TaskCreate 태스크 생성 | 미사용 (Claude Code 네이티브 태스크) |
-| TaskCompleted | TaskCreate 태스크 완료 | 미사용 |
-| InstructionsLoaded | CLAUDE.md 로드 시 | 미사용 |
-| StopFailure | API 에러 구분 매처 지원 | 미사용 |
-| WorktreeCreate | 워크트리 생성 | 미사용 |
-| WorktreeRemove | 워크트리 삭제 | 미사용 |
-| Elicitation | MCP 서버 사용자 입력 | 미사용 |
-| ElicitationResult | MCP 사용자 입력 결과 | 미사용 |
+| Event | Description | Nexus usage |
+|-------|-------------|-------------|
+| PreToolUse | Before tool execution. Filter by tool name via matcher | **In use** (Edit/Write/Agent/nx_task_update/nx_task_close) |
+| PostToolUse | After tool execution. Result analysis possible | Not used |
+| Stop | Session stop attempt | **In use** |
+| UserPromptSubmit | User prompt submission | **In use** |
+| SessionStart | Session start/resume | **In use** (Lead session initialization) |
+| SessionEnd | Session end | Not used |
+| SubagentStart | When agent is spawned | **In use** (agent tracking) |
+| SubagentStop | When agent exits | **In use** (failure tracking) |
+| PreCompact | Before context compaction | Not used |
+| PostCompact | After context compaction | Not used |
+| TeammateIdle | Just before teammate goes idle | Not used |
+| TaskCreated | TaskCreate task created | Not used (Claude Code native task) |
+| TaskCompleted | TaskCreate task completed | Not used |
+| InstructionsLoaded | When CLAUDE.md is loaded | Not used |
+| StopFailure | API error distinction matcher supported | Not used |
+| WorktreeCreate | Worktree created | Not used |
+| WorktreeRemove | Worktree removed | Not used |
+| Elicitation | MCP server user input | Not used |
+| ElicitationResult | MCP user input result | Not used |
 
-## SubagentStart/Stop 이벤트 데이터
+## SubagentStart/Stop Event Data
 
-**SubagentStart**: `agent_id`, `agent_type` (plugin:agent 형식), `session_id`, `transcript_path`, `cwd`, `permission_mode`
+**SubagentStart**: `agent_id`, `agent_type` (plugin:agent format), `session_id`, `transcript_path`, `cwd`, `permission_mode`
 
-**SubagentStop**: 위 + `agent_transcript_path`, `last_assistant_message`
+**SubagentStop**: above + `agent_transcript_path`, `last_assistant_message`
 
-matcher로 특정 에이전트 타입 필터 가능: `"matcher": "claude-nexus:engineer"`
+Filter by specific agent type using matcher: `"matcher": "claude-nexus:engineer"`
 
-## 팀원(Teammate) 도구 제한 — 플랫폼 수준
+## Teammate Tool Restrictions — Platform Level
 
-**팀원은 Agent, TeamCreate, TeamDelete 사용 불가.** 플랫폼 수준 제한.
+**Teammates cannot use Agent, TeamCreate, or TeamDelete.** Platform-level restriction.
 
-| 도구 | 독립 서브에이전트 | 팀원 |
-|------|----------------|------|
+| Tool | Standalone subagent | Teammate |
+|------|---------------------|----------|
 | Agent | ✓ | ✗ |
 | TeamCreate | ✓ | ✗ |
 | TeamDelete | ✓ | ✗ |
 | CronCreate/Delete/List | ✓ | ✗ |
 | SendMessage | ✗ | ✓ |
-| 기타 도구 (Edit, Bash 등) | ✓ | ✓ (disallowedTools 제외) |
+| Other tools (Edit, Bash, etc.) | ✓ | ✓ (except disallowedTools) |
 
-**예외**: `--teammate-mode tmux` 사용 시 Agent 접근 가능 (GitHub Issue #31977, 버그로 보고됨).
+**Exception**: Agent access is possible when using `--teammate-mode tmux` (GitHub Issue #31977, reported as a bug).
 
-## PreToolUse matcher 패턴
+## PreToolUse Matcher Patterns
 
-**regex 지원**. 파이프(`|`)로 OR 조합.
+**Regex supported**. Combine with pipe (`|`) for OR logic.
 
-- 내장 도구: `Edit`, `Write`, `Bash`, `Read`, `Glob`, `Grep`, `Agent`, `WebFetch`, `WebSearch` 등
-- **MCP 도구 매칭 가능**: `mcp__<server>__<tool>` 패턴
-  - 예: `mcp__plugin_claude-nexus_nx__nx_task_update`
-  - 와일드카드: `mcp__plugin_claude-nexus_nx__.*` (넥서스 전체 MCP 도구)
+- Built-in tools: `Edit`, `Write`, `Bash`, `Read`, `Glob`, `Grep`, `Agent`, `WebFetch`, `WebSearch`, etc.
+- **MCP tool matching supported**: `mcp__<server>__<tool>` pattern
+  - Example: `mcp__plugin_claude-nexus_nx__nx_task_update`
+  - Wildcard: `mcp__plugin_claude-nexus_nx__.*` (all Nexus MCP tools)
 
-## 스킬 frontmatter 공식 필드
+## Skill Frontmatter Official Fields
 
 `name`, `description`, `argument-hint`, `disable-model-invocation`, `user-invocable`, `allowed-tools`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell`
 
-**비표준 필드** (Nexus 자체 파싱용): `triggers`, `trigger_display`, `purpose` — generate-template.mjs에서 CLAUDE.md 생성용으로만 사용.
+**Non-standard fields** (parsed by Nexus internally): `triggers`, `trigger_display`, `purpose` — used only by generate-template.mjs for CLAUDE.md generation.
 
-**자동 로딩**: `disable-model-invocation` 미설정(기본) → Claude가 관련성 판단 시 자동 로드. `user-invocable: false` → 사용자 메뉴에서 숨김.
+**Auto-loading**: `disable-model-invocation` not set (default) → Claude auto-loads when it judges relevance. `user-invocable: false` → hidden from user menu.
 
-컨텍스트 예산: 스킬 설명은 컨텍스트 윈도우의 1% 예산, 항목당 250자 상한.
+Context budget: skill descriptions have a 1% budget of the context window, with a 250-character cap per entry.
 
-## 에이전트 frontmatter 공식 필드
+## Agent Frontmatter Official Fields
 
 `name`, `description`, `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, `isolation`
 
-**보안상 무시되는 필드** (플러그인 에이전트): `hooks`, `mcpServers`, `permissionMode`
+**Fields ignored for security reasons** (plugin agents): `hooks`, `mcpServers`, `permissionMode`
 
-에이전트 파일 수 제한: **없음** (명시적 제한 미발견).
+Agent file count limit: **None** (no explicit limit found).

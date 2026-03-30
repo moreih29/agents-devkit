@@ -1688,6 +1688,50 @@
           "created_at": "2026-03-30T09:04:49.521Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-30T09:19:05.334Z",
+      "branch": "main",
+      "consult": null,
+      "decisions": [],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "codebase/ 정확성 수정 (architecture.md, orchestration.md)",
+          "context": "architecture.md: tool provision list에서 branch 제거, artifact/briefing/context 추가. orchestration.md: 7 events→6, [rule] 태그 추가, tool provision 수정.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T09:16:15.524Z"
+        },
+        {
+          "id": 2,
+          "title": "reference/ 한국어→영어 (3개 잔여 파일)",
+          "context": "claude-code-platform.md (Director 스폰→Lead session init), claude-code-mcp-access-control.md, mcp-server-session-id-access.md. 전부 한국어→영어.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T09:16:17.304Z"
+        },
+        {
+          "id": 3,
+          "title": "memory/ 교훈 기록 — 이번 세션 핵심 학습",
+          "context": "자율 오케스트레이션 한계, HITL +71%, edit-tracker 실효성 부재, 프롬프트 제어 천장, 영어 프롬프트 토큰 절약, context-standard 수립 경위.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T09:16:18.972Z"
+        },
+        {
+          "id": 4,
+          "title": "identity/design.md \"Phase 6-step\" 잔재 수정",
+          "context": "design.md에 \"Phase 6-step pipeline redesign\" 잔재 → \"5-step pipeline\"으로 수정.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-03-30T09:16:20.410Z"
+        }
+      ]
     }
   ]
 }
