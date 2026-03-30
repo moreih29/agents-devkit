@@ -1844,6 +1844,41 @@
           "created_at": "2026-03-30T10:31:27.717Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-30T10:42:42.998Z",
+      "branch": "main",
+      "consult": null,
+      "decisions": [],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Translate mission.md Korean → English",
+          "context": "Translate /Users/kih/workspaces/areas/claude-nexus/.nexus/core/identity/mission.md from Korean to English, preserving structure and meaning.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "owner": "engineer"
+        },
+        {
+          "id": 2,
+          "title": "Update skill count in architecture.md (4→5, add nx-sync)",
+          "context": "Find '4 skills: nx-run, nx-consult, nx-init, nx-setup' and update to '5 skills: ..., nx-sync'.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "owner": "engineer"
+        },
+        {
+          "id": 3,
+          "title": "Update orchestration.md: skill count + tag regex",
+          "context": "a) Update '4 skills' → '5 skills' and add nx-sync row to skill catalog table. b) Update tag regex /\\[(consult)\\]/i → /\\[(consult|run)\\]/i.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "owner": "engineer"
+        }
+      ]
     }
   ]
 }

@@ -77,6 +77,6 @@ dev-sync.mjs (build output → plugin cache/marketplace sync, semver sort)
 - **agent-tracker**: Records to `.nexus/state/agent-tracker.json` on SubagentStart/Stop events. Initialized by SessionStart.
 - **Lead owns tasks**: 9 agents (How 4 + Do 3 + Check 2). Task ownership managed by Lead.
 - **gate.ts handler map**: handleUserPromptSubmit decomposed into PRIMITIVE_HANDLERS map-based dispatch. Separated into per-mode handler functions. TASK_PIPELINE unified as a shared constant for pipeline rules.
-- **Mode guidance via additionalContext only**: mode.json removed. [dev]/[research] tags provide guidance via UserPromptSubmit additionalContext. No hard block — pipeline enforcement is handled by the tasks.json PreToolUse block.
+- **Tag-based guidance via additionalContext**: Tags ([consult], [d], [run], [rule]) detected in UserPromptSubmit and routed to handlers. Pipeline enforcement is handled by the tasks.json PreToolUse block.
 - **core-store separation**: The core/ 4-layer uses 3-level navigation (layer→list→file), semantically distinct from markdown-store (2-level). Implemented as a separate core-store.ts module. Layer validated with z.enum (prevents path traversal).
 - **Code deduplication**: registerMarkdownStore factory for rules management, textResult() helper, readTasksSummary() utility, findProjectRoot/getCurrentBranch single export.
