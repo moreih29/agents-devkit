@@ -1517,6 +1517,133 @@
           "created_at": "2026-03-30T08:37:56.058Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-30T09:01:14.867Z",
+      "branch": "fix/gate-prompt-review",
+      "consult": {
+        "topic": "gate.ts 주입 프롬프트 검토",
+        "issues": [
+          {
+            "id": 1,
+            "title": "TASK_PIPELINE 상수 텍스트",
+            "status": "decided"
+          },
+          {
+            "id": 2,
+            "title": "Stop 이벤트 메시지 (pending / all completed)",
+            "status": "decided"
+          },
+          {
+            "id": 3,
+            "title": "PreToolUse 메시지 (Edit/Write 차단, circuit breaker, check 경고)",
+            "status": "decided"
+          },
+          {
+            "id": 4,
+            "title": "UserPromptSubmit 태그 핸들러 ([d], [rule], [consult], [run])",
+            "status": "decided"
+          },
+          {
+            "id": 5,
+            "title": "UserPromptSubmit 기본 메시지 (no tasks, smart resume, stale)",
+            "status": "decided"
+          },
+          {
+            "id": 6,
+            "title": "리마인더 (tasksReminder, consultReminder)",
+            "status": "decided"
+          },
+          {
+            "id": 7,
+            "title": "SessionStart 메시지",
+            "status": "decided"
+          },
+          {
+            "id": 8,
+            "title": "CLAUDE.md sync 알림",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "TASK_PIPELINE: C안. taskPipelineMessage 합치기 로직 수정 — TASK_PIPELINE 텍스트가 &lt;nexus&gt; 래퍼 안에 포함되도록 구조 정리. 현재는 &lt;nexus&gt; 밖에 붙는 구조적 오류.",
+          "consult": 1
+        },
+        {
+          "id": 2,
+          "summary": "Stop 이벤트 메시지: 변경 불필요. 영어화 + nexus 래핑 완료. 내용 적절.",
+          "consult": 2
+        },
+        {
+          "id": 3,
+          "summary": "PreToolUse 메시지: A안. Check 경고(#7)에 &lt;nexus&gt; 래핑 추가. 나머지 1-6은 변경 불필요.",
+          "consult": 3
+        },
+        {
+          "id": 4,
+          "summary": "태그 핸들러: B안. [d] postDecisionRules 간소화 (\"Record decision only. For implementation, follow task pipeline.\" 한 줄로). [consult]의 \"Do not discuss before research is complete\" — 실제로 잘 안 지켜지는 문제 인지. 프롬프트 레벨 제어의 한계로 현행 유지하되 향후 개선 후보.",
+          "consult": 4
+        },
+        {
+          "id": 5,
+          "summary": "기본 메시지: 변경 불필요. 영어화 + 래핑 완료. no tasks/smart resume/stale 모두 적절.",
+          "consult": 5
+        },
+        {
+          "id": 6,
+          "summary": "리마인더: 변경 불필요. tasksReminder/consultReminder 모두 적절. 조건부 표시로 불필요한 누적 없음.",
+          "consult": 6
+        },
+        {
+          "id": 7,
+          "summary": "SessionStart 메시지: 삭제. \"Session started.\" 주입 불필요 — Lead는 이미 알고 있음. respond → pass()로 변경. ensureNexusStructure() + agent-tracker 초기화 로직은 유지.",
+          "consult": 7
+        },
+        {
+          "id": 8,
+          "summary": "CLAUDE.md sync: C안. 프로젝트 CLAUDE.md도 글로벌처럼 auto-sync로 전환. 알림 메시지 + notifiedFlag 로직 전부 삭제. handleClaudeMdSync()에서 프로젝트도 자동 교체.",
+          "consult": 8
+        },
+        {
+          "id": 9,
+          "summary": "edit-tracker + reopen-tracker 제거: B안. 프롬프트 레벨 Loop Prevention이 1차 방어, 트래커는 Lead 리셋으로 실효성 없음. 코드 간소화 + 오탐 제거. gate.ts에서 edit-tracker/reopen-tracker 관련 로직 전부 삭제. ensureNexusStructure()의 state/ 생성은 유지.",
+          "consult": null
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "gate.ts 6건 결정사항 구현",
+          "context": "D1: TASK_PIPELINE을 nexus 래퍼 안에 포함 (taskPipelineMessage 구조 수정). D3: Check 경고에 nexus 래핑. D4: [d] postDecisionRules 간소화. D7: SessionStart respond→pass(). D8: 프로젝트 CLAUDE.md auto-sync + 알림/notifiedFlag 삭제. D9: edit-tracker + reopen-tracker 전체 삭제.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            3,
+            4,
+            7,
+            8,
+            9
+          ],
+          "created_at": "2026-03-30T08:57:13.240Z"
+        },
+        {
+          "id": 2,
+          "title": "e2e.sh 테스트 업데이트",
+          "context": "edit-tracker 테스트 3건 제거. gate 메시지 변경에 맞춰 기대값 확인.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [
+            9
+          ],
+          "created_at": "2026-03-30T08:57:14.816Z"
+        }
+      ]
     }
   ]
 }

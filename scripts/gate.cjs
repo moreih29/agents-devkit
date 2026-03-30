@@ -101,7 +101,7 @@ TASK PIPELINE (mandatory for all file modifications):
 4. As each task completes \u2192 nx_task_update(id, "completed").
 5. All tasks done \u2192 nx_task_close (archives consult+decisions+tasks \u2192 history.json).`;
 function taskPipelineMessage(modeSpecific) {
-  return `${modeSpecific}${TASK_PIPELINE}`;
+  return modeSpecific.replace("</nexus>", `${TASK_PIPELINE}</nexus>`);
 }
 var MARKER_START = "<!-- NEXUS:START -->";
 var MARKER_END = "<!-- NEXUS:END -->";
@@ -131,26 +131,12 @@ function handleClaudeMdSync() {
     }
   }
   const projectClaudeMd = (0, import_path3.join)(process.cwd(), "CLAUDE.md");
-  const notifiedFlag = (0, import_path3.join)(NEXUS_ROOT, "claudemd-notified");
   if ((0, import_fs3.existsSync)(projectClaudeMd)) {
     const projectContent = (0, import_fs3.readFileSync)(projectClaudeMd, "utf-8");
     const projectMarker = extractMarkerContent(projectContent);
     if (projectMarker !== null && projectMarker !== template) {
-      if (!(0, import_fs3.existsSync)(notifiedFlag)) {
-        const notifiedDir = (0, import_path3.dirname)(notifiedFlag);
-        if (!(0, import_fs3.existsSync)(notifiedDir)) {
-          (0, import_fs3.mkdirSync)(notifiedDir, { recursive: true });
-        }
-        (0, import_fs3.writeFileSync)(notifiedFlag, "");
-        return "<nexus>Project CLAUDE.md Nexus section is out of date. Run /claude-nexus:nx-sync to update.</nexus>";
-      }
-    } else if (projectMarker !== null && projectMarker === template) {
-      if ((0, import_fs3.existsSync)(notifiedFlag)) {
-        try {
-          (0, import_fs3.unlinkSync)(notifiedFlag);
-        } catch {
-        }
-      }
+      const updated = replaceMarkerContent(projectContent, template);
+      (0, import_fs3.writeFileSync)(projectClaudeMd, updated);
     }
   }
   return null;
@@ -186,73 +172,6 @@ function isNexusInternalPath(filePath) {
 }
 function handlePreToolUse(event) {
   const toolName = event.tool_name ?? "";
-  if (toolName === "mcp__plugin_claude-nexus_nx__nx_task_update") {
-    const toolInput2 = event.tool_input;
-    const taskId = String(toolInput2?.id ?? toolInput2?.task_id ?? "");
-    const status = String(toolInput2?.status ?? "");
-    if (status === "pending" && taskId) {
-      const reopenTrackerPath = (0, import_path3.join)(STATE_ROOT, "reopen-tracker.json");
-      let tracker = {};
-      if ((0, import_fs3.existsSync)(reopenTrackerPath)) {
-        try {
-          tracker = JSON.parse((0, import_fs3.readFileSync)(reopenTrackerPath, "utf-8"));
-        } catch {
-        }
-      }
-      const count = (tracker[taskId] ?? 0) + 1;
-      tracker[taskId] = count;
-      ensureDir(STATE_ROOT);
-      (0, import_fs3.writeFileSync)(reopenTrackerPath, JSON.stringify(tracker, null, 2));
-      if (count >= 5) {
-        respond({
-          decision: "block",
-          reason: `<nexus>Circuit breaker: task "${taskId}" has been reopened ${count} times. BLOCKED. Report to Lead via SendMessage: describe the task, blocking issue, and attempts made.</nexus>`
-        });
-        return;
-      }
-      if (count >= 3) {
-        respond({
-          decision: "approve",
-          additionalContext: `<nexus>Warning: task "${taskId}" has been reopened ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing.</nexus>`
-        });
-        return;
-      }
-    }
-    pass();
-    return;
-  }
-  if (toolName === "mcp__plugin_claude-nexus_nx__nx_task_close") {
-    const editTrackerPath = (0, import_path3.join)(STATE_ROOT, "edit-tracker.json");
-    let editTracker = {};
-    if ((0, import_fs3.existsSync)(editTrackerPath)) {
-      try {
-        editTracker = JSON.parse((0, import_fs3.readFileSync)(editTrackerPath, "utf-8"));
-      } catch {
-      }
-    }
-    const modifiedFileCount = Object.keys(editTracker).length;
-    const agentTrackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
-    let hasCheckAgent = false;
-    if ((0, import_fs3.existsSync)(agentTrackerPath)) {
-      try {
-        const agents = JSON.parse((0, import_fs3.readFileSync)(agentTrackerPath, "utf-8"));
-        hasCheckAgent = agents.some((a) => {
-          const type = String(a.agent_type ?? "").toLowerCase();
-          return type.includes("qa") || type.includes("reviewer");
-        });
-      } catch {
-      }
-    }
-    if (modifiedFileCount >= 3 && !hasCheckAgent) {
-      respond({
-        decision: "approve",
-        additionalContext: `WARNING: ${modifiedFileCount} files were modified but no Check agent (QA/Reviewer) was spawned. QA spawn conditions may apply: 3+ files changed. Consider spawning QA before closing the cycle.`
-      });
-      return;
-    }
-    pass();
-    return;
-  }
   if (toolName === "Edit" || toolName === "Write") {
     const toolInput2 = event.tool_input;
     const filePath = toolInput2?.file_path ?? "";
@@ -269,32 +188,6 @@ function handlePreToolUse(event) {
         respond({
           decision: "block",
           reason: "<nexus>All tasks completed. Call nx_task_close to archive this cycle.</nexus>"
-        });
-        return;
-      }
-      const editTrackerPath = (0, import_path3.join)(STATE_ROOT, "edit-tracker.json");
-      let tracker = {};
-      if ((0, import_fs3.existsSync)(editTrackerPath)) {
-        try {
-          tracker = JSON.parse((0, import_fs3.readFileSync)(editTrackerPath, "utf-8"));
-        } catch {
-        }
-      }
-      const count = (tracker[filePath] ?? 0) + 1;
-      tracker[filePath] = count;
-      ensureDir(STATE_ROOT);
-      (0, import_fs3.writeFileSync)(editTrackerPath, JSON.stringify(tracker, null, 2));
-      if (count >= 5) {
-        respond({
-          decision: "block",
-          reason: `<nexus>Loop detected: "${filePath}" has been modified ${count} times. BLOCKED. Report to Lead via SendMessage: describe the file, error pattern, and approaches tried. Wait for Lead or Architect guidance before continuing.</nexus>`
-        });
-        return;
-      }
-      if (count >= 3) {
-        respond({
-          decision: "approve",
-          additionalContext: `<nexus>Warning: "${filePath}" has been modified ${count} times. Possible loop detected. Consider reporting to Lead via SendMessage before continuing. Describe what you're trying to fix and why previous attempts failed.</nexus>`
         });
         return;
       }
@@ -436,9 +329,7 @@ function handleUserPromptSubmit(event) {
   if (dTag) {
     const postDecisionRules = `
 
-After recording the decision:
-1. Record the decision ONLY. Do NOT execute or implement unless the user explicitly requests it.
-2. If the user explicitly requests implementation: nx_task_add (decisions=[] or relevant IDs) \u2192 perform work \u2192 nx_task_close (history archive). Follow this pipeline even for simple edits. Edit/Write will be BLOCKED without tasks.json.`;
+Record decision only. For implementation, follow task pipeline.`;
     const consultFile = (0, import_path3.join)(STATE_ROOT, "consult.json");
     if ((0, import_fs3.existsSync)(consultFile)) {
       respond({
@@ -492,10 +383,7 @@ After recording the decision:
 function handleSessionStart(_event) {
   ensureNexusStructure();
   (0, import_fs3.writeFileSync)((0, import_path3.join)(STATE_ROOT, "agent-tracker.json"), "[]");
-  respond({
-    continue: true,
-    additionalContext: "<nexus>Session started.</nexus>"
-  });
+  pass();
 }
 function handleSubagentStart(event) {
   const agentType = String(event.agent_type ?? event.subagent_type ?? "");

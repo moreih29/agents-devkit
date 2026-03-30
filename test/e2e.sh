@@ -205,28 +205,7 @@ result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[rule:dev,test] �
 check "Gate/UserPromptSubmit ([rule:tags] tag)" 'Rule mode' "$result"
 check "Rule tag (explicit tags)" 'dev, test' "$result"
 
-# --- Edit Tracker ---
-echo ""
-echo "=== Edit Tracker ==="
-
-# edit-tracker가 동작하려면 tasks.json 필요
-TRACKER_STATE="$E2E_STATE"
-echo '{"goal":"test","tasks":[{"id":1,"title":"t","context":"c","status":"in_progress","deps":[],"decisions":[]}]}' > "$TRACKER_STATE/tasks.json"
-
-# 1회 수정 → pass (continue:true)
-echo '{}' > "$TRACKER_STATE/edit-tracker.json"
-result=$(echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test_tracker.ts"}}' | node scripts/gate.cjs 2>/dev/null)
-check "Edit tracker (1st edit — pass)" 'continue' "$result"
-
-# 3회 → 경고 (approve + warning)
-printf '{ "/tmp/test_tracker.ts": 2 }' > "$TRACKER_STATE/edit-tracker.json"
-result=$(echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test_tracker.ts"}}' | node scripts/gate.cjs 2>/dev/null)
-check "Edit tracker (3rd edit — warning)" 'loop detected' "$result"
-
-# 5회 → 차단 (block)
-printf '{ "/tmp/test_tracker.ts": 4 }' > "$TRACKER_STATE/edit-tracker.json"
-result=$(echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test_tracker.ts"}}' | node scripts/gate.cjs 2>/dev/null)
-check "Edit tracker (5th edit — block)" 'BLOCKED' "$result"
+# (Edit tracker tests removed — trackers deleted per D9 decision)
 
 # 정리
 rm -f "$TRACKER_STATE/edit-tracker.json" "$TRACKER_STATE/tasks.json"
