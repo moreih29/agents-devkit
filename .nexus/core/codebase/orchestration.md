@@ -64,7 +64,7 @@ On `nx_task_close` MCP tool calls: proceeds to archival.
 
 ### UserPromptSubmit Event
 
-Tag regex: `/\[(consult)\]/i`.
+Tag regex: `/\[(consult|run)\]/i`.
 
 On `[consult]` detection:
 - Branch on consult.json existence (continue session / start new session)
@@ -110,7 +110,7 @@ Called after all tasks complete → archives consult+decisions+tasks to history.
 - Code: Architect/Designer → Engineer → QA
 - Content: Postdoc/Strategist → Researcher/Writer → Reviewer
 
-## Skill Catalog (4 skills)
+## Skill Catalog (5 skills)
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
@@ -118,6 +118,7 @@ Called after all tasks complete → archives consult+decisions+tasks to history.
 | nx-run | (default behavior) | User-Directed Composition execution. How agent routing or Lead direct handling. 9 agents + 2 pipelines. Structured delegation format (TASK/CONTEXT/CONSTRAINTS/ACCEPTANCE). |
 | nx-init | /claude-nexus:nx-init | Full onboarding: project scan → identity → codebase generation → rules setup. Supports --reset, --cleanup. |
 | nx-setup | /claude-nexus:nx-setup | Interactive config.json setup wizard. |
+| nx-sync | /claude-nexus:nx-sync | Core knowledge synchronization — scans project state and updates .nexus/core/ layers. |
 
 ### Harness Mechanism Summary
 - **Task Pipeline**: blocks Edit/Write without tasks.json

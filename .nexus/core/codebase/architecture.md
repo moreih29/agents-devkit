@@ -42,7 +42,7 @@ generate-template.mjs      ← template generation script (runs after esbuild)
 - `hooks/hooks.json` — hook registration (PreToolUse:Edit/Write/Agent/nx_task_update/nx_task_close, Stop:*, UserPromptSubmit:*, SessionStart:*, SubagentStart:*, SubagentStop:*)
 - `.mcp.json` — MCP server path
 - `agents/*.md` — agent definitions (9 agents, frontmatter includes task/disallowedTools fields)
-- `skills/*/SKILL.md` — skill definitions (4 skills: nx-run, nx-consult, nx-init, nx-setup)
+- `skills/*/SKILL.md` — skill definitions (5 skills: nx-run, nx-consult, nx-init, nx-setup, nx-sync)
 
 ## Data Paths
 
