@@ -161,6 +161,19 @@ function handlePreToolUse(event: Record<string, unknown>): void {
     return;
   }
 
+  // [run] 모드 판별: tasks.json 있고 consult.json 없으면 팀 강제
+  const tasksPath = join(STATE_ROOT, 'tasks.json');
+  const consultPath = join(STATE_ROOT, 'consult.json');
+  const isRunMode = existsSync(tasksPath) && !existsSync(consultPath);
+
+  if (isRunMode) {
+    respond({
+      decision: 'block',
+      reason: 'In [run] mode, agents must be spawned as teammates. Add team_name parameter to the Agent call, or create a team with TeamCreate first.',
+    });
+    return;
+  }
+
   pass();
 }
 

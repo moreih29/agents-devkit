@@ -19,6 +19,7 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes a
 - MUST NOT spawn parallel Engineers if their target files overlap — serialize instead
 - MUST NOT auto-shutdown How agents — they have session lifetime
 - How agents cap: maximum 4
+- Active team size cap: maximum 3 (Lead excluded). Prioritize reuse over spawning.
 </constraints>
 
 <guidelines>
@@ -35,13 +36,16 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes a
 
 ### Step 2: Design (Lead + How agent)
 
-Within [run], Lead has full autonomy to determine team composition and agent selection.
+**Default: skip.** How agent is spawned only when:
+- Engineer escalates scope (reports expanded scope via SendMessage)
+- User explicitly requests design review
+- Lead judges the task requires architectural decisions (multiple modules, new patterns)
 
-- Create team with `TeamCreate`.
+When triggered:
+- Create team with `TeamCreate` (if not already created).
 - Determine How agent based on goal (code → Architect, content → Strategist/Postdoc, mixed → both).
 - Spawn How agent with `nx_briefing(role, hint?)` for briefing.
 - Lead ↔ How agent discussion via SendMessage → reach consensus on approach.
-- **Skip condition**: if user directly specifies Do agents (e.g., "Engineer, implement this"), skip Step 2 and proceed to Step 3.
 
 ### Step 3: Execute (Do agents)
 
@@ -161,6 +165,7 @@ ACCEPTANCE:
 7. **Gate Stop nonstop** — cannot terminate while pending tasks exist
 8. **Design = consensus** (Lead + How agent discussion via SendMessage)
 9. **No file modification via Bash** — sed, echo >, cat <<EOF, tee, and similar Bash-based file edits are prohibited. Always use Edit/Write tools (Gate enforced)
+10. **Lean start** — default composition is Engineer only. How agent joins on escalation or user request. Check agent joins on trigger conditions. Do not pre-spawn agents "just in case."
 
 ## Rules Template (Reference)
 

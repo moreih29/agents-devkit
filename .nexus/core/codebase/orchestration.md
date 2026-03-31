@@ -54,13 +54,30 @@ On `Edit`/`Write` tool calls:
 - All completed / empty array → block (nx_task_close required)
 
 On `Agent` tool calls:
-- Explore agent → always allow
-- Has `team_name` → allow
-- Otherwise → allow
+- Explore agent → always allow (standalone subagent)
+- Has `team_name` → allow (teammate mode)
+- [run] mode (tasks.json exists, consult.json absent) → block without team_name
+- Otherwise → allow (subagent mode for [consult] and other contexts)
 
 On `nx_task_update` MCP tool calls: status is processed normally.
 
 On `nx_task_close` MCP tool calls: proceeds to archival.
+
+### Spawn Strategy Matrix
+
+| Mode | Spawn Method | Enforcement | Rationale |
+|------|-------------|-------------|-----------|
+| `[consult]` | Subagent (no team) | Instructional (SKILL.md) | Independent exploration — Explore/researcher don't need coordination. Hub-and-spoke sufficient. |
+| `[run]` | Team (team_name required) | Structural (gate blocks without team_name) | Coordinated execution — SendMessage, shared task list, escalation patterns required. |
+| `[run]` default | Engineer only | Instructional (SKILL.md lean start) | Cost optimization — How/Check agents join on escalation or trigger conditions, not pre-spawned. |
+| Explore | Always subagent | Structural (gate always allows) | Fast codebase search — no coordination needed. |
+| nx-sync | Subagent | Instructional | One-off documentation tasks — independent layer updates. |
+
+**[run] mode detection**: `tasks.json` exists AND `consult.json` absent → team_name enforcement active.
+
+**Team size cap**: 3 active agents (Lead excluded). Based on MultiAgentBench finding that 3 is optimal team size.
+
+**Escalation-based scaling**: Engineer reports scope expansion → Lead spawns How agent. Check agent spawns on 4 trigger conditions (3+ files, test changes, external API, failure history).
 
 ### UserPromptSubmit Event
 

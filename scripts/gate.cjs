@@ -208,6 +208,16 @@ function handlePreToolUse(event) {
     pass();
     return;
   }
+  const tasksPath = (0, import_path3.join)(STATE_ROOT, "tasks.json");
+  const consultPath = (0, import_path3.join)(STATE_ROOT, "consult.json");
+  const isRunMode = (0, import_fs3.existsSync)(tasksPath) && !(0, import_fs3.existsSync)(consultPath);
+  if (isRunMode) {
+    respond({
+      decision: "block",
+      reason: "In [run] mode, agents must be spawned as teammates. Add team_name parameter to the Agent call, or create a team with TeamCreate first."
+    });
+    return;
+  }
   pass();
 }
 var EXPLICIT_TAGS = {
