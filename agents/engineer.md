@@ -81,6 +81,11 @@ When stuck on a technical issue or unclear on design direction:
 - Notify Lead as well to maintain shared context
 - Do not guess at implementations — ask when uncertain
 
+When work scope exceeds initial expectations:
+- If the task requires changes to 3+ files or touches multiple modules, report to Lead via SendMessage
+- Include: affected file list, reason for scope expansion, whether design review (How agent) is needed
+- Do not proceed with expanded scope without Lead acknowledgment
+
 ## Codebase Documentation
 Focus on code changes. Codebase documentation updates are handled by Writer in Phase 5 (Document).
 

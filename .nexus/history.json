@@ -1967,6 +1967,95 @@
           "created_at": "2026-03-31T02:16:51.881Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-31T03:42:44.445Z",
+      "branch": "feat/agent-instruction-refinement",
+      "consult": {
+        "topic": "Nexus 에이전트 스폰 전략: 서브에이전트 vs 팀 모드 — 언제 어떤 방식을 쓸 것인가",
+        "issues": [
+          {
+            "id": 1,
+            "title": "[run] 모드에서 팀 강제 여부 — 현재 gate가 team_name을 강제하지 않음, 명세만으로 충분한가",
+            "status": "decided"
+          },
+          {
+            "id": 2,
+            "title": "[consult] 모드의 에이전트 스폰 전략 — 서브유지 vs 팀으로 전환",
+            "status": "decided"
+          },
+          {
+            "id": 3,
+            "title": "비용 최적화 전략 — 팀 오버헤드가 정당화되는 기준선",
+            "status": "decided"
+          },
+          {
+            "id": 4,
+            "title": "서브/팀 선택 기준의 문서화·강제 방식",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "B안 채택: gate PreToolUse Agent 핸들러에서 [run] 모드일 때 Explore 외 Agent 호출에 team_name 없으면 차단. 모드 판별은 tasks.json + consult.json 조합으로 정밀하게 — tasks.json 있고 consult.json 없으면 [run] 모드로 판단, consult.json 있으면 서브 허용.",
+          "consult": 1
+        },
+        {
+          "id": 2,
+          "summary": "A안 채택: [consult] 모드는 서브에이전트 유지. Explore/researcher는 독립적 탐색이므로 팀 조율 불필요. 비용 효율 + 학술 연구(독립 태스크에서 hub-and-spoke 충분) 근거.",
+          "consult": 2
+        },
+        {
+          "id": 3,
+          "summary": "C안 채택 (수정): 기본값은 가장 가벼운 구성(Engineer only). 팀 규모 확대는 Lead 자율 판단이 아닌 에스컬레이션 기반. (1) Engineer 에이전트 정의에 \"범위가 예상보다 크면 Lead에 SendMessage로 에스컬레이션\" 지시 추가. (2) Check agent는 기존 4개 트리거 조건(파일 3개+, 테스트 변경 등) 유지. (3) How agent는 Engineer 에스컬레이션 또는 사용자 요청 시 추가. 팀 크기 상한 3명(MultiAgentBench 최적값).",
+          "consult": 3
+        },
+        {
+          "id": 4,
+          "summary": "B안 채택: gate PreToolUse 강제 구현 + orchestration.md에 서브/팀 선택 매트릭스 통합 문서화. 새 스킬 설계 시 중앙 참조점으로 활용. SKILL.md 각각에도 해당 모드의 스폰 방식 명시.",
+          "consult": 4
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "gate.ts PreToolUse Agent 핸들러에 [run] 모드 team_name 강제",
+          "context": "gate.ts:144-165 Agent 핸들러에서 tasks.json 有 + consult.json 無 조건일 때 Explore 외 Agent 호출에 team_name 없으면 차단. 기존 fallthrough pass()를 조건부 block으로 변경.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "owner": "engineer-gate",
+          "created_at": "2026-03-31T03:36:20.774Z"
+        },
+        {
+          "id": 2,
+          "title": "engineer.md 에스컬레이션 지시 + nx-run SKILL.md 기본 구성 변경",
+          "context": "engineer.md: Escalation 섹션에 \"작업 범위가 예상보다 크면 Lead에 SendMessage로 에스컬레이션\" 추가. nx-run SKILL.md: 기본 구성=Engineer only, How는 에스컬레이션/사용자 요청 시, Check는 기존 4개 트리거. 팀 상한 3명. Step 2 skip을 기본으로, Step 2는 에스컬레이션 시 진입.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            3
+          ],
+          "owner": "engineer-skill",
+          "created_at": "2026-03-31T03:36:25.404Z"
+        },
+        {
+          "id": 3,
+          "title": "orchestration.md에 서브/팀 선택 매트릭스 추가",
+          "context": ".nexus/core/codebase/orchestration.md PreToolUse Event Agent 섹션(line 56-59) 업데이트 + 새로운 \"Spawn Strategy Matrix\" 섹션 추가. [consult]=서브, [run]=팀 강제, Explore=항상 서브. gate 판별 로직 문서화.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            4
+          ],
+          "owner": "engineer-doc",
+          "created_at": "2026-03-31T03:36:28.796Z"
+        }
+      ]
     }
   ]
 }
