@@ -60,6 +60,7 @@ claude plugin install claude-nexus@nexus
 | **nx-run** | (기본 동작) | 동적 에이전트 구성 실행 |
 | **nx-init** | `/claude-nexus:nx-init` | 프로젝트 온보딩. 코드 스캔 → 지식 생성 |
 | **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정 |
+| **nx-sync** | `/claude-nexus:nx-sync` | 코어 지식 동기화. 소스 변경사항을 .nexus/core/ 문서에 반영 |
 
 ## 고급 기능
 

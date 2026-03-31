@@ -76,6 +76,7 @@ Typical flow: use `[consult]` to discuss and align → decide → use `[run]` to
 | **nx-run** | `[run]` | Execution. User-directed agent composition for development, research, and more |
 | **nx-init** | `/claude-nexus:nx-init` | Full project onboarding: scan codebase, establish identity, generate core knowledge |
 | **nx-setup** | `/claude-nexus:nx-setup` | Interactive setup. Injects agent/skill/tag configuration into CLAUDE.md |
+| **nx-sync** | `/claude-nexus:nx-sync` | Core knowledge sync. Reflects source changes into .nexus/core/ docs |
 
 ## Advanced
 
