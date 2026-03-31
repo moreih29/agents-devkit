@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.18.0 (2026-03-31)
+
+### Features
+- 에이전트 스폰 전략 — [run] 팀 강제 + lean start + 에스컬레이션 기반 확대
+- nx-consult 리서치 강제 + Progressive Depth 판별 + 비교표 필수화
+
+### Fixes
+- Stop 훅 all completed 무한 루프 방지 — 1회 차단 후 해제
+
+### Other
+- Merge branch 'feat/agent-instruction-refinement'
+- Merge branch 'feat/consult-skill-tuning'
+
 ## 0.17.0 (2026-03-30)
 
 ### Features
