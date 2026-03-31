@@ -158,9 +158,16 @@ function handleStop() {
     });
     return;
   }
+  const stopWarnedPath = (0, import_path3.join)(STATE_ROOT, "stop-warned");
+  if ((0, import_fs3.existsSync)(stopWarnedPath)) {
+    (0, import_fs3.unlinkSync)(stopWarnedPath);
+    pass();
+    return;
+  }
+  (0, import_fs3.writeFileSync)(stopWarnedPath, "");
   respond({
     continue: true,
-    additionalContext: `<nexus>All ${summary.total} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks \u2192 history.json) before finishing.</nexus>`
+    additionalContext: `<nexus>All tasks completed. Call nx_task_close now.</nexus>`
   });
 }
 function isNexusInternalPath(filePath) {

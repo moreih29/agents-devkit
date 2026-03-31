@@ -22500,8 +22500,9 @@ function registerTaskTools(server2) {
         hadLoopDetection,
         cycleTopics: [consult?.topic, tasksData?.goal].filter(Boolean)
       };
+      const stopWarnedPath = (0, import_path11.join)(root, "stop-warned");
       const deleted = [];
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath]) {
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath, stopWarnedPath]) {
         if ((0, import_fs11.existsSync)(p)) {
           (0, import_fs11.unlinkSync)(p);
           deleted.push(p.split("/").pop());

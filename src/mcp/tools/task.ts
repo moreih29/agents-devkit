@@ -205,9 +205,10 @@ export function registerTaskTools(server: McpServer): void {
         cycleTopics: [consult?.topic, tasksData?.goal].filter(Boolean) as string[],
       };
 
-      // Delete source files (reopen-tracker 포함)
+      // Delete source files (reopen-tracker, stop-warned 포함)
+      const stopWarnedPath = join(root, 'stop-warned');
       const deleted: string[] = [];
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath]) {
+      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath, stopWarnedPath]) {
         if (existsSync(p)) {
           unlinkSync(p);
           deleted.push(p.split('/').pop()!);

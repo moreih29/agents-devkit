@@ -2,7 +2,7 @@
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { STATE_ROOT, ensureDir, getCurrentBranch, ensureNexusStructure } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
@@ -88,10 +88,19 @@ function handleStop(): void {
     return;
   }
 
-  // all completed → nx_task_close 강제 호출
+  // all completed → 1회만 차단 후 해제 (무한 루프 방지)
+  const stopWarnedPath = join(STATE_ROOT, 'stop-warned');
+  if (existsSync(stopWarnedPath)) {
+    // 2회차: 이미 경고함 → 종료 허용. 다음 세션에서 stale cycle로 정리됨.
+    unlinkSync(stopWarnedPath);
+    pass();
+    return;
+  }
+  // 1회차: 경고 + 차단
+  writeFileSync(stopWarnedPath, '');
   respond({
     continue: true,
-    additionalContext: `<nexus>All ${summary.total} tasks completed. MANDATORY: Call nx_task_close to archive this cycle (consult+decisions+tasks → history.json) before finishing.</nexus>`,
+    additionalContext: `<nexus>All tasks completed. Call nx_task_close now.</nexus>`,
   });
 }
 
