@@ -2101,6 +2101,109 @@
           "created_at": "2026-03-31T06:17:38.947Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-31T06:37:49.596Z",
+      "branch": "main",
+      "consult": {
+        "topic": "deploy Phase 1-1 core drift 검사: nx-sync 활용 vs 직접 비교",
+        "issues": [
+          {
+            "id": 1,
+            "title": "deploy 1-1에서 nx-sync 스킬을 호출할 것인가, 직접 비교할 것인가",
+            "status": "decided"
+          },
+          {
+            "id": 2,
+            "title": "nx-run Step 5의 nx-sync 호출과 deploy 1-1의 관계 — 중복 여부",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "A안 채택: deploy 1-1에서 nx-sync 스킬을 호출하여 core drift 검사+수정. deploy 스킬에 명시적으로 \"nx-sync 호출\"로 기재하여 Lead 편차 제거.",
+          "consult": 1
+        },
+        {
+          "id": 2,
+          "summary": "A안 채택: nx-run Step 5와 deploy 1-1 양쪽 다 유지 (이중 안전망). Step 5에서 잘 됐으면 deploy의 nx-sync는 빠르게 끝나고, 누락됐으면 deploy에서 잡아줌.",
+          "consult": 2
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "deploy 스킬 1-1에 nx-sync 호출 명시",
+          "context": "deploy SKILL.md Phase 1-1 설명을 nx-sync 스킬 호출로 변경",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "owner": "lead",
+          "created_at": "2026-03-31T06:36:46.440Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-03-31T06:40:10.264Z",
+      "branch": "main",
+      "consult": null,
+      "decisions": [],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Update orchestration.md Stop Event section",
+          "context": "Replace the Stop Event description with 1-shot stop logic explanation",
+          "deps": [],
+          "decisions": [],
+          "status": "in_progress"
+        },
+        {
+          "id": 2,
+          "title": "Update orchestration.md engineer agent catalog entry",
+          "context": "Add 'scope escalation to Lead' to engineer role description",
+          "deps": [],
+          "decisions": [],
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "title": "Update tools.md nx_consult_start description",
+          "context": "Add research_summary requirement note to the tool description",
+          "deps": [],
+          "decisions": [],
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "title": "Update tools.md nx_task_close Notes section",
+          "context": "Add note that nx_task_close also deletes stop-warned flag file",
+          "deps": [],
+          "decisions": [],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-03-31T06:42:51.837Z",
+      "branch": "main",
+      "consult": null,
+      "decisions": [],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "README.md에 nx-sync 스킬 추가",
+          "context": "deploy Phase 1-4 README 검사에서 nx-sync 누락 발견. README.md와 README.en.md 양쪽에 추가.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "owner": "lead",
+          "created_at": "2026-03-31T06:42:33.283Z"
+        }
+      ]
     }
   ]
 }
