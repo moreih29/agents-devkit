@@ -1879,6 +1879,94 @@
           "owner": "engineer"
         }
       ]
+    },
+    {
+      "completed_at": "2026-03-31T03:00:34.328Z",
+      "branch": "feat/consult-skill-tuning",
+      "consult": {
+        "topic": "nx-consult 스킬 구조 점검: 의도 분석 → 능동 조사 → 트레이드오프 제시 파이프라인",
+        "issues": [
+          {
+            "id": 1,
+            "title": "게이트 훅의 에이전트 자동 스폰 부재 — 지시문 주입만으로 리서치가 실제 실행되는가",
+            "status": "decided"
+          },
+          {
+            "id": 2,
+            "title": "Progressive Depth 메커니즘 부재 — 요청 복잡도에 따른 탐색 깊이 조절이 작동하는가",
+            "status": "decided"
+          },
+          {
+            "id": 3,
+            "title": "비교표·추천 품질 보장 — 행동 지침만으로 구조화된 출력이 일관되게 나오는가",
+            "status": "decided"
+          },
+          {
+            "id": 4,
+            "title": "전체 아키텍처 질문 — 행동 명세 + 상태 관리로 충분한가, 더 강한 강제가 필요한가",
+            "status": "decided"
+          }
+        ]
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "C안 채택: SKILL.md constraints 강화 + nx_consult_start에 리서치 결과 요약 필수 파라미터 추가. gate에서 자동 스폰은 아키텍처상 불가하므로, MCP 도구 레벨에서 리서치 수행을 간접 강제한다.",
+          "consult": 1
+        },
+        {
+          "id": 2,
+          "summary": "C안 채택: SKILL.md Step 0에 Progressive Depth 판별 기준 예시를 명시한다. 구체적/방향설정/추상적 각 레벨의 판별 시그널(파일명 포함 여부, 열린 질문 여부 등)을 예시로 제공하여 Lead 자율 판단 품질을 높인다.",
+          "consult": 2
+        },
+        {
+          "id": 3,
+          "summary": "C안 채택: SKILL.md constraints에 \"이슈별 옵션 제시 시 비교표 + 추천 + 탈락 이유 필수\" 명시. 단, 단일 옵션만 존재하는 경우 비교표 면제 등 예외 조건을 함께 둔다.",
+          "consult": 3
+        },
+        {
+          "id": 4,
+          "summary": "A안 채택: 현행 아키텍처(행동 명세 + 상태 관리) 유지. 논점 1~3의 명세 강화를 먼저 적용하고, 실사용에서 품질 이슈가 반복되면 그때 검증 레이어를 검토한다.",
+          "consult": 4
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nx_consult_start에 research_summary 필수 파라미터 추가",
+          "context": "consult.ts의 nx_consult_start 도구에 research_summary: z.string() 필수 파라미터 추가. ConsultFile 인터페이스에도 research_summary 필드 추가. 리서치 완료 전 호출을 MCP 레벨에서 간접 강제.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1
+          ],
+          "owner": "engineer-ts",
+          "created_at": "2026-03-31T02:08:49.453Z"
+        },
+        {
+          "id": 2,
+          "title": "SKILL.md 강화: Progressive Depth 판별 기준 + 비교표 필수 constraint",
+          "context": "Step 0에 Progressive Depth 판별 시그널 예시 추가 (구체적: 파일명/함수명 포함, 방향설정: 열린 질문, 추상적: 모르겠다/어떻게 해야). constraints에 비교표+추천+탈락이유 필수 명시, 단일 옵션 면제 예외.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            2,
+            3
+          ],
+          "owner": "engineer-skill",
+          "created_at": "2026-03-31T02:08:55.004Z"
+        },
+        {
+          "id": 3,
+          "title": "dev-sync.mjs src=dest 동일 경로 방어 로직 추가",
+          "context": "dev-sync.mjs에서 cpSync 시 src와 dest가 동일하면 skip하도록 방어. Node.js cpSync가 동일 파일 감지 시 에러 발생하는 문제 해결.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "owner": "lead",
+          "created_at": "2026-03-31T02:16:51.881Z"
+        }
+      ]
     }
   ]
 }

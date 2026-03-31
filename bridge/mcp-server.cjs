@@ -22157,9 +22157,10 @@ function registerConsultTools(server2) {
     "Start a new consultation session with topic and issues to discuss",
     {
       topic: external_exports.string().describe("Consultation topic"),
-      issues: external_exports.array(external_exports.string()).describe("List of issue titles to discuss")
+      issues: external_exports.array(external_exports.string()).describe("List of issue titles to discuss"),
+      research_summary: external_exports.string().describe("Summary of research findings from Explore/researcher agents. Required to ensure research is complete before starting consultation.")
     },
-    async ({ topic, issues }) => {
+    async ({ topic, issues, research_summary }) => {
       let archived = false;
       const existingConsult = await readConsult();
       const existingDecisions = await readDecisions();
@@ -22193,7 +22194,8 @@ function registerConsultTools(server2) {
           id: i + 1,
           title,
           status: "pending"
-        }))
+        })),
+        researchSummary: research_summary
       };
       await writeConsult(data);
       return textResult({ created: true, topic, issueCount: issues.length, previousCycleArchived: archived });
@@ -22226,12 +22228,16 @@ function registerConsultTools(server2) {
         }
         return result;
       });
-      return textResult({
+      const statusResult = {
         active: true,
         topic: data.topic,
         issues: issuesWithDecisions,
         summary: { total: data.issues.length, pending, discussing, decided }
-      });
+      };
+      if (data.researchSummary) {
+        statusResult.researchSummary = data.researchSummary;
+      }
+      return textResult(statusResult);
     }
   );
   server2.tool(
