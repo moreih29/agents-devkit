@@ -44,7 +44,7 @@ NEXUS_EVENT=SubagentStart. Adds agent to `.nexus/state/agent-tracker.json` (agen
 NEXUS_EVENT=SubagentStop. Updates the agent's status in `.nexus/state/agent-tracker.json` (status: completed, last_message, stopped_at).
 
 ### Stop Event
-If `tasks.json` has pending tasks, blocks exit with `continue: true` (nonstop). If all completed, forces `nx_task_close`.
+If `tasks.json` has pending tasks, blocks exit with `continue: true` (nonstop). If all completed, uses 1-shot stop: first attempt blocks with `continue: true` + "Call nx_task_close now" (writes `stop-warned` flag), second attempt releases with `pass()` (deletes flag). Prevents infinite loop when Lead ignores task_close instruction.
 
 ### PreToolUse Event
 
@@ -113,7 +113,7 @@ Called after all tasks complete → archives consult+decisions+tasks to history.
 | postdoc | opus | 25 | Edit, Bash, NotebookEdit, nx_task_add, nx_task_update blocked | How | Methodology design, synthesis, plan validation gate |
 | designer | opus | 25 | Edit, Write, NotebookEdit, nx_task_add, nx_task_update blocked | How | UI/UX design, interaction patterns |
 | strategist | opus | 25 | Edit, Write, NotebookEdit, nx_task_add, nx_task_update blocked | How | Business strategy, market analysis |
-| engineer | sonnet | 25 | nx_task_add blocked | Do | Code implementation, debugging, immediate codebase/ update |
+| engineer | sonnet | 25 | nx_task_add blocked | Do | Code implementation, debugging, immediate codebase/ update, scope escalation to Lead |
 | researcher | sonnet | 20 | nx_task_add blocked | Do | Web search, independent investigation, immediate reference/ recording |
 | writer | sonnet | 25 | nx_task_add blocked | Do | Technical documentation, presentations |
 | qa | sonnet | 20 | nx_task_add blocked | Check | Code verification, testing, security review |

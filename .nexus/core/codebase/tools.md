@@ -19,7 +19,7 @@ List of tools provided by the MCP server (`bridge/mcp-server.cjs`). Source: `src
 | `nx_task_close` | task.ts | `.nexus/history.json` (project-level, git-tracked) | End current cycle: archive consult+decisions+tasks to history.json then delete source files. cycle includes branch field. |
 | `nx_decision_add` | decision.ts | `.nexus/state/decisions.json` | Add a decision record (summary + consult parameters; consult is related issue ID or null) |
 | `nx_artifact_write` | artifact.ts | `.nexus/state/artifacts/{filename}` | Save team artifacts (report, synthesis, etc.) |
-| `nx_consult_start` | consult.ts | `.nexus/state/consult.json` | Start a consultation session (register topic + issue list) |
+| `nx_consult_start` | consult.ts | `.nexus/state/consult.json` | Start a consultation session (register topic + issue list + research_summary). research_summary is required — forces research completion before session creation. |
 | `nx_consult_status` | consult.ts | `.nexus/state/consult.json` + `decisions.json` | Query current consultation state (issue list/status + join decisions.json entries for decided issues) |
 | `nx_consult_update` | consult.ts | `.nexus/state/consult.json` | Modify issues in an active consultation session. action: add/remove/edit/reopen |
 | `nx_consult_decide` | consult.ts | `.nexus/state/consult.json` + `decisions.json` | Process issue decision (update consult.json + record in decisions.json). Returns completion signal when all issues decided — does not delete consult.json. |
@@ -108,4 +108,4 @@ Archive file created/appended on `nx_task_close` call:
 - `nx_consult_decide` updates consult.json + decisions.json simultaneously. When all issues are decided, does **not** delete consult.json — returns completion signal (`allComplete: true`).
 - The reopen action of `nx_consult_update` soft-deletes entries where `consult === issue_id` in decisions.json (`status: "revoked"`) to preserve audit trail.
 - `nx_consult_status` joins decisions.json entries for decided issues based on `d.consult === issue.id` and returns them together.
-- `nx_task_close` is called on cycle completion. Archives consult+decisions+tasks to `.nexus/history.json` (project-level) then deletes source files (consult.json, decisions.json, tasks.json). Replaces `nx_task_clear` (legacy).
+- `nx_task_close` is called on cycle completion. Archives consult+decisions+tasks to `.nexus/history.json` (project-level) then deletes source files (consult.json, decisions.json, tasks.json). Also deletes `stop-warned` flag file if present. Replaces `nx_task_clear` (legacy).
