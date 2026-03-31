@@ -17,6 +17,7 @@ Conduct structured consultation with the user to decompose issues, present optio
 - NEVER ask groundless questions — always research code/knowledge/decisions first
 - MUST record decisions with `[d]` tag so they are not scattered across turns
 - MUST check for existing consult.json before starting a new session
+- MUST present comparison table (Pros/Cons/Trade-offs/Best for) + recommendation with elimination reasoning for each issue — exception: exempt from table when only a single viable option exists
 </constraints>
 
 <guidelines>
@@ -34,8 +35,15 @@ Conduct structured consultation with the user to decompose issues, present optio
 ### Step 0: Intent Discovery
 
 Determine consultation depth based on Progressive Depth.
+
+| Level | Signal | Exploration Scope |
+|-------|--------|-------------------|
+| **Specific** | File path, function name, error message, or concrete target named (e.g., "I want to improve the parameter validation logic in consult.ts") | Focused on the relevant file/module |
+| **Direction-setting** | Open-ended question, "it would be nice if ~", choice needed among multiple approaches (e.g., "I want to organize the error handling strategy") | Related area + external case research |
+| **Abstract** | "I don't know how to approach this", goal itself is unclear, fundamental direction exploration (e.g., "I think I need to rethink the project structure") | Full codebase + external research + comparable project comparison |
+
 - Specific request → confirm intent with 1–2 questions, then derive issues immediately
-- Direction-setting → use hypothesis-based questions to understand intent
+- Direction-setting ��� use hypothesis-based questions to understand intent
 - Abstract/fundamental → actively interview to uncover root goals the user hasn't clarified themselves
 
 Guideline: "Light touch for specific requests, deep dive for abstract ones." Lead's autonomous judgment.
@@ -46,7 +54,7 @@ Understand code, core, and decisions first. Do not ask groundless questions.
 
 **New session** (no consult.json):
 - STEP 1: Spawn researcher for code + external exploration in parallel. Run Explore agent for codebase exploration simultaneously.
-- STEP 2: After research is complete, call `nx_consult_start` with the findings to register issues.
+- STEP 2: After research is complete, call `nx_consult_start(topic, issues, research_summary)` with the findings to register issues. The `research_summary` parameter is required — forces research completion before session creation.
 - Calling `nx_consult_start` before research is complete is prohibited.
 
 **Existing session** (consult.json present):
@@ -60,7 +68,7 @@ Exploration scope is a natural extension of Progressive Depth: the deeper the de
 
 Decompose the main topic into specific issues.
 - Derive the list of issues to discuss based on exploration results.
-- Register with `nx_consult_start(topic, issues)` in consult.json.
+- Register with `nx_consult_start(topic, issues, research_summary)` in consult.json.
 - Show the issue list to the user and guide them through it in order.
 
 ### Step 3: Per-Issue Consultation
@@ -136,7 +144,7 @@ When the user decides, record with the `[d]` tag.
 }
 ```
 
-- **Create**: `nx_consult_start(topic, issues)` — called in Step 2
+- **Create**: `nx_consult_start(topic, issues, research_summary)` — called in Step 2
 - **Read**: `nx_consult_status()` — check current issue state + related decisions
 - **Update**: `nx_consult_update(action, ...)` — add/delete/rename/reopen issues
 - **Decide**: `nx_consult_decide(issue_id, decision_summary)` — marks issue as decided + records `{id, summary, consult: issue_id}` format in decisions.json

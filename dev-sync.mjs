@@ -1,8 +1,8 @@
 // 빌드 산출물을 마켓플레이스 경로에 동기화 (개발용)
 // - marketplace/nexus → 이 프로젝트 및 마켓플레이스 기반 프로젝트용
 // - installed_plugins.json → 안 건드림 (다른 프로젝트 보호)
-import { cpSync, existsSync, mkdirSync, rmSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { cpSync, existsSync, mkdirSync, rmSync, readdirSync, statSync, realpathSync } from 'fs';
+import { join, resolve } from 'path';
 
 const PLUGIN_HOME = join(process.env.HOME ?? '~', '.claude/plugins');
 const MARKETPLACE = join(PLUGIN_HOME, 'marketplaces/nexus');
@@ -30,7 +30,15 @@ function findCacheDir() {
 const DIRS = ['.claude-plugin', 'bridge', 'scripts', 'hooks', 'agents', 'skills', 'src', 'templates'];
 const FILES = ['.mcp.json', 'package.json', 'VERSION'];
 
+function isSamePath(a, b) {
+  try { return realpathSync(resolve(a)) === realpathSync(resolve(b)); } catch { return false; }
+}
+
 function syncTo(target, label) {
+  if (isSamePath('.', target)) {
+    console.log(`Skipped ${label}: src and dest are the same (${target})`);
+    return;
+  }
   if (!existsSync(target)) {
     mkdirSync(target, { recursive: true });
   }

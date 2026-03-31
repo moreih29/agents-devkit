@@ -16,6 +16,7 @@ export interface ConsultIssue {
 export interface ConsultFile {
   topic: string;
   issues: ConsultIssue[];
+  researchSummary?: string;
 }
 
 function consultPath(): string {
@@ -42,8 +43,9 @@ export function registerConsultTools(server: McpServer): void {
     {
       topic: z.string().describe('Consultation topic'),
       issues: z.array(z.string()).describe('List of issue titles to discuss'),
+      research_summary: z.string().describe('Summary of research findings from Explore/researcher agents. Required to ensure research is complete before starting consultation.'),
     },
-    async ({ topic, issues }) => {
+    async ({ topic, issues, research_summary }) => {
       // 기존 consult/decisions가 있으면 자동 아카이빙
       let archived = false;
       const existingConsult = await readConsult();
@@ -80,6 +82,7 @@ export function registerConsultTools(server: McpServer): void {
           title,
           status: 'pending' as const,
         })),
+        researchSummary: research_summary,
       };
       await writeConsult(data);
       return textResult({ created: true, topic, issueCount: issues.length, previousCycleArchived: archived });
@@ -121,12 +124,16 @@ export function registerConsultTools(server: McpServer): void {
         return result;
       });
 
-      return textResult({
+      const statusResult: Record<string, unknown> = {
         active: true,
         topic: data.topic,
         issues: issuesWithDecisions,
         summary: { total: data.issues.length, pending, discussing, decided },
-      });
+      };
+      if (data.researchSummary) {
+        statusResult.researchSummary = data.researchSummary;
+      }
+      return textResult(statusResult);
     }
   );
 
