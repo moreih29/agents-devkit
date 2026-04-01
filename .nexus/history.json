@@ -2628,6 +2628,22 @@
           "created_at": "2026-04-01T03:14:22.452Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-01T06:34:58.071Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "구명칭 잔존 수정 + README 검사",
+          "context": "deploy pre-release 검증: [consult] → [meet] 구명칭 수정 (design.md, nx-meet SKILL.md, nx-setup SKILL.md, nx-init SKILL.md) + README 불일치 확인",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-01T06:33:27.721Z"
+        }
+      ]
     }
   ]
 }
