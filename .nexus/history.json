@@ -2451,6 +2451,183 @@
           "created_at": "2026-04-01T01:09:05.957Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-01T01:57:18.969Z",
+      "branch": "fix/meet-skill-bug",
+      "meet": {
+        "id": 1,
+        "topic": "미팅 스킬 버그 수정 — 에이전트 스폰 강제 메커니즘 설계",
+        "attendees": [
+          {
+            "role": "lead",
+            "name": "lead",
+            "joined_at": "2026-04-01T01:44:11.900Z"
+          }
+        ],
+        "issues": [
+          {
+            "id": 1,
+            "title": "강제 위치: gate.ts vs MCP 도구 vs 하이브리드",
+            "status": "decided",
+            "discussion": [],
+            "decision": "gate.ts PreToolUse에서 강제. [run] 모드의 기존 block 패턴을 meet 모드에도 확장. MCP 도구 내부 검증은 구조적으로 불가능(팀 상태 접근 불가)."
+          },
+          {
+            "id": 2,
+            "title": "nx_meet_discuss speaker 검증 방법",
+            "status": "decided",
+            "discussion": [],
+            "decision": "meet.json attendees 대조. MCP 도구가 자체 데이터로 speaker 검증 — attendees에 등록된 role + \"lead\"/\"user\"만 허용. 안건 1의 TeamCreate 강제와 연계되어 실제 스폰된 에이전트만 발언 가능."
+          },
+          {
+            "id": 3,
+            "title": "TeamCreate 호출 여부 상태 추적 방법",
+            "status": "decided",
+            "discussion": [],
+            "decision": "기존 agent-tracker.json을 확장하여 team_name 필드 추가. 별도 상태 파일 없이 tracker.some(a => a.team_name && a.status === 'running')으로 TeamCreate 호출 여부 판단. gate.ts의 meet 도구 호출 시 이 조건으로 팀 존재를 검증."
+          },
+          {
+            "id": 4,
+            "title": "역할극 모드 폐기 여부",
+            "status": "decided",
+            "discussion": [],
+            "decision": "역할극 완전 폐기가 아닌, 참석자 명시 시에만 TeamCreate 강제. nx_meet_start의 attendees에 Lead 외 에이전트가 있으면 agent-tracker에서 해당 팀 에이전트 존재 확인 → 없으면 block. attendees가 비거나 Lead만이면 통과 — 리드 단독 미팅(결정 기록용)은 정당한 유스케이스로 유지."
+          }
+        ],
+        "research_summary": "**분석 완료:**\\n1. gate.ts handleMeetMode(L312-333): additionalContext로 \"TEAM REQUIRED\" 전달하지만 강제 아님\\n2. SKILL.md L18: \"MUST use TeamCreate\" 명시되어 있으나 프롬프트 지시일 뿐\\n3. MCP 도구(meet.ts): nx_meet_start가 attendees를 기록만 하고 실제 팀 존재 검증 없음\\n4. nx_meet_discuss: speaker 파라미터를 검증 없이 그대로 기록\\n5. [run] 모드에는 gate.ts L178-184에서 team_name 없는 Agent 호출 block 패턴이 이미 존재\\n6. gate.ts는 매 호출마다 독립 실행되는 stateless 훅 → 인메모리 상태 불가, 파일 기반 추적 필요",
+        "created_at": "2026-04-01T01:44:11.900Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "agent-tracker.json에 team_name 필드 추가",
+          "context": "gate.ts handleSubagentStart에서 Agent tool_input의 team_name을 추출하여 tracker entry에 기록. 현재 {agent_type, agent_id, started_at, status} → {agent_type, agent_id, team_name?, started_at, status} 확장. SubagentStart 이벤트에서 team_name이 전달되는지 확인 필요 — 안 되면 별도 방법 강구.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "meet_issue": 3,
+          "created_at": "2026-04-01T01:51:10.388Z"
+        },
+        {
+          "id": 2,
+          "title": "gate.ts PreToolUse — nx_meet_start 호출 시 팀 존재 검증",
+          "context": "nx_meet_start의 tool_input.attendees에 Lead 외 에이전트가 있으면, agent-tracker.json에서 team_name이 있는 running 에이전트 존재 여부 확인 → 없으면 block. attendees가 비거나 Lead만이면 통과 (리드 단독 미팅 허용). [run] 모드의 기존 block 패턴(L178-184)과 동일 방식.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [],
+          "meet_issue": 1,
+          "created_at": "2026-04-01T01:51:17.847Z"
+        },
+        {
+          "id": 3,
+          "title": "MCP nx_meet_discuss — speaker 검증 로직 추가",
+          "context": "meet.ts nx_meet_discuss 핸들러에서 speaker가 meet.json attendees에 등록된 role인지 확인. \"lead\"와 \"user\"는 항상 허용. 미등록 speaker → 에러 반환. meet.json의 attendees 배열 자체가 검증 소스.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "meet_issue": 2,
+          "created_at": "2026-04-01T01:51:17.908Z"
+        },
+        {
+          "id": 4,
+          "title": "SKILL.md 업데이트 — 결정사항 반영",
+          "context": "TeamCreate 강제 조건 명확화: 참석자 명시 시에만 필수, 리드 단독 미팅은 허용. 현재 \"MUST use TeamCreate — team mode is mandatory for meet sessions\"를 조건부로 수정.",
+          "status": "completed",
+          "deps": [
+            1,
+            2,
+            3
+          ],
+          "decisions": [],
+          "meet_issue": 4,
+          "created_at": "2026-04-01T01:51:18.010Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-01T02:08:50.457Z",
+      "branch": "fix/meet-skill-bug",
+      "meet": {
+        "id": 2,
+        "topic": "gate.ts 동작 개선 — task close 강제 + run 팀 강제",
+        "attendees": [
+          {
+            "role": "lead",
+            "name": "lead",
+            "joined_at": "2026-04-01T01:59:59.558Z"
+          }
+        ],
+        "issues": [
+          {
+            "id": 1,
+            "title": "all tasks completed 시 Edit/Write block 동작: close 강제 vs 추가 태스크 허용",
+            "status": "decided",
+            "discussion": [],
+            "decision": "all tasks completed 시 block 메시지를 \"nx_task_close로 아카이브하거나 nx_task_add로 추가 태스크 등록\" 안내로 변경. block 자체는 유지하되 close만 강제하지 않고 추가 태스크 옵션도 제공."
+          },
+          {
+            "id": 2,
+            "title": "run 모드에서 TeamCreate 조건부 필수 도입",
+            "status": "decided",
+            "discussion": [],
+            "decision": "handleRunMode additionalContext에 \"TEAM REQUIRED\" 강한 지시 추가 + 피드백 메모리(\"태스크 2개 이상/파일 2개 이상이면 팀 스폰\")로 보완. gate 레벨 강제는 \"간단한 작업\"의 경계를 프로그래밍적으로 정의할 수 없어 과잉 — 프롬프트 지시 + 피드백 학습이 현실적 해법."
+          }
+        ],
+        "research_summary": "방금 직접 겪은 문제. 1) 모든 태스크 완료 후 memory 파일 Write 시도 → gate가 \"All tasks completed. Call nx_task_close\" block. 사용자는 close를 사용자에게 맡기기로 했는데 강제됨. 2) 방금 run 세션에서 Lead가 3파일 4태스크를 혼자 처리 — 엔지니어 스폰 없이. gate.ts L178-184의 [run] 모드 Agent block은 Agent 호출 시에만 동작, Lead가 Agent를 안 부르면 무력.",
+        "created_at": "2026-04-01T01:59:59.558Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "gate.ts all-completed block 메시지 변경",
+          "context": "gate.ts L140-146: 현재 \"All tasks completed. Call nx_task_close to archive this cycle.\" → \"All tasks completed. nx_task_close로 아카이브하거나, 추가 작업이 있으면 nx_task_add로 태스크를 등록하세요.\" block은 유지, 메시지만 변경.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "meet_issue": 1,
+          "created_at": "2026-04-01T02:04:43.713Z"
+        },
+        {
+          "id": 2,
+          "title": "gate.ts handleRunMode에 TEAM REQUIRED 지시 추가",
+          "context": "gate.ts handleRunMode (L375-388): additionalContext에 팀 생성 강한 지시 추가. \"TEAM REQUIRED: For tasks with 2+ tasks or 2+ files, use TeamCreate to spawn at least one Engineer. Do NOT handle everything as Lead solo.\" 형태.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "meet_issue": 2,
+          "created_at": "2026-04-01T02:04:45.470Z"
+        },
+        {
+          "id": 3,
+          "title": "피드백 메모리 기록 — run 모드 Lead 직접 처리 범위",
+          "context": ".claude/projects/-Users-kih-workspaces-areas-claude-nexus/memory/feedback_run_delegate.md 작성. 내용: [run] 모드에서 태스크 2개 이상/파일 2개 이상이면 최소 엔지니어 1명 스폰. MEMORY.md 인덱스도 업데이트.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [],
+          "created_at": "2026-04-01T02:04:46.209Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-01T03:14:33.783Z",
+      "branch": "fix/meet-skill-bug",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nx-run SKILL.md constraints에 TeamCreate 필수 조건 추가",
+          "context": "constraints 섹션에 \"MUST use TeamCreate and spawn at least one Engineer when task count ≥ 2 or target files ≥ 2\" 한 줄 추가",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-01T03:14:22.452Z"
+        }
+      ]
     }
   ]
 }

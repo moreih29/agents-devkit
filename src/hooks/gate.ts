@@ -140,12 +140,39 @@ function handlePreToolUse(event: Record<string, unknown>): void {
       if (summary.allCompleted || summary.total === 0) {
         respond({
           decision: 'block',
-          reason: '<nexus>All tasks completed. Call nx_task_close to archive this cycle.</nexus>',
+          reason: '<nexus>All tasks completed. Call nx_task_close to archive, or nx_task_add to register additional tasks.</nexus>',
         });
         return;
       }
     }
 
+    pass();
+    return;
+  }
+
+  // nx_meet_start: attendees에 비-Lead 에이전트가 있으면 팀 에이전트 존재 확인
+  if (toolName === 'mcp__plugin_claude-nexus_nx__nx_meet_start') {
+    const toolInput = event.tool_input as Record<string, unknown> | undefined;
+    const attendees = toolInput?.attendees as Array<{ role: string }> | undefined;
+    const hasNonLeadAttendees = attendees?.some(a => a.role !== 'lead' && a.role !== 'user');
+
+    if (hasNonLeadAttendees) {
+      const trackerPath = join(STATE_ROOT, 'agent-tracker.json');
+      let hasTeamAgents = false;
+      if (existsSync(trackerPath)) {
+        try {
+          const tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')) as Record<string, unknown>[];
+          hasTeamAgents = tracker.some(a => a.team_name && (a.status === 'running' || a.status === 'team-spawning'));
+        } catch {}
+      }
+      if (!hasTeamAgents) {
+        respond({
+          decision: 'block',
+          reason: 'Attendees에 에이전트가 포함되어 있지만 TeamCreate로 팀이 생성되지 않았습니다. TeamCreate + Agent(team_name=...) 으로 에이전트를 먼저 스폰하세요.',
+        });
+        return;
+      }
+    }
     pass();
     return;
   }
@@ -164,8 +191,21 @@ function handlePreToolUse(event: Record<string, unknown>): void {
     return;
   }
 
-  // team_name이 있으면 TeamCreate 기반 teammate 생성 — 허용
+  // team_name이 있으면 TeamCreate 기반 teammate 생성 — tracker에 기록 후 허용
   if (toolInput?.team_name) {
+    const trackerPath = join(STATE_ROOT, 'agent-tracker.json');
+    let tracker: Record<string, unknown>[] = [];
+    if (existsSync(trackerPath)) {
+      try { tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')); } catch {}
+    }
+    tracker.push({
+      agent_type: String(toolInput.subagent_type ?? ''),
+      team_name: String(toolInput.team_name),
+      status: 'team-spawning',
+      started_at: new Date().toISOString(),
+    });
+    ensureDir(STATE_ROOT);
+    writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
     pass();
     return;
   }
@@ -340,7 +380,8 @@ function handleRunMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHa
     : '';
   const base = `<nexus>Run mode — full pipeline execution requested.
 MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
-Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.${meetTransitionHint}</nexus>`;
+Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.${meetTransitionHint}
+TEAM REQUIRED: For tasks involving 2+ tasks or 2+ target files, use TeamCreate and spawn at least one Engineer. Do NOT handle multi-task work as Lead solo.</nexus>`;
   respond({
     continue: true,
     additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, meetReminder),
@@ -454,7 +495,16 @@ function handleSubagentStart(event: Record<string, unknown>): void {
   if (existsSync(trackerPath)) {
     try { tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')); } catch {}
   }
-  tracker.push({ agent_type: agentType, agent_id: agentId, started_at: new Date().toISOString(), status: 'running' });
+
+  // PreToolUse에서 기록된 team-spawning 엔트리 매칭 → agent_id 업데이트
+  const teamEntry = tracker.find((a) => a.agent_type === agentType && a.status === 'team-spawning');
+  if (teamEntry) {
+    teamEntry.agent_id = agentId;
+    teamEntry.status = 'running';
+  } else {
+    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: new Date().toISOString(), status: 'running' });
+  }
+
   ensureDir(STATE_ROOT);
   writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
   pass();

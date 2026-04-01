@@ -241,6 +241,15 @@ export function registerMeetTools(server: McpServer): void {
         return textResult({ error: 'No active meet session' });
       }
 
+      // speaker 검증: attendees에 등록된 role 또는 lead/user만 허용
+      const allowedSpeakers = ['lead', 'user'];
+      const attendeeRoles = data.attendees.map(a => a.role);
+      if (!allowedSpeakers.includes(speaker) && !attendeeRoles.includes(speaker)) {
+        return textResult({
+          error: `Speaker '${speaker}' is not a registered attendee. Registered: ${attendeeRoles.join(', ')}. Use nx_meet_join to add attendees first.`,
+        });
+      }
+
       const issue = data.issues.find(i => i.id === issue_id);
       if (!issue) {
         return textResult({ error: `Issue ${issue_id} not found` });

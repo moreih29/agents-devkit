@@ -15,7 +15,7 @@ Facilitate structured team meetings with agents to decompose issues, deliberate 
 - NEVER call `nx_meet_start` before research is complete (research_summary is required)
 - NEVER present multiple issues at once — one issue at a time only
 - NEVER ask groundless questions — always research code/knowledge/decisions first
-- MUST use TeamCreate — team mode is mandatory for meet sessions
+- MUST use TeamCreate when attendees include non-Lead agents — gate.ts blocks `nx_meet_start` if team agents are not spawned. Lead-only meetings (decision recording) are allowed without TeamCreate.
 - MUST record all decisions with `[d]` tag so they are not scattered across turns
 - MUST call `nx_meet_decide` when recording `[d]` — discussion must be recorded before deciding
 - MUST check for existing meet.json before starting a new session
@@ -228,7 +228,7 @@ When the user activates `[run]` after a meet session:
 | Attendees | Not tracked | MeetFile.attendees[] |
 | Meeting ID | None | MeetFile.id (history tracing) |
 | [d] tag | calls nx_consult_decide + decisions.json | calls nx_meet_decide (meet.json only) |
-| Team mode | Not required | MANDATORY (TeamCreate) |
+| Team mode | Not required | MANDATORY when attendees include agents (gate-enforced); Lead-only allowed |
 
 ### Topic Switching
 

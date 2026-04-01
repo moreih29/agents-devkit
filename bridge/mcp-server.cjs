@@ -22272,6 +22272,13 @@ function registerMeetTools(server2) {
       if (!data) {
         return textResult({ error: "No active meet session" });
       }
+      const allowedSpeakers = ["lead", "user"];
+      const attendeeRoles = data.attendees.map((a) => a.role);
+      if (!allowedSpeakers.includes(speaker) && !attendeeRoles.includes(speaker)) {
+        return textResult({
+          error: `Speaker '${speaker}' is not a registered attendee. Registered: ${attendeeRoles.join(", ")}. Use nx_meet_join to add attendees first.`
+        });
+      }
       const issue2 = data.issues.find((i) => i.id === issue_id);
       if (!issue2) {
         return textResult({ error: `Issue ${issue_id} not found` });

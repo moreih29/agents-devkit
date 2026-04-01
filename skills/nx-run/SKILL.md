@@ -14,6 +14,7 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes a
 - NEVER modify files via Bash (sed, echo >, cat <<EOF, tee, etc.) — always use Edit/Write tools (Gate enforced)
 - NEVER terminate while pending tasks remain (Gate Stop nonstop)
 - NEVER spawn a new branch without checking for main/master first
+- MUST use TeamCreate and spawn at least one Engineer when task count ≥ 2 or target files ≥ 2 — do NOT handle multi-task work as Lead solo
 - MUST use nx_task_add before spawning Do agents — tasks.json is the single source of state
 - MUST use nx_briefing(role, hint?) when spawning agents to include briefing
 - MUST NOT spawn parallel Engineers if their target files overlap — serialize instead

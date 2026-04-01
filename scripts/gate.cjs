@@ -194,7 +194,32 @@ function handlePreToolUse(event) {
       if (summary.allCompleted || summary.total === 0) {
         respond({
           decision: "block",
-          reason: "<nexus>All tasks completed. Call nx_task_close to archive this cycle.</nexus>"
+          reason: "<nexus>All tasks completed. Call nx_task_close to archive, or nx_task_add to register additional tasks.</nexus>"
+        });
+        return;
+      }
+    }
+    pass();
+    return;
+  }
+  if (toolName === "mcp__plugin_claude-nexus_nx__nx_meet_start") {
+    const toolInput2 = event.tool_input;
+    const attendees = toolInput2?.attendees;
+    const hasNonLeadAttendees = attendees?.some((a) => a.role !== "lead" && a.role !== "user");
+    if (hasNonLeadAttendees) {
+      const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
+      let hasTeamAgents = false;
+      if ((0, import_fs3.existsSync)(trackerPath)) {
+        try {
+          const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+          hasTeamAgents = tracker.some((a) => a.team_name && (a.status === "running" || a.status === "team-spawning"));
+        } catch {
+        }
+      }
+      if (!hasTeamAgents) {
+        respond({
+          decision: "block",
+          reason: "Attendees\uC5D0 \uC5D0\uC774\uC804\uD2B8\uAC00 \uD3EC\uD568\uB418\uC5B4 \uC788\uC9C0\uB9CC TeamCreate\uB85C \uD300\uC774 \uC0DD\uC131\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. TeamCreate + Agent(team_name=...) \uC73C\uB85C \uC5D0\uC774\uC804\uD2B8\uB97C \uBA3C\uC800 \uC2A4\uD3F0\uD558\uC138\uC694."
         });
         return;
       }
@@ -212,6 +237,22 @@ function handlePreToolUse(event) {
     return;
   }
   if (toolInput?.team_name) {
+    const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
+    let tracker = [];
+    if ((0, import_fs3.existsSync)(trackerPath)) {
+      try {
+        tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+      } catch {
+      }
+    }
+    tracker.push({
+      agent_type: String(toolInput.subagent_type ?? ""),
+      team_name: String(toolInput.team_name),
+      status: "team-spawning",
+      started_at: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    ensureDir(STATE_ROOT);
+    (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
     pass();
     return;
   }
@@ -336,7 +377,8 @@ function handleRunMode({ tasksReminder, claudeMdNotice }) {
   const meetTransitionHint = (0, import_fs3.existsSync)((0, import_path3.join)(STATE_ROOT, "meet.json")) ? "\nMeet\u2192Run transition: Retain How agents (architect, strategist, etc.). Dismiss Do/Check agents (engineer, qa, etc.). Register tasks with nx_task_add(meet_issue=N)." : "";
   const base = `<nexus>Run mode \u2014 full pipeline execution requested.
 MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
-Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.${meetTransitionHint}</nexus>`;
+Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.${meetTransitionHint}
+TEAM REQUIRED: For tasks involving 2+ tasks or 2+ target files, use TeamCreate and spawn at least one Engineer. Do NOT handle multi-task work as Lead solo.</nexus>`;
   respond({
     continue: true,
     additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, meetReminder)
@@ -434,7 +476,13 @@ function handleSubagentStart(event) {
     } catch {
     }
   }
-  tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
+  const teamEntry = tracker.find((a) => a.agent_type === agentType && a.status === "team-spawning");
+  if (teamEntry) {
+    teamEntry.agent_id = agentId;
+    teamEntry.status = "running";
+  } else {
+    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
+  }
   ensureDir(STATE_ROOT);
   (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
   pass();
