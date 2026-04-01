@@ -7,7 +7,7 @@
     {
       "name": "claude-nexus",
       "description": "Agent orchestration plugin for Claude Code. Injects optimized context per agent role with minimal overhead.",
-      "version": "0.18.0",
+      "version": "0.19.0",
       "author": {
         "name": "kih"
       },

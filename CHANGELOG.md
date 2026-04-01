@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.0 (2026-04-01)
+
+### Features
+- consult → meet 스킬 전면 재설계
+
+### Fixes
+- meet 스킬 에이전트 스폰 강제 + gate 동작 개선
+
 ## 0.18.0 (2026-03-31)
 
 ### Features
