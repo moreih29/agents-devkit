@@ -2644,6 +2644,22 @@
           "created_at": "2026-04-01T06:33:27.721Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-01T06:35:37.541Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "gitignore에 .claude/projects/ 추가",
+          "context": "release dry-run이 untracked .claude/projects/ 때문에 실패. gitignore에 추가하여 해결.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-01T06:35:26.558Z"
+        }
+      ]
     }
   ]
 }
