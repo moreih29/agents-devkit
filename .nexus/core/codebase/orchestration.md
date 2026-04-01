@@ -1,5 +1,4 @@
 <!-- tags: orchestration, gate, tags, agents, skills, meet, rules -->
-<!-- tags: orchestration, gate, tags, agents, skills, meet, rules -->
 # Orchestration
 
 ## Tag System
@@ -39,7 +38,7 @@ Compares content between `$CLAUDE_PLUGIN_ROOT/templates/nexus-section.md` and CL
 NEXUS_EVENT=SessionStart. Initializes `STATE_ROOT/agent-tracker.json`. Returns "Session started." context.
 
 ### SubagentStart Event
-NEXUS_EVENT=SubagentStart. Adds agent to `.nexus/state/agent-tracker.json` (agent_type, agent_id, started_at, status: running).
+NEXUS_EVENT=SubagentStart. Matches `team-spawning` entries in agent-tracker by agent_type → updates with agent_id + status: running. If no match, adds new entry (non-team agent).
 
 ### SubagentStop Event
 NEXUS_EVENT=SubagentStop. Updates the agent's status in `.nexus/state/agent-tracker.json` (status: completed, last_message, stopped_at).
@@ -52,11 +51,17 @@ If `tasks.json` has pending tasks, blocks exit with `continue: true` (nonstop). 
 On `Edit`/`Write` tool calls:
 - isNexusInternalPath → allow
 - No `tasks.json` → block (nx_task_add required)
-- All completed / empty array → block (nx_task_close required)
+- All completed / empty array → block (nx_task_close or nx_task_add — user chooses to archive or add more tasks)
+
+On `nx_meet_start` MCP tool calls:
+- Inspects tool_input.attendees for non-Lead agents
+- If non-Lead attendees present → checks agent-tracker.json for team agents (entries with team_name + status running/team-spawning)
+- No team agents found → block ("TeamCreate + Agent(team_name=...) 으로 에이전트를 먼저 스폰하세요")
+- Lead-only or no attendees → allow (Lead-only meeting for decision recording)
 
 On `Agent` tool calls:
 - Explore agent → always allow (standalone subagent)
-- Has `team_name` → allow (teammate mode)
+- Has `team_name` → **record to agent-tracker with team_name + status: team-spawning**, then allow
 - [run] mode (tasks.json exists, meet.json absent) → block without team_name
 - Otherwise → allow (subagent mode for [meet] and other contexts)
 
@@ -68,9 +73,9 @@ On `nx_task_close` MCP tool calls: proceeds to archival.
 
 | Mode | Spawn Method | Enforcement | Rationale |
 |------|-------------|-------------|-----------|
-| `[meet]` | Team (TeamCreate required) | Instructional (SKILL.md) | Discussion requires multiple How agents. Hub-and-spoke with SendMessage. |
+| `[meet]` | Team (TeamCreate required when attendees include agents) | **Structural** (gate blocks nx_meet_start without team agents in tracker) | Discussion with agents requires real spawns — prevents Lead roleplay. Lead-only meetings allowed. |
 | `[run]` | Team (team_name required) | Structural (gate blocks without team_name) | Coordinated execution — SendMessage, shared task list, escalation patterns required. |
-| `[run]` default | Engineer only | Instructional (SKILL.md lean start) | Cost optimization — How/Check agents join on escalation or trigger conditions, not pre-spawned. |
+| `[run]` default | Engineer only | Instructional (SKILL.md constraint: TeamCreate required for 2+ tasks or 2+ target files) | Cost optimization — How/Check agents join on escalation or trigger conditions, not pre-spawned. |
 | Explore | Always subagent | Structural (gate always allows) | Fast codebase search — no coordination needed. |
 | nx-sync | Subagent | Instructional | One-off documentation tasks — independent layer updates. |
 
@@ -89,6 +94,9 @@ On `[meet]` detection:
 - **Force investigation**: both existing and new sessions force parallel Explore+researcher spawn. nx_meet_start forbidden until investigation completes.
 - **TeamCreate required**: spawn How agents (architect, strategist, etc.) for discussion.
 
+On `[run]` detection:
+- **TEAM REQUIRED**: For tasks involving 2+ tasks or 2+ target files, TeamCreate + at least one Engineer. Lead solo handling prohibited for multi-task work.
+
 On `[d]` detection:
 - Inject postDecisionRules (record decision only; task pipeline required for implementation)
 - Branch on meet.json presence: nx_meet_decide(issue_id, summary) / instruct to start meet session first
@@ -96,7 +104,7 @@ On `[d]` detection:
 No-tag fallback (default orchestration):
 - No tasks.json → TASK_PIPELINE + Branch Guard (How agent first for complex work; Lead may handle simple single-file changes directly)
 - tasks.json exists + pending → smart resume ("Check nx_task_list. Evaluate staleness → close/re-register or continue.")
-- tasks.json exists + all completed → guide nx_task_close
+- tasks.json exists + all completed → guide nx_task_close or nx_task_add
 
 ### Meet Lightweight Context Injection (meetReminder)
 
@@ -114,6 +122,15 @@ When [run] is detected and meet.json exists:
 
 ### Cycle End (nx_task_close)
 Called after all tasks complete → archives meet+tasks to history.json → deletes source files (meet.json, tasks.json).
+
+## MCP Tool Validation
+
+### nx_meet_discuss speaker verification
+- Validates speaker against meet.json attendees array
+- Allowed always: "lead", "user"
+- Other speakers must match a registered attendee's role
+- Unregistered speaker → error with list of valid attendees
+- Prevents Lead from simulating agent speech without actual agent spawns
 
 ## Agent Catalog (9 agents)
 
@@ -141,18 +158,20 @@ Called after all tasks complete → archives meet+tasks to history.json → dele
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| nx-meet | [meet] | Structured meeting session. Forces TeamCreate + investigation injection on [meet] tag. Decisions stored inline in meet.json issues. |
-| nx-run | (default behavior) | User-Directed Composition execution. How agent routing or Lead direct handling. 9 agents + 2 pipelines. Structured delegation format (TASK/CONTEXT/CONSTRAINTS/ACCEPTANCE). |
+| nx-meet | [meet] | Structured meeting session. Gate-enforced TeamCreate when attendees include agents. Lead-only meetings allowed for decision recording. Decisions stored inline in meet.json issues. Speaker validation on nx_meet_discuss. |
+| nx-run | (default behavior) | User-Directed Composition execution. SKILL.md constraint: TeamCreate required for 2+ tasks or 2+ files. 9 agents + 2 pipelines. Structured delegation format (TASK/CONTEXT/CONSTRAINTS/ACCEPTANCE). |
 | nx-init | /claude-nexus:nx-init | Full onboarding: project scan → identity → codebase generation → rules setup. Supports --reset, --cleanup. |
 | nx-setup | /claude-nexus:nx-setup | Interactive config.json setup wizard. |
 | nx-sync | /claude-nexus:nx-sync | Core knowledge synchronization — scans project state and updates .nexus/core/ layers. |
 
 ### Harness Mechanism Summary
 - **Task Pipeline**: blocks Edit/Write without tasks.json
-- **agent-tracker**: tracks agent lifecycle in `.nexus/state/agent-tracker.json` via SubagentStart/Stop hooks
+- **agent-tracker**: tracks agent lifecycle in `.nexus/state/agent-tracker.json` via PreToolUse(Agent+team_name)/SubagentStart/Stop hooks. Includes team_name for team agents.
 - **SessionStart**: initializes `STATE_ROOT/agent-tracker.json`
 - **Stop nonstop**: blocks exit on pending tasks
 - **Smart Resume**: stale evaluation prompt when tasks.json exists
+- **Meet agent enforcement**: gate blocks nx_meet_start with non-Lead attendees unless team agents exist in tracker
+- **Meet speaker validation**: MCP nx_meet_discuss validates speaker against meet.json attendees
 
 ### Memory Auto-Recording
 - nx_task_close returns memoryHint (taskCount, decisionCount, hadLoopDetection, cycleTopics)
