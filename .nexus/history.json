@@ -2660,6 +2660,22 @@
           "created_at": "2026-04-01T06:35:26.558Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-01T08:06:24.444Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Nexus 철학 + 코드 구조 레퍼런스 문서 작성",
+          "context": "opencode 용 Nexus 포팅을 위한 참고 문서. 아키텍트가 코드 구조 분석 → Lead가 종합 문서 작성. .nexus/state/artifacts/에 저장.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-01T07:55:20.489Z"
+        }
+      ]
     }
   ]
 }
