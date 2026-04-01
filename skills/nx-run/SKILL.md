@@ -31,7 +31,7 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes a
 - **[run] only (no direction)** → confirm direction with user before proceeding.
 - User decides scope and composition. Lead fills in what is not specified.
 - **Branch Guard**: if on main/master, create a branch appropriate to the task type before proceeding (prefix: `feat/`, `fix/`, `chore/`, `research/`, etc. — Lead's judgment). Auto-create without user confirmation.
-- If decisions.json exists, check prior decisions with `nx_context`.
+- If meet.json exists, check prior decisions with `nx_meet_status`.
 - Team rules are auto-included when `nx_briefing(hint)` is called (hint tag filtering).
 
 ### Step 2: Design (Lead + How agent)
@@ -229,4 +229,4 @@ TeamDelete()
 ## State Management
 
 `.nexus/state/tasks.json` — managed via `nx_task_add`/`nx_task_update`. Gate Stop enforcement.
-On cycle end, archive consult+decisions+tasks to `.nexus/history.json` via `nx_task_close`.
+On cycle end, archive meet+tasks to `.nexus/history.json` via `nx_task_close`.

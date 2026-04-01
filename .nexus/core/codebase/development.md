@@ -1,4 +1,5 @@
 <!-- tags: development, build, conventions, testing -->
+<!-- tags: development, build, conventions, testing -->
 # Development
 
 ## Tech Stack
@@ -36,6 +37,7 @@ Modify src/ â†’ bun run dev (build + template generation + plugin cache sync) â†
 - Paths: Centrally managed in `src/shared/paths.ts`. `PROJECT_ROOT`, `NEXUS_ROOT`, `STATE_ROOT`, `CORE_ROOT`, `LAYERS`, `corePath()`, `coreLayerDir()` (for core layers).
 - Agent definitions: `agents/{name}.md` frontmatter specifies model, maxTurns, task, disallowedTools, etc.
 - Skill definitions: `skills/{name}/SKILL.md` frontmatter specifies name, description, trigger_display, purpose, triggers, disable-model-invocation, etc.
+- Current skills count: 5 (nx-run, nx-meet, nx-init, nx-setup, nx-sync)
 
 ## Release
 

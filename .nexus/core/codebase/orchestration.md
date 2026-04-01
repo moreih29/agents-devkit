@@ -1,4 +1,5 @@
-<!-- tags: orchestration, gate, tags, agents, skills, consult, rules -->
+<!-- tags: orchestration, gate, tags, agents, skills, meet, rules -->
+<!-- tags: orchestration, gate, tags, agents, skills, meet, rules -->
 # Orchestration
 
 ## Tag System
@@ -9,20 +10,20 @@ The `UserPromptSubmit` event in the gate hook detects tags in the user prompt an
 
 | Tag | Behavior |
 |-----|----------|
-| `[consult]` | Loads nx-consult skill. Continues existing session if consult.json exists, otherwise starts a new session. **Forces investigation prompt injection** |
-| `[d]` | Branches on consult.json presence: calls nx_consult_decide if exists, nx_decision_add otherwise |
+| `[meet]` | Loads nx-meet skill. Continues existing session if meet.json exists, otherwise starts a new session. **Forces TeamCreate + Explore+researcher injection** |
+| `[d]` | Branches on meet.json presence: calls nx_meet_decide if exists, otherwise instructs to start a meet session first |
 | `[run]` | Execution — full pipeline via nx-run SKILL.md |
 | `[rule]` | Rule — save rule to .nexus/rules/. Supports [rule:tags] format |
 
 ### Natural Language Patterns (NATURAL_PATTERNS)
 
-Consult only: `상담`, `어떻게 하면 좋을까`, `뭐가 좋을까`, `방법을 찾아`, etc.
+Meet only: `meet`, `미팅`, `회의`, `논의하자`, `모여`, `상담`, `어떻게 하면 좋을까`, `뭐가 좋을까`, `방법을 찾아`, etc.
 
 ### False Positive Prevention
 
 - Error/bug context (fix, bug, error + primitive name) → skip
-- Question context ("what is consult") → skip
-- Quoted context (`` `consult` ``, `"consult"`) → skip
+- Question context ("what is meet") → skip
+- Quoted context (`` `meet` ``, `"meet"`) → skip
 
 ## Gate Hook Behavior
 
@@ -32,7 +33,7 @@ A single gate.ts module handles 6 events. Event discrimination: `process.env.NEX
 
 Compares content between `$CLAUDE_PLUGIN_ROOT/templates/nexus-section.md` and CLAUDE.md marker content:
 - Global `~/.claude/CLAUDE.md`: auto-replace if different
-- Project `./CLAUDE.md`: one-time notification if different (`.nexus/claudemd-notified` flag)
+- Project `./CLAUDE.md`: auto-replace if different (same behavior as global)
 
 ### SessionStart Event
 NEXUS_EVENT=SessionStart. Initializes `STATE_ROOT/agent-tracker.json`. Returns "Session started." context.
@@ -56,8 +57,8 @@ On `Edit`/`Write` tool calls:
 On `Agent` tool calls:
 - Explore agent → always allow (standalone subagent)
 - Has `team_name` → allow (teammate mode)
-- [run] mode (tasks.json exists, consult.json absent) → block without team_name
-- Otherwise → allow (subagent mode for [consult] and other contexts)
+- [run] mode (tasks.json exists, meet.json absent) → block without team_name
+- Otherwise → allow (subagent mode for [meet] and other contexts)
 
 On `nx_task_update` MCP tool calls: status is processed normally.
 
@@ -67,13 +68,13 @@ On `nx_task_close` MCP tool calls: proceeds to archival.
 
 | Mode | Spawn Method | Enforcement | Rationale |
 |------|-------------|-------------|-----------|
-| `[consult]` | Subagent (no team) | Instructional (SKILL.md) | Independent exploration — Explore/researcher don't need coordination. Hub-and-spoke sufficient. |
+| `[meet]` | Team (TeamCreate required) | Instructional (SKILL.md) | Discussion requires multiple How agents. Hub-and-spoke with SendMessage. |
 | `[run]` | Team (team_name required) | Structural (gate blocks without team_name) | Coordinated execution — SendMessage, shared task list, escalation patterns required. |
 | `[run]` default | Engineer only | Instructional (SKILL.md lean start) | Cost optimization — How/Check agents join on escalation or trigger conditions, not pre-spawned. |
 | Explore | Always subagent | Structural (gate always allows) | Fast codebase search — no coordination needed. |
 | nx-sync | Subagent | Instructional | One-off documentation tasks — independent layer updates. |
 
-**[run] mode detection**: `tasks.json` exists AND `consult.json` absent → team_name enforcement active.
+**[run] mode detection**: `tasks.json` exists AND `meet.json` absent → team_name enforcement active.
 
 **Team size cap**: 3 active agents (Lead excluded). Based on MultiAgentBench finding that 3 is optimal team size.
 
@@ -81,29 +82,38 @@ On `nx_task_close` MCP tool calls: proceeds to archival.
 
 ### UserPromptSubmit Event
 
-Tag regex: `/\[(consult|run)\]/i`.
+Tag regex: `/\[(meet|run)\]/i`.
 
-On `[consult]` detection:
-- Branch on consult.json existence (continue session / start new session)
-- **Force investigation**: both existing and new sessions force parallel Explore+researcher spawn. nx_consult_start/discussion forbidden until investigation completes.
+On `[meet]` detection:
+- Branch on meet.json existence (continue session / start new session)
+- **Force investigation**: both existing and new sessions force parallel Explore+researcher spawn. nx_meet_start forbidden until investigation completes.
+- **TeamCreate required**: spawn How agents (architect, strategist, etc.) for discussion.
 
 On `[d]` detection:
 - Inject postDecisionRules (record decision only; task pipeline required for implementation)
-- Branch on consult.json presence: nx_consult_decide / nx_decision_add
+- Branch on meet.json presence: nx_meet_decide(issue_id, summary) / instruct to start meet session first
 
 No-tag fallback (default orchestration):
 - No tasks.json → TASK_PIPELINE + Branch Guard (How agent first for complex work; Lead may handle simple single-file changes directly)
 - tasks.json exists + pending → smart resume ("Check nx_task_list. Evaluate staleness → close/re-register or continue.")
 - tasks.json exists + all completed → guide nx_task_close
 
-### Consult Lightweight Context Injection (consultReminder)
+### Meet Lightweight Context Injection (meetReminder)
 
-While consult.json exists, lightweight context is injected on every UserPromptSubmit even in tag-free multi-turn:
-- Topic name + current discussion point + remaining count
+While meet.json exists, lightweight context is injected on every UserPromptSubmit even in tag-free multi-turn:
+- Topic name + current discussing/next pending issue + pending count
+- Prompt: "Present comparison table with pros/cons/recommendation. Record decisions with [d]."
 - Integrated into withNotices()
 
+### Meet → Run Transition
+
+When [run] is detected and meet.json exists:
+- Retain How agents (architect, strategist, etc.)
+- Dismiss Do/Check agents (engineer, qa, etc.)
+- Register tasks with nx_task_add(meet_issue=N) to trace back to meet decisions
+
 ### Cycle End (nx_task_close)
-Called after all tasks complete → archives consult+decisions+tasks to history.json → deletes source files.
+Called after all tasks complete → archives meet+tasks to history.json → deletes source files (meet.json, tasks.json).
 
 ## Agent Catalog (9 agents)
 
@@ -131,7 +141,7 @@ Called after all tasks complete → archives consult+decisions+tasks to history.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| nx-consult | [consult] | Structured 5-step consultation. Forces investigation injection on [consult] tag. |
+| nx-meet | [meet] | Structured meeting session. Forces TeamCreate + investigation injection on [meet] tag. Decisions stored inline in meet.json issues. |
 | nx-run | (default behavior) | User-Directed Composition execution. How agent routing or Lead direct handling. 9 agents + 2 pipelines. Structured delegation format (TASK/CONTEXT/CONSTRAINTS/ACCEPTANCE). |
 | nx-init | /claude-nexus:nx-init | Full onboarding: project scan → identity → codebase generation → rules setup. Supports --reset, --cleanup. |
 | nx-setup | /claude-nexus:nx-setup | Interactive config.json setup wizard. |

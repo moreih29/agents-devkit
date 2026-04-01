@@ -28,14 +28,14 @@ claude plugin install claude-nexus@nexus
 
 **첫 사용**
 
-- **상담**: `[consult] 인증 시스템 어떻게 설계하면 좋을까?`
+- **미팅**: `[meet] 인증 시스템 어떻게 설계하면 좋을까?`
 - **결정 기록**: `응 그 방향으로 [d]`
 
 ## 사용법
 
 | 태그 | 동작 | 예시 |
 |------|------|------|
-| `[consult]` | 상담 모드 활성화 | `[consult] DB 마이그레이션 전략 논의` |
+| `[meet]` | 미팅 모드 활성화 | `[meet] DB 마이그레이션 전략 논의` |
 | `[d]` | 결정 기록 | `응 그 방향으로 [d]` |
 
 ## 에이전트
@@ -56,7 +56,7 @@ claude plugin install claude-nexus@nexus
 
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
-| **nx-consult** | `[consult]` | 구조화된 상담. 요구사항 정리 → 결정 기록 |
+| **nx-meet** | `[meet]` | 구조화된 미팅. 요구사항 정리 → 결정 기록 |
 | **nx-run** | (기본 동작) | 동적 에이전트 구성 실행 |
 | **nx-init** | `/claude-nexus:nx-init` | 프로젝트 온보딩. 코드 스캔 → 지식 생성 |
 | **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정 |
@@ -69,20 +69,21 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (13개)
+### Core (14개)
 
 | 도구 | 용도 |
 |------|------|
 | `nx_core_read/write` | 프로젝트 지식 관리 (`.nexus/core/`, git 추적) |
 | `nx_rules_read/write` | 팀 커스텀 규칙 관리 (`.nexus/rules/`, git 추적) |
-| `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 결정) |
+| `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 미팅) |
 | `nx_task_list/add/update/close` | `.nexus/state/tasks.json` 기반 태스크 관리 + `.nexus/history.json` 아카이브 |
-| `nx_decision_add` | 아키텍처 결정 기록 (`.nexus/state/decisions.json`) |
 | `nx_artifact_write` | 팀 산출물 저장 (`.nexus/state/artifacts/`) |
-| `nx_consult_start` | 상담 세션 시작 (토픽 + 논점 등록) |
-| `nx_consult_status` | 상담 상태 조회 (decisions.json join) |
-| `nx_consult_decide` | 논점 결정 처리 (consult.json + decisions.json) |
-| `nx_consult_update` | 상담 논점 수정 (add/remove/edit/reopen) |
+| `nx_meet_start` | 미팅 세션 시작 (토픽 + 논점 등록) |
+| `nx_meet_status` | 미팅 상태 조회 |
+| `nx_meet_update` | 미팅 논점 수정 (add/remove/edit/reopen) |
+| `nx_meet_discuss` | 논점 토론 기록 |
+| `nx_meet_decide` | 논점 결정 처리 (meet.json) |
+| `nx_meet_join` | 진행 중인 미팅 참여 |
 
 ### Code Intelligence (10개)
 
@@ -126,7 +127,7 @@ Gate 단일 모듈로 동작합니다.
 - `rules/` — 팀 커스텀 규칙. git 추적.
 - `config.json` — Nexus 설정. git 추적.
 - `history.json` — 사이클 아카이브. git 추적.
-- `state/` — 런타임 상태 (tasks, decisions, consult 등). git 무시.
+- `state/` — 런타임 상태 (tasks, meet 등). git 무시.
 
 </details>
 
@@ -138,8 +139,7 @@ Gate 단일 모듈로 동작합니다.
 ```
 .nexus/state/
 ├── tasks.json
-├── decisions.json
-├── consult.json
+├── meet.json
 ├── edit-tracker.json
 ├── reopen-tracker.json
 ├── agent-tracker.json

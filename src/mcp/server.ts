@@ -7,9 +7,8 @@ import { registerContextTool } from './tools/context.js';
 import { registerLspTools } from './tools/lsp.js';
 import { registerAstTools } from './tools/ast.js';
 import { registerTaskTools } from './tools/task.js';
-import { registerDecisionTools } from './tools/decision.js';
 import { registerArtifactTools } from './tools/artifact.js';
-import { registerConsultTools } from './tools/consult.js';
+import { registerMeetTools } from './tools/meet.js';
 import { registerBriefingTool } from './tools/briefing.js';
 import { rulesPath, NEXUS_ROOT } from '../shared/paths.js';
 import { join } from 'path';
@@ -34,9 +33,8 @@ registerContextTool(server);
 registerLspTools(server);
 registerAstTools(server);
 registerTaskTools(server);
-registerDecisionTools(server);
 registerArtifactTools(server);
-registerConsultTools(server);
+registerMeetTools(server);
 registerBriefingTool(server);
 
 async function main() {

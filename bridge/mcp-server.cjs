@@ -22090,177 +22090,133 @@ function registerAstTools(server2) {
 }
 
 // src/mcp/tools/task.ts
-var import_fs11 = require("fs");
-var import_promises6 = require("fs/promises");
-var import_path11 = require("path");
-
-// src/mcp/tools/consult.ts
 var import_fs10 = require("fs");
 var import_promises5 = require("fs/promises");
 var import_path10 = require("path");
 
-// src/mcp/tools/decision.ts
+// src/mcp/tools/meet.ts
 var import_fs9 = require("fs");
 var import_promises4 = require("fs/promises");
 var import_path9 = require("path");
-function decisionsPath() {
-  return (0, import_path9.join)(STATE_ROOT, "decisions.json");
+function meetPath() {
+  return (0, import_path9.join)(STATE_ROOT, "meet.json");
 }
-async function readDecisions() {
-  const p = decisionsPath();
-  if (!(0, import_fs9.existsSync)(p)) {
-    return { decisions: [] };
-  }
+async function readMeet() {
+  const p = meetPath();
+  if (!(0, import_fs9.existsSync)(p)) return null;
   const raw = await (0, import_promises4.readFile)(p, "utf-8");
   return JSON.parse(raw);
 }
-async function writeDecisions(data) {
+async function writeMeet(data) {
   ensureDir(STATE_ROOT);
-  await (0, import_promises4.writeFile)((0, import_path9.join)(STATE_ROOT, "decisions.json"), JSON.stringify(data, null, 2));
+  await (0, import_promises4.writeFile)(meetPath(), JSON.stringify(data, null, 2));
 }
-function registerDecisionTools(server2) {
+function registerMeetTools(server2) {
   server2.tool(
-    "nx_decision_add",
-    "Add a decision to .nexus/decisions.json",
+    "nx_meet_start",
+    "\uC0C8 \uBBF8\uD305 \uC138\uC158 \uC2DC\uC791 \u2014 \uAE30\uC874 meet.json \uC790\uB3D9 \uC544\uCE74\uC774\uBE0C",
     {
-      summary: external_exports.string().describe("Decision summary to record"),
-      consult: external_exports.number().nullable().optional().describe("Consult issue ID this decision relates to (null if not from a consultation)")
+      topic: external_exports.string().describe("\uBBF8\uD305 \uC8FC\uC81C"),
+      issues: external_exports.array(external_exports.string()).describe("\uC548\uAC74 \uBAA9\uB85D"),
+      research_summary: external_exports.string().describe("\uC0AC\uC804\uC870\uC0AC \uACB0\uACFC \uC694\uC57D. \uB9AC\uC11C\uCE58 \uC644\uB8CC\uB97C \uAC15\uC81C\uD558\uAE30 \uC704\uD55C \uD544\uC218 \uD30C\uB77C\uBBF8\uD130."),
+      attendees: external_exports.array(external_exports.object({
+        role: external_exports.string(),
+        name: external_exports.string()
+      })).optional().describe("\uCD08\uAE30 \uCC38\uC11D\uC790 \uBAA9\uB85D. \uC0DD\uB7B5 \uC2DC Lead\uB9CC \uAE30\uBCF8 \uB4F1\uB85D.")
     },
-    async ({ summary, consult }) => {
-      const data = await readDecisions();
-      const maxId = data.decisions.reduce((max, d) => Math.max(max, d.id), 0);
-      const entry = { id: maxId + 1, summary, consult: consult ?? null };
-      data.decisions.push(entry);
-      await writeDecisions(data);
-      return textResult({ decisions: data.decisions });
-    }
-  );
-}
-
-// src/mcp/tools/consult.ts
-function consultPath() {
-  return (0, import_path10.join)(STATE_ROOT, "consult.json");
-}
-async function readConsult() {
-  const p = consultPath();
-  if (!(0, import_fs10.existsSync)(p)) return null;
-  const raw = await (0, import_promises5.readFile)(p, "utf-8");
-  return JSON.parse(raw);
-}
-async function writeConsult(data) {
-  ensureDir(STATE_ROOT);
-  await (0, import_promises5.writeFile)((0, import_path10.join)(STATE_ROOT, "consult.json"), JSON.stringify(data, null, 2));
-}
-function registerConsultTools(server2) {
-  server2.tool(
-    "nx_consult_start",
-    "Start a new consultation session with topic and issues to discuss",
-    {
-      topic: external_exports.string().describe("Consultation topic"),
-      issues: external_exports.array(external_exports.string()).describe("List of issue titles to discuss"),
-      research_summary: external_exports.string().describe("Summary of research findings from Explore/researcher agents. Required to ensure research is complete before starting consultation.")
-    },
-    async ({ topic, issues, research_summary }) => {
-      let archived = false;
-      const existingConsult = await readConsult();
-      const existingDecisions = await readDecisions();
-      if (existingConsult || existingDecisions.decisions.length > 0) {
-        const projectHistoryPath = (0, import_path10.join)(NEXUS_ROOT, "history.json");
-        let history = { cycles: [] };
-        if ((0, import_fs10.existsSync)(projectHistoryPath)) {
-          try {
-            history = JSON.parse(await (0, import_promises5.readFile)(projectHistoryPath, "utf-8"));
-          } catch {
-          }
+    async ({ topic, issues, research_summary, attendees }) => {
+      const projectHistoryPath = (0, import_path9.join)(NEXUS_ROOT, "history.json");
+      let history = { cycles: [] };
+      if ((0, import_fs9.existsSync)(projectHistoryPath)) {
+        try {
+          history = JSON.parse(await (0, import_promises4.readFile)(projectHistoryPath, "utf-8"));
+        } catch {
         }
+      }
+      let lastMeetId = 0;
+      for (const cycle of history.cycles) {
+        if (cycle.meet && typeof cycle.meet.id === "number") {
+          lastMeetId = Math.max(lastMeetId, cycle.meet.id);
+        }
+      }
+      let previousArchived = false;
+      const existingMeet = await readMeet();
+      if (existingMeet) {
         history.cycles.push({
           completed_at: (/* @__PURE__ */ new Date()).toISOString(),
           branch: getCurrentBranch(),
-          consult: existingConsult,
-          decisions: existingDecisions.decisions,
+          meet: existingMeet,
           tasks: []
         });
         ensureDir(NEXUS_ROOT);
-        await (0, import_promises5.writeFile)(projectHistoryPath, JSON.stringify(history, null, 2));
-        const consultJsonPath = (0, import_path10.join)(STATE_ROOT, "consult.json");
-        const decisionsJsonPath = (0, import_path10.join)(STATE_ROOT, "decisions.json");
-        if ((0, import_fs10.existsSync)(consultJsonPath)) (0, import_fs10.unlinkSync)(consultJsonPath);
-        if ((0, import_fs10.existsSync)(decisionsJsonPath)) (0, import_fs10.unlinkSync)(decisionsJsonPath);
-        archived = true;
+        await (0, import_promises4.writeFile)(projectHistoryPath, JSON.stringify(history, null, 2));
+        (0, import_fs9.unlinkSync)(meetPath());
+        previousArchived = true;
       }
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      const newId = lastMeetId + 1;
+      const initialAttendees = attendees ? attendees.map((a) => ({ role: a.role, name: a.name, joined_at: now })) : [{ role: "lead", name: "lead", joined_at: now }];
       const data = {
+        id: newId,
         topic,
+        attendees: initialAttendees,
         issues: issues.map((title, i) => ({
           id: i + 1,
           title,
-          status: "pending"
+          status: "pending",
+          discussion: []
         })),
-        researchSummary: research_summary
+        research_summary,
+        created_at: now
       };
-      await writeConsult(data);
-      return textResult({ created: true, topic, issueCount: issues.length, previousCycleArchived: archived });
+      await writeMeet(data);
+      return textResult({ created: true, meet_id: newId, topic, issueCount: issues.length, previousArchived });
     }
   );
   server2.tool(
-    "nx_consult_status",
-    "Get current consultation status: topic, issues, their statuses, and related decisions",
+    "nx_meet_status",
+    "\uD604\uC7AC \uBBF8\uD305 \uC0C1\uD0DC \uC870\uD68C: \uC548\uAC74, \uCC38\uC11D\uC790, \uACB0\uC815\uC0AC\uD56D",
     {},
     async () => {
-      const data = await readConsult();
+      const data = await readMeet();
       if (!data) {
         return textResult({ active: false });
-      }
-      const decisionsData = await readDecisions();
-      const issueIds = new Set(data.issues.map((i) => i.id));
-      const decisionByIssueId = /* @__PURE__ */ new Map();
-      for (const d of decisionsData.decisions) {
-        if (d.consult !== null && issueIds.has(d.consult)) {
-          decisionByIssueId.set(d.consult, d.summary);
-        }
       }
       const pending = data.issues.filter((i) => i.status === "pending").length;
       const discussing = data.issues.filter((i) => i.status === "discussing").length;
       const decided = data.issues.filter((i) => i.status === "decided").length;
-      const issuesWithDecisions = data.issues.map((i) => {
-        const result = { id: i.id, title: i.title, status: i.status };
-        if (i.status === "decided" && decisionByIssueId.has(i.id)) {
-          result.decision = decisionByIssueId.get(i.id);
-        }
-        return result;
-      });
-      const statusResult = {
+      return textResult({
         active: true,
+        meet_id: data.id,
         topic: data.topic,
-        issues: issuesWithDecisions,
+        attendees: data.attendees,
+        issues: data.issues,
+        research_summary: data.research_summary,
         summary: { total: data.issues.length, pending, discussing, decided }
-      };
-      if (data.researchSummary) {
-        statusResult.researchSummary = data.researchSummary;
-      }
-      return textResult(statusResult);
+      });
     }
   );
   server2.tool(
-    "nx_consult_update",
-    "Update consultation issues: add, remove, edit title, or reopen a decided issue",
+    "nx_meet_update",
+    "\uC548\uAC74 \uAD00\uB9AC: \uCD94\uAC00, \uC0AD\uC81C, \uC218\uC815, \uC7AC\uAC1C",
     {
-      action: external_exports.enum(["add", "remove", "edit", "reopen"]).describe("Action to perform"),
-      issue_id: external_exports.number().optional().describe("Issue ID (required for remove, edit, reopen)"),
-      title: external_exports.string().optional().describe("Issue title (required for add and edit)")
+      action: external_exports.enum(["add", "remove", "edit", "reopen"]).describe("\uC218\uD589\uD560 \uC561\uC158"),
+      issue_id: external_exports.number().optional().describe("\uB300\uC0C1 \uC548\uAC74 ID (remove, edit, reopen\uC5D0 \uD544\uC218)"),
+      title: external_exports.string().optional().describe("\uC548\uAC74 \uC81C\uBAA9 (add, edit\uC5D0 \uD544\uC218)")
     },
     async ({ action, issue_id, title }) => {
-      const data = await readConsult();
+      const data = await readMeet();
       if (!data) {
-        return textResult({ error: "No active consultation" });
+        return textResult({ error: "No active meet session" });
       }
       if (action === "add") {
         if (!title) {
           return textResult({ error: "title is required for add" });
         }
         const maxId = data.issues.reduce((max, i) => Math.max(max, i.id), 0);
-        const newIssue = { id: maxId + 1, title, status: "pending" };
+        const newIssue = { id: maxId + 1, title, status: "pending", discussion: [] };
         data.issues.push(newIssue);
-        await writeConsult(data);
+        await writeMeet(data);
         return textResult({ added: true, issue: newIssue });
       }
       if (action === "remove") {
@@ -22272,7 +22228,7 @@ function registerConsultTools(server2) {
           return textResult({ error: `Issue ${issue_id} not found` });
         }
         const [removed] = data.issues.splice(idx, 1);
-        await writeConsult(data);
+        await writeMeet(data);
         return textResult({ removed: true, issue: removed });
       }
       if (action === "edit") {
@@ -22284,7 +22240,7 @@ function registerConsultTools(server2) {
           return textResult({ error: `Issue ${issue_id} not found` });
         }
         issue2.title = title;
-        await writeConsult(data);
+        await writeMeet(data);
         return textResult({ edited: true, issue: issue2 });
       }
       if (action === "reopen") {
@@ -22296,58 +22252,69 @@ function registerConsultTools(server2) {
           return textResult({ error: `Issue ${issue_id} not found` });
         }
         issue2.status = "discussing";
-        await writeConsult(data);
-        const decisions = await readDecisions();
-        let changed = false;
-        for (const d of decisions.decisions) {
-          if (d.consult === issue_id && d.status !== "revoked") {
-            d.status = "revoked";
-            changed = true;
-          }
-        }
-        if (changed) {
-          await writeDecisions(decisions);
-        }
+        delete issue2.decision;
+        await writeMeet(data);
         return textResult({ reopened: true, issue: issue2 });
       }
       return textResult({ error: "Unknown action" });
     }
   );
   server2.tool(
-    "nx_consult_decide",
-    "Mark a consultation issue as decided and record the decision",
+    "nx_meet_discuss",
+    "\uC548\uAC74\uC5D0 \uB17C\uC758 \uB0B4\uC6A9 \uAE30\uB85D",
     {
-      issue_id: external_exports.number().describe("Issue ID to mark as decided"),
-      summary: external_exports.string().describe("Decision summary to record")
+      issue_id: external_exports.number().describe("\uC548\uAC74 ID"),
+      speaker: external_exports.string().describe("\uBC1C\uC5B8\uC790 (\uC5D0\uC774\uC804\uD2B8\uBA85 \uB610\uB294 user/lead)"),
+      content: external_exports.string().describe("\uBC1C\uC5B8 \uB0B4\uC6A9 \uC694\uC57D")
+    },
+    async ({ issue_id, speaker, content }) => {
+      const data = await readMeet();
+      if (!data) {
+        return textResult({ error: "No active meet session" });
+      }
+      const issue2 = data.issues.find((i) => i.id === issue_id);
+      if (!issue2) {
+        return textResult({ error: `Issue ${issue_id} not found` });
+      }
+      const entry = {
+        speaker,
+        content,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      issue2.discussion.push(entry);
+      if (issue2.status === "pending") {
+        issue2.status = "discussing";
+      }
+      await writeMeet(data);
+      return textResult({ recorded: true, issue_id, discussionCount: issue2.discussion.length });
+    }
+  );
+  server2.tool(
+    "nx_meet_decide",
+    "\uC548\uAC74 \uACB0\uC815 \uAE30\uB85D \u2014 [d] \uD0DC\uADF8\uB85C \uD2B8\uB9AC\uAC70",
+    {
+      issue_id: external_exports.number().describe("\uACB0\uC815\uD560 \uC548\uAC74 ID"),
+      summary: external_exports.string().describe("\uACB0\uC815 \uC694\uC57D")
     },
     async ({ issue_id, summary }) => {
-      const data = await readConsult();
+      const data = await readMeet();
       if (!data) {
-        return textResult({ error: "No active consultation" });
+        return textResult({ error: "No active meet session" });
       }
       const issue2 = data.issues.find((i) => i.id === issue_id);
       if (!issue2) {
         return textResult({ error: `Issue ${issue_id} not found` });
       }
       issue2.status = "decided";
-      await writeConsult(data);
-      const decisions = await readDecisions();
-      const maxId = decisions.decisions.reduce((max, d) => Math.max(max, d.id), 0);
-      const entry = {
-        id: maxId + 1,
-        summary,
-        consult: issue_id
-      };
-      decisions.decisions.push(entry);
-      await writeDecisions(decisions);
-      const allDecided = data.issues.every((i) => i.status === "decided");
-      if (allDecided) {
+      issue2.decision = summary;
+      await writeMeet(data);
+      const allComplete = data.issues.every((i) => i.status === "decided");
+      if (allComplete) {
         return textResult({
           decided: true,
           issue: issue2.title,
           allComplete: true,
-          message: "\uBAA8\uB4E0 \uB17C\uC810\uC774 \uACB0\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC2E4\uD589\uC774 \uD544\uC694\uD558\uBA74 [run] \uD0DC\uADF8\uB97C, \uADDC\uCE59\uC73C\uB85C \uC800\uC7A5\uD558\uB824\uBA74 [rule] \uB610\uB294 [rule:\uD0DC\uADF8] \uD0DC\uADF8\uB97C \uC0AC\uC6A9\uD558\uC138\uC694.",
-          decisions: decisions.decisions
+          message: "\uBAA8\uB4E0 \uC548\uAC74\uC774 \uACB0\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC2E4\uD589\uC774 \uD544\uC694\uD558\uBA74 [run] \uD0DC\uADF8\uB97C, \uADDC\uCE59\uC73C\uB85C \uC800\uC7A5\uD558\uB824\uBA74 [rule] \uB610\uB294 [rule:\uD0DC\uADF8] \uD0DC\uADF8\uB97C \uC0AC\uC6A9\uD558\uC138\uC694."
         });
       }
       const remaining = data.issues.filter((i) => i.status !== "decided");
@@ -22359,21 +22326,47 @@ function registerConsultTools(server2) {
       });
     }
   );
+  server2.tool(
+    "nx_meet_join",
+    "\uBBF8\uD305\uC5D0 \uCC38\uC11D\uC790 \uCD94\uAC00",
+    {
+      role: external_exports.string().describe("\uC5D0\uC774\uC804\uD2B8 \uC5ED\uD560 (architect, engineer \uB4F1)"),
+      name: external_exports.string().describe("\uD300 \uB0B4 \uC5D0\uC774\uC804\uD2B8 \uC774\uB984")
+    },
+    async ({ role, name }) => {
+      const data = await readMeet();
+      if (!data) {
+        return textResult({ error: "No active meet session" });
+      }
+      const duplicate = data.attendees.find((a) => a.name === name);
+      if (duplicate) {
+        return textResult({ error: `Attendee '${name}' already joined`, attendee: duplicate });
+      }
+      const attendee = {
+        role,
+        name,
+        joined_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      data.attendees.push(attendee);
+      await writeMeet(data);
+      return textResult({ joined: true, attendee, totalAttendees: data.attendees.length });
+    }
+  );
 }
 
 // src/mcp/tools/task.ts
 function tasksPath() {
-  return (0, import_path11.join)(STATE_ROOT, "tasks.json");
+  return (0, import_path10.join)(STATE_ROOT, "tasks.json");
 }
 async function readTasks() {
   const p = tasksPath();
-  if (!(0, import_fs11.existsSync)(p)) return null;
-  const raw = await (0, import_promises6.readFile)(p, "utf-8");
+  if (!(0, import_fs10.existsSync)(p)) return null;
+  const raw = await (0, import_promises5.readFile)(p, "utf-8");
   return JSON.parse(raw);
 }
 async function writeTasks(data) {
   ensureDir(STATE_ROOT);
-  await (0, import_promises6.writeFile)((0, import_path11.join)(STATE_ROOT, "tasks.json"), JSON.stringify(data, null, 2));
+  await (0, import_promises5.writeFile)((0, import_path10.join)(STATE_ROOT, "tasks.json"), JSON.stringify(data, null, 2));
 }
 function computeSummary(tasks) {
   const total = tasks.length;
@@ -22405,11 +22398,12 @@ function registerTaskTools(server2) {
       title: external_exports.string().describe("Task title"),
       context: external_exports.string().describe("Task context or description"),
       deps: external_exports.array(external_exports.number()).optional().describe("IDs of tasks this task depends on"),
-      decisions: external_exports.array(external_exports.number()).describe("IDs of decisions that informed this task. Pass [] if none."),
+      decisions: external_exports.array(external_exports.number()).optional().describe("(deprecated) IDs of decisions that informed this task."),
+      meet_issue: external_exports.number().optional().describe("meet issue ID this task originates from \u2014 used for tracing back to the meet session"),
       goal: external_exports.string().optional().describe("Set or update the goal for this task list"),
       owner: external_exports.string().optional().describe("Assignee agent name for this task")
     },
-    async ({ title, context, deps, decisions, goal, owner }) => {
+    async ({ title, context, deps, decisions, meet_issue, goal, owner }) => {
       let data = await readTasks();
       if (!data) {
         data = { goal: "", tasks: [] };
@@ -22424,7 +22418,8 @@ function registerTaskTools(server2) {
         context,
         status: "pending",
         deps: deps ?? [],
-        decisions,
+        decisions: decisions ?? [],
+        meet_issue,
         owner,
         created_at: (/* @__PURE__ */ new Date()).toISOString()
       };
@@ -22456,55 +22451,52 @@ function registerTaskTools(server2) {
   );
   server2.tool(
     "nx_task_close",
-    "Close the current cycle: archive consult+decisions+tasks into history.json, then delete source files",
+    "Close the current cycle: archive meet+tasks into history.json, then delete source files",
     {},
     async () => {
       const root = STATE_ROOT;
-      const projectHistoryPath = (0, import_path11.join)(NEXUS_ROOT, "history.json");
-      const consultJsonPath = (0, import_path11.join)(root, "consult.json");
-      const decisionsJsonPath = (0, import_path11.join)(root, "decisions.json");
-      const reopenTrackerPath = (0, import_path11.join)(root, "reopen-tracker.json");
-      const consult = await readConsult();
-      const decisionsData = await readDecisions();
-      const decisions = decisionsData.decisions;
+      const projectHistoryPath = (0, import_path10.join)(NEXUS_ROOT, "history.json");
+      const meetJsonPath = (0, import_path10.join)(root, "meet.json");
+      const reopenTrackerPath = (0, import_path10.join)(root, "reopen-tracker.json");
+      const meet = await readMeet();
       const tasksData = await readTasks();
       const tasks = tasksData?.tasks ?? [];
       const branch = getCurrentBranch();
       let history = { cycles: [] };
-      if ((0, import_fs11.existsSync)(projectHistoryPath)) {
-        const raw = await (0, import_promises6.readFile)(projectHistoryPath, "utf-8");
+      if ((0, import_fs10.existsSync)(projectHistoryPath)) {
+        const raw = await (0, import_promises5.readFile)(projectHistoryPath, "utf-8");
         history = JSON.parse(raw);
       }
       const cycle = {
         completed_at: (/* @__PURE__ */ new Date()).toISOString(),
         branch,
-        consult,
-        decisions,
+        meet,
         tasks
       };
       history.cycles.push(cycle);
       ensureDir(NEXUS_ROOT);
-      await (0, import_promises6.writeFile)(projectHistoryPath, JSON.stringify(history, null, 2));
-      const editTrackerPath = (0, import_path11.join)(root, "edit-tracker.json");
+      await (0, import_promises5.writeFile)(projectHistoryPath, JSON.stringify(history, null, 2));
+      const editTrackerPath = (0, import_path10.join)(root, "edit-tracker.json");
       let hadLoopDetection = false;
-      if ((0, import_fs11.existsSync)(editTrackerPath)) {
+      if ((0, import_fs10.existsSync)(editTrackerPath)) {
         try {
-          const trackerData = JSON.parse(await (0, import_promises6.readFile)(editTrackerPath, "utf-8"));
+          const trackerData = JSON.parse(await (0, import_promises5.readFile)(editTrackerPath, "utf-8"));
           hadLoopDetection = Object.values(trackerData).some((count) => count >= 3);
         } catch {
         }
       }
+      const decisionCount = meet?.issues.filter((i) => i.status === "decided").length ?? 0;
       const memoryHint = {
         taskCount: tasks.length,
-        decisionCount: decisions.length,
+        decisionCount,
         hadLoopDetection,
-        cycleTopics: [consult?.topic, tasksData?.goal].filter(Boolean)
+        cycleTopics: [meet?.topic, tasksData?.goal].filter(Boolean)
       };
-      const stopWarnedPath = (0, import_path11.join)(root, "stop-warned");
+      const stopWarnedPath = (0, import_path10.join)(root, "stop-warned");
       const deleted = [];
-      for (const p of [consultJsonPath, decisionsJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath, stopWarnedPath]) {
-        if ((0, import_fs11.existsSync)(p)) {
-          (0, import_fs11.unlinkSync)(p);
+      for (const p of [meetJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath, stopWarnedPath]) {
+        if ((0, import_fs10.existsSync)(p)) {
+          (0, import_fs10.unlinkSync)(p);
           deleted.push(p.split("/").pop());
         }
       }
@@ -22512,7 +22504,7 @@ function registerTaskTools(server2) {
         closed: true,
         cycle: cycle.completed_at,
         branch,
-        archived: { consult: consult !== null, decisions: decisions.length, tasks: tasks.length },
+        archived: { meet: meet !== null, decisions: decisionCount, tasks: tasks.length },
         deleted,
         total_cycles: history.cycles.length,
         memoryHint
@@ -22522,8 +22514,8 @@ function registerTaskTools(server2) {
 }
 
 // src/mcp/tools/artifact.ts
-var import_promises7 = require("fs/promises");
-var import_path12 = require("path");
+var import_promises6 = require("fs/promises");
+var import_path11 = require("path");
 function registerArtifactTools(server2) {
   server2.tool(
     "nx_artifact_write",
@@ -22533,19 +22525,19 @@ function registerArtifactTools(server2) {
       content: external_exports.string().describe("File content to write")
     },
     async ({ filename, content }) => {
-      const artifactsDir = (0, import_path12.join)(STATE_ROOT, "artifacts");
+      const artifactsDir = (0, import_path11.join)(STATE_ROOT, "artifacts");
       ensureDir(artifactsDir);
-      const path = (0, import_path12.join)(artifactsDir, filename);
-      await (0, import_promises7.writeFile)(path, content);
+      const path = (0, import_path11.join)(artifactsDir, filename);
+      await (0, import_promises6.writeFile)(path, content);
       return textResult({ success: true, path });
     }
   );
 }
 
 // src/mcp/tools/briefing.ts
-var import_fs12 = require("fs");
-var import_promises8 = require("fs/promises");
-var import_path13 = require("path");
+var import_fs11 = require("fs");
+var import_promises7 = require("fs/promises");
+var import_path12 = require("path");
 var MATRIX = {
   architect: { identity: "all", codebase: "all", reference: "all", memory: "all" },
   postdoc: { identity: "all", codebase: "all", reference: "all", memory: "all" },
@@ -22564,12 +22556,12 @@ function parseTags2(content) {
 }
 async function readLayerFiles(layer, hint) {
   const layerDir = coreLayerDir(layer);
-  if (!(0, import_fs12.existsSync)(layerDir)) return [];
-  const files = (await (0, import_promises8.readdir)(layerDir)).filter((f) => f.endsWith(".md"));
+  if (!(0, import_fs11.existsSync)(layerDir)) return [];
+  const files = (await (0, import_promises7.readdir)(layerDir)).filter((f) => f.endsWith(".md"));
   const results = [];
   for (const file of files) {
-    const filePath = (0, import_path13.join)(layerDir, file);
-    const content = await (0, import_promises8.readFile)(filePath, "utf-8");
+    const filePath = (0, import_path12.join)(layerDir, file);
+    const content = await (0, import_promises7.readFile)(filePath, "utf-8");
     results.push({ filename: file, content });
   }
   if (hint && results.length > 0) {
@@ -22609,18 +22601,18 @@ function registerBriefingTool(server2) {
         }
       }
       let decisionsSection = "";
-      const decisionsPath2 = (0, import_path13.join)(STATE_ROOT, "decisions.json");
-      if ((0, import_fs12.existsSync)(decisionsPath2)) {
-        const raw = await (0, import_promises8.readFile)(decisionsPath2, "utf-8");
+      const decisionsPath = (0, import_path12.join)(STATE_ROOT, "decisions.json");
+      if ((0, import_fs11.existsSync)(decisionsPath)) {
+        const raw = await (0, import_promises7.readFile)(decisionsPath, "utf-8");
         decisionsSection = raw.trim();
       }
       let rulesSection = "";
-      const rulesDir = (0, import_path13.join)(NEXUS_ROOT, "rules");
-      if ((0, import_fs12.existsSync)(rulesDir)) {
-        const ruleFiles = (await (0, import_promises8.readdir)(rulesDir)).filter((f) => f.endsWith(".md"));
+      const rulesDir = (0, import_path12.join)(NEXUS_ROOT, "rules");
+      if ((0, import_fs11.existsSync)(rulesDir)) {
+        const ruleFiles = (await (0, import_promises7.readdir)(rulesDir)).filter((f) => f.endsWith(".md"));
         let parts = [];
         for (const ruleFile of ruleFiles) {
-          const content = await (0, import_promises8.readFile)((0, import_path13.join)(rulesDir, ruleFile), "utf-8");
+          const content = await (0, import_promises7.readFile)((0, import_path12.join)(rulesDir, ruleFile), "utf-8");
           parts.push({ filename: ruleFile, content });
         }
         if (hint && parts.length > 0) {
@@ -22670,7 +22662,7 @@ ${content.trim()}`).join("\n\n");
 }
 
 // src/mcp/server.ts
-var import_path14 = require("path");
+var import_path13 = require("path");
 var server = new McpServer({
   name: "nx",
   version: getCurrentVersion() || "0.0.0"
@@ -22679,7 +22671,7 @@ registerCoreStore(server);
 registerMarkdownStore(server, {
   toolPrefix: "nx_rules",
   entityName: "name",
-  dirPath: (0, import_path14.join)(NEXUS_ROOT, "rules"),
+  dirPath: (0, import_path13.join)(NEXUS_ROOT, "rules"),
   pathFn: rulesPath,
   listKey: "rules",
   cache: false
@@ -22688,9 +22680,8 @@ registerContextTool(server);
 registerLspTools(server);
 registerAstTools(server);
 registerTaskTools(server);
-registerDecisionTools(server);
 registerArtifactTools(server);
-registerConsultTools(server);
+registerMeetTools(server);
 registerBriefingTool(server);
 async function main() {
   const transport = new StdioServerTransport();

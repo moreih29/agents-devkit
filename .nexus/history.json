@@ -2204,6 +2204,253 @@
           "created_at": "2026-03-31T06:42:33.283Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-01T01:20:28.151Z",
+      "branch": "feat/consult-skill",
+      "consult": {
+        "topic": "consult 스킬 재설계 — 서브에이전트 자문 모델에서 팀 회의체 모델로 전환",
+        "issues": [
+          {
+            "id": 1,
+            "title": "스킬 이름 변경 (consult → ?): 회사 내부 회의체 느낌, 짧고 타이핑 편한 영문 이름",
+            "status": "decided"
+          },
+          {
+            "id": 2,
+            "title": "아키텍처 전환: 서브에이전트 → 팀 모드 (TeamCreate + SendMessage)",
+            "status": "decided"
+          },
+          {
+            "id": 3,
+            "title": "Lead 역할 재정의: 정보 전달자 → 퍼실리테이터",
+            "status": "decided"
+          },
+          {
+            "id": 4,
+            "title": "토큰 비용 트레이드오프: 팀 모드 3-4x 비용 감수 여부",
+            "status": "decided"
+          },
+          {
+            "id": 5,
+            "title": "리서치 페이즈 처리: 사전조사는 서브에이전트 유지 vs 팀 내 처리",
+            "status": "decided"
+          },
+          {
+            "id": 6,
+            "title": "기존 MCP 도구 호환: consult_start/status/update/decide 재사용 범위",
+            "status": "decided"
+          },
+          {
+            "id": 7,
+            "title": "한글 트리거 재설계",
+            "status": "decided"
+          },
+          {
+            "id": 8,
+            "title": "gate.ts 모드 처리 변경",
+            "status": "decided"
+          },
+          {
+            "id": 9,
+            "title": "history 아카이브 설계: meet.json + tasks 역추적 구조",
+            "status": "decided"
+          },
+          {
+            "id": 10,
+            "title": "run 이후 팀 해산 시점: 즉시 해산 vs 유지하여 후속 run 대응",
+            "status": "decided"
+          }
+        ],
+        "researchSummary": "현재 consult는 허브-스포크 모델(Lead가 서브에이전트로 Explore+researcher 호출 → 요약 전달). 사용자 실제 패턴은 회의실에 전문가를 모아 토론하는 형태. 서브에이전트 모델의 문제: (1) 사용자가 전문가와 직접 소통 불가, (2) Lead가 요약본만 보유해 정확도 저하, (3) 반박/추가의견 전달이 간접적. 팀 모드는 SendMessage로 직접 소통 가능하나 토큰 비용 3-4x. [run] 스킬은 이미 팀 모드 사용 중."
+      },
+      "decisions": [
+        {
+          "id": 1,
+          "summary": "스킬 이름을 consult → meet으로 변경. 태그: [meet]. 이유: (1) 4자로 짧음, (2) \"미팅하자\"는 회사 내부에서 가장 자연스러운 표현, (3) 구글밋 등으로 이미 익숙한 단어, (4) 가장 직관적. 타이핑이 전부 왼손인 단점은 감수.",
+          "consult": 1
+        },
+        {
+          "id": 2,
+          "summary": "meet 스킬은 팀 모드(TeamCreate + SendMessage) 사용. 에이전트 소환은 유연하게(사용자 명시 / Lead 제안 / 중간 추가). 에이전트 간 직접 토론 허용하되 결론은 Lead에게 보고 의무. 사용자는 Shift+Down으로 팀원과 직접 대화 가능.",
+          "consult": 2
+        },
+        {
+          "id": 3,
+          "summary": "Lead는 \"의견도 내는 퍼실리테이터\". 역할: (1) 진행/관리 — 안건 정리, 팀 구성, 참석자 제안/소환, 결정 기록, (2) 중재 — 논의 흐름 정리, 합의점/이견 파악, 팩트체크 시 리서처 호출, (3) 참여 — why/what 맥락을 가장 잘 아는 위치에서 적극적으로 의견 제시. 전문 영역 질문은 해당 전문가에게 넘기되, Lead 독단 답변은 지양.",
+          "consult": 3
+        },
+        {
+          "id": 4,
+          "summary": "팀 모드 비용 감수. meet은 보통 2-3명 소환으로 비용 합리적. 필요할 때만 에이전트 추가 소환하는 유연한 구조(#2 결정)가 자연스러운 비용 절감 전략이 됨.",
+          "consult": 4,
+          "status": "revoked"
+        },
+        {
+          "id": 5,
+          "summary": "meet → run 전환 시 How 에이전트(아키텍트, 디자이너, 전략가, 포닥)는 유지하여 컨텍스트 브릿지 역할. Do/Check 에이전트(엔지니어, 리서처, 라이터, QA, 리뷰어)는 해산 — meet에서는 조사/실험/검증 목적이므로 run에서 새로 스폰. decisions.json은 보조 기록으로 함께 활용.",
+          "consult": 4
+        },
+        {
+          "id": 6,
+          "summary": "혼합 방식 — Lead가 판단. 사전조사/간단한 조사는 서브에이전트로 빠르게 처리. 회의 중 깊은 조사가 필요하면 팀에 리서처 소환. Do 에이전트는 meet 종료 시 해산(#4 결정)하므로 run까지 이어가지 않음.",
+          "consult": 5
+        },
+        {
+          "id": 7,
+          "summary": "MCP 도구 이름 nx_consult_* → nx_meet_*로 변경. 상태 파일 consult.json → meet.json으로 통합 (회의록 형태: 참석자 + 안건 + 논의과정 + 결정). decisions.json 폐기 — 결정은 meet.json 안건별로 귀속. [d] 태그는 meet 세션 안에서만 유효 (meet.json 없으면 안내). nx_decision_add 도구도 폐기.",
+          "consult": 6
+        },
+        {
+          "id": 8,
+          "summary": "한글 트리거를 역할 분리. 트리거(meet 세션 시작): [meet], 미팅, 회의, 논의하자, 모여. 참석자 지정(누구를 부를지): 참석, 불러, 소환 등 — gate.ts에서 파싱. 예: \"[meet] 아키텍트 참석. UI 구조 논의하자\"가 자연어로 동작.",
+          "consult": 7
+        },
+        {
+          "id": 9,
+          "summary": "gate.ts 모드 처리: (1) [meet] → 팀 필수 (TeamCreate + team_name 강제), (2) [d] → meet.json 없으면 차단, (3) meet → run 전환 시 How 에이전트 유지 / Do·Check 해산, (4) nx_decision_add 라우팅 제거, (5) meet.json 기록 타이밍: [d] 시 해당 안건의 논의과정+결정을 필수 기록, 중간 메모는 Lead 재량.",
+          "consult": 8
+        },
+        {
+          "id": 10,
+          "summary": "history 아카이브 시 meet.json 전체 + tasks.json 전체를 cycle에 포함. meet.id는 단순 숫자(1,2,3) — meet 키로 이미 구분되므로 네임스페이스 중복 불필요. tasks에 meet_issue 필드 추가하여 역추적 가능: task → meet_issue → meet.issues[n].decision. history.cycles[n] = { completed_at, branch, meet, tasks }.",
+          "consult": 9
+        },
+        {
+          "id": 11,
+          "summary": "run 이후 팀 해산 시점: (1) run(팀) 완료 시 자동 close 제거 → \"close할까요?\" 사용자 확인으로 변경. 사용자 OK 시 close + 해산. (2) Lead 단독은 현재와 동일 — all completed → Stop 시 close 강제. (3) task tracking 무결성: all completed 후에도 Edit/Write 시 새 task 등록 강제. (4) 세션 방치 대응: 새 meet 열 때 기존 meet.json 있으면 자동 아카이브. (5) Do/Check 해산 여부: Lead 판단. (6) history 비대화 허용.",
+          "consult": 10
+        }
+      ],
+      "tasks": [
+        {
+          "id": 1,
+          "title": "meet.json 스키마 + MCP 도구 인터페이스 설계",
+          "context": "결정사항 기반으로 meet.json 회의록 스키마(참석자, 안건, 논의과정, 결정), nx_meet_* MCP 도구 시그니처, history 아카이브 구조 확정. 현재 consult.ts, decision.ts, gate.ts, task.ts 코드를 분석하고 변경 범위 산출.",
+          "status": "pending",
+          "deps": [],
+          "decisions": [
+            1,
+            2,
+            5,
+            7,
+            9,
+            10,
+            11
+          ],
+          "owner": "architect",
+          "created_at": "2026-04-01T00:45:14.339Z"
+        },
+        {
+          "id": 2,
+          "title": "src/mcp/tools/meet.ts 생성 (MCP 도구 6개)",
+          "context": "consult.ts를 meet.ts로 재작성. MeetFile/MeetIssue/DiscussionEntry/MeetAttendee 인터페이스 + nx_meet_start/status/update/discuss/decide/join 6개 도구 구현. 설계: .nexus/state/artifacts/meet-design.md 참조. 기존 consult.ts의 아카이브/상태관리 로직 재사용.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            7,
+            10,
+            11
+          ],
+          "owner": "engineer-1",
+          "created_at": "2026-04-01T00:49:30.153Z"
+        },
+        {
+          "id": 3,
+          "title": "skills/nx-meet/SKILL.md 생성 (스킬 정의)",
+          "context": "nx-consult SKILL.md를 기반으로 nx-meet SKILL.md 작성. 팀 모드 회의체 모델, Lead 퍼실리테이터 역할, [meet] 트리거, 참석자 소환, [d] 기록 절차 등 반영. 결정사항 1-9 전부 반영.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            2,
+            3,
+            5,
+            6,
+            8,
+            9
+          ],
+          "owner": "engineer-2",
+          "created_at": "2026-04-01T00:49:33.830Z"
+        },
+        {
+          "id": 4,
+          "title": "gate.ts 변경 (12개 블록)",
+          "context": "meet-design.md 섹션 4 참조. EXPLICIT_TAGS, NATURAL_PATTERNS, 참석자 패턴, [d] 핸들러, handleMeetMode, PRIMITIVE_HANDLERS, run 모드 판별, TASK_PIPELINE 등 12개 블록 변경. consult→meet 전면 교체 + [d] meet.json 필수 차단 + 팀 모드 강제.",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "decisions": [
+            1,
+            8,
+            9
+          ],
+          "owner": "engineer-1",
+          "created_at": "2026-04-01T00:49:37.475Z"
+        },
+        {
+          "id": 5,
+          "title": "task.ts 변경 (meet_issue 필드 + close 로직 + decision import 제거)",
+          "context": "nx_task_add에 meet_issue 파라미터 추가. nx_task_close의 Cycle에서 decisions 제거, consult→meet. decision.ts import 제거, meet.ts import 추가. close 로직: 팀 모드 시 확인 플로우 지원.",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "decisions": [
+            7,
+            10,
+            11
+          ],
+          "owner": "engineer-1",
+          "created_at": "2026-04-01T00:49:40.084Z"
+        },
+        {
+          "id": 6,
+          "title": "server.ts + 정리 (decision.ts 삭제, import 교체, nx-consult 삭제)",
+          "context": "server.ts: registerDecisionTools 제거, registerConsultTools→registerMeetTools. decision.ts 파일 삭제. skills/nx-consult/ 디렉토리 삭제. CLAUDE.md, nx-run SKILL.md 등 참조 업데이트.",
+          "status": "completed",
+          "deps": [
+            2,
+            4,
+            5
+          ],
+          "decisions": [
+            1,
+            7
+          ],
+          "owner": "engineer-1",
+          "created_at": "2026-04-01T00:49:42.983Z"
+        },
+        {
+          "id": 7,
+          "title": "test/e2e.sh Consult → Meet 테스트 업데이트",
+          "context": "5개 실패 테스트 수정. Consult 섹션을 Meet 섹션으로 교체. [consult]→[meet], nx_consult_*→nx_meet_*, 기대값 변경. [d] 태그 테스트는 meet.json 없을 때 차단 메시지 검증으로 변경.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            7,
+            9
+          ],
+          "owner": "engineer-1",
+          "created_at": "2026-04-01T01:09:04.356Z"
+        },
+        {
+          "id": 8,
+          "title": "README.md + README.en.md 문서 업데이트",
+          "context": "nx-consult → nx-meet, nx_consult_* → nx_meet_* 도구 표 업데이트. decisions.json 참조 제거.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [
+            1,
+            7
+          ],
+          "owner": "engineer-2",
+          "created_at": "2026-04-01T01:09:05.957Z"
+        }
+      ]
     }
   ]
 }

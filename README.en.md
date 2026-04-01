@@ -26,7 +26,7 @@ Run `/claude-nexus:nx-init` — scans your project and auto-generates structured
 
 **3. Start using**
 
-- **Consult**: `[consult] How should we design the auth system?` — clarify intent and align before executing
+- **Meet**: `[meet] How should we design the auth system?` — clarify intent and align before executing
 - **Run**: `[run] Implement login API` — agent team handles analysis through implementation
 
 ## Usage
@@ -35,12 +35,12 @@ Tag your message to route it to the right workflow:
 
 | Tag | Action | Example |
 |-----|--------|---------|
-| `[consult]` | Pre-execution consultation | `[consult] Discuss DB migration strategy` |
+| `[meet]` | Pre-execution meeting | `[meet] Discuss DB migration strategy` |
 | `[run]` | Execution (agent team) | `[run] Refactor payment module` |
 | `[d]` | Record a decision | `[d] Use PostgreSQL for primary storage` |
 | `[rule]` | Save a rule | `[rule] Always use bun instead of npm` |
 
-Typical flow: use `[consult]` to discuss and align → decide → use `[run]` to execute.
+Typical flow: use `[meet]` to discuss and align → decide → use `[run]` to execute.
 
 ## Agents
 
@@ -72,7 +72,7 @@ Typical flow: use `[consult]` to discuss and align → decide → use `[run]` to
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| **nx-consult** | `[consult]` | Structured consultation. Clarify requirements → record decisions (`[d]`) → recommend execution tag |
+| **nx-meet** | `[meet]` | Structured meeting. Clarify requirements → record decisions (`[d]`) → recommend execution tag |
 | **nx-run** | `[run]` | Execution. User-directed agent composition for development, research, and more |
 | **nx-init** | `/claude-nexus:nx-init` | Full project onboarding: scan codebase, establish identity, generate core knowledge |
 | **nx-setup** | `/claude-nexus:nx-setup` | Interactive setup. Injects agent/skill/tag configuration into CLAUDE.md |
@@ -91,15 +91,15 @@ Claude-callable tools exposed by the Nexus MCP server.
 |------|---------|
 | `nx_core_read/write` | Project knowledge management (git-tracked) |
 | `nx_rules_read/write` | Team custom rules management (git-tracked) |
-| `nx_context` | Current session state lookup (branch, tasks, decisions) |
+| `nx_context` | Current session state lookup (branch, tasks, meet) |
 | `nx_task_list/add/update/close` | Task management + history.json archiving |
-| `nx_decision_add` | Record architecture decisions |
 | `nx_artifact_write` | Save team artifacts (branch-isolated) |
-| `nx_consult_start` | Start consultation session (topic + issues) |
-| `nx_consult_status` | Query consultation state (with decisions join) |
-| `nx_consult_decide` | Record issue decision (consult.json + decisions.json) |
-| `nx_consult_update` | Modify consultation issues (add/remove/edit/reopen) |
-| `nx_branch_migrate` | Migrate state files (consult/decisions) across branches |
+| `nx_meet_start` | Start meeting session (topic + issues) |
+| `nx_meet_status` | Query meeting state |
+| `nx_meet_update` | Modify meeting issues (add/remove/edit/reopen) |
+| `nx_meet_discuss` | Record issue discussion |
+| `nx_meet_decide` | Record issue decision (meet.json) |
+| `nx_meet_join` | Join an ongoing meeting |
 
 ### Code Intelligence (10 tools)
 
@@ -162,8 +162,7 @@ Runtime state is stored under `.nexus/` and is excluded from git.
 ├── branches/               ← Per-branch isolation
 │   └── {branch}/
 │       ├── tasks.json      ← Task list
-│       ├── decisions.json  ← Architecture decision list
-│       ├── consult.json    ← Consultation issue tracker
+│       ├── meet.json       ← Meeting issue tracker
 │       ├── history.json    ← Cycle archive (created by nx_task_close)
 │       └── artifacts/      ← Team artifacts
 └── sync-state.json         ← Last sync commit

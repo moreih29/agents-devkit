@@ -159,23 +159,23 @@ rm -f "$E2E_STATE/tasks.json"
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (no keyword)" '"continue":true' "$result"
 
-# [d] 태그 감지
+# [d] 태그 감지 — meet.json 없는 상태에서는 차단 메시지
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[d] 이거 결정"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit ([d] tag)" 'Decision tag' "$result"
+check "Gate/UserPromptSubmit ([d] tag)" 'meet' "$result"
 
-# --- Consult ---
+# --- Meet ---
 echo ""
-echo "=== Consult ==="
+echo "=== Meet ==="
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[consult] 어떤 구조가 좋을까"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (consult tag)" 'Consult mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[meet] UI 구조 논의하자"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (meet tag)" 'Meet mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"어떻게 하면 좋을까"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (consult natural)" 'Consult mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"미팅하자"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (meet natural)" 'Meet mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[consult] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Consult (mandatory start)" 'nx_consult_start' "$result"
-check "Consult (researcher spawn)" 'researcher' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[meet] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
+check "Meet (mandatory start)" 'nx_meet_start' "$result"
+check "Meet (researcher spawn)" 'researcher' "$result"
 
 # --- Default Orchestration ---
 echo ""

@@ -95,11 +95,11 @@ var import_path3 = require("path");
 var import_os = require("os");
 var TASK_PIPELINE = `
 TASK PIPELINE (mandatory for all file modifications):
-1. Check decisions.json for prior decisions \u2014 reference relevant IDs in nx_task_add(decisions=[...]).
+1. Check meet.json issues for prior decisions \u2014 reference relevant meet_issue IDs in nx_task_add(meet_issue=N).
 2. Decompose work into discrete tasks \u2192 call nx_task_add for EACH task.
 3. Edit/Write tools are BLOCKED without tasks.json.
 4. As each task completes \u2192 nx_task_update(id, "completed").
-5. All tasks done \u2192 nx_task_close (archives consult+decisions+tasks \u2192 history.json).`;
+5. All tasks done \u2192 ask user "close\uD560\uAE4C\uC694?" (team mode) or nx_task_close directly (Lead solo).`;
 function taskPipelineMessage(modeSpecific) {
   return modeSpecific.replace("</nexus>", `${TASK_PIPELINE}</nexus>`);
 }
@@ -187,7 +187,7 @@ function handlePreToolUse(event) {
       if (!summary.exists) {
         respond({
           decision: "block",
-          reason: "<nexus>No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: consult \u2192 decisions \u2192 tasks \u2192 execute.</nexus>"
+          reason: "<nexus>No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: meet \u2192 decisions \u2192 tasks \u2192 execute.</nexus>"
         });
         return;
       }
@@ -216,8 +216,8 @@ function handlePreToolUse(event) {
     return;
   }
   const tasksPath = (0, import_path3.join)(STATE_ROOT, "tasks.json");
-  const consultPath = (0, import_path3.join)(STATE_ROOT, "consult.json");
-  const isRunMode = (0, import_fs3.existsSync)(tasksPath) && !(0, import_fs3.existsSync)(consultPath);
+  const meetPath = (0, import_path3.join)(STATE_ROOT, "meet.json");
+  const isRunMode = (0, import_fs3.existsSync)(tasksPath) && !(0, import_fs3.existsSync)(meetPath);
   if (isRunMode) {
     respond({
       decision: "block",
@@ -228,25 +228,36 @@ function handlePreToolUse(event) {
   pass();
 }
 var EXPLICIT_TAGS = {
-  consult: { primitive: "consult", skill: "claude-nexus:nx-consult" },
+  meet: { primitive: "meet", skill: "claude-nexus:nx-meet" },
   run: { primitive: "run", skill: "claude-nexus:nx-run" }
 };
 var NATURAL_PATTERNS = [
   {
-    patterns: [/\bconsult\b/i, /상담/, /어떻게\s*하면\s*좋을까/, /뭐가\s*좋을까/, /방법을?\s*찾아/],
-    match: { primitive: "consult", skill: "claude-nexus:nx-consult" }
+    patterns: [
+      /\bmeet\b/i,
+      /미팅/,
+      /회의/,
+      /논의하자/,
+      /모여/,
+      /상담/,
+      /어떻게\s*하면\s*좋을까/,
+      /뭐가\s*좋을까/,
+      /방법을?\s*찾아/
+    ],
+    match: { primitive: "meet", skill: "claude-nexus:nx-meet" }
   }
 ];
+var ATTENDEE_PATTERNS = /(?:참석|불러|소환)\s*$/;
 var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-var PRIMITIVE_NAMES = /\b(consult|run)\b/i;
+var PRIMITIVE_NAMES = /\b(meet|run)\b/i;
 function isPrimitiveMention(prompt) {
   if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
   if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  if (/[`"'](?:consult)[`"']/i.test(prompt)) return true;
+  if (/[`"'](?:meet)[`"']/i.test(prompt)) return true;
   return false;
 }
 function detectKeywords(prompt) {
-  const tagMatch = prompt.match(/\[(consult|run)\]/i);
+  const tagMatch = prompt.match(/\[(meet|run)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -267,23 +278,23 @@ function getTasksReminder() {
   }
   return `<nexus>All ${summary.total} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.</nexus>`;
 }
-function getConsultReminder() {
-  const consultPath = (0, import_path3.join)(STATE_ROOT, "consult.json");
-  if (!(0, import_fs3.existsSync)(consultPath)) return null;
+function getMeetReminder() {
+  const meetFilePath = (0, import_path3.join)(STATE_ROOT, "meet.json");
+  if (!(0, import_fs3.existsSync)(meetFilePath)) return null;
   try {
-    const data = JSON.parse((0, import_fs3.readFileSync)(consultPath, "utf-8"));
+    const data = JSON.parse((0, import_fs3.readFileSync)(meetFilePath, "utf-8"));
     const issues = data.issues ?? [];
     const discussing = issues.find((i) => i.status === "discussing");
     const pending = issues.filter((i) => i.status === "pending");
     const current = discussing ? `Current: #${discussing.id} "${discussing.title}"` : pending.length > 0 ? `Next: #${pending[0].id} "${pending[0].title}"` : "All issues decided.";
-    return `<nexus>Consult: "${data.topic}" | ${current} | ${pending.length} pending
+    return `<nexus>Meet: "${data.topic}" | ${current} | ${pending.length} pending
 Present comparison table with pros/cons/recommendation. Record decisions with [d].</nexus>`;
   } catch {
     return null;
   }
 }
-function withNotices(base, tasksReminder, claudeMdNotice, consultReminder) {
-  return [consultReminder, tasksReminder, base, claudeMdNotice].filter(Boolean).join("\n");
+function withNotices(base, tasksReminder, claudeMdNotice, meetReminder) {
+  return [meetReminder, tasksReminder, base, claudeMdNotice].filter(Boolean).join("\n");
 }
 function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }) {
   const tagInfo = ruleTags ? `Tags: [${ruleTags.join(", ")}] \u2014 include at top of rule file as <!-- tags: ${ruleTags.join(", ")} -->.` : "Tags: none \u2014 infer appropriate tags from rule content and add them.";
@@ -298,20 +309,22 @@ Task pipeline not required \u2014 save directly.</nexus>`;
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
   });
 }
-function handleConsultMode({ tasksReminder, claudeMdNotice }) {
-  const consultFile = (0, import_path3.join)(STATE_ROOT, "consult.json");
-  const hasExistingSession = (0, import_fs3.existsSync)(consultFile);
+function handleMeetMode({ tasksReminder, claudeMdNotice }) {
+  const meetFile = (0, import_path3.join)(STATE_ROOT, "meet.json");
+  const hasExistingSession = (0, import_fs3.existsSync)(meetFile);
   let base;
   if (hasExistingSession) {
-    base = `<nexus>Consult mode \u2014 existing session found.
-STEP 1: Check current status with nx_consult_status.
+    base = `<nexus>Meet mode \u2014 existing session found.
+STEP 1: Check current status with nx_meet_status.
 STEP 2: Spawn Explore+researcher in parallel for additional code+external research.
-STEP 3: Proceed with discussion based on research results. Do not discuss before research is complete.</nexus>`;
+STEP 3: Proceed with discussion based on research results. Do not discuss before research is complete.
+TEAM REQUIRED: Use TeamCreate to spawn teammates. Attendees can be added mid-session with nx_meet_join.</nexus>`;
   } else {
-    base = `<nexus>Consult mode.
+    base = `<nexus>Meet mode.
 STEP 1: Spawn researcher for code+external research. Run Explore agent in parallel for codebase exploration.
-STEP 2: Call nx_consult_start with findings to organize issues.
-Do not call nx_consult_start before research is complete.</nexus>`;
+STEP 2: Call nx_meet_start with findings to organize issues.
+Do not call nx_meet_start before research is complete.
+TEAM REQUIRED: Use TeamCreate to create a team and spawn How agents (architect, strategist, etc.) for discussion.</nexus>`;
   }
   respond({
     continue: true,
@@ -319,23 +332,24 @@ Do not call nx_consult_start before research is complete.</nexus>`;
   });
 }
 function handleRunMode({ tasksReminder, claudeMdNotice }) {
-  const consultReminder = getConsultReminder();
+  const meetReminder = getMeetReminder();
+  const meetTransitionHint = (0, import_fs3.existsSync)((0, import_path3.join)(STATE_ROOT, "meet.json")) ? "\nMeet\u2192Run transition: Retain How agents (architect, strategist, etc.). Dismiss Do/Check agents (engineer, qa, etc.). Register tasks with nx_task_add(meet_issue=N)." : "";
   const base = `<nexus>Run mode \u2014 full pipeline execution requested.
 MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
-Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.</nexus>`;
+Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.${meetTransitionHint}</nexus>`;
   respond({
     continue: true,
-    additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, consultReminder)
+    additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, meetReminder)
   });
 }
 var PRIMITIVE_HANDLERS = {
-  consult: handleConsultMode,
+  meet: handleMeetMode,
   run: handleRunMode
 };
 function handleUserPromptSubmit(event) {
   const claudeMdNotice = handleClaudeMdSync();
   const tasksReminder = getTasksReminder();
-  const consultReminder = getConsultReminder();
+  const meetReminder = getMeetReminder();
   const raw = event.prompt ?? event.user_prompt ?? "";
   const prompt = typeof raw === "string" ? raw : String(raw);
   if (!prompt) {
@@ -347,18 +361,25 @@ function handleUserPromptSubmit(event) {
     const postDecisionRules = `
 
 Record decision only. For implementation, follow task pipeline.`;
-    const consultFile = (0, import_path3.join)(STATE_ROOT, "consult.json");
-    if ((0, import_fs3.existsSync)(consultFile)) {
+    const meetFile = (0, import_path3.join)(STATE_ROOT, "meet.json");
+    if ((0, import_fs3.existsSync)(meetFile)) {
       respond({
         continue: true,
-        additionalContext: withNotices(`<nexus>Decision tag detected in consult mode. Use nx_consult_decide(issue_id, summary) to record \u2014 updates consult.json + decisions.json simultaneously.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, consultReminder)
+        additionalContext: withNotices(`<nexus>Decision tag detected in meet mode. Use nx_meet_decide(issue_id, summary) to record \u2014 decision stored inline in meet.json.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, meetReminder)
       });
     } else {
       respond({
         continue: true,
-        additionalContext: withNotices(`<nexus>Decision tag detected. Record this decision using nx_decision_add tool.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, null)
+        additionalContext: withNotices(`<nexus>[d]\uB294 meet \uC138\uC158 \uC548\uC5D0\uC11C\uB9CC \uC720\uD6A8\uD569\uB2C8\uB2E4. [meet] \uD0DC\uADF8\uB85C \uBBF8\uD305\uC744 \uBA3C\uC800 \uC2DC\uC791\uD558\uC138\uC694.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, null)
       });
     }
+    return;
+  }
+  if (ATTENDEE_PATTERNS.test(prompt)) {
+    respond({
+      continue: true,
+      additionalContext: withNotices(`<nexus>Attendee pattern detected. Use nx_meet_join(role, name) to add a participant to the current meet session.</nexus>`, tasksReminder, claudeMdNotice, meetReminder)
+    });
     return;
   }
   const ruleMatch = prompt.match(/\[rule(?::([^\]]+))?\]/i);
@@ -381,20 +402,20 @@ Record decision only. For implementation, follow task pipeline.`;
     const branchGuard = /^(main|master)$/.test(getCurrentBranch()) ? "\nBranch Guard: You are on main/master. Create a feature branch before making changes." : "";
     respond({
       continue: true,
-      additionalContext: withNotices(taskPipelineMessage(`<nexus>No active tasks.${branchGuard}</nexus>`), null, claudeMdNotice, consultReminder)
+      additionalContext: withNotices(taskPipelineMessage(`<nexus>No active tasks.${branchGuard}</nexus>`), null, claudeMdNotice, meetReminder)
     });
     return;
   }
   if (summary.pending > 0) {
     respond({
       continue: true,
-      additionalContext: withNotices(`<nexus>Existing tasks detected (${summary.pending} pending). Smart resume: Review existing tasks with nx_task_list. For each pending task: verify if already implemented/documented. If stale \u2192 nx_task_close + fresh nx_task_add. If genuine \u2192 continue execution.</nexus>`, tasksReminder, claudeMdNotice, consultReminder)
+      additionalContext: withNotices(`<nexus>Existing tasks detected (${summary.pending} pending). Smart resume: Review existing tasks with nx_task_list. For each pending task: verify if already implemented/documented. If stale \u2192 nx_task_close + fresh nx_task_add. If genuine \u2192 continue execution.</nexus>`, tasksReminder, claudeMdNotice, meetReminder)
     });
     return;
   }
   respond({
     continue: true,
-    additionalContext: withNotices(`<nexus>Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.</nexus>`, tasksReminder, claudeMdNotice, consultReminder)
+    additionalContext: withNotices(`<nexus>Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.</nexus>`, tasksReminder, claudeMdNotice, meetReminder)
   });
 }
 function handleSessionStart(_event) {
