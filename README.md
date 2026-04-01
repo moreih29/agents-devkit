@@ -69,19 +69,20 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (14개)
+### Core (17개)
 
 | 도구 | 용도 |
 |------|------|
+| `nx_briefing` | 에이전트 역할별 브리핑 조립 (core knowledge + rules 기반) |
 | `nx_core_read/write` | 프로젝트 지식 관리 (`.nexus/core/`, git 추적) |
 | `nx_rules_read/write` | 팀 커스텀 규칙 관리 (`.nexus/rules/`, git 추적) |
 | `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 미팅) |
 | `nx_task_list/add/update/close` | `.nexus/state/tasks.json` 기반 태스크 관리 + `.nexus/history.json` 아카이브 |
 | `nx_artifact_write` | 팀 산출물 저장 (`.nexus/state/artifacts/`) |
-| `nx_meet_start` | 미팅 세션 시작 (토픽 + 논점 등록) |
+| `nx_meet_start` | 미팅 세션 시작 (토픽 + 논점 등록, 참석자 팀 검증) |
 | `nx_meet_status` | 미팅 상태 조회 |
 | `nx_meet_update` | 미팅 논점 수정 (add/remove/edit/reopen) |
-| `nx_meet_discuss` | 논점 토론 기록 |
+| `nx_meet_discuss` | 논점 토론 기록 (speaker 검증: 등록된 참석자만 허용) |
 | `nx_meet_decide` | 논점 결정 처리 (meet.json) |
 | `nx_meet_join` | 진행 중인 미팅 참여 |
 
@@ -113,7 +114,7 @@ Gate 단일 모듈로 동작합니다.
 | 이벤트 | 역할 |
 |--------|------|
 | `UserPromptSubmit` | 태그 감지 → 모드 활성화 + TASK_PIPELINE 주입 + additionalContext 안내 |
-| `PreToolUse` | Edit/Write: tasks.json 없으면 차단. Nexus 내부 경로는 예외 허용 |
+| `PreToolUse` | Edit/Write: tasks.json 없으면 차단. nx_meet_start: 참석자 팀 검증. Agent: team_name 트래킹 |
 | `Stop` | pending 태스크 있으면 종료 차단. all completed면 nx_task_close 강제 |
 
 </details>

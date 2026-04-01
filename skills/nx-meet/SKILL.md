@@ -219,17 +219,6 @@ When the user activates `[run]` after a meet session:
 - **Join**: `nx_meet_join(role, name)` — add attendees mid-meeting
 - **File presence = session in progress**
 
-### Key differences from consult.json
-
-| Item | consult | meet |
-|------|---------|------|
-| Decision storage | decisions.json (separate) | MeetIssue.decision (inline) |
-| Discussion log | Not recorded | MeetIssue.discussion[] |
-| Attendees | Not tracked | MeetFile.attendees[] |
-| Meeting ID | None | MeetFile.id (history tracing) |
-| [d] tag | calls nx_consult_decide + decisions.json | calls nx_meet_decide (meet.json only) |
-| Team mode | Not required | MANDATORY when attendees include agents (gate-enforced); Lead-only allowed |
-
 ### Topic Switching
 
 - `[meet]` → continue existing meet.json if present; start new session if not

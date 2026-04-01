@@ -161,7 +161,7 @@ Output a summary of the onboarding results.
 - .nexus/rules/: {generated files or "none (skipped)"}
 
 ### Next Steps
-- [consult] — clarify requirements before starting a task
+- [meet] — discuss issues with agent team before execution
 - [run] — execute with an agent team
 - /claude-nexus:nx-init --reset — re-run onboarding (existing core/ will be backed up)
 ```

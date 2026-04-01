@@ -85,19 +85,20 @@ Typical flow: use `[meet]` to discuss and align → decide → use `[run]` to ex
 
 Claude-callable tools exposed by the Nexus MCP server.
 
-### Core (14 tools)
+### Core (17 tools)
 
 | Tool | Purpose |
 |------|---------|
+| `nx_briefing` | Assemble role-specific briefing (core knowledge + rules) |
 | `nx_core_read/write` | Project knowledge management (git-tracked) |
 | `nx_rules_read/write` | Team custom rules management (git-tracked) |
 | `nx_context` | Current session state lookup (branch, tasks, meet) |
 | `nx_task_list/add/update/close` | Task management + history.json archiving |
 | `nx_artifact_write` | Save team artifacts (branch-isolated) |
-| `nx_meet_start` | Start meeting session (topic + issues) |
+| `nx_meet_start` | Start meeting session (topic + issues, team verification) |
 | `nx_meet_status` | Query meeting state |
 | `nx_meet_update` | Modify meeting issues (add/remove/edit/reopen) |
-| `nx_meet_discuss` | Record issue discussion |
+| `nx_meet_discuss` | Record issue discussion (speaker validation: registered attendees only) |
 | `nx_meet_decide` | Record issue decision (meet.json) |
 | `nx_meet_join` | Join an ongoing meeting |
 
@@ -129,7 +130,7 @@ Nexus registers a single Gate module as a Claude Code hook.
 | Event | Role |
 |-------|------|
 | `UserPromptSubmit` | Tag detection → mode activation + TASK_PIPELINE injection + additionalContext guidance |
-| `PreToolUse` | Edit/Write: blocks when tasks.json missing. Nexus internal paths exempted |
+| `PreToolUse` | Edit/Write: blocks when tasks.json missing. nx_meet_start: attendee team verification. Agent: team_name tracking |
 | `Stop` | Blocks exit with pending tasks. Forces nx_task_close when all completed |
 
 </details>

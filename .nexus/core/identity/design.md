@@ -49,8 +49,8 @@ Interprets user instructions, coordinates agents, and communicates results. Agen
 
 | Tag | Mode | Description |
 |-----|------|-------------|
-| `[consult]` | Consult | Intent discovery. Conversation without task pipeline. Explicit tag forces investigation injection. |
-| `[d]` | Record | Log a decision |
+| `[meet]` | Meet | Team meeting — convene agents, deliberate, and decide before executing |
+| `[d]` | Record | Log a decision (meet session only) |
 | `[run]` | Execute | Force full pipeline |
 | `[rule]` | Rule | Save a rule. Domain can be specified with [rule:tag] format. |
 
@@ -186,10 +186,10 @@ Cycle lessons auto-extracted on task_close (.nexus/history.json → memory/).
 
 **history.json**: Project level (`.nexus/history.json`, git-tracked). Accumulates history across sessions.
 
-## Consult Principles
+## Meet Principles
 
 1. **Active intent discovery** — Actively uncover what the user has not made explicit.
-2. **Proactive exploration** — Explicit [consult] tag causes gate.ts to inject a forced investigation prompt. Explore + researcher spawned in parallel; no proposals until research is complete.
+2. **Proactive exploration** — Explicit [meet] tag causes gate.ts to inject a forced investigation prompt. Explore + researcher spawned in parallel; no proposals until research is complete.
 3. **Hypothesis-based questions** — Form hypotheses grounded in exploration results, then confirm with the user rather than asking open-ended questions.
-4. **Progressive Depth** — Consultation depth auto-adjusts to request complexity.
+4. **Progressive Depth** — Meeting depth auto-adjusts to request complexity.
 5. **Objective pushback** — Actively push back when evidence supports a counter-argument. Nexus is not a yes-machine.
