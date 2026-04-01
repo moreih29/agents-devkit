@@ -1,6 +1,7 @@
 .omc/
 
 .claude/settings.local.json
+.claude/projects/
 node_modules/
 package-lock.json
 bun.lockb
