@@ -3709,6 +3709,268 @@
           "created_at": "2026-04-06T10:58:16.065Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-06T12:55:03.919Z",
+      "branch": "feature/redesign",
+      "plan": {
+        "id": 4,
+        "topic": "Claude Code 훅 갭 분석 — Nexus가 활용하지 못하고 있는 훅 기능",
+        "attendees": [
+          {
+            "role": "lead",
+            "name": "lead",
+            "joined_at": "2026-04-06T12:08:24.375Z"
+          },
+          {
+            "role": "architect",
+            "name": "architect",
+            "joined_at": "2026-04-06T12:14:21.755Z"
+          }
+        ],
+        "issues": [
+          {
+            "id": 1,
+            "title": "PreCompact/PostCompact — 컨텍스트 압축 시 Nexus 상태 보존",
+            "status": "decided",
+            "discussion": [
+              {
+                "speaker": "architect",
+                "content": "핵심 발견: Nexus는 이미 파일 기반 상태 설계로 최악의 경우를 완화하고 있음. 실제 위험은 '데이터 유실'이 아니라 '방향 감각 유실(orientation loss)' — 모델이 현재 워크플로우에서 어디에 있는지를 잊는 것. 권장: PostCompact만 구현. 디스크 상태를 읽어 1,000자 미만 요약 스냅샷으로 additionalContext 주입. PreCompact는 pass-through 등록만. 구현 복잡도 낮음(30-40줄, 기존 헬퍼 재사용), 문제 빈도 중간(plan/run 긴 세션에서 반드시 발생).",
+                "timestamp": "2026-04-06T12:14:27.279Z"
+              }
+            ],
+            "decision": "PostCompact만 구현. 컴팩션 후 디스크 상태(plan.json, tasks.json, agent-tracker)를 읽어 1,000자 미만 요약 스냅샷을 additionalContext로 주입. PreCompact는 pass-through로 등록만 해둠. 기존 헬퍼(readTasksSummary, getPlanReminder) 재사용, 30-40줄 구현."
+          },
+          {
+            "id": 2,
+            "title": "PostToolUse — 툴 실행 후 상태 모니터링 및 컨텍스트 강화",
+            "status": "decided",
+            "discussion": [],
+            "decision": "미구현. PostToolUse는 고빈도 발동으로 성능 비용이 크고, MCP 도구 응답 자체 개선이나 PostToolUseFailure로 더 좁게 접근하는 편이 나음. 현재 구현 불필요."
+          },
+          {
+            "id": 3,
+            "title": "prompt/agent 훅 타입 — LLM 기반 게이팅으로 gate.ts 로직 고도화",
+            "status": "decided",
+            "discussion": [],
+            "decision": "미구현. 현재 gate.ts 게이팅은 모두 결정론적 규칙으로 충분. LLM 훅 타입은 지연/비용만 추가. 의미 판단 필요 시 미래에 도입."
+          },
+          {
+            "id": 4,
+            "title": "SessionEnd — 세션 종료 시 정리/메트릭/아카이빙",
+            "status": "decided",
+            "discussion": [],
+            "decision": "SessionEnd 미구현. SessionStart 리셋이 이미 커버. 메트릭 수집은 소비처 생길 때 도입. 단, stop-warned 파일 기반 메커니즘의 훅 레벨 대체 가능성은 파생 안건으로 논의."
+          },
+          {
+            "id": 5,
+            "title": "WorktreeCreate/WorktreeRemove — 에이전트 워크트리 수명주기 추적",
+            "status": "decided",
+            "discussion": [],
+            "decision": "미구현. 워크트리 수명주기는 Claude Code 플랫폼이 자동 관리. Nexus가 중복 추적할 실익 없음."
+          },
+          {
+            "id": 6,
+            "title": "if 필드 — 툴+인자 조합 세밀 매칭으로 gate.ts 단순화",
+            "status": "decided",
+            "discussion": [],
+            "decision": "미구현. gate.ts의 PreToolUse 로직이 디스크 상태 의존적(tasks.json 존재, 완료 여부)이므로 if 필드의 글로브 매칭으로 대체 불가. 현재 코드 충분히 간결."
+          },
+          {
+            "id": 7,
+            "title": "FileChanged — .nexus/ 파일 변경 감지 자동 동기화",
+            "status": "decided",
+            "discussion": [],
+            "decision": "미구현. nx_core_read가 디스크 직접 읽기로 항상 최신 상태 반영. FileChanged는 basename 매칭 제약도 있어 실익 없음."
+          },
+          {
+            "id": 8,
+            "title": "코어 지식(.nexus/core/) 활용 — plan/run 시 레퍼런스·장기기억을 스킬/에이전트에 효과적으로 주입하는 방법",
+            "status": "decided",
+            "discussion": [
+              {
+                "speaker": "architect",
+                "content": "4가지 접근법 분석 완료. 핵심 제약: additionalContext 10,000자 제한 vs core/ 172KB. A(훅 전량 주입)은 물리적 불가. B(프롬프트 강화)는 현재 실패 중인 방식 반복. C(nx_briefing 개선)는 호출 강제 불가. D(하이브리드)를 추천: SubagentStart에서 컴팩트 인덱스(~2,000자)를 주입하여 \"이런 지식이 있다\"는 인식을 구조적으로 보장하고, 상세 조회는 nx_core_read에 위임. plan 모드에서는 관련 reference 토픽을 명시적으로 나열하여 리서처가 웹검색 전 core/reference 확인하도록 유도.",
+                "timestamp": "2026-04-06T12:25:49.844Z"
+              },
+              {
+                "speaker": "lead",
+                "content": "사용자 지적으로 초점 재정립. Do 에이전트는 태스크 지시만 잘 받으면 되고, Check/Writer는 이미 브리핑 수신 중. 코어 지식 접근이 진짜 필요한 주체는 Lead 자신 — plan 시 리서치 방향 설정, run 시 태스크 프롬프트 구성, 자유 모드에서 의사결정. SubagentStart 훅 주입(D안)은 과잉. UserPromptSubmit의 모드 컨텍스트에 코어 지식 인덱스를 포함하는 방향이 적절.",
+                "timestamp": "2026-04-06T12:32:39.757Z"
+              }
+            ],
+            "decision": "UserPromptSubmit에서 plan/run 모드 진입 시 core/ 파일 인덱스(~1,500자)를 additionalContext에 1회 주입. Lead가 코어 지식 존재를 구조적으로 인식. 컴팩션 후에는 PostCompact(안건#1)가 보완. 상세 조회는 nx_core_read로 자발적."
+          },
+          {
+            "id": 9,
+            "title": "stop-warned 파일 기반 → 훅 레벨 처리 대체 가능성",
+            "status": "decided",
+            "discussion": [],
+            "decision": "stop_hook_active 필드로 대체. stop-warned 파일 기반 메커니즘 제거. 플랫폼 네이티브 필드가 정확히 이 용도로 설계되어 있으므로, 파일 I/O 워크어라운드 불필요. SessionStart의 리셋 누락 문제도 함께 해소."
+          },
+          {
+            "id": 10,
+            "title": "nx_plan_discuss MCP 툴 필요성 — 서브에이전트 기반 plan에서 discuss 기록의 의미와 대안",
+            "status": "decided",
+            "discussion": [],
+            "decision": "nx_plan_discuss 제거. discussion 배열 폐기하고 nx_plan_decide의 summary가 결정 이유를 충분히 담도록. 서브에이전트 기반 plan에서 별도 discuss 기록은 불필요��� 의식. 분석은 대화에 남고, 결정만 plan.json에 기록."
+          },
+          {
+            "id": 11,
+            "title": "TaskCreate/TaskUpdate 활용 — 서브에이전트 기반 run에서 태스크 진행 상황 TUI 표시",
+            "status": "decided",
+            "discussion": [
+              {
+                "speaker": "lead",
+                "content": "리서치 결과 핵심: TUI는 최대 10개까지 표시, 초과분은 잘림(스크롤 없음). Ctrl+T 토글 방식. 컴팩션 중 TUI 동결 버그 있음(#27919). 서브에이전트에서 호출 시 메인에 반영되려면 CLAUDE_CODE_TASK_LIST_ID 환경변수 필요. VSCode/비-TTY에서는 비활성화.",
+                "timestamp": "2026-04-06T12:40:41.763Z"
+              }
+            ],
+            "decision": "TaskCreate 선택적 활용. tasks.json 전체가 아닌 plan 이슈 단위(상위 레벨)로 TaskCreate하여 10개 제한 내 유지. 세부 태스크 진행은 nx_task_update로 관리. compact 중 TUI 동결 버그(#27919) 인지."
+          }
+        ],
+        "research_summary": "## 리서치 요약\n\n### 현재 Nexus 훅 사용 (5개 이벤트, 9개 핸들러)\n- SessionStart: .nexus/ 초기화, agent-tracker 리셋\n- SubagentStart/Stop: 에이전트 수명주기 추적, 미완료 태스크 경고\n- PreToolUse: Edit/Write 게이팅 ([run] 모드), nx_task_update/close 패스스루\n- Stop: 미완료 태스크 종료 방지, nx_task_close 강제\n- UserPromptSubmit: 태그 감지, 모드 라우팅, CLAUDE.md 동기화\n\n### Claude Code 전체 훅 이벤트 (25개)\nSessionStart, InstructionsLoaded, UserPromptSubmit, PreToolUse, PermissionRequest, PermissionDenied, PostToolUse, PostToolUseFailure, Notification, SubagentStart, SubagentStop, TaskCreated, TaskCompleted, Stop, StopFailure, TeammateIdle, PreCompact, PostCompact, Elicitation, ElicitationResult, ConfigChange, CwdChanged, FileChanged, WorktreeCreate/Remove, SessionEnd\n\n### 미활용 핵심 기능\n1. PreCompact/PostCompact — 긴 세션에서 컴팩션 시 Nexus 핵심 컨텍스트 유실 가능\n2. PostToolUse — MCP 툴 실행 결과 기반 상태 자동 동기화, 검증 가능\n3. prompt/agent 훅 타입 — command 타입만 사용 중. LLM 판단 기반 게이팅 미활용\n4. SessionEnd — 세션 종료 시 정리 작업 없음\n5. WorktreeCreate/Remove — engineer 에이전트 워크트리 격리 추적 없음\n6. if 필드 — stdin JSON 파싱으로 직접 분기. if 패턴 매칭 미활용\n7. FileChanged — .nexus/ 파일 변경 자동 감지 미활용\n8. updatedInput — 툴 인자 수정 미활용\n9. permissionDecision — allow/deny만 사용, defer/ask 미활용",
+        "created_at": "2026-04-06T12:08:24.375Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "stop_hook_active로 stop-warned 파일 대체",
+          "context": "gate.ts handleStop에서 stop-warned 파일 생성/삭제 로직을 stop_hook_active 필드 체크로 교체. task.ts nx_task_close에서 stop-warned 삭제 코드 정리.",
+          "approach": "1) handleStop에서 event.stop_hook_active 필드 확인 — true면 2회차이므로 pass, false면 1회차 경고. 2) stop-warned 파일 관련 코드 전부 제거 (gate.ts writeFileSync/unlinkSync/existsSync + task.ts stopWarnedPath). 3) SessionStart의 리셋 대상에서도 제거 불필요 확인.",
+          "acceptance": "1) stop-warned 파일이 더 이상 생성되지 않음. 2) Stop 훅이 stop_hook_active=false일 때 경고, true일 때 통과하는 동작 유지. 3) E2E 테스트 통과.",
+          "risk": "stop_hook_active 필드가 이전 Claude Code 버전에서 미지원일 수 있음 — 방어적으로 undefined 체크 필요.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 9,
+          "owner": "lead",
+          "created_at": "2026-04-06T12:42:52.882Z"
+        },
+        {
+          "id": 2,
+          "title": "PostCompact 핸들러 구현 — 상태 스냅샷 주입",
+          "context": "gate.ts에 handlePostCompact 추가. 디스크 상태(plan.json, tasks.json, agent-tracker)를 읽어 1,000자 미만 요약 스냅샷을 additionalContext로 주입. PreCompact는 pass-through 등록. hooks.json에 두 이벤트 추가.",
+          "approach": "1) hooks.json에 PreCompact/PostCompact 이벤트 등록 (matcher: *, command: gate.cjs). 2) gate.ts switch문에 PreCompact→pass(), PostCompact→handlePostCompact() 추가. 3) handlePostCompact: 기존 헬퍼(readTasksSummary, getPlanReminder) 재사용하여 구조화된 스냅샷 생성. 형식: 현재 모드, plan 진행 상황, 태스크 요약, 활성 에이전트.",
+          "acceptance": "1) 컴팩션 후 additionalContext에 Nexus 상태 스냅샷 주입됨. 2) 스냅샷 1,000자 미만. 3) plan.json/tasks.json 없을 때도 에러 없이 동작. 4) E2E 테스트 통과.",
+          "risk": "getPlanReminder 함수가 gate.ts에 없을 수 있음 — plan.json 읽기 로직 확인 필요. 컴팩션 타이밍에 따라 agent-tracker가 stale할 수 있음.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-06T12:43:05.868Z"
+        },
+        {
+          "id": 3,
+          "title": "모드 진입 시 코어 지식 인덱스 주입",
+          "context": "UserPromptSubmit에서 [plan]/[run] 모드 진입 시 .nexus/core/ 파일 인덱스(제목+태그, ~1,500자)를 additionalContext에 포함. Lead가 코어 지식 존재를 구조적으로 인식하도록.",
+          "approach": "1) shared/ 또는 gate.ts 내에 buildCoreIndex() 함수 구현: core/ 4계층 디렉토�� 스캔 → 파일별 제목+태그 추출 → 컴팩트 인덱스 문자열 생성. 2) handleUserPromptSubmit의 plan/run 모드 additionalContext 주입 부분에 인덱스 추가. 3) PostCompact 스냅샷(태스크#2)에도 인덱스 포함 검토.",
+          "acceptance": "1) [plan] 진입 시 additionalContext에 core/ 인덱스 포함. 2) [run] 진입 시 동일. 3) 인덱스 2,000자 이내. 4) core/ 파일이 없어도 에러 없이 빈 인덱스 반환. 5) E2E 테스트 통과.",
+          "risk": "core/ 파일이 많아지면 인덱스 크기 증가 — 파일 수 상한 또는 요약 전략 필요. additionalContext 10,000자 예산에서 기존 모드 주입(~800자) + 인덱스(~1,500자) = ~2,300자로 여유 있음.",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "plan_issue": 8,
+          "owner": "engineer",
+          "created_at": "2026-04-06T12:43:18.789Z"
+        },
+        {
+          "id": 4,
+          "title": "nx_plan_discuss 제거 — MCP 도구 및 관련 코드 정리",
+          "context": "nx_plan_discuss MCP 도구 제거. plan.json의 discussion 배열 폐기. nx_plan_join도 discuss speaker 검증용이었으므로 함께 검토. SKILL.md에서 discuss 관련 지시 제거.",
+          "approach": "1) src/mcp/tools/에서 nx_plan_discuss 도구 등록 및 핸들러 제거. 2) nx_plan_join의 필요성 재평가 — discuss 없이도 참석자 추적이 필요한지 판단. 불필요하면 함께 제거. 3) plan.json 스키마에서 discussion 배열 제거 (discussion 읽기/쓰기 코드 정리). 4) nx-plan SKILL.md에서 nx_plan_discuss 호출 지시 제거. 5) gate.ts에서 discuss 관련 참조 있으면 정리.",
+          "acceptance": "1) nx_plan_discuss MCP 도구가 더 이상 등록되지 않음. 2) plan.json에 discussion 배열이 생성되지 않음. 3) 기존 plan 기능(start, decide, update, status) 정상 동작. 4) SKILL.md에서 discuss 참조 없음. 5) E2E 테스트 통과.",
+          "risk": "nx_plan_join을 제거하면 plan 세션의 참석자 추적이 사라짐 — plan_status 출력에 영향. history.json 아카이브 시 기존 discussion 데이터와의 호환성.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 10,
+          "owner": "engineer",
+          "created_at": "2026-04-06T12:43:32.027Z"
+        },
+        {
+          "id": 5,
+          "title": "nx-run SKILL.md에 TaskCreate 선택적 활용 패턴 추가",
+          "context": "nx-run 스킬에서 상위 태스크(plan 이슈 단위)를 TaskCreate로 TUI에 표시하는 패턴 추가. 10개 제한 내 유지. 세부 태스크는 nx_task_update로 관리.",
+          "approach": "1) nx-run SKILL.md Step 1(intake) 이후에 TaskCreate 단계 추가: tasks.json에서 상위 그룹(plan_issue 또는 주요 태스크)을 추출하여 TaskCreate 호출. 2) Step 2 진행 중 TaskUpdate(in_progress/completed)로 TUI 갱신. 3) 10개 초과 시 가이드: 상위 그룹만 표시, 세부는 nx_task_update로.",
+          "acceptance": "1) SKILL.md에 TaskCreate 활용 패턴이 명시됨. 2) 10개 이내 유지 가이드 포함. 3) compact 버그(#27919) 주의사항 언급.",
+          "risk": "TaskCreate가 VSCode/비-TTY에서 비활성화 — CLI 전용 기능임을 명시 필요.",
+          "status": "completed",
+          "deps": [
+            4
+          ],
+          "plan_issue": 11,
+          "owner": "lead",
+          "created_at": "2026-04-06T12:43:43.119Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T13:06:56.545Z",
+      "branch": "feature/redesign",
+      "plan": {
+        "id": 4,
+        "topic": "nx_task_close 타이밍 — 세션 종료 시 close 누락 방지",
+        "issues": [
+          {
+            "id": 1,
+            "title": "Stop 훅 2회차(stop_hook_active) 통과 시 close 없이 종료되는 문제 — 언제 어떻게 close해야 하는가",
+            "status": "decided",
+            "decision": "1차: nx-run SKILL.md constraints에 \"MUST call nx_task_close before completing the cycle\" 추가. 2차 안전망: gate.ts plan 모드 진입 시 stale tasks.json(all completed) 감지 → \"이전 사이클 close 안 됨, nx_task_close 먼저 호출하라\" 안내 주입."
+          },
+          {
+            "id": 2,
+            "title": "plan 완료 후 계획서(tasks.json) 생성을 고정 단계로 변경",
+            "status": "decided",
+            "decision": "Step 7(계획서 생성)을 optional이 아닌 고정 단계로 변경. Step 6 wrap-up에서 선택지 제시 대신 자동으로 Step 7 실행. 완료 후 \"[run]으로 전환하시겠습니까?\"만 물어봄. [run]은 tasks.json 필수이므로 계획서 생성은 사실상 필수."
+          }
+        ],
+        "research_summary": "## 현재 close 흐름\n\n1. **Stop 훅**: tasks.json 존재 + 모든 태스크 완료 → 1회차: \"nx_task_close 하라\" 경고 (continue: true) → 2회차(stop_hook_active=true): pass() → 종료 허용\n2. **nx-run SKILL.md Step 4**: Lead가 nx_task_close 호출 → history.json 아카이브\n3. **누락 시나리오**: Stop 훅이 1회 경고 후 모델이 close 안 하고 다시 stop 시도 → stop_hook_active=true → 그냥 통과 → tasks.json이 디스크에 남음\n\n## 제약\n- 훅은 MCP 도구 직접 호출 불가 — additionalContext 주입이나 block/pass만 가능\n- SessionEnd는 미구현 (안건#4에서 결정)\n- 무한루프 방지를 위해 stop_hook_active=true면 반드시 통과시켜야 함",
+        "created_at": "2026-04-06T12:57:02.992Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nx-run SKILL.md constraints에 nx_task_close 의무 추가",
+          "context": "nx-run constraints 섹션에 \"MUST call nx_task_close before completing the cycle\" 추가. close 누락 방지의 1차 방어선.",
+          "approach": "constraints 블록에 한 줄 추가.",
+          "acceptance": "constraints에 nx_task_close 의무가 명시됨.",
+          "risk": "없음.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-06T13:03:49.588Z"
+        },
+        {
+          "id": 2,
+          "title": "gate.ts plan 모드 진입 시 stale tasks.json 감지",
+          "context": "handleUserPromptSubmit의 plan 모드 분기에서, all-completed tasks.json이 존재하면 \"이전 사이클 close 안 됨, nx_task_close 먼저 호출하라\" 안내 주입. 2차 안전망.",
+          "approach": "plan 모드 핸들러에서 readTasksSummary 호출 → exists && allCompleted이면 additionalContext에 close 안내 추가.",
+          "acceptance": "1) plan 모드 진입 시 stale tasks.json 감지됨. 2) 안내 메시지가 additionalContext에 포함. 3) tasks.json 없을 때는 영향 없음. 4) bun run dev 빌드 성공.",
+          "risk": "plan 모드 진입과 close 안내가 동시에 나오면 혼란 가능 — 메시지 우선순위 명확히.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-06T13:03:58.422Z"
+        },
+        {
+          "id": 3,
+          "title": "nx-plan SKILL.md Step 6/7 — 계획서 생성을 고정 단계로 변경",
+          "context": "Step 6 wrap-up에서 \"계획서를 먼저 생성할 수 있습니다\" 선택지 제거. 모든 안건 결정 후 자동으로 Step 7(계획서 생성) 실행. 완료 후 \"[run]으로 전환하시겠습니까?\"만 물어봄.",
+          "approach": "Step 6 wrap-up 텍스트를 \"모든 안건이 결정되었습니다. 계획서를 생성합니다.\"로 변경. Step 7 완료 후 \"[run]으로 전환하시겠습니까?\"",
+          "acceptance": "1) Step 6에서 optional 선택지 없음. 2) Step 7이 자동 실행되는 흐름으로 기술됨. 3) 완료 후 [run] 전환만 물어봄.",
+          "risk": "없음.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "lead",
+          "created_at": "2026-04-06T13:04:05.944Z"
+        }
+      ]
     }
   ]
 }
