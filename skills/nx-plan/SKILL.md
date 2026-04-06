@@ -3,7 +3,7 @@ name: nx-plan
 description: Structured multi-perspective analysis to decompose issues, align on decisions, and produce an enriched plan before execution. Plan only — does not execute.
 trigger_display: "[plan]"
 purpose: "Structured planning — subagent-based analysis, deliberate decisions, produce execution plan"
-triggers: ["plan", "계획", "설계", "분석하자", "어떻게 하면 좋을까", "뭐가 좋을까", "방법을 찾아줘", "접근법", "어떻게 접근"]
+triggers: ["[plan]", "plan", "계획", "설계", "분석하자", "어떻게 하면 좋을까", "뭐가 좋을까", "방법을 찾아줘", "접근법", "어떻게 접근"]
 ---
 
 <role>

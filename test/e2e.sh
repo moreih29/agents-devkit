@@ -168,18 +168,18 @@ echo ""
 echo "=== Plan ==="
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] UI 구조 설계하자"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (plan tag)" 'Plan mode' "$result"
+check "Gate/UserPromptSubmit (plan tag)" 'nx-plan' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"계획 세우자"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (plan natural)" 'Plan mode' "$result"
+check "Gate/UserPromptSubmit (plan natural)" 'nx-plan' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Plan (mandatory start)" 'nx_plan_start' "$result"
-check "Plan (researcher spawn)" 'researcher' "$result"
+check "Plan (skill invoke)" 'Invoke Skill' "$result"
+check "Plan (skill name)" 'nx-plan' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan:auto] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (plan:auto tag)" 'Plan mode' "$result"
-check "Plan:auto (auto mode context)" 'AUTO MODE' "$result"
+check "Gate/UserPromptSubmit (plan:auto tag)" 'nx-plan' "$result"
+check "Plan:auto (auto mode args)" 'auto' "$result"
 
 # --- Default (Free Mode) ---
 echo ""
@@ -213,8 +213,8 @@ echo ""
 echo "=== Run Tag ==="
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[run] API 모듈 구현"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit ([run] tag)" 'Run mode' "$result"
-check "Run tag (subagent reference)" 'subagent' "$result"
+check "Gate/UserPromptSubmit ([run] tag)" 'nx-run' "$result"
+check "Run tag (skill invoke)" 'Invoke Skill' "$result"
 
 # --- Rule Tag ---
 echo ""

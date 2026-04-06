@@ -342,24 +342,14 @@ function handlePlanMode({ prompt, tasksReminder, claudeMdNotice }) {
   const isAuto = /\[plan:auto\]/i.test(prompt);
   const planFile = (0, import_path3.join)(STATE_ROOT, "plan.json");
   const hasExistingSession = (0, import_fs3.existsSync)(planFile);
-  let base;
+  let hints = "";
   if (hasExistingSession) {
-    base = `<nexus>Plan mode \u2014 existing session found.
-STEP 1: Check current status with nx_plan_status.
-STEP 2: Spawn Explore+researcher subagents in parallel for additional code+external research.
-STEP 3: Lead synthesizes multi-perspective analysis based on research results. Spawn HOW subagents (architect, strategist, etc.) for independent analysis if needed.
-STEP 4: Present comparison table with pros/cons/recommendation. Record decisions with [d].</nexus>`;
-  } else {
-    base = `<nexus>Plan mode.
-STEP 1: Spawn researcher+Explore subagents in parallel for code+external research.
-STEP 2: Call nx_plan_start with findings to organize issues.
-Do not call nx_plan_start before research is complete.
-STEP 3: Lead synthesizes multi-perspective analysis. Spawn HOW subagents for independent analysis if complex.
-STEP 4: Present comparison table \u2192 user decides \u2192 [d] to record. Suggest follow-up issues if decisions create new questions.</nexus>`;
+    hints = "\nExisting plan session detected \u2014 check nx_plan_status to resume.";
   }
   if (isAuto) {
-    base += "\n<nexus>AUTO MODE: Skip user confirmation. For each issue, select the recommended option and decide automatically. Output plan document (tasks.json) directly.</nexus>";
+    hints += '\nAuto mode requested \u2014 pass args: "auto" to the skill.';
   }
+  const base = `<nexus>BLOCKING: Invoke Skill tool with skill="claude-nexus:nx-plan"${isAuto ? ', args: "auto"' : ""} BEFORE any other action. Do NOT attempt planning without loading the skill first.${hints}</nexus>`;
   const coreIndex = buildCoreIndex();
   const coreSection = coreIndex ? `
 ${coreIndex}
@@ -371,13 +361,18 @@ Check core/reference/ BEFORE web searching for known topics.` : "";
 }
 function handleRunMode({ tasksReminder, claudeMdNotice }) {
   const planReminder = getPlanReminder();
+  const tasksSummary = readTasksSummary(STATE_ROOT);
+  let hints = "";
+  if (!tasksSummary.exists) {
+    hints = "\ntasks.json absent \u2014 plan required before execution. Suggest [plan:auto] or [plan].";
+  } else {
+    hints = `
+tasks.json: ${tasksSummary.pending} pending, ${tasksSummary.total - tasksSummary.pending} completed of ${tasksSummary.total} tasks.`;
+  }
   const coreIndex = buildCoreIndex();
   const coreSection = coreIndex ? `
 ${coreIndex}` : "";
-  const base = `<nexus>Run mode \u2014 full pipeline execution requested.
-MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
-Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.
-For multi-task work, spawn subagents in parallel (one per task). Do NOT handle multi-task work as Lead solo.</nexus>${coreSection}`;
+  const base = `<nexus>BLOCKING: Invoke Skill tool with skill="claude-nexus:nx-run" BEFORE any other action. Do NOT attempt execution without loading the skill first.${hints}</nexus>${coreSection}`;
   respond({
     continue: true,
     additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, planReminder)

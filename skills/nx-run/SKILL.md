@@ -1,9 +1,9 @@
 ---
 name: nx-run
 description: Execution — user-directed agent composition.
-trigger_display: "nx-run"
+trigger_display: "[run]"
 purpose: "Execution — user-directed agent composition"
-triggers: ["실행", "개발", "구현", "연구", "조사"]
+triggers: ["[run]", "run", "실행", "개발", "구현", "연구", "조사"]
 ---
 
 <role>
@@ -33,7 +33,7 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes s
 - **Branch Guard**: if on main/master, create a branch appropriate to the task type before proceeding (prefix: `feat/`, `fix/`, `chore/`, `research/`, etc. — Lead's judgment). Auto-create without user confirmation.
 - Check for `tasks.json`:
   - **Exists** → read it and proceed to Step 2.
-  - **Absent** → inform the user: "계획서가 없습니다. [plan:auto]로 자동 계획을 생성하거나, [plan]으로 대화형 플래닝을 시작하세요." If the user chooses `[plan:auto]`, invoke `nx-plan` skill in auto mode via Skill tool. After plan generation, proceed to Step 2.
+  - **Absent** → auto-invoke `Skill({ skill: "claude-nexus:nx-plan", args: "auto" })` to generate tasks.json. Do NOT ask — `[run]` implies execution intent. After plan generation, proceed to Step 2.
 - If tasks.json exists, check prior decisions with `nx_plan_status`.
 
 ### Step 1.5: TUI Progress

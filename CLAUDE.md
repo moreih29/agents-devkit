@@ -39,7 +39,7 @@ Lead는 사용자와 직접 대화하는 메인 에이전트. tasks.json에서 `
 |-------|---------|---------|
 | nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish identity, generate core knowledge |
 | nx-plan | [plan] | Structured planning — subagent-based analysis, deliberate decisions, produce execution plan |
-| nx-run | nx-run | Execution — user-directed agent composition |
+| nx-run | [run] | Execution — user-directed agent composition |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
 | nx-sync | /claude-nexus:nx-sync | Synchronize core knowledge with current project state |
 
