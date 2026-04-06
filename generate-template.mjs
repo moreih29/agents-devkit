@@ -53,6 +53,8 @@ const template = `## Nexus Agent Orchestration
 
 **Default: DELEGATE** — route code work, analysis, and multi-file changes to agents.
 
+Lead는 사용자와 직접 대화하는 메인 에이전트. tasks.json에서 \`owner: "lead"\`는 Lead가 직접 처리.
+
 ### Agent Routing
 
 병렬 작업이나 다른 관점이 필요할 때 에이전트를 활용하라.

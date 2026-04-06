@@ -35,21 +35,16 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes s
   - **Absent** → inform the user: "계획서가 없습니다. [plan:auto]로 자동 계획을 생성하거나, [plan]으로 대화형 플래닝을 시작하세요." If the user chooses `[plan:auto]`, invoke `nx-plan` skill in auto mode via Skill tool. After plan generation, proceed to Step 2.
 - If tasks.json exists, check prior decisions with `nx_plan_status`.
 
-### Step 2: Execute (Do subagents)
+### Step 2: Execute
 
-- Read tasks from tasks.json. Register tasks with `nx_task_add`.
-- For each task, spawn a subagent matching the `owner` field, passing the task's context, approach, and acceptance as the prompt.
-- **Delegation criteria** — decide per task:
-
-| 상황 | 처리 방식 |
-|------|----------|
-| 단일 파일, 작은 변경 | Lead 직접 |
-| 단일 파일, 큰 변경 | 서브에이전트 위임 |
-| 여러 파일, 독립적 | 서브에이전트 병렬 스폰 |
-| 같은 파일, 순차 의존 | Lead 순차 처리 또는 deps로 순서 강제 |
-
-- **File conflict prevention**: 같은 파일을 수정하는 태스크들을 동시에 서브에이전트로 위임하지 마라. Overlapping target files → serialize execution.
-- **SubagentStop gate**: when a subagent stops, Lead checks tasks.json. If the subagent's task is not in `done` status, Lead emits a warning and either re-spawns or handles the task before proceeding.
+- **Present tasks.json** to the user — show task list with owner, deps, approach summary. Confirm before proceeding.
+- Execute tasks based on `owner` field:
+  - `owner: "lead"` → Lead handles directly
+  - `owner: "engineer"`, `"researcher"`, `"writer"`, etc. → spawn subagent matching the owner role
+  - `owner: "architect"`, `"tester"`, `"reviewer"`, etc. → spawn corresponding HOW/CHECK subagent
+- For each subagent, pass the task's `context`, `approach`, and `acceptance` as the prompt.
+- **Parallel execution**: independent tasks (no overlapping target files, no deps) can be spawned in parallel. Tasks sharing target files must be serialized.
+- **SubagentStop gate**: when a subagent stops, Lead checks tasks.json. If the subagent's task is not completed, re-spawn or handle directly.
 
 ### Step 3: Verify (Lead + Check subagents)
 

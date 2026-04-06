@@ -180,8 +180,19 @@ After all issues are decided, generate the plan document (tasks.json):
    - `approach` — implementation strategy derived from the decision rationale
    - `acceptance` — definition of done, verifiable criteria
    - `risk` — known risks or caveats from the analysis
-   - `owner` — appropriate agent role (engineer, researcher, writer, etc.)
    - `deps` — task dependencies based on execution order
+   - `owner` — assign based on delegation analysis:
+
+   | 작업 성격 | owner | 기준 |
+   |----------|-------|------|
+   | 단일 파일, 작은 변경 | **lead** | 서브에이전트 오버헤드 > 작업량 |
+   | 코드 구현/수정 | **engineer** | 파일 생성, 대규모 수정 |
+   | 웹 리서치/외부 조사 | **researcher** | 외부 정보 수집 필요 |
+   | 문서/산출물 작성 | **writer** | 비코드 콘텐츠 생산 |
+   | 설계 분석/검토 | **architect** 등 HOW | 기술적 트레이드오프 판단 |
+   | 코드 검증/테스트 | **tester** | acceptance 기준 검증 |
+   | 콘텐츠 검증 | **reviewer** | writer 산출물 검증 |
+   | 같은 파일 순차 수정 | **lead** | 서브에이전트 병렬 시 충돌 위험 |
 4. **Write tasks.json** via `nx_task_add`:
    - Set `goal` from the plan topic
    - Set `decisions` from plan.json decided summaries
