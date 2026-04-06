@@ -26,8 +26,8 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 | 엔지니어 | DO | Code implementation, edits, debugging | engineer |
 | 리서처 | DO | Web search, independent investigation | researcher |
 | 라이터 | DO | Technical writing, documentation, presentations | writer |
-| QA | CHECK | Testing, verification, security review | qa |
 | 리뷰어 | CHECK | Content verification, fact-checking, grammar review | reviewer |
+| 테스터 | CHECK | Testing, verification, security review | tester |
 
 단순 작업(파일 1-2개 읽기/수정)은 직접 처리하라.
 

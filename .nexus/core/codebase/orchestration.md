@@ -33,7 +33,7 @@ False positive guards: error/bug context filter, question context filter, quoted
 | engineer | DO | sonnet | nx_task_add |
 | researcher | DO | sonnet | nx_task_add |
 | writer | DO | sonnet | nx_task_add |
-| qa | CHECK | sonnet | Edit, Write, NotebookEdit, nx_task_add |
+| tester | CHECK | sonnet | Edit, Write, NotebookEdit, nx_task_add |
 | reviewer | CHECK | sonnet | Edit, Write, NotebookEdit, nx_task_add |
 
 ### Parallelism
@@ -58,7 +58,7 @@ Activated only with `[run]` tag. Managed by nx-run skill.
 | 1 | Intake | Lead | Verify plan document exists, clarify scope |
 | 2 | Design | HOW subagents | Architecture/strategy analysis (optional, Lead judges need) |
 | 3 | Execute | DO subagents | Implementation, parallel per task |
-| 4 | Verify | CHECK subagents | QA/review, cannot edit code |
+| 4 | Verify | CHECK subagents | test/review, cannot edit code |
 | 5 | Complete | Lead | Archive cycle, record memory |
 
 ### Rollback Rules
@@ -124,9 +124,9 @@ Pipeline phase ordering is guided by skill prompt. Agent behavior is enforced by
 - On agent stop, check if agent's owned tasks are still pending/in_progress
 - If incomplete tasks found → inject warning to Lead
 
-### QA Auto-Spawn Conditions
+### Tester Auto-Spawn Conditions
 
-Any one triggers QA verification (Lead discretion):
+Any one triggers Tester verification (Lead discretion):
 - 3 or more files changed
 - Existing test files modified
 - External API/DB access code changed

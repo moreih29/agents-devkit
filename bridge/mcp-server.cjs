@@ -22317,11 +22317,13 @@ function registerPlanTools(server2) {
       await writePlan(data);
       const allComplete = data.issues.every((i) => i.status === "decided");
       if (allComplete) {
+        const tasksJsonExists = (0, import_fs9.existsSync)((0, import_path9.join)(STATE_ROOT, "tasks.json"));
+        const message = tasksJsonExists ? "\uC0C8 \uACB0\uC815\uC0AC\uD56D\uC5D0 \uB300\uD55C \uD0DC\uC2A4\uD06C\uB97C tasks.json\uC5D0 \uCD94\uAC00\uD558\uC138\uC694. plan_issue \uD544\uB4DC\uB85C \uAE30\uC874 \uD0DC\uC2A4\uD06C\uC640 \uC911\uBCF5\uB418\uC9C0 \uC54A\uB3C4\uB85D \uD569\uB2C8\uB2E4." : "Step 7: \uACB0\uC815\uC0AC\uD56D\uC744 \uBC14\uD0D5\uC73C\uB85C \uACC4\uD68D\uC11C(tasks.json)\uB97C \uC0DD\uC131\uD558\uC138\uC694. nx_task_add(plan_issue=N, approach, acceptance, risk)\uB85C \uAC01 \uD0DC\uC2A4\uD06C\uB97C \uB4F1\uB85D\uD569\uB2C8\uB2E4.";
         return textResult({
           decided: true,
           issue: issue2.title,
           allComplete: true,
-          message: "\uBAA8\uB4E0 \uC548\uAC74\uC774 \uACB0\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC2E4\uD589\uC774 \uD544\uC694\uD558\uBA74 [run] \uD0DC\uADF8\uB97C, \uADDC\uCE59\uC73C\uB85C \uC800\uC7A5\uD558\uB824\uBA74 [rule] \uB610\uB294 [rule:\uD0DC\uADF8] \uD0DC\uADF8\uB97C \uC0AC\uC6A9\uD558\uC138\uC694."
+          message
         });
       }
       const remaining = data.issues.filter((i) => i.status !== "decided");
@@ -22558,7 +22560,7 @@ var MATRIX = {
   postdoc: { identity: "all", codebase: "all", reference: "all", memory: "all" },
   engineer: { identity: null, codebase: "all", reference: null, memory: "all" },
   researcher: { identity: "all", codebase: null, reference: "all", memory: "all" },
-  qa: { identity: "all", codebase: "all", reference: null, memory: "all" },
+  tester: { identity: "all", codebase: "all", reference: null, memory: "all" },
   designer: { identity: "all", codebase: "all", reference: "all", memory: "all" },
   strategist: { identity: "all", codebase: "all", reference: "all", memory: "all" },
   writer: { identity: null, codebase: "all", reference: null, memory: "all" },
@@ -22594,7 +22596,7 @@ function registerBriefingTool(server2) {
     "nx_briefing",
     "Assemble a role-specific briefing from the core knowledge store (identity, codebase, reference, memory layers) plus decisions and rules.",
     {
-      role: external_exports.enum(["architect", "postdoc", "engineer", "researcher", "qa", "designer", "strategist", "writer", "reviewer"]).describe("Agent role"),
+      role: external_exports.enum(["architect", "postdoc", "engineer", "researcher", "tester", "designer", "strategist", "writer", "reviewer"]).describe("Agent role"),
       hint: external_exports.string().optional().describe("Relevant module/area hint for tag filtering")
     },
     async (params) => {

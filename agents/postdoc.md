@@ -4,7 +4,7 @@ model: opus
 description: Research methodology and synthesis — designs investigation approach, evaluates evidence quality, writes synthesis documents
 task: "Research methodology, evidence synthesis"
 maxTurns: 25
-disallowedTools: [Edit, Bash, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_task_add, mcp__plugin_claude-nexus_nx__nx_task_update]
+disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_task_add, mcp__plugin_claude-nexus_nx__nx_task_update]
 tags: [research, synthesis, methodology]
 alias_ko: 포닥
 category: how

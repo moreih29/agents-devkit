@@ -51,16 +51,28 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes s
 - **File conflict prevention**: 같은 파일을 수정하는 태스크들을 동시에 서브에이전트로 위임하지 마라. Overlapping target files → serialize execution.
 - **SubagentStop gate**: when a subagent stops, Lead checks tasks.json. If the subagent's task is not in `done` status, Lead emits a warning and either re-spawns or handles the task before proceeding.
 
-### Step 3: Verify (Lead + Check subagent)
+### Step 3: Verify (Lead + Check subagents)
 
-- Lead: confirm build + E2E pass/fail only.
-- QA/Reviewer: verify quality, intent alignment, edge cases, security (spawn Check subagent when conditions are met).
-- Check subagent spawn conditions (any one triggers):
+**Lead**: confirm build + E2E pass/fail.
+
+**Tester — acceptance criteria verification**:
+- Tester reads each completed task's `acceptance` field from tasks.json
+- Verifies each criterion with PASS/FAIL judgment
+- All criteria must pass for the task to be considered done
+- If any criterion fails → Step 2 rework (reopen task)
+- Tester spawn conditions (any one triggers):
+  - tasks.json에 `acceptance` 필드가 있는 태스크가 1개 이상
   - 3 or more files changed
   - Existing test files modified
   - External API/DB access code changed
   - Failure history for this area exists in memory
-- If issues found: code problems → Step 2 rework (reopen task); design problems → re-run nx-plan before re-executing.
+
+**Reviewer — writer deliverable verification**:
+- Whenever Writer produced a deliverable in Step 2, Reviewer MUST verify it
+- Writer → Reviewer is a mandatory pairing, not optional
+- Reviewer checks: factual accuracy, source consistency, grammar/format
+
+- If issues found: code problems → Step 2 rework; design problems → re-run nx-plan before re-executing.
 
 ### Step 4: Complete
 
@@ -96,7 +108,7 @@ Compose subagents according to user direction. Lead fills in unspecified areas.
 | **Do** | Engineer | Code implementation, bug fixes |
 | **Do** | Researcher | Web research, information gathering |
 | **Do** | Writer | Content writing, document generation |
-| **Check** | QA | Code verification, testing |
+| **Check** | Tester | Code verification, testing |
 | **Check** | Reviewer | Content review, quality verification |
 
 How subagent cap: **4**. Do/Check subagents: unlimited (scaled to goal).
@@ -107,7 +119,7 @@ How subagent cap: **4**. Do/Check subagents: unlimited (scaled to goal).
 ```
 How: Architect (+ Designer optional)
 Do:  Engineer (parallel possible)
-Check: QA
+Check: Tester
 ```
 
 **Content Pipeline**
@@ -119,7 +131,7 @@ Check: Reviewer
 
 ### Decision Criteria
 
-- **Code change is primary output** → How: Architect, Do: Engineer, Check: QA
+- **Code change is primary output** → How: Architect, Do: Engineer, Check: Tester
 - **Information gathering is primary output** → How: Postdoc, Do: Researcher
 - **Content creation is primary output** → How: Strategist, Do: Researcher + Writer, Check: Reviewer
 - **Mixed** → compose freely to match the goal (e.g., Engineer + Researcher in parallel)
@@ -192,7 +204,7 @@ Agent({ subagent_type: "claude-nexus:engineer", prompt: "TASK: ...\nCONTEXT: ...
 Agent({ subagent_type: "claude-nexus:researcher", prompt: "TASK: ...\nCONTEXT: ...\nACCEPTANCE: ..." })
 
 // Step 3: Spawn Check subagent when conditions are met
-Agent({ subagent_type: "claude-nexus:qa", prompt: nx_briefing("qa") })
+Agent({ subagent_type: "claude-nexus:tester", prompt: nx_briefing("tester") })
 // If issues found: code problems → Step 2 rework, design problems → re-run nx-plan
 
 // Step 4: Spawn Writer only for needed documentation layers

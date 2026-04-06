@@ -188,7 +188,7 @@ After all issues are decided, generate the plan document (tasks.json):
    - Call `nx_task_add(plan_issue=N, approach, acceptance, risk, owner)` for each task
 5. **Present plan document** — show the user the generated tasks.json summary for review
 
-This step is optional — the user may prefer to generate tasks manually during `[run]`, or skip to `[run]` which will auto-generate via `[plan:auto]` if needed.
+**Incremental mode**: if tasks.json already exists (e.g., after adding follow-up issues), only add tasks for new decisions. Check `plan_issue` field to avoid duplicating tasks for already-covered issues.
 
 ---
 

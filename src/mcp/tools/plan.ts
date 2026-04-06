@@ -15,7 +15,7 @@ export interface DiscussionEntry {
 
 /** 참석자 */
 export interface PlanAttendee {
-  role: string;       // 에이전트 역할명: 'architect', 'engineer', 'qa' 등
+  role: string;       // 에이전트 역할명: 'architect', 'engineer', 'tester' 등
   name: string;       // 팀 내 에이전트 이름 (teammate name)
   joined_at: string;  // ISO 8601
 }
@@ -297,11 +297,15 @@ export function registerPlanTools(server: McpServer): void {
 
       const allComplete = data.issues.every(i => i.status === 'decided');
       if (allComplete) {
+        const tasksJsonExists = existsSync(join(STATE_ROOT, 'tasks.json'));
+        const message = tasksJsonExists
+          ? '새 결정사항에 대한 태스크를 tasks.json에 추가하세요. plan_issue 필드로 기존 태스크와 중복되지 않도록 합니다.'
+          : 'Step 7: 결정사항을 바탕으로 계획서(tasks.json)를 생성하세요. nx_task_add(plan_issue=N, approach, acceptance, risk)로 각 태스크를 등록합니다.';
         return textResult({
           decided: true,
           issue: issue.title,
           allComplete: true,
-          message: '모든 안건이 결정되었습니다. 실행이 필요하면 [run] 태그를, 규칙으로 저장하려면 [rule] 또는 [rule:태그] 태그를 사용하세요.',
+          message,
         });
       }
 

@@ -65,7 +65,7 @@ Typical flow: use `[meet]` to discuss and align → decide → use `[run]` to ex
 
 | Agent | Invocation | Role | Model |
 |-------|-----------|------|-------|
-| **QA** | `claude-nexus:qa` | Verification, testing, and security review | sonnet |
+| **Tester** | `claude-nexus:tester` | Verification, testing, and security review | sonnet |
 | **Reviewer** | `claude-nexus:reviewer` | Content verification and fact-checking | sonnet |
 
 ## Skills
