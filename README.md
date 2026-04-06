@@ -28,15 +28,17 @@ claude plugin install claude-nexus@nexus
 
 **첫 사용**
 
-- **미팅**: `[meet] 인증 시스템 어떻게 설계하면 좋을까?`
+- **플랜**: `[plan] 인증 시스템 어떻게 설계하면 좋을까?`
 - **결정 기록**: `응 그 방향으로 [d]`
 
 ## 사용법
 
 | 태그 | 동작 | 예시 |
 |------|------|------|
-| `[meet]` | 미팅 모드 활성화 | `[meet] DB 마이그레이션 전략 논의` |
+| `[plan]` | 플랜 모드 활성화 | `[plan] DB 마이그레이션 전략 논의` |
 | `[d]` | 결정 기록 | `응 그 방향으로 [d]` |
+| `[run]` | 실행 (에이전트 팀) | `[run] 결제 모듈 리팩토링` |
+| `[rule]` | 규칙 저장 | `[rule] npm 대신 bun 사용` |
 
 ## 에이전트
 
@@ -49,14 +51,14 @@ claude plugin install claude-nexus@nexus
 | **Do** | Engineer | 코드 구현, 디버깅 | sonnet |
 | **Do** | Researcher | 웹 검색, 독립 조사 | sonnet |
 | **Do** | Writer | 기술 문서, 프레젠테이션 | sonnet |
-| **Check** | QA | 코드 검증, 테스트, 보안 | sonnet |
+| **Check** | Tester | 코드 검증, 테스트, 보안 | sonnet |
 | **Check** | Reviewer | 콘텐츠 검증, 출처 확인 | sonnet |
 
 ## 스킬
 
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
-| **nx-meet** | `[meet]` | 구조화된 미팅. 요구사항 정리 → 결정 기록 |
+| **nx-plan** | `[plan]` | 구조화된 플랜. 요구사항 정리 → 결정 기록 |
 | **nx-run** | (기본 동작) | 동적 에이전트 구성 실행 |
 | **nx-init** | `/claude-nexus:nx-init` | 프로젝트 온보딩. 코드 스캔 → 지식 생성 |
 | **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정 |
@@ -69,22 +71,20 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (17개)
+### Core (15개)
 
 | 도구 | 용도 |
 |------|------|
 | `nx_briefing` | 에이전트 역할별 브리핑 조립 (core knowledge + rules 기반) |
 | `nx_core_read/write` | 프로젝트 지식 관리 (`.nexus/core/`, git 추적) |
 | `nx_rules_read/write` | 팀 커스텀 규칙 관리 (`.nexus/rules/`, git 추적) |
-| `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 미팅) |
+| `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 플랜) |
 | `nx_task_list/add/update/close` | `.nexus/state/tasks.json` 기반 태스크 관리 + `.nexus/history.json` 아카이브 |
 | `nx_artifact_write` | 팀 산출물 저장 (`.nexus/state/artifacts/`) |
-| `nx_meet_start` | 미팅 세션 시작 (토픽 + 논점 등록, 참석자 팀 검증) |
-| `nx_meet_status` | 미팅 상태 조회 |
-| `nx_meet_update` | 미팅 논점 수정 (add/remove/edit/reopen) |
-| `nx_meet_discuss` | 논점 토론 기록 (speaker 검증: 등록된 참석자만 허용) |
-| `nx_meet_decide` | 논점 결정 처리 (meet.json) |
-| `nx_meet_join` | 진행 중인 미팅 참여 |
+| `nx_plan_start` | 플랜 세션 시작 (토픽 + 논점 등록, 참석자 팀 검증) |
+| `nx_plan_status` | 플랜 상태 조회 |
+| `nx_plan_update` | 플랜 논점 수정 (add/remove/edit/reopen) |
+| `nx_plan_decide` | 논점 결정 처리 (plan.json) |
 
 ### Code Intelligence (10개)
 
@@ -114,7 +114,7 @@ Gate 단일 모듈로 동작합니다.
 | 이벤트 | 역할 |
 |--------|------|
 | `UserPromptSubmit` | 태그 감지 → 모드 활성화 + TASK_PIPELINE 주입 + additionalContext 안내 |
-| `PreToolUse` | Edit/Write: tasks.json 없으면 차단. nx_meet_start: 참석자 팀 검증. Agent: team_name 트래킹 |
+| `PreToolUse` | Edit/Write: tasks.json 없으면 차단. nx_plan_start: 참석자 팀 검증. Agent: team_name 트래킹 |
 | `Stop` | pending 태스크 있으면 종료 차단. all completed면 nx_task_close 강제 |
 
 </details>

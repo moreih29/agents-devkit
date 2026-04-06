@@ -9,7 +9,7 @@ Agent orchestration plugin for Claude Code.
 
 ## Why
 
-Specialized agent teams handle development and research systematically — architect, engineer, QA, researcher, and more. One tag triggers automatic orchestration of complex tasks across the right agents without manual coordination.
+Specialized agent teams handle development and research systematically — architect, engineer, tester, researcher, and more. One tag triggers automatic orchestration of complex tasks across the right agents without manual coordination.
 
 ## Quick Start
 
@@ -26,7 +26,7 @@ Run `/claude-nexus:nx-init` — scans your project and auto-generates structured
 
 **3. Start using**
 
-- **Meet**: `[meet] How should we design the auth system?` — clarify intent and align before executing
+- **Plan**: `[plan] How should we design the auth system?` — clarify intent and align before executing
 - **Run**: `[run] Implement login API` — agent team handles analysis through implementation
 
 ## Usage
@@ -35,12 +35,12 @@ Tag your message to route it to the right workflow:
 
 | Tag | Action | Example |
 |-----|--------|---------|
-| `[meet]` | Pre-execution meeting | `[meet] Discuss DB migration strategy` |
+| `[plan]` | Pre-execution planning | `[plan] Discuss DB migration strategy` |
 | `[run]` | Execution (agent team) | `[run] Refactor payment module` |
 | `[d]` | Record a decision | `[d] Use PostgreSQL for primary storage` |
 | `[rule]` | Save a rule | `[rule] Always use bun instead of npm` |
 
-Typical flow: use `[meet]` to discuss and align → decide → use `[run]` to execute.
+Typical flow: use `[plan]` to discuss and align → decide → use `[run]` to execute.
 
 ## Agents
 
@@ -72,7 +72,7 @@ Typical flow: use `[meet]` to discuss and align → decide → use `[run]` to ex
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| **nx-meet** | `[meet]` | Structured meeting. Clarify requirements → record decisions (`[d]`) → recommend execution tag |
+| **nx-plan** | `[plan]` | Structured planning. Clarify requirements → record decisions (`[d]`) → recommend execution tag |
 | **nx-run** | `[run]` | Execution. User-directed agent composition for development, research, and more |
 | **nx-init** | `/claude-nexus:nx-init` | Full project onboarding: scan codebase, establish identity, generate core knowledge |
 | **nx-setup** | `/claude-nexus:nx-setup` | Interactive setup. Injects agent/skill/tag configuration into CLAUDE.md |
@@ -85,22 +85,20 @@ Typical flow: use `[meet]` to discuss and align → decide → use `[run]` to ex
 
 Claude-callable tools exposed by the Nexus MCP server.
 
-### Core (17 tools)
+### Core (15 tools)
 
 | Tool | Purpose |
 |------|---------|
 | `nx_briefing` | Assemble role-specific briefing (core knowledge + rules) |
 | `nx_core_read/write` | Project knowledge management (git-tracked) |
 | `nx_rules_read/write` | Team custom rules management (git-tracked) |
-| `nx_context` | Current session state lookup (branch, tasks, meet) |
+| `nx_context` | Current session state lookup (branch, tasks, plan) |
 | `nx_task_list/add/update/close` | Task management + history.json archiving |
 | `nx_artifact_write` | Save team artifacts (branch-isolated) |
-| `nx_meet_start` | Start meeting session (topic + issues, team verification) |
-| `nx_meet_status` | Query meeting state |
-| `nx_meet_update` | Modify meeting issues (add/remove/edit/reopen) |
-| `nx_meet_discuss` | Record issue discussion (speaker validation: registered attendees only) |
-| `nx_meet_decide` | Record issue decision (meet.json) |
-| `nx_meet_join` | Join an ongoing meeting |
+| `nx_plan_start` | Start plan session (topic + issues, team verification) |
+| `nx_plan_status` | Query plan state |
+| `nx_plan_update` | Modify plan issues (add/remove/edit/reopen) |
+| `nx_plan_decide` | Record issue decision (plan.json) |
 
 ### Code Intelligence (10 tools)
 
@@ -130,7 +128,7 @@ Nexus registers a single Gate module as a Claude Code hook.
 | Event | Role |
 |-------|------|
 | `UserPromptSubmit` | Tag detection → mode activation + TASK_PIPELINE injection + additionalContext guidance |
-| `PreToolUse` | Edit/Write: blocks when tasks.json missing. nx_meet_start: attendee team verification. Agent: team_name tracking |
+| `PreToolUse` | Edit/Write: blocks when tasks.json missing. nx_plan_start: attendee team verification. Agent: team_name tracking |
 | `Stop` | Blocks exit with pending tasks. Forces nx_task_close when all completed |
 
 </details>
