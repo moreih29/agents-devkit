@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.20.0 (2026-04-06)
+
+### Features
+- TUI progress default + archive review cycles
+- task close enforcement + plan document auto-generation
+- hook gap analysis — PostCompact, core index injection, stop_hook_active, discuss removal
+- owner delegation in plan Step 7, lead role definition
+- agent definitions refinement — tester, acceptance verification, role boundaries
+- skill spec refinements — plan:auto, delegation criteria, comparison tables
+- redesign v0.20 — subagent architecture, plan-then-execute
+
 ## 0.19.0 (2026-04-01)
 
 ### Features
