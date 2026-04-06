@@ -2676,6 +2676,279 @@
           "created_at": "2026-04-01T07:55:20.489Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-06T06:24:06.165Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "hook-probe.cjs 로깅 스크립트 작성",
+          "context": "모든 훅 이벤트의 stdin JSON + 환경변수를 /tmp/claude-hook-probe/에 덤프하는 스크립트. 기존 동작 방해 없이 { continue: true } 응답.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T06:21:16.044Z"
+        },
+        {
+          "id": 2,
+          "title": "hooks-probe.json 테스트 훅 설정 작성",
+          "context": "12개 주요 이벤트(PreToolUse, PostToolUse, PostToolUseFailure, SubagentStart/Stop 등)를 모두 등록한 훅 설정 파일.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T06:21:16.060Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T06:36:47.685Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "훅 레퍼런스 문서 작성",
+          "context": "실험 결과를 바탕으로 .nexus/core/ 에 훅 이벤트별 필드, 환경변수, 에이전트 동작 등 상세 레퍼런스 저장. 정보량이 많으면 파일 분할.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T06:32:18.814Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T06:58:08.690Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "TeamCreate 팀 에이전트 훅 동작 실험",
+          "context": "TeamCreate로 스폰된 팀 에이전트의 훅 필드 캡처 및 서브에이전트와 비교",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T06:44:04.121Z"
+        },
+        {
+          "id": 2,
+          "title": "서브에이전트 vs 팀 에이전트 속도 비교",
+          "context": "동일 태스크에 대해 일반 Agent vs TeamCreate+Agent 속도 측정 (3회 반복)",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T06:44:05.340Z"
+        },
+        {
+          "id": 3,
+          "title": "모델별 속도 비교 (haiku/sonnet/opus)",
+          "context": "동일 태스크에 대해 --model 플래그로 haiku, sonnet, opus 속도 측정",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T06:44:06.748Z"
+        },
+        {
+          "id": 4,
+          "title": "실험 결과 레퍼런스 문서 업데이트",
+          "context": "실험 결과를 기존 레퍼런스에 추가하거나 새 문서로 작성",
+          "status": "completed",
+          "deps": [
+            1,
+            2,
+            3
+          ],
+          "decisions": [],
+          "created_at": "2026-04-06T06:44:07.546Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T07:10:01.280Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "벤치마크 레퍼런스 오류 수정",
+          "context": "1) Explore가 haiku인 것을 모든 ���이전트 일반화한 오류 수정 2) 서브에이전트 병렬 vs 팀 에이전트 권장 시나리오 수정",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:09:12.036Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T07:18:46.213Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "팀 정보 조회 방법 조사",
+          "context": "TeamCreate 후 팀 상태 조회 도구 존재 여부, ~/.claude/ 내부 상태 파일 확인",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:13:41.590Z"
+        },
+        {
+          "id": 2,
+          "title": "서브에이전트 SendMessage 재개 실험",
+          "context": "완료된 서브에이전트에 SendMessage로 추가 요청 가능한지, 컨텍스트 유지 여부 확인",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:13:43.225Z"
+        },
+        {
+          "id": 3,
+          "title": "레퍼런스 업데이트",
+          "context": "실험 결과를 기존 레퍼런스에 추가",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "decisions": [],
+          "created_at": "2026-04-06T07:13:43.665Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T07:28:06.766Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "에이전트 재개 실험 결과 레퍼런스 업데이트",
+          "context": "팀 이름 스코프, 서브에이전트 재개 실험 3가지 시나리오 결과 반영",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:27:08.430Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T07:31:53.193Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "idle 에이전트 미검증 항목 확정 처리",
+          "context": "interactive idle 에이전트 재개는 현실적으로 불가로 확정. 레퍼런스에서 미검증(?) 마킹 제거.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:31:24.706Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T07:45:05.775Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "A. 훅 제어 동작 검증 (updatedInput, allow, Stop block, 10K 제한)",
+          "context": "PreToolUse updatedInput, permissionDecision allow, Stop block, additionalContext 10K 제한 테스트",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:33:11.786Z"
+        },
+        {
+          "id": 2,
+          "title": "B. 미실험 이벤트 (Notification, CwdChanged, ConfigChange 등)",
+          "context": "PermissionRequest/Denied, Notification, CwdChanged, ConfigChange 이벤트 캡처",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:33:12.654Z"
+        },
+        {
+          "id": 3,
+          "title": "C. 성능/아키텍처 (병렬 에이전트, stream hook, 모델 파라미터)",
+          "context": "서브에이전트 3개 병렬 vs 순차, --include-hook-events 스트림, Agent model 파라미터 테스트",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:33:13.990Z"
+        },
+        {
+          "id": 4,
+          "title": "레퍼런스 문서 업데이트",
+          "context": "A/B/C 실험 결과를 레퍼런스에 추가",
+          "status": "completed",
+          "deps": [
+            1,
+            2,
+            3
+          ],
+          "decisions": [],
+          "created_at": "2026-04-06T07:33:14.991Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T08:04:52.603Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "omc (oh-my-claudecode) 심층 분석",
+          "context": "훅, 에이전트, 프롬프트, 하네스 도구 전체 조사",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:52:59.534Z"
+        },
+        {
+          "id": 2,
+          "title": "omo (oh-my-openagent) 심층 분석",
+          "context": "훅 체계, 에이전트, 프롬프트, 하네스 도구 조사 (opencode 기반이라 체계 다를 수 있음)",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T07:53:01.108Z"
+        },
+        {
+          "id": 3,
+          "title": "레퍼런스 문서 작성",
+          "context": "omc/omo 조사 결과를 .nexus/core/reference/에 저장",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "decisions": [],
+          "created_at": "2026-04-06T07:53:01.976Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-06T08:13:43.747Z",
+      "branch": "main",
+      "meet": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "레퍼런스 정리: 삭제 2개 + 병합 1개",
+          "context": "competitor-analysis.md, omc-orchestration-failure-patterns.md 삭제. llm-context-format-optimal-patterns.md를 llm-prompt-structure-best-practices.md에 병합.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "created_at": "2026-04-06T08:13:01.873Z"
+        }
+      ]
     }
   ]
 }
