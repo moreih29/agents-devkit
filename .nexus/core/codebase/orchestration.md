@@ -10,9 +10,9 @@ The `UserPromptSubmit` event in the gate hook detects tags in the user prompt an
 
 | Tag | Behavior |
 |-----|----------|
-| `[plan]` | Loads nx-plan skill. Continues existing session if plan.json exists, otherwise starts new. Spawns researcher+Explore subagents for research, Lead synthesizes analysis. |
+| `[plan]` | BLOCKING skill invoke → nx-plan. Pre-checks: stale tasks.json (force close), existing plan.json (resume hint). Core index injected. |
 | `[d]` | Branches on plan.json presence: calls nx_plan_decide if exists, otherwise instructs to start a plan session first |
-| `[run]` | Execution — full pipeline via nx-run SKILL.md. Requires tasks.json (plan document). |
+| `[run]` | BLOCKING skill invoke → nx-run. Pre-checks: tasks.json absent (hint plan required), exists (task count/status hint). Auto plan:auto when tasks.json absent. |
 | `[rule]` | Rule — save rule to .nexus/rules/. Supports [rule:tags] format |
 
 ### Natural Language Patterns
