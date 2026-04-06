@@ -231,7 +231,7 @@ If "Skip": proceed to next step.
 Output a setup completion message:
 - Summary of applied settings
 - Brief introduction to available skills/agents
-- "To get started, describe a task, or use [meet] for discussion, [run] for execution, [rule] for saving rules"
+- "To get started, describe a task, or use [plan] for planning, [run] for execution, [rule] for saving rules"
 
 ---
 

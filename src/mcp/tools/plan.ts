@@ -14,54 +14,54 @@ export interface DiscussionEntry {
 }
 
 /** 참석자 */
-export interface MeetAttendee {
+export interface PlanAttendee {
   role: string;       // 에이전트 역할명: 'architect', 'engineer', 'qa' 등
   name: string;       // 팀 내 에이전트 이름 (teammate name)
   joined_at: string;  // ISO 8601
 }
 
 /** 개별 안건 */
-export interface MeetIssue {
-  id: number;                                     // 단순 숫자 (meet 내 고유)
+export interface PlanIssue {
+  id: number;                                     // 단순 숫자 (plan 내 고유)
   title: string;
   status: 'pending' | 'discussing' | 'decided';
   discussion: DiscussionEntry[];                  // 논의 과정 기록
   decision?: string;                              // decided 시 결정 요약
 }
 
-/** meet.json 루트 */
-export interface MeetFile {
+/** plan.json 루트 */
+export interface PlanFile {
   id: number;             // 단순 숫자 (1부터 증가, history에서 역추적용)
   topic: string;
-  attendees: MeetAttendee[];
-  issues: MeetIssue[];
+  attendees: PlanAttendee[];
+  issues: PlanIssue[];
   research_summary?: string;
   created_at: string;     // ISO 8601
 }
 
-function meetPath(): string {
-  return join(STATE_ROOT, 'meet.json');
+function planPath(): string {
+  return join(STATE_ROOT, 'plan.json');
 }
 
-export async function readMeet(): Promise<MeetFile | null> {
-  const p = meetPath();
+export async function readPlan(): Promise<PlanFile | null> {
+  const p = planPath();
   if (!existsSync(p)) return null;
   const raw = await readFile(p, 'utf-8');
-  return JSON.parse(raw) as MeetFile;
+  return JSON.parse(raw) as PlanFile;
 }
 
-export async function writeMeet(data: MeetFile): Promise<void> {
+export async function writePlan(data: PlanFile): Promise<void> {
   ensureDir(STATE_ROOT);
-  await writeFile(meetPath(), JSON.stringify(data, null, 2));
+  await writeFile(planPath(), JSON.stringify(data, null, 2));
 }
 
-export function registerMeetTools(server: McpServer): void {
-  // nx_meet_start — 새 meet 세션 생성. 기존 meet.json 있으면 history에 자동 아카이브.
+export function registerPlanTools(server: McpServer): void {
+  // nx_plan_start — 새 plan 세션 생성. 기존 plan.json 있으면 history에 자동 아카이브.
   server.tool(
-    'nx_meet_start',
-    '새 미팅 세션 시작 — 기존 meet.json 자동 아카이브',
+    'nx_plan_start',
+    '새 플래닝 세션 시작 — 기존 plan.json 자동 아카이브',
     {
-      topic: z.string().describe('미팅 주제'),
+      topic: z.string().describe('플래닝 주제'),
       issues: z.array(z.string()).describe('안건 목록'),
       research_summary: z.string().describe('사전조사 결과 요약. 리서치 완료를 강제하기 위한 필수 파라미터.'),
       attendees: z.array(z.object({
@@ -70,47 +70,47 @@ export function registerMeetTools(server: McpServer): void {
       })).optional().describe('초기 참석자 목록. 생략 시 Lead만 기본 등록.'),
     },
     async ({ topic, issues, research_summary, attendees }) => {
-      // history.json에서 마지막 meet id 추출
+      // history.json에서 마지막 plan id 추출
       const projectHistoryPath = join(NEXUS_ROOT, 'history.json');
-      interface Cycle { completed_at: string; branch: string; meet: MeetFile | null; tasks: never[]; }
+      interface Cycle { completed_at: string; branch: string; meet: PlanFile | null; tasks: never[]; }
       interface HistoryFile { cycles: Cycle[]; }
       let history: HistoryFile = { cycles: [] };
       if (existsSync(projectHistoryPath)) {
         try { history = JSON.parse(await readFile(projectHistoryPath, 'utf-8')) as HistoryFile; } catch {}
       }
 
-      // 마지막 meet id 계산
-      let lastMeetId = 0;
+      // 마지막 plan id 계산
+      let lastPlanId = 0;
       for (const cycle of history.cycles) {
         if (cycle.meet && typeof cycle.meet.id === 'number') {
-          lastMeetId = Math.max(lastMeetId, cycle.meet.id);
+          lastPlanId = Math.max(lastPlanId, cycle.meet.id);
         }
       }
 
-      // 기존 meet.json 있으면 자동 아카이브
+      // 기존 plan.json 있으면 자동 아카이브
       let previousArchived = false;
-      const existingMeet = await readMeet();
-      if (existingMeet) {
+      const existingPlan = await readPlan();
+      if (existingPlan) {
         history.cycles.push({
           completed_at: new Date().toISOString(),
           branch: getCurrentBranch(),
-          meet: existingMeet,
+          meet: existingPlan,
           tasks: [],
         });
         ensureDir(NEXUS_ROOT);
         await writeFile(projectHistoryPath, JSON.stringify(history, null, 2));
-        unlinkSync(meetPath());
+        unlinkSync(planPath());
         previousArchived = true;
       }
 
       const now = new Date().toISOString();
-      const newId = lastMeetId + 1;
+      const newId = lastPlanId + 1;
 
-      const initialAttendees: MeetAttendee[] = attendees
+      const initialAttendees: PlanAttendee[] = attendees
         ? attendees.map(a => ({ role: a.role, name: a.name, joined_at: now }))
         : [{ role: 'lead', name: 'lead', joined_at: now }];
 
-      const data: MeetFile = {
+      const data: PlanFile = {
         id: newId,
         topic,
         attendees: initialAttendees,
@@ -124,18 +124,18 @@ export function registerMeetTools(server: McpServer): void {
         created_at: now,
       };
 
-      await writeMeet(data);
-      return textResult({ created: true, meet_id: newId, topic, issueCount: issues.length, previousArchived });
+      await writePlan(data);
+      return textResult({ created: true, plan_id: newId, topic, issueCount: issues.length, previousArchived });
     }
   );
 
-  // nx_meet_status — 현재 미팅 상태 조회
+  // nx_plan_status — 현재 플래닝 상태 조회
   server.tool(
-    'nx_meet_status',
-    '현재 미팅 상태 조회: 안건, 참석자, 결정사항',
+    'nx_plan_status',
+    '현재 플래닝 상태 조회: 안건, 참석자, 결정사항',
     {},
     async () => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
         return textResult({ active: false });
       }
@@ -146,7 +146,7 @@ export function registerMeetTools(server: McpServer): void {
 
       return textResult({
         active: true,
-        meet_id: data.id,
+        plan_id: data.id,
         topic: data.topic,
         attendees: data.attendees,
         issues: data.issues,
@@ -156,9 +156,9 @@ export function registerMeetTools(server: McpServer): void {
     }
   );
 
-  // nx_meet_update — 안건 추가/삭제/수정/재개
+  // nx_plan_update — 안건 추가/삭제/수정/재개
   server.tool(
-    'nx_meet_update',
+    'nx_plan_update',
     '안건 관리: 추가, 삭제, 수정, 재개',
     {
       action: z.enum(['add', 'remove', 'edit', 'reopen']).describe('수행할 액션'),
@@ -166,9 +166,9 @@ export function registerMeetTools(server: McpServer): void {
       title: z.string().optional().describe('안건 제목 (add, edit에 필수)'),
     },
     async ({ action, issue_id, title }) => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
-        return textResult({ error: 'No active meet session' });
+        return textResult({ error: 'No active plan session' });
       }
 
       if (action === 'add') {
@@ -176,9 +176,9 @@ export function registerMeetTools(server: McpServer): void {
           return textResult({ error: 'title is required for add' });
         }
         const maxId = data.issues.reduce((max, i) => Math.max(max, i.id), 0);
-        const newIssue: MeetIssue = { id: maxId + 1, title, status: 'pending', discussion: [] };
+        const newIssue: PlanIssue = { id: maxId + 1, title, status: 'pending', discussion: [] };
         data.issues.push(newIssue);
-        await writeMeet(data);
+        await writePlan(data);
         return textResult({ added: true, issue: newIssue });
       }
 
@@ -191,7 +191,7 @@ export function registerMeetTools(server: McpServer): void {
           return textResult({ error: `Issue ${issue_id} not found` });
         }
         const [removed] = data.issues.splice(idx, 1);
-        await writeMeet(data);
+        await writePlan(data);
         return textResult({ removed: true, issue: removed });
       }
 
@@ -204,7 +204,7 @@ export function registerMeetTools(server: McpServer): void {
           return textResult({ error: `Issue ${issue_id} not found` });
         }
         issue.title = title;
-        await writeMeet(data);
+        await writePlan(data);
         return textResult({ edited: true, issue });
       }
 
@@ -218,7 +218,7 @@ export function registerMeetTools(server: McpServer): void {
         }
         issue.status = 'discussing';
         delete issue.decision;
-        await writeMeet(data);
+        await writePlan(data);
         return textResult({ reopened: true, issue });
       }
 
@@ -226,9 +226,9 @@ export function registerMeetTools(server: McpServer): void {
     }
   );
 
-  // nx_meet_discuss — 논의 내용 기록
+  // nx_plan_discuss — 논의 내용 기록
   server.tool(
-    'nx_meet_discuss',
+    'nx_plan_discuss',
     '안건에 논의 내용 기록',
     {
       issue_id: z.number().describe('안건 ID'),
@@ -236,9 +236,9 @@ export function registerMeetTools(server: McpServer): void {
       content: z.string().describe('발언 내용 요약'),
     },
     async ({ issue_id, speaker, content }) => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
-        return textResult({ error: 'No active meet session' });
+        return textResult({ error: 'No active plan session' });
       }
 
       // speaker 검증: attendees에 등록된 role 또는 lead/user만 허용
@@ -246,7 +246,7 @@ export function registerMeetTools(server: McpServer): void {
       const attendeeRoles = data.attendees.map(a => a.role);
       if (!allowedSpeakers.includes(speaker) && !attendeeRoles.includes(speaker)) {
         return textResult({
-          error: `Speaker '${speaker}' is not a registered attendee. Registered: ${attendeeRoles.join(', ')}. Use nx_meet_join to add attendees first.`,
+          error: `Speaker '${speaker}' is not a registered attendee. Registered: ${attendeeRoles.join(', ')}. Use nx_plan_join to add attendees first.`,
         });
       }
 
@@ -267,23 +267,23 @@ export function registerMeetTools(server: McpServer): void {
         issue.status = 'discussing';
       }
 
-      await writeMeet(data);
+      await writePlan(data);
       return textResult({ recorded: true, issue_id, discussionCount: issue.discussion.length });
     }
   );
 
-  // nx_meet_decide — 안건 결정 기록
+  // nx_plan_decide — 안건 결정 기록
   server.tool(
-    'nx_meet_decide',
+    'nx_plan_decide',
     '안건 결정 기록 — [d] 태그로 트리거',
     {
       issue_id: z.number().describe('결정할 안건 ID'),
       summary: z.string().describe('결정 요약'),
     },
     async ({ issue_id, summary }) => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
-        return textResult({ error: 'No active meet session' });
+        return textResult({ error: 'No active plan session' });
       }
 
       const issue = data.issues.find(i => i.id === issue_id);
@@ -293,7 +293,7 @@ export function registerMeetTools(server: McpServer): void {
 
       issue.status = 'decided';
       issue.decision = summary;
-      await writeMeet(data);
+      await writePlan(data);
 
       const allComplete = data.issues.every(i => i.status === 'decided');
       if (allComplete) {
@@ -315,18 +315,18 @@ export function registerMeetTools(server: McpServer): void {
     }
   );
 
-  // nx_meet_join — 참석자 추가
+  // nx_plan_join — 참석자 추가
   server.tool(
-    'nx_meet_join',
-    '미팅에 참석자 추가',
+    'nx_plan_join',
+    '플래닝에 참석자 추가',
     {
       role: z.string().describe('에이전트 역할 (architect, engineer 등)'),
       name: z.string().describe('팀 내 에이전트 이름'),
     },
     async ({ role, name }) => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
-        return textResult({ error: 'No active meet session' });
+        return textResult({ error: 'No active plan session' });
       }
 
       const duplicate = data.attendees.find(a => a.name === name);
@@ -334,13 +334,13 @@ export function registerMeetTools(server: McpServer): void {
         return textResult({ error: `Attendee '${name}' already joined`, attendee: duplicate });
       }
 
-      const attendee: MeetAttendee = {
+      const attendee: PlanAttendee = {
         role,
         name,
         joined_at: new Date().toISOString(),
       };
       data.attendees.push(attendee);
-      await writeMeet(data);
+      await writePlan(data);
       return textResult({ joined: true, attendee, totalAttendees: data.attendees.length });
     }
   );

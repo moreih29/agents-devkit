@@ -4,7 +4,7 @@ model: sonnet
 description: Content verification — validates accuracy, checks facts, confirms grammar and format of non-code deliverables
 task: "Content verification, fact-checking, grammar review"
 maxTurns: 20
-disallowedTools: [mcp__plugin_claude-nexus_nx__nx_task_add]
+disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_task_add]
 tags: [review, verification, fact-checking, content, quality]
 alias_ko: 리뷰어
 category: check

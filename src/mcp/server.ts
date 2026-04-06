@@ -8,7 +8,7 @@ import { registerLspTools } from './tools/lsp.js';
 import { registerAstTools } from './tools/ast.js';
 import { registerTaskTools } from './tools/task.js';
 import { registerArtifactTools } from './tools/artifact.js';
-import { registerMeetTools } from './tools/meet.js';
+import { registerPlanTools } from './tools/plan.js';
 import { registerBriefingTool } from './tools/briefing.js';
 import { rulesPath, NEXUS_ROOT } from '../shared/paths.js';
 import { join } from 'path';
@@ -34,7 +34,7 @@ registerLspTools(server);
 registerAstTools(server);
 registerTaskTools(server);
 registerArtifactTools(server);
-registerMeetTools(server);
+registerPlanTools(server);
 registerBriefingTool(server);
 
 async function main() {

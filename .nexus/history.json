@@ -2949,6 +2949,335 @@
           "created_at": "2026-04-06T08:13:01.873Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-06T09:51:03.777Z",
+      "branch": "feature/redesign",
+      "meet": {
+        "id": 3,
+        "topic": "Nexus 플러그인 재설계",
+        "attendees": [
+          {
+            "role": "lead",
+            "name": "lead",
+            "joined_at": "2026-04-06T09:06:40.475Z"
+          },
+          {
+            "role": "user",
+            "name": "user",
+            "joined_at": "2026-04-06T09:06:40.475Z"
+          }
+        ],
+        "issues": [
+          {
+            "id": 1,
+            "title": "에이전트팀→서브에이전트 전환 + [meet]→[plan] 리네이밍",
+            "status": "decided",
+            "discussion": [],
+            "decision": "에이전트팀(TeamCreate) 전면 폐기 → 서브에이전트 기반 전환. [meet]→[plan] 리네이밍. 리서치는 서브에이전트 병렬, 분석/종합은 Lead. 태그 체계: [plan], [run], [d], [rule]. 비용 5배 절감, turn 폭주 제거."
+          },
+          {
+            "id": 2,
+            "title": "HOW/DO/CHECK ���이전트 분리 필요성",
+            "status": "decided",
+            "discussion": [],
+            "decision": "HOW/DO/CHECK 카테고리 및 9개 에이전트 정의 모두 유지. 사용 방식만 변경: \"팀 토론\" → \"독립 분석 위임\". HOW 에이전트는 팀으로 토론하지 않고, 서브에이전트로 각자 분석 결과만 반환 → Lead가 종합. 복잡도에 따라 Lead가 HOW 스폰 여부 판단. 컨텍스트 격리 + 전문 프롬프트 + 병렬 처리 이점 유지."
+          },
+          {
+            "id": 3,
+            "title": "tasks.json 강제 범위 축소",
+            "status": "decided",
+            "discussion": [],
+            "decision": "tasks.json 역할을 \"할일 목록\" → \"계획서\"로 격상. [plan] 산출물 = 계획서, [run] 입력 = 계획서 기반 실행(없으면 자동 작성). 태그 없는 Edit/Write는 허용(tasks.json 강제 해제). 계획서 양식(decisions, approach, acceptance 등 필드)은 추가 논의 필요."
+          },
+          {
+            "id": 4,
+            "title": "Progressive Depth 중간 단계",
+            "status": "decided",
+            "discussion": [],
+            "decision": "중간 단계 불필요. 현행 3단계(태그없음/[plan]/[run])로 충분. 결정 1~3으로 Edit/Write 차단 해제 + 서브에이전트 전환되면서 태그 없는 요청에서도 Lead가 자유롭게 직접 처리 또는 서브에이전트 위임 가능. 태그 추가는 오히려 복잡도만 증가."
+          },
+          {
+            "id": 5,
+            "title": "파이프라인 단계 하네스 강제 (Stop vs PreToolUse)",
+            "status": "decided",
+            "discussion": [],
+            "decision": "현행 유지. 파이프라인 순서는 스킬 프롬프트가 안내, 행동 제약은 에이전트 frontmatter disallowedTools로 플랫폼 강제. 상태 파일 기반 phase 관리는 불필요 — 순환/롤백 시 상태 동기화 어렵고, LLM이 phase 구분을 잘 못함. qa/reviewer에 disallowedTools: Edit, Write 설정 여부만 확인 필요."
+          },
+          {
+            "id": 6,
+            "title": "컨텍스트 보존 (PreCompact)",
+            "status": "decided",
+            "discussion": [],
+            "decision": "현행 유지 (B안). 파일 기반 상태(tasks.json, meet.json, core/)로 장기기억 충분. PreCompact 훅 추가 불필요. 단, 파일 기반 장기기억의 동기화 품질이 별도 논점 — 안건 추가."
+          },
+          {
+            "id": 7,
+            "title": "SubagentStop ��과 검증",
+            "status": "decided",
+            "discussion": [],
+            "decision": "C안 — [run] 모드에서만 태스크 기반 검증. SubagentStop 시 agent-tracker의 owner와 tasks.json 태스크 상태를 대조, 담당 태스크가 미완료면 경고 주입. 문자열 파싱 대신 태스크 상태 체크로 신뢰성 확보. 태그 없는 일반 서브에이전트는 검증 대상 외."
+          },
+          {
+            "id": 8,
+            "title": "design.md 범위 조정",
+            "status": "decided",
+            "discussion": [],
+            "decision": "A안 — design.md를 원칙만 남기고 구현 명세는 codebase/로 이동. 남길 것: 역할 카테고리 철학, 태그 시스템 철학, Plan 원칙, 정보 관리 4계층 의도. 이동할 것: QA 조건, 파이프라인 세부, 파일 구조, Rollback 규칙, 에이전트 모델 테이블 등."
+          },
+          {
+            "id": 9,
+            "title": "gate.ts 코드 개선 (hook_event_name, 미사용 이벤트)",
+            "status": "decided",
+            "discussion": [],
+            "decision": "A안 — hook_event_name 직접 사용으로 전환 (필드 추론 제거). NEXUS_EVENT 환경변수도 불필요해짐. 미사용 훅 이벤트(PostToolUse 등)는 당장 추가하지 않고, 결정 7(SubagentStop 검증) 등 구현 시 필요한 것만 추가."
+          },
+          {
+            "id": 10,
+            "title": "장기기억(core/) 동기화 품질 및 방법",
+            "status": "decided",
+            "discussion": [],
+            "decision": "C안 — 임계치 기반 자동 권유. history.json에 N사이클 이상 쌓이면 Stop 훅에서 \"core/ 동기화 필요\" additionalContext 주입. 강제가 아닌 넛지로 User Sovereignty 유지. 매 사이클 자동(과도) vs 완전 수동(누락)의 균형."
+          },
+          {
+            "id": 11,
+            "title": "계획서(tasks.json) 양식 설계",
+            "status": "decided",
+            "discussion": [],
+            "decision": "B안 — 풀 확장. 최상위: goal + decisions[]. 태스크별: title, context, approach, acceptance, risk, status, deps, owner. 복잡한 작업용 [plan]/[run] 전용이므로 상세 계획서가 합리적. approach가 있으면 에이전트 브리핑 비용 절약, risk가 있으면 삽질 방지."
+          },
+          {
+            "id": 12,
+            "title": "nx-init 스킬 수정 사항 (design.md 분리 반영)",
+            "status": "decided",
+            "discussion": [],
+            "decision": "nx-init: design.md에 원칙만, codebase/에 구현 명세. 5단계 Phase에서 identity/codebase 분리 반영."
+          },
+          {
+            "id": 13,
+            "title": "nx-plan/nx-run 스킬 명세 재설계 (결정 반영 + 동적 안건 제안)",
+            "status": "decided",
+            "discussion": [],
+            "decision": "A안 — 이 컨텍스트 안에서 전체 스킬 SKILL.md 수정. nx-meet→nx-plan 리네이밍 + 서브에이전트 기반 + 동적 안건 제안. nx-run→서브에이전트 기반 + 계획서 입력 + TeamCreate 제거. meet→plan 이름 변경에 따른 MCP 도구명(nx_meet_*→nx_plan_*), 문서, 태그([meet]→[plan]) 등 전체 일관성 변경 포함."
+          }
+        ],
+        "research_summary": "Claude Code 훅 실험(26개 이벤트 필드 검증, updatedInput/allow/Stop block 제어 동작 확인, 서브에이전트 vs 팀 에이전트 벤치마크), omc 심층 분석(11 훅 이벤트, 29 에이전트, 32 스킬, pre-tool-enforcer/notepad/verify-deliverables 패턴), omo 심층 분석(52개 7계층 훅, 11 에이전트, Hashline/카테고리 라우팅), Nexus 현재 구현 전체 스캔(6 훅 이벤트, 9 에이전트, 5 스킬, 25+ MCP 도구) 완료.",
+        "created_at": "2026-04-06T09:06:40.475Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "gate.ts: hook_event_name 직접 사용으로 전환",
+          "context": "결정9. 현재 필드 추론 로직(hasToolName, hasPrompt)을 event.hook_event_name 기반으로 교체. NEXUS_EVENT 환경변수도 제거 가능 — hooks.json에서 SessionStart/SubagentStart/SubagentStop의 NEXUS_EVENT= 접두사 제거.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:33:56.862Z"
+        },
+        {
+          "id": 2,
+          "title": "gate.ts: TeamCreate 관련 로직 제거",
+          "context": "결정1. handlePreToolUse에서: (a) Agent tool의 team_name 체크 + agent-tracker team-spawning 기록 제거 (b) [run] 모드 Agent 차단(isRunMode → team_name 강제) 제거 (c) nx_meet_start의 팀 에이전트 존재 확인 제거. SubagentStart/Stop의 team 매칭 로직도 단순화.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:05.863Z"
+        },
+        {
+          "id": 3,
+          "title": "gate.ts: Edit/Write 차단을 [run] 모드에서만 적용",
+          "context": "결정3. 현재 tasks.json 없으면 모든 Edit/Write 차단 → 변경: state/plan.json(구 tasks.json) 존재 시에만 차단 (= [run] 모드). plan.json 없으면 Edit/Write 자유 허용. isNexusInternalPath 예외 로직은 유지.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:08.992Z"
+        },
+        {
+          "id": 4,
+          "title": "gate.ts: meet→plan 키워드 감지 전환",
+          "context": "결정1,13. (a) EXPLICIT_TAGS에서 meet→plan 변경 (b) NATURAL_PATTERNS에서 미팅/회의 패턴을 계획/설계/분석 패턴으로 변경 (c) handleMeetMode→handlePlanMode 리네이밍 (d) meet.json→plan.json 경로 변경 (e) getMeetReminder→getPlanReminder 등 모든 meet 참조 변경.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:12.576Z"
+        },
+        {
+          "id": 5,
+          "title": "gate.ts: SubagentStop 태스크 기반 검증 추가",
+          "context": "결정7. handleSubagentStop에서: plan.json 존재(=[run] 모드) 시, agent-tracker의 owner로 해당 에이전트의 담당 태스크를 찾고, 태스크가 아직 pending/in_progress면 additionalContext로 \"에이전트가 종료했지만 담당 태스크 미완료\" 경고 주입.",
+          "status": "completed",
+          "deps": [
+            1,
+            4
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:16.454Z"
+        },
+        {
+          "id": 6,
+          "title": "gate.ts: 장기기억 동기화 넛지 추가",
+          "context": "결정10. handleStop에서: history.json의 사이클 수를 확인, 마지막 nx-sync 이후 N사이클(예: 3) 이상이면 additionalContext로 \"core/ 동기화가 필요합니다. /claude-nexus:nx-sync 를 실행하세요\" 넛지 주입. 강제가 아닌 권유.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:19.894Z"
+        },
+        {
+          "id": 7,
+          "title": "gate.ts: [run] 모드 handleRunMode 서브에이전트 기반으로 수정",
+          "context": "결정1. handleRunMode의 additionalContext에서 TeamCreate/팀 강제 문구 제거. 서브에이전트 병렬 스폰 안내로 변경. \"TEAM REQUIRED\" → 삭제.",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:22.422Z"
+        },
+        {
+          "id": 8,
+          "title": "MCP: nx_meet_* → nx_plan_* 도구 리네이밍",
+          "context": "결정13. src/mcp/meet.ts → src/mcp/plan.ts 리네이밍. 도구명 변경: nx_meet_start→nx_plan_start, nx_meet_status→nx_plan_status, nx_meet_discuss→nx_plan_discuss, nx_meet_decide→nx_plan_decide, nx_meet_join→nx_plan_join, nx_meet_update→nx_plan_update. server.ts의 registerMeetTools→registerPlanTools. 내부 state 경로도 meet.json→plan.json.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:30.016Z"
+        },
+        {
+          "id": 9,
+          "title": "MCP: tasks.json 스키마 확장 (계획서 양식)",
+          "context": "결정11. nx_task_add 파라미터에 approach(string), acceptance(string), risk(string) 추가 (모두 optional). 최상위에 decisions(string[]) 추가. nx_task_add에서 decisions 파라미터로 최상위 decisions 배열 업데이트 가능. src/mcp/task.ts + src/shared/tasks.ts 수정.",
+          "status": "completed",
+          "deps": [
+            8
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:33.369Z"
+        },
+        {
+          "id": 10,
+          "title": "hooks.json: NEXUS_EVENT 제거 + meet→plan matcher 변경",
+          "context": "결정9,13. (a) SessionStart/SubagentStart/SubagentStop에서 NEXUS_EVENT= 접두사 제거 — hook_event_name으로 대체됨 (b) PreToolUse matcher에서 nx_meet_* → nx_plan_* 변경 (c) hooks.json 전체 정리.",
+          "status": "completed",
+          "deps": [
+            1,
+            8
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:36.095Z"
+        },
+        {
+          "id": 11,
+          "title": "스킬: nx-meet → nx-plan SKILL.md 재작성",
+          "context": "결정1,2,13. 핵심 변경: (a) 팀 토론→서브에이전트 병렬 리서치+HOW 독립분석+Lead 종합 (b) TeamCreate/SendMessage 참조 전부 제거 (c) 동적 안건 제안 — 결정 후 파생 논점 자동 제안 추가 (d) 산출물=계획서(tasks.json enriched) (e) 디렉토리: skills/nx-meet→skills/nx-plan.",
+          "status": "completed",
+          "deps": [
+            8,
+            9
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:40.564Z"
+        },
+        {
+          "id": 12,
+          "title": "스킬: nx-run SKILL.md 재작성",
+          "context": "결정1,3,7,11. 핵심 변경: (a) TeamCreate→서브에이전트 병렬 스폰 (b) 계획서 확인(없으면 자동 작성) 후 실행 (c) tasks.json enriched 양식(approach/acceptance/risk) 활용 (d) SubagentStop 태스크 검증 연동 설명.",
+          "status": "completed",
+          "deps": [
+            8,
+            9
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:43.273Z"
+        },
+        {
+          "id": 13,
+          "title": "스킬: nx-init SKILL.md 업데이트",
+          "context": "결정8,12. identity Phase에서 design.md에 원칙만 작성하도록 안내 변경. 구현 명세(파이프라인 세부, 에이전트 모델 테이블, 파일 구조 등)는 codebase/에 작성하도록 Phase 분리 반영.",
+          "status": "completed",
+          "deps": [
+            8
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:46.876Z"
+        },
+        {
+          "id": 14,
+          "title": "템플릿: nexus-section.md 업데이트",
+          "context": "결정1,13. CLAUDE.md 주입 템플릿에서: (a) 태그 테이블 [meet]→[plan] (b) 스킬 테이블 nx-meet→nx-plan (c) Agent Routing 테이블 설명 업데이트 (팀 토론→독립 분석). generate-template.mjs도 확인.",
+          "status": "completed",
+          "deps": [
+            11,
+            12,
+            13
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:50.007Z"
+        },
+        {
+          "id": 15,
+          "title": "identity: design.md 범위 축소 + codebase/ 구현 명세 이동",
+          "context": "결정8. design.md에서 구현 명세 제거 → codebase/에 새 문서 작성. 남길 것: 역할 카테고리 철학, 태그 시스템 철학, Plan 원칙, 정보 관리 4계층 의도. 이동할 것: QA 자동 스폰 조건, 파이프라인 세부, Rollback 규칙, 에이전트 모델 테이블, disallowedTools 매핑, 파일 구조. [meet]→[plan] 이름도 반영.",
+          "status": "completed",
+          "deps": [
+            11,
+            12
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:54.512Z"
+        },
+        {
+          "id": 16,
+          "title": "에이전트: qa/reviewer frontmatter disallowedTools 확인",
+          "context": "결정5. qa.md, reviewer.md의 frontmatter에 disallowedTools: Edit, Write가 설정되어 있는지 확인. 없으면 추가.",
+          "status": "completed",
+          "deps": [],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:56.382Z"
+        },
+        {
+          "id": 17,
+          "title": "E2E 테스트: test/e2e.sh 업데이트",
+          "context": "meet→plan 이름 변경, tasks.json 스키마 변경, Edit/Write 차단 범위 변경 등 기존 E2E 테스트에 반영. 새 테스트 케이스: hook_event_name 기반 라우팅, plan 키워드 감지, [run] 모드에서만 Edit 차단.",
+          "status": "completed",
+          "deps": [
+            1,
+            2,
+            3,
+            4,
+            8,
+            9,
+            10
+          ],
+          "decisions": [],
+          "owner": "engineer",
+          "created_at": "2026-04-06T09:34:59.429Z"
+        }
+      ]
     }
   ]
 }

@@ -22094,29 +22094,29 @@ var import_fs10 = require("fs");
 var import_promises5 = require("fs/promises");
 var import_path10 = require("path");
 
-// src/mcp/tools/meet.ts
+// src/mcp/tools/plan.ts
 var import_fs9 = require("fs");
 var import_promises4 = require("fs/promises");
 var import_path9 = require("path");
-function meetPath() {
-  return (0, import_path9.join)(STATE_ROOT, "meet.json");
+function planPath() {
+  return (0, import_path9.join)(STATE_ROOT, "plan.json");
 }
-async function readMeet() {
-  const p = meetPath();
+async function readPlan() {
+  const p = planPath();
   if (!(0, import_fs9.existsSync)(p)) return null;
   const raw = await (0, import_promises4.readFile)(p, "utf-8");
   return JSON.parse(raw);
 }
-async function writeMeet(data) {
+async function writePlan(data) {
   ensureDir(STATE_ROOT);
-  await (0, import_promises4.writeFile)(meetPath(), JSON.stringify(data, null, 2));
+  await (0, import_promises4.writeFile)(planPath(), JSON.stringify(data, null, 2));
 }
-function registerMeetTools(server2) {
+function registerPlanTools(server2) {
   server2.tool(
-    "nx_meet_start",
-    "\uC0C8 \uBBF8\uD305 \uC138\uC158 \uC2DC\uC791 \u2014 \uAE30\uC874 meet.json \uC790\uB3D9 \uC544\uCE74\uC774\uBE0C",
+    "nx_plan_start",
+    "\uC0C8 \uD50C\uB798\uB2DD \uC138\uC158 \uC2DC\uC791 \u2014 \uAE30\uC874 plan.json \uC790\uB3D9 \uC544\uCE74\uC774\uBE0C",
     {
-      topic: external_exports.string().describe("\uBBF8\uD305 \uC8FC\uC81C"),
+      topic: external_exports.string().describe("\uD50C\uB798\uB2DD \uC8FC\uC81C"),
       issues: external_exports.array(external_exports.string()).describe("\uC548\uAC74 \uBAA9\uB85D"),
       research_summary: external_exports.string().describe("\uC0AC\uC804\uC870\uC0AC \uACB0\uACFC \uC694\uC57D. \uB9AC\uC11C\uCE58 \uC644\uB8CC\uB97C \uAC15\uC81C\uD558\uAE30 \uC704\uD55C \uD544\uC218 \uD30C\uB77C\uBBF8\uD130."),
       attendees: external_exports.array(external_exports.object({
@@ -22133,28 +22133,28 @@ function registerMeetTools(server2) {
         } catch {
         }
       }
-      let lastMeetId = 0;
+      let lastPlanId = 0;
       for (const cycle of history.cycles) {
         if (cycle.meet && typeof cycle.meet.id === "number") {
-          lastMeetId = Math.max(lastMeetId, cycle.meet.id);
+          lastPlanId = Math.max(lastPlanId, cycle.meet.id);
         }
       }
       let previousArchived = false;
-      const existingMeet = await readMeet();
-      if (existingMeet) {
+      const existingPlan = await readPlan();
+      if (existingPlan) {
         history.cycles.push({
           completed_at: (/* @__PURE__ */ new Date()).toISOString(),
           branch: getCurrentBranch(),
-          meet: existingMeet,
+          meet: existingPlan,
           tasks: []
         });
         ensureDir(NEXUS_ROOT);
         await (0, import_promises4.writeFile)(projectHistoryPath, JSON.stringify(history, null, 2));
-        (0, import_fs9.unlinkSync)(meetPath());
+        (0, import_fs9.unlinkSync)(planPath());
         previousArchived = true;
       }
       const now = (/* @__PURE__ */ new Date()).toISOString();
-      const newId = lastMeetId + 1;
+      const newId = lastPlanId + 1;
       const initialAttendees = attendees ? attendees.map((a) => ({ role: a.role, name: a.name, joined_at: now })) : [{ role: "lead", name: "lead", joined_at: now }];
       const data = {
         id: newId,
@@ -22169,16 +22169,16 @@ function registerMeetTools(server2) {
         research_summary,
         created_at: now
       };
-      await writeMeet(data);
-      return textResult({ created: true, meet_id: newId, topic, issueCount: issues.length, previousArchived });
+      await writePlan(data);
+      return textResult({ created: true, plan_id: newId, topic, issueCount: issues.length, previousArchived });
     }
   );
   server2.tool(
-    "nx_meet_status",
-    "\uD604\uC7AC \uBBF8\uD305 \uC0C1\uD0DC \uC870\uD68C: \uC548\uAC74, \uCC38\uC11D\uC790, \uACB0\uC815\uC0AC\uD56D",
+    "nx_plan_status",
+    "\uD604\uC7AC \uD50C\uB798\uB2DD \uC0C1\uD0DC \uC870\uD68C: \uC548\uAC74, \uCC38\uC11D\uC790, \uACB0\uC815\uC0AC\uD56D",
     {},
     async () => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
         return textResult({ active: false });
       }
@@ -22187,7 +22187,7 @@ function registerMeetTools(server2) {
       const decided = data.issues.filter((i) => i.status === "decided").length;
       return textResult({
         active: true,
-        meet_id: data.id,
+        plan_id: data.id,
         topic: data.topic,
         attendees: data.attendees,
         issues: data.issues,
@@ -22197,7 +22197,7 @@ function registerMeetTools(server2) {
     }
   );
   server2.tool(
-    "nx_meet_update",
+    "nx_plan_update",
     "\uC548\uAC74 \uAD00\uB9AC: \uCD94\uAC00, \uC0AD\uC81C, \uC218\uC815, \uC7AC\uAC1C",
     {
       action: external_exports.enum(["add", "remove", "edit", "reopen"]).describe("\uC218\uD589\uD560 \uC561\uC158"),
@@ -22205,9 +22205,9 @@ function registerMeetTools(server2) {
       title: external_exports.string().optional().describe("\uC548\uAC74 \uC81C\uBAA9 (add, edit\uC5D0 \uD544\uC218)")
     },
     async ({ action, issue_id, title }) => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
-        return textResult({ error: "No active meet session" });
+        return textResult({ error: "No active plan session" });
       }
       if (action === "add") {
         if (!title) {
@@ -22216,7 +22216,7 @@ function registerMeetTools(server2) {
         const maxId = data.issues.reduce((max, i) => Math.max(max, i.id), 0);
         const newIssue = { id: maxId + 1, title, status: "pending", discussion: [] };
         data.issues.push(newIssue);
-        await writeMeet(data);
+        await writePlan(data);
         return textResult({ added: true, issue: newIssue });
       }
       if (action === "remove") {
@@ -22228,7 +22228,7 @@ function registerMeetTools(server2) {
           return textResult({ error: `Issue ${issue_id} not found` });
         }
         const [removed] = data.issues.splice(idx, 1);
-        await writeMeet(data);
+        await writePlan(data);
         return textResult({ removed: true, issue: removed });
       }
       if (action === "edit") {
@@ -22240,7 +22240,7 @@ function registerMeetTools(server2) {
           return textResult({ error: `Issue ${issue_id} not found` });
         }
         issue2.title = title;
-        await writeMeet(data);
+        await writePlan(data);
         return textResult({ edited: true, issue: issue2 });
       }
       if (action === "reopen") {
@@ -22253,14 +22253,14 @@ function registerMeetTools(server2) {
         }
         issue2.status = "discussing";
         delete issue2.decision;
-        await writeMeet(data);
+        await writePlan(data);
         return textResult({ reopened: true, issue: issue2 });
       }
       return textResult({ error: "Unknown action" });
     }
   );
   server2.tool(
-    "nx_meet_discuss",
+    "nx_plan_discuss",
     "\uC548\uAC74\uC5D0 \uB17C\uC758 \uB0B4\uC6A9 \uAE30\uB85D",
     {
       issue_id: external_exports.number().describe("\uC548\uAC74 ID"),
@@ -22268,15 +22268,15 @@ function registerMeetTools(server2) {
       content: external_exports.string().describe("\uBC1C\uC5B8 \uB0B4\uC6A9 \uC694\uC57D")
     },
     async ({ issue_id, speaker, content }) => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
-        return textResult({ error: "No active meet session" });
+        return textResult({ error: "No active plan session" });
       }
       const allowedSpeakers = ["lead", "user"];
       const attendeeRoles = data.attendees.map((a) => a.role);
       if (!allowedSpeakers.includes(speaker) && !attendeeRoles.includes(speaker)) {
         return textResult({
-          error: `Speaker '${speaker}' is not a registered attendee. Registered: ${attendeeRoles.join(", ")}. Use nx_meet_join to add attendees first.`
+          error: `Speaker '${speaker}' is not a registered attendee. Registered: ${attendeeRoles.join(", ")}. Use nx_plan_join to add attendees first.`
         });
       }
       const issue2 = data.issues.find((i) => i.id === issue_id);
@@ -22292,21 +22292,21 @@ function registerMeetTools(server2) {
       if (issue2.status === "pending") {
         issue2.status = "discussing";
       }
-      await writeMeet(data);
+      await writePlan(data);
       return textResult({ recorded: true, issue_id, discussionCount: issue2.discussion.length });
     }
   );
   server2.tool(
-    "nx_meet_decide",
+    "nx_plan_decide",
     "\uC548\uAC74 \uACB0\uC815 \uAE30\uB85D \u2014 [d] \uD0DC\uADF8\uB85C \uD2B8\uB9AC\uAC70",
     {
       issue_id: external_exports.number().describe("\uACB0\uC815\uD560 \uC548\uAC74 ID"),
       summary: external_exports.string().describe("\uACB0\uC815 \uC694\uC57D")
     },
     async ({ issue_id, summary }) => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
-        return textResult({ error: "No active meet session" });
+        return textResult({ error: "No active plan session" });
       }
       const issue2 = data.issues.find((i) => i.id === issue_id);
       if (!issue2) {
@@ -22314,7 +22314,7 @@ function registerMeetTools(server2) {
       }
       issue2.status = "decided";
       issue2.decision = summary;
-      await writeMeet(data);
+      await writePlan(data);
       const allComplete = data.issues.every((i) => i.status === "decided");
       if (allComplete) {
         return textResult({
@@ -22334,16 +22334,16 @@ function registerMeetTools(server2) {
     }
   );
   server2.tool(
-    "nx_meet_join",
-    "\uBBF8\uD305\uC5D0 \uCC38\uC11D\uC790 \uCD94\uAC00",
+    "nx_plan_join",
+    "\uD50C\uB798\uB2DD\uC5D0 \uCC38\uC11D\uC790 \uCD94\uAC00",
     {
       role: external_exports.string().describe("\uC5D0\uC774\uC804\uD2B8 \uC5ED\uD560 (architect, engineer \uB4F1)"),
       name: external_exports.string().describe("\uD300 \uB0B4 \uC5D0\uC774\uC804\uD2B8 \uC774\uB984")
     },
     async ({ role, name }) => {
-      const data = await readMeet();
+      const data = await readPlan();
       if (!data) {
-        return textResult({ error: "No active meet session" });
+        return textResult({ error: "No active plan session" });
       }
       const duplicate = data.attendees.find((a) => a.name === name);
       if (duplicate) {
@@ -22355,7 +22355,7 @@ function registerMeetTools(server2) {
         joined_at: (/* @__PURE__ */ new Date()).toISOString()
       };
       data.attendees.push(attendee);
-      await writeMeet(data);
+      await writePlan(data);
       return textResult({ joined: true, attendee, totalAttendees: data.attendees.length });
     }
   );
@@ -22405,28 +22405,36 @@ function registerTaskTools(server2) {
       title: external_exports.string().describe("Task title"),
       context: external_exports.string().describe("Task context or description"),
       deps: external_exports.array(external_exports.number()).optional().describe("IDs of tasks this task depends on"),
-      decisions: external_exports.array(external_exports.number()).optional().describe("(deprecated) IDs of decisions that informed this task."),
-      meet_issue: external_exports.number().optional().describe("meet issue ID this task originates from \u2014 used for tracing back to the meet session"),
+      approach: external_exports.string().optional().describe("Implementation approach for this task"),
+      acceptance: external_exports.string().optional().describe("Acceptance criteria \u2014 what defines done"),
+      risk: external_exports.string().optional().describe("Known risks or caveats"),
+      plan_issue: external_exports.number().optional().describe("plan issue ID this task originates from \u2014 used for tracing back to the plan session"),
       goal: external_exports.string().optional().describe("Set or update the goal for this task list"),
+      decisions: external_exports.array(external_exports.string()).optional().describe("Top-level decisions from [plan] session to append"),
       owner: external_exports.string().optional().describe("Assignee agent name for this task")
     },
-    async ({ title, context, deps, decisions, meet_issue, goal, owner }) => {
+    async ({ title, context, deps, approach, acceptance, risk, plan_issue, goal, decisions, owner }) => {
       let data = await readTasks();
       if (!data) {
-        data = { goal: "", tasks: [] };
+        data = { goal: "", decisions: [], tasks: [] };
       }
       if (goal) {
         data.goal = goal;
+      }
+      if (decisions) {
+        data.decisions = [...data.decisions ?? [], ...decisions];
       }
       const maxId = data.tasks.reduce((max, t) => Math.max(max, t.id), 0);
       const newTask = {
         id: maxId + 1,
         title,
         context,
+        approach,
+        acceptance,
+        risk,
         status: "pending",
         deps: deps ?? [],
-        decisions: decisions ?? [],
-        meet_issue,
+        plan_issue,
         owner,
         created_at: (/* @__PURE__ */ new Date()).toISOString()
       };
@@ -22458,14 +22466,14 @@ function registerTaskTools(server2) {
   );
   server2.tool(
     "nx_task_close",
-    "Close the current cycle: archive meet+tasks into history.json, then delete source files",
+    "Close the current cycle: archive plan+tasks into history.json, then delete source files",
     {},
     async () => {
       const root = STATE_ROOT;
       const projectHistoryPath = (0, import_path10.join)(NEXUS_ROOT, "history.json");
-      const meetJsonPath = (0, import_path10.join)(root, "meet.json");
+      const planJsonPath = (0, import_path10.join)(root, "plan.json");
       const reopenTrackerPath = (0, import_path10.join)(root, "reopen-tracker.json");
-      const meet = await readMeet();
+      const plan = await readPlan();
       const tasksData = await readTasks();
       const tasks = tasksData?.tasks ?? [];
       const branch = getCurrentBranch();
@@ -22477,7 +22485,7 @@ function registerTaskTools(server2) {
       const cycle = {
         completed_at: (/* @__PURE__ */ new Date()).toISOString(),
         branch,
-        meet,
+        plan,
         tasks
       };
       history.cycles.push(cycle);
@@ -22492,16 +22500,16 @@ function registerTaskTools(server2) {
         } catch {
         }
       }
-      const decisionCount = meet?.issues.filter((i) => i.status === "decided").length ?? 0;
+      const decisionCount = plan?.issues.filter((i) => i.status === "decided").length ?? 0;
       const memoryHint = {
         taskCount: tasks.length,
         decisionCount,
         hadLoopDetection,
-        cycleTopics: [meet?.topic, tasksData?.goal].filter(Boolean)
+        cycleTopics: [plan?.topic, tasksData?.goal].filter(Boolean)
       };
       const stopWarnedPath = (0, import_path10.join)(root, "stop-warned");
       const deleted = [];
-      for (const p of [meetJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath, stopWarnedPath]) {
+      for (const p of [planJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath, stopWarnedPath]) {
         if ((0, import_fs10.existsSync)(p)) {
           (0, import_fs10.unlinkSync)(p);
           deleted.push(p.split("/").pop());
@@ -22511,7 +22519,7 @@ function registerTaskTools(server2) {
         closed: true,
         cycle: cycle.completed_at,
         branch,
-        archived: { meet: meet !== null, decisions: decisionCount, tasks: tasks.length },
+        archived: { plan: plan !== null, decisions: decisionCount, tasks: tasks.length },
         deleted,
         total_cycles: history.cycles.length,
         memoryHint
@@ -22688,7 +22696,7 @@ registerLspTools(server);
 registerAstTools(server);
 registerTaskTools(server);
 registerArtifactTools(server);
-registerMeetTools(server);
+registerPlanTools(server);
 registerBriefingTool(server);
 async function main() {
   const transport = new StdioServerTransport();

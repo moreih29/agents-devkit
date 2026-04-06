@@ -159,32 +159,50 @@ rm -f "$E2E_STATE/tasks.json"
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"이 파일 수정해줘"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit (no keyword)" '"continue":true' "$result"
 
-# [d] 태그 감지 — meet.json 없는 상태에서는 차단 메시지
+# [d] 태그 감지 — plan.json 없는 상태에서는 안내 메시지
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[d] 이거 결정"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit ([d] tag)" 'meet' "$result"
+check "Gate/UserPromptSubmit ([d] tag)" 'plan' "$result"
 
-# --- Meet ---
+# --- Plan ---
 echo ""
-echo "=== Meet ==="
+echo "=== Plan ==="
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[meet] UI 구조 논의하자"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (meet tag)" 'Meet mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] UI 구조 설계하자"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (plan tag)" 'Plan mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"미팅하자"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (meet natural)" 'Meet mode' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"계획 세우자"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (plan natural)" 'Plan mode' "$result"
 
-result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[meet] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
-check "Meet (mandatory start)" 'nx_meet_start' "$result"
-check "Meet (researcher spawn)" 'researcher' "$result"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
+check "Plan (mandatory start)" 'nx_plan_start' "$result"
+check "Plan (researcher spawn)" 'researcher' "$result"
 
-# --- Default Orchestration ---
+# --- Default (Free Mode) ---
 echo ""
-echo "=== Default Orchestration ==="
+echo "=== Default (Free Mode) ==="
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"API 인증 모듈 구현해줘"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (default orchestration)" 'No active tasks' "$result"
-check "Default orchestration (task pipeline)" 'nx_task_add' "$result"
-check "Default orchestration (branch guard)" 'TASK PIPELINE' "$result"
+check "Gate/UserPromptSubmit (free mode)" '"continue":true' "$result"
+
+# --- Edit/Write Gating ---
+echo ""
+echo "=== Edit/Write Gating ==="
+
+# Edit without tasks.json → allowed (free mode)
+rm -f "$E2E_STATE/tasks.json"
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"/tmp/test.ts"}}' | node scripts/gate.cjs 2>/dev/null)
+check "PreToolUse/Edit (no tasks.json = free)" '"continue":true' "$result"
+
+# Edit with tasks.json (pending tasks) → allowed
+echo '{"goal":"test","decisions":[],"tasks":[{"id":1,"title":"t","context":"c","status":"pending","deps":[]}]}' > "$E2E_STATE/tasks.json"
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"/tmp/test.ts"}}' | node scripts/gate.cjs 2>/dev/null)
+check "PreToolUse/Edit (tasks pending = allowed)" '"continue":true' "$result"
+
+# Edit with tasks.json (all completed) → blocked
+echo '{"goal":"test","decisions":[],"tasks":[{"id":1,"title":"t","context":"c","status":"completed","deps":[]}]}' > "$E2E_STATE/tasks.json"
+result=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"/tmp/test.ts"}}' | node scripts/gate.cjs 2>/dev/null)
+check "PreToolUse/Edit (all completed = blocked)" 'block' "$result"
+rm -f "$E2E_STATE/tasks.json"
 
 # --- Run Tag ---
 echo ""
@@ -192,7 +210,7 @@ echo "=== Run Tag ==="
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[run] API 모듈 구현"}' | node scripts/gate.cjs 2>/dev/null)
 check "Gate/UserPromptSubmit ([run] tag)" 'Run mode' "$result"
-check "Run tag (skill reference)" 'nx-run' "$result"
+check "Run tag (subagent reference)" 'subagent' "$result"
 
 # --- Rule Tag ---
 echo ""

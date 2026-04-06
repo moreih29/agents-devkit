@@ -4,7 +4,7 @@ import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { STATE_ROOT, NEXUS_ROOT, getCurrentBranch, ensureDir } from '../../shared/paths.js';
-import { readMeet, type MeetFile } from './meet.js';
+import { readPlan, type PlanFile } from './plan.js';
 import { textResult } from '../../shared/mcp-utils.js';
 
 function tasksPath(): string {
@@ -15,17 +15,19 @@ interface Task {
   id: number;
   title: string;
   context: string;
+  approach?: string;
+  acceptance?: string;
+  risk?: string;
   status: 'pending' | 'in_progress' | 'completed';
   deps: number[];
-  /** @deprecated Use meet_issue instead */
-  decisions: number[];
-  meet_issue?: number;
+  plan_issue?: number;
   owner?: string;
   created_at?: string;
 }
 
 interface TasksFile {
   goal: string;
+  decisions: string[];
   tasks: Task[];
 }
 
@@ -77,19 +79,25 @@ export function registerTaskTools(server: McpServer): void {
       title: z.string().describe('Task title'),
       context: z.string().describe('Task context or description'),
       deps: z.array(z.number()).optional().describe('IDs of tasks this task depends on'),
-      decisions: z.array(z.number()).optional().describe('(deprecated) IDs of decisions that informed this task.'),
-      meet_issue: z.number().optional().describe('meet issue ID this task originates from — used for tracing back to the meet session'),
+      approach: z.string().optional().describe('Implementation approach for this task'),
+      acceptance: z.string().optional().describe('Acceptance criteria — what defines done'),
+      risk: z.string().optional().describe('Known risks or caveats'),
+      plan_issue: z.number().optional().describe('plan issue ID this task originates from — used for tracing back to the plan session'),
       goal: z.string().optional().describe('Set or update the goal for this task list'),
+      decisions: z.array(z.string()).optional().describe('Top-level decisions from [plan] session to append'),
       owner: z.string().optional().describe('Assignee agent name for this task'),
     },
-    async ({ title, context, deps, decisions, meet_issue, goal, owner }) => {
+    async ({ title, context, deps, approach, acceptance, risk, plan_issue, goal, decisions, owner }) => {
       let data = await readTasks();
       if (!data) {
-        data = { goal: '', tasks: [] };
+        data = { goal: '', decisions: [], tasks: [] };
       }
 
       if (goal) {
         data.goal = goal;
+      }
+      if (decisions) {
+        data.decisions = [...(data.decisions ?? []), ...decisions];
       }
 
       const maxId = data.tasks.reduce((max, t) => Math.max(max, t.id), 0);
@@ -97,10 +105,12 @@ export function registerTaskTools(server: McpServer): void {
         id: maxId + 1,
         title,
         context,
+        approach,
+        acceptance,
+        risk,
         status: 'pending',
         deps: deps ?? [],
-        decisions: decisions ?? [],
-        meet_issue,
+        plan_issue,
         owner,
         created_at: new Date().toISOString(),
       };
@@ -141,16 +151,16 @@ export function registerTaskTools(server: McpServer): void {
 
   server.tool(
     'nx_task_close',
-    'Close the current cycle: archive meet+tasks into history.json, then delete source files',
+    'Close the current cycle: archive plan+tasks into history.json, then delete source files',
     {},
     async () => {
       const root = STATE_ROOT;
       const projectHistoryPath = join(NEXUS_ROOT, 'history.json');
-      const meetJsonPath = join(root, 'meet.json');
+      const planJsonPath = join(root, 'plan.json');
       const reopenTrackerPath = join(root, 'reopen-tracker.json');
 
       // Read current state (only what exists)
-      const meet: MeetFile | null = await readMeet();
+      const plan: PlanFile | null = await readPlan();
       const tasksData = await readTasks();
       const tasks: Task[] = tasksData?.tasks ?? [];
 
@@ -160,7 +170,7 @@ export function registerTaskTools(server: McpServer): void {
       interface Cycle {
         completed_at: string;
         branch: string;
-        meet: MeetFile | null;
+        plan: PlanFile | null;
         tasks: Task[];
       }
       interface HistoryFile {
@@ -177,7 +187,7 @@ export function registerTaskTools(server: McpServer): void {
       const cycle: Cycle = {
         completed_at: new Date().toISOString(),
         branch,
-        meet,
+        plan,
         tasks,
       };
       history.cycles.push(cycle);
@@ -196,18 +206,18 @@ export function registerTaskTools(server: McpServer): void {
         } catch {}
       }
 
-      const decisionCount = meet?.issues.filter(i => i.status === 'decided').length ?? 0;
+      const decisionCount = plan?.issues.filter(i => i.status === 'decided').length ?? 0;
       const memoryHint = {
         taskCount: tasks.length,
         decisionCount,
         hadLoopDetection,
-        cycleTopics: [meet?.topic, tasksData?.goal].filter(Boolean) as string[],
+        cycleTopics: [plan?.topic, tasksData?.goal].filter(Boolean) as string[],
       };
 
       // Delete source files (reopen-tracker, stop-warned 포함)
       const stopWarnedPath = join(root, 'stop-warned');
       const deleted: string[] = [];
-      for (const p of [meetJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath, stopWarnedPath]) {
+      for (const p of [planJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath, stopWarnedPath]) {
         if (existsSync(p)) {
           unlinkSync(p);
           deleted.push(p.split('/').pop()!);
@@ -218,7 +228,7 @@ export function registerTaskTools(server: McpServer): void {
         closed: true,
         cycle: cycle.completed_at,
         branch,
-        archived: { meet: meet !== null, decisions: decisionCount, tasks: tasks.length },
+        archived: { plan: plan !== null, decisions: decisionCount, tasks: tasks.length },
         deleted,
         total_cycles: history.cycles.length,
         memoryHint,

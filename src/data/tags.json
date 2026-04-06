@@ -1,6 +1,6 @@
 [
-  { "tag": "meet", "purpose": "미팅 — 팀 소집, 논의, 결정 후 실행" },
-  { "tag": "d", "purpose": "결정 기록 (meet 세션 내 nx_meet_decide 호출)" },
-  { "tag": "run", "purpose": "실행 — nx-run 풀 파이프라인 강제" },
+  { "tag": "plan", "purpose": "계획 — 리서치, 다관점 분석, 결정, 계획서 생성" },
+  { "tag": "d", "purpose": "결정 기록 (plan 세션 내 nx_plan_decide 호출)" },
+  { "tag": "run", "purpose": "실행 — 계획서 기반 서브에이전트 병렬 실행" },
   { "tag": "rule", "purpose": "규칙 저장 — [rule:태그] 형식 지원" }
 ]

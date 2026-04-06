@@ -98,14 +98,16 @@ Confirm the core direction of the project together with the user.
 Ask the following 3 items sequentially via AskUserQuestion:
 
 1. **Mission** — the problem this project solves and its goals
-2. **Design** — key architectural decisions and reasons for technology choices
+2. **Design** — design **principles and philosophy** only (why these choices, not implementation details)
 3. **Roadmap** — current priorities and near-term direction
 
 For each item, present a draft based on the Step 1 scan results for the user to revise/confirm.
 
+**design.md scope**: Only design principles (role category philosophy, tag system rationale, information management intent). Implementation specifics (pipeline details, agent model table, file structure, rollback rules, disallowedTools mapping) belong in `codebase/`, NOT in `identity/design.md`.
+
 Save confirmed content via `nx_core_write(layer: "identity")`:
 - `identity/mission.md` — project purpose and goals
-- `identity/design.md` — architectural decisions and trade-offs
+- `identity/design.md` — design principles and philosophy (not implementation specs)
 - `identity/roadmap.md` — current priorities
 
 ### Step 3: Codebase Knowledge Auto-Generation
@@ -123,6 +125,7 @@ Generation targets (adjusted per project):
 - Core entry points/modules
 - Development workflow (build, test, deploy)
 - Conventions (naming, code style)
+- Implementation specs from design decisions (pipeline details, agent model configuration, file structure, tool restrictions — anything that was too specific for identity/design.md)
 
 Create files via `nx_core_write(layer: "codebase")`.
 
@@ -161,8 +164,8 @@ Output a summary of the onboarding results.
 - .nexus/rules/: {generated files or "none (skipped)"}
 
 ### Next Steps
-- [meet] — discuss issues with agent team before execution
-- [run] — execute with an agent team
+- [plan] — research, analyze, and plan before execution
+- [run] — execute from a plan
 - /claude-nexus:nx-init --reset — re-run onboarding (existing core/ will be backed up)
 ```
 </guidelines>

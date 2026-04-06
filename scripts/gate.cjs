@@ -18,7 +18,6 @@ function pass() {
 // src/shared/paths.ts
 var import_path = require("path");
 var import_fs = require("fs");
-var import_child_process = require("child_process");
 function findProjectRoot(startDir) {
   let dir = startDir ?? process.cwd();
   while (dir !== "/") {
@@ -34,17 +33,6 @@ var STATE_ROOT = (0, import_path.join)(NEXUS_ROOT, "state");
 function ensureDir(dir) {
   if (!(0, import_fs.existsSync)(dir)) {
     (0, import_fs.mkdirSync)(dir, { recursive: true });
-  }
-}
-function getCurrentBranch() {
-  try {
-    return (0, import_child_process.execSync)("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-  } catch {
-    try {
-      return (0, import_child_process.execSync)("git symbolic-ref --short HEAD", { encoding: "utf8" }).trim();
-    } catch {
-      return "_default";
-    }
   }
 }
 var GITIGNORE_CONTENT = `# Nexus: whitelist tracked files, ignore everything else
@@ -95,7 +83,7 @@ var import_path3 = require("path");
 var import_os = require("os");
 var TASK_PIPELINE = `
 TASK PIPELINE (mandatory for all file modifications):
-1. Check meet.json issues for prior decisions \u2014 reference relevant meet_issue IDs in nx_task_add(meet_issue=N).
+1. Check plan.json issues for prior decisions \u2014 reference relevant plan_issue IDs in nx_task_add(plan_issue=N).
 2. Decompose work into discrete tasks \u2192 call nx_task_add for EACH task.
 3. Edit/Write tools are BLOCKED without tasks.json.
 4. As each task completes \u2192 nx_task_update(id, "completed").
@@ -141,9 +129,32 @@ function handleClaudeMdSync() {
   }
   return null;
 }
+function getSyncNudge() {
+  const historyPath = (0, import_path3.join)(process.cwd(), ".nexus", "history.json");
+  if (!(0, import_fs3.existsSync)(historyPath)) return null;
+  try {
+    const history = JSON.parse((0, import_fs3.readFileSync)(historyPath, "utf-8"));
+    const cycles = history.cycles ?? [];
+    if (cycles.length === 0) return null;
+    const lastSyncIdx = cycles.findLastIndex(
+      (c) => c.topics?.some((t) => /sync/i.test(t))
+    );
+    const cyclesSinceSync = lastSyncIdx === -1 ? cycles.length : cycles.length - 1 - lastSyncIdx;
+    if (cyclesSinceSync >= 3) {
+      return `<nexus>Core knowledge may be outdated (${cyclesSinceSync} cycles since last sync). Consider running /claude-nexus:nx-sync.</nexus>`;
+    }
+  } catch {
+  }
+  return null;
+}
 function handleStop() {
   const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) {
+    const syncNudge = getSyncNudge();
+    if (syncNudge) {
+      respond({ continue: true, additionalContext: syncNudge });
+      return;
+    }
     pass();
     return;
   }
@@ -180,17 +191,15 @@ function isNexusInternalPath(filePath) {
 function handlePreToolUse(event) {
   const toolName = event.tool_name ?? "";
   if (toolName === "Edit" || toolName === "Write") {
-    const toolInput2 = event.tool_input;
-    const filePath = toolInput2?.file_path ?? "";
+    const tasksPath = (0, import_path3.join)(STATE_ROOT, "tasks.json");
+    if (!(0, import_fs3.existsSync)(tasksPath)) {
+      pass();
+      return;
+    }
+    const toolInput = event.tool_input;
+    const filePath = toolInput?.file_path ?? "";
     if (!isNexusInternalPath(filePath)) {
       const summary = readTasksSummary(STATE_ROOT);
-      if (!summary.exists) {
-        respond({
-          decision: "block",
-          reason: "<nexus>No tasks.json found. Register tasks with nx_task_add before editing files. Pipeline: meet \u2192 decisions \u2192 tasks \u2192 execute.</nexus>"
-        });
-        return;
-      }
       if (summary.allCompleted || summary.total === 0) {
         respond({
           decision: "block",
@@ -202,103 +211,37 @@ function handlePreToolUse(event) {
     pass();
     return;
   }
-  if (toolName === "mcp__plugin_claude-nexus_nx__nx_meet_start") {
-    const toolInput2 = event.tool_input;
-    const attendees = toolInput2?.attendees;
-    const hasNonLeadAttendees = attendees?.some((a) => a.role !== "lead" && a.role !== "user");
-    if (hasNonLeadAttendees) {
-      const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
-      let hasTeamAgents = false;
-      if ((0, import_fs3.existsSync)(trackerPath)) {
-        try {
-          const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
-          hasTeamAgents = tracker.some((a) => a.team_name && (a.status === "running" || a.status === "team-spawning"));
-        } catch {
-        }
-      }
-      if (!hasTeamAgents) {
-        respond({
-          decision: "block",
-          reason: "Attendees\uC5D0 \uC5D0\uC774\uC804\uD2B8\uAC00 \uD3EC\uD568\uB418\uC5B4 \uC788\uC9C0\uB9CC TeamCreate\uB85C \uD300\uC774 \uC0DD\uC131\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. TeamCreate + Agent(team_name=...) \uC73C\uB85C \uC5D0\uC774\uC804\uD2B8\uB97C \uBA3C\uC800 \uC2A4\uD3F0\uD558\uC138\uC694."
-        });
-        return;
-      }
-    }
-    pass();
-    return;
-  }
-  if (toolName !== "Agent") {
-    pass();
-    return;
-  }
-  const toolInput = event.tool_input;
-  if (toolInput?.subagent_type === "Explore") {
-    pass();
-    return;
-  }
-  if (toolInput?.team_name) {
-    const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
-    let tracker = [];
-    if ((0, import_fs3.existsSync)(trackerPath)) {
-      try {
-        tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
-      } catch {
-      }
-    }
-    tracker.push({
-      agent_type: String(toolInput.subagent_type ?? ""),
-      team_name: String(toolInput.team_name),
-      status: "team-spawning",
-      started_at: (/* @__PURE__ */ new Date()).toISOString()
-    });
-    ensureDir(STATE_ROOT);
-    (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
-    pass();
-    return;
-  }
-  const tasksPath = (0, import_path3.join)(STATE_ROOT, "tasks.json");
-  const meetPath = (0, import_path3.join)(STATE_ROOT, "meet.json");
-  const isRunMode = (0, import_fs3.existsSync)(tasksPath) && !(0, import_fs3.existsSync)(meetPath);
-  if (isRunMode) {
-    respond({
-      decision: "block",
-      reason: "In [run] mode, agents must be spawned as teammates. Add team_name parameter to the Agent call, or create a team with TeamCreate first."
-    });
-    return;
-  }
   pass();
 }
 var EXPLICIT_TAGS = {
-  meet: { primitive: "meet", skill: "claude-nexus:nx-meet" },
+  plan: { primitive: "plan", skill: "claude-nexus:nx-plan" },
   run: { primitive: "run", skill: "claude-nexus:nx-run" }
 };
 var NATURAL_PATTERNS = [
   {
     patterns: [
-      /\bmeet\b/i,
-      /미팅/,
-      /회의/,
-      /논의하자/,
-      /모여/,
-      /상담/,
+      /\bplan\b/i,
+      /계획/,
+      /설계/,
+      /분석해/,
+      /검토해/,
       /어떻게\s*하면\s*좋을까/,
       /뭐가\s*좋을까/,
       /방법을?\s*찾아/
     ],
-    match: { primitive: "meet", skill: "claude-nexus:nx-meet" }
+    match: { primitive: "plan", skill: "claude-nexus:nx-plan" }
   }
 ];
-var ATTENDEE_PATTERNS = /(?:참석|불러|소환)\s*$/;
 var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-var PRIMITIVE_NAMES = /\b(meet|run)\b/i;
+var PRIMITIVE_NAMES = /\b(plan|run)\b/i;
 function isPrimitiveMention(prompt) {
   if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
   if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  if (/[`"'](?:meet)[`"']/i.test(prompt)) return true;
+  if (/[`"'](?:plan)[`"']/i.test(prompt)) return true;
   return false;
 }
 function detectKeywords(prompt) {
-  const tagMatch = prompt.match(/\[(meet|run)\]/i);
+  const tagMatch = prompt.match(/\[(plan|run)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -319,23 +262,23 @@ function getTasksReminder() {
   }
   return `<nexus>All ${summary.total} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.</nexus>`;
 }
-function getMeetReminder() {
-  const meetFilePath = (0, import_path3.join)(STATE_ROOT, "meet.json");
-  if (!(0, import_fs3.existsSync)(meetFilePath)) return null;
+function getPlanReminder() {
+  const planFilePath = (0, import_path3.join)(STATE_ROOT, "plan.json");
+  if (!(0, import_fs3.existsSync)(planFilePath)) return null;
   try {
-    const data = JSON.parse((0, import_fs3.readFileSync)(meetFilePath, "utf-8"));
+    const data = JSON.parse((0, import_fs3.readFileSync)(planFilePath, "utf-8"));
     const issues = data.issues ?? [];
     const discussing = issues.find((i) => i.status === "discussing");
     const pending = issues.filter((i) => i.status === "pending");
     const current = discussing ? `Current: #${discussing.id} "${discussing.title}"` : pending.length > 0 ? `Next: #${pending[0].id} "${pending[0].title}"` : "All issues decided.";
-    return `<nexus>Meet: "${data.topic}" | ${current} | ${pending.length} pending
+    return `<nexus>Plan: "${data.topic}" | ${current} | ${pending.length} pending
 Present comparison table with pros/cons/recommendation. Record decisions with [d].</nexus>`;
   } catch {
     return null;
   }
 }
-function withNotices(base, tasksReminder, claudeMdNotice, meetReminder) {
-  return [meetReminder, tasksReminder, base, claudeMdNotice].filter(Boolean).join("\n");
+function withNotices(base, tasksReminder, claudeMdNotice, planReminder) {
+  return [planReminder, tasksReminder, base, claudeMdNotice].filter(Boolean).join("\n");
 }
 function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }) {
   const tagInfo = ruleTags ? `Tags: [${ruleTags.join(", ")}] \u2014 include at top of rule file as <!-- tags: ${ruleTags.join(", ")} -->.` : "Tags: none \u2014 infer appropriate tags from rule content and add them.";
@@ -350,22 +293,23 @@ Task pipeline not required \u2014 save directly.</nexus>`;
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
   });
 }
-function handleMeetMode({ tasksReminder, claudeMdNotice }) {
-  const meetFile = (0, import_path3.join)(STATE_ROOT, "meet.json");
-  const hasExistingSession = (0, import_fs3.existsSync)(meetFile);
+function handlePlanMode({ tasksReminder, claudeMdNotice }) {
+  const planFile = (0, import_path3.join)(STATE_ROOT, "plan.json");
+  const hasExistingSession = (0, import_fs3.existsSync)(planFile);
   let base;
   if (hasExistingSession) {
-    base = `<nexus>Meet mode \u2014 existing session found.
-STEP 1: Check current status with nx_meet_status.
-STEP 2: Spawn Explore+researcher in parallel for additional code+external research.
-STEP 3: Proceed with discussion based on research results. Do not discuss before research is complete.
-TEAM REQUIRED: Use TeamCreate to spawn teammates. Attendees can be added mid-session with nx_meet_join.</nexus>`;
+    base = `<nexus>Plan mode \u2014 existing session found.
+STEP 1: Check current status with nx_plan_status.
+STEP 2: Spawn Explore+researcher subagents in parallel for additional code+external research.
+STEP 3: Lead synthesizes multi-perspective analysis based on research results. Spawn HOW subagents (architect, strategist, etc.) for independent analysis if needed.
+STEP 4: Present comparison table with pros/cons/recommendation. Record decisions with [d].</nexus>`;
   } else {
-    base = `<nexus>Meet mode.
-STEP 1: Spawn researcher for code+external research. Run Explore agent in parallel for codebase exploration.
-STEP 2: Call nx_meet_start with findings to organize issues.
-Do not call nx_meet_start before research is complete.
-TEAM REQUIRED: Use TeamCreate to create a team and spawn How agents (architect, strategist, etc.) for discussion.</nexus>`;
+    base = `<nexus>Plan mode.
+STEP 1: Spawn researcher+Explore subagents in parallel for code+external research.
+STEP 2: Call nx_plan_start with findings to organize issues.
+Do not call nx_plan_start before research is complete.
+STEP 3: Lead synthesizes multi-perspective analysis. Spawn HOW subagents for independent analysis if complex.
+STEP 4: Present comparison table \u2192 user decides \u2192 [d] to record. Suggest follow-up issues if decisions create new questions.</nexus>`;
   }
   respond({
     continue: true,
@@ -373,25 +317,24 @@ TEAM REQUIRED: Use TeamCreate to create a team and spawn How agents (architect, 
   });
 }
 function handleRunMode({ tasksReminder, claudeMdNotice }) {
-  const meetReminder = getMeetReminder();
-  const meetTransitionHint = (0, import_fs3.existsSync)((0, import_path3.join)(STATE_ROOT, "meet.json")) ? "\nMeet\u2192Run transition: Retain How agents (architect, strategist, etc.). Dismiss Do/Check agents (engineer, qa, etc.). Register tasks with nx_task_add(meet_issue=N)." : "";
+  const planReminder = getPlanReminder();
   const base = `<nexus>Run mode \u2014 full pipeline execution requested.
 MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
-Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.${meetTransitionHint}
-TEAM REQUIRED: For tasks involving 2+ tasks or 2+ target files, use TeamCreate and spawn at least one Engineer. Do NOT handle multi-task work as Lead solo.</nexus>`;
+Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.
+For multi-task work, spawn subagents in parallel (one per task). Do NOT handle multi-task work as Lead solo.</nexus>`;
   respond({
     continue: true,
-    additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, meetReminder)
+    additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, planReminder)
   });
 }
 var PRIMITIVE_HANDLERS = {
-  meet: handleMeetMode,
+  plan: handlePlanMode,
   run: handleRunMode
 };
 function handleUserPromptSubmit(event) {
   const claudeMdNotice = handleClaudeMdSync();
   const tasksReminder = getTasksReminder();
-  const meetReminder = getMeetReminder();
+  const planReminder = getPlanReminder();
   const raw = event.prompt ?? event.user_prompt ?? "";
   const prompt = typeof raw === "string" ? raw : String(raw);
   if (!prompt) {
@@ -402,26 +345,19 @@ function handleUserPromptSubmit(event) {
   if (dTag) {
     const postDecisionRules = `
 
-Record decision only. For implementation, follow task pipeline.`;
-    const meetFile = (0, import_path3.join)(STATE_ROOT, "meet.json");
-    if ((0, import_fs3.existsSync)(meetFile)) {
+Record decision only. For implementation, use [run].`;
+    const planFile = (0, import_path3.join)(STATE_ROOT, "plan.json");
+    if ((0, import_fs3.existsSync)(planFile)) {
       respond({
         continue: true,
-        additionalContext: withNotices(`<nexus>Decision tag detected in meet mode. Use nx_meet_decide(issue_id, summary) to record \u2014 decision stored inline in meet.json.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, meetReminder)
+        additionalContext: withNotices(`<nexus>Decision tag detected in plan mode. Use nx_plan_decide(issue_id, summary) to record.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, planReminder)
       });
     } else {
       respond({
         continue: true,
-        additionalContext: withNotices(`<nexus>[d]\uB294 meet \uC138\uC158 \uC548\uC5D0\uC11C\uB9CC \uC720\uD6A8\uD569\uB2C8\uB2E4. [meet] \uD0DC\uADF8\uB85C \uBBF8\uD305\uC744 \uBA3C\uC800 \uC2DC\uC791\uD558\uC138\uC694.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, null)
+        additionalContext: withNotices(`<nexus>[d]\uB294 plan \uC138\uC158 \uC548\uC5D0\uC11C\uB9CC \uC720\uD6A8\uD569\uB2C8\uB2E4. [plan] \uD0DC\uADF8\uB85C \uD50C\uB798\uB2DD\uC744 \uBA3C\uC800 \uC2DC\uC791\uD558\uC138\uC694.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, null)
       });
     }
-    return;
-  }
-  if (ATTENDEE_PATTERNS.test(prompt)) {
-    respond({
-      continue: true,
-      additionalContext: withNotices(`<nexus>Attendee pattern detected. Use nx_meet_join(role, name) to add a participant to the current meet session.</nexus>`, tasksReminder, claudeMdNotice, meetReminder)
-    });
     return;
   }
   const ruleMatch = prompt.match(/\[rule(?::([^\]]+))?\]/i);
@@ -440,25 +376,26 @@ Record decision only. For implementation, follow task pipeline.`;
     }
   }
   const summary = readTasksSummary(STATE_ROOT);
-  if (!summary.exists) {
-    const branchGuard = /^(main|master)$/.test(getCurrentBranch()) ? "\nBranch Guard: You are on main/master. Create a feature branch before making changes." : "";
+  if (summary.exists && summary.pending > 0) {
     respond({
       continue: true,
-      additionalContext: withNotices(taskPipelineMessage(`<nexus>No active tasks.${branchGuard}</nexus>`), null, claudeMdNotice, meetReminder)
+      additionalContext: withNotices(`<nexus>Active [run] session detected (${summary.pending} pending tasks). Resume execution or use nx_task_close to archive.</nexus>`, tasksReminder, claudeMdNotice, planReminder)
     });
     return;
   }
-  if (summary.pending > 0) {
+  if (summary.exists && (summary.allCompleted || summary.total === 0)) {
     respond({
       continue: true,
-      additionalContext: withNotices(`<nexus>Existing tasks detected (${summary.pending} pending). Smart resume: Review existing tasks with nx_task_list. For each pending task: verify if already implemented/documented. If stale \u2192 nx_task_close + fresh nx_task_add. If genuine \u2192 continue execution.</nexus>`, tasksReminder, claudeMdNotice, meetReminder)
+      additionalContext: withNotices(`<nexus>Stale tasks.json from previous [run]. Call nx_task_close to archive.</nexus>`, tasksReminder, claudeMdNotice, planReminder)
     });
     return;
   }
-  respond({
-    continue: true,
-    additionalContext: withNotices(`<nexus>Stale tasks.json detected from previous cycle. MANDATORY: Call nx_task_close to archive before starting new work.</nexus>`, tasksReminder, claudeMdNotice, meetReminder)
-  });
+  const notices = [planReminder, claudeMdNotice].filter(Boolean).join("\n");
+  if (notices) {
+    respond({ continue: true, additionalContext: notices });
+  } else {
+    pass();
+  }
 }
 function handleSessionStart(_event) {
   ensureNexusStructure();
@@ -466,8 +403,8 @@ function handleSessionStart(_event) {
   pass();
 }
 function handleSubagentStart(event) {
-  const agentType = String(event.agent_type ?? event.subagent_type ?? "");
-  const agentId = String(event.agent_id ?? event.session_id ?? "");
+  const agentType = String(event.agent_type ?? "");
+  const agentId = String(event.agent_id ?? "");
   const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
   let tracker = [];
   if ((0, import_fs3.existsSync)(trackerPath)) {
@@ -476,20 +413,15 @@ function handleSubagentStart(event) {
     } catch {
     }
   }
-  const teamEntry = tracker.find((a) => a.agent_type === agentType && a.status === "team-spawning");
-  if (teamEntry) {
-    teamEntry.agent_id = agentId;
-    teamEntry.status = "running";
-  } else {
-    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
-  }
+  tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
   ensureDir(STATE_ROOT);
   (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
   pass();
 }
 function handleSubagentStop(event) {
-  const agentId = String(event.agent_id ?? event.session_id ?? "");
-  const lastMsg = String(event.last_message ?? event.stop_reason ?? "");
+  const agentId = String(event.agent_id ?? "");
+  const agentType = String(event.agent_type ?? "");
+  const lastMsg = String(event.last_assistant_message ?? event.last_message ?? "");
   const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
   if ((0, import_fs3.existsSync)(trackerPath)) {
     try {
@@ -504,32 +436,52 @@ function handleSubagentStop(event) {
     } catch {
     }
   }
+  const tasksPath = (0, import_path3.join)(STATE_ROOT, "tasks.json");
+  if ((0, import_fs3.existsSync)(tasksPath)) {
+    try {
+      const tasksData = JSON.parse((0, import_fs3.readFileSync)(tasksPath, "utf-8"));
+      const tasks = tasksData.tasks ?? [];
+      const ownedPending = tasks.filter(
+        (t) => t.owner === agentType && (t.status === "pending" || t.status === "in_progress")
+      );
+      if (ownedPending.length > 0) {
+        const ids = ownedPending.map((t) => `#${t.id}`).join(", ");
+        respond({
+          continue: true,
+          additionalContext: `<nexus>Agent "${agentType}" stopped but has ${ownedPending.length} incomplete task(s): ${ids}. Re-spawn the agent or complete the work manually.</nexus>`
+        });
+        return;
+      }
+    } catch {
+    }
+  }
   pass();
 }
 async function main() {
   const input = await readStdin();
   const event = JSON.parse(input);
-  const nexusEvent = process.env.NEXUS_EVENT ?? "";
-  if (nexusEvent === "SessionStart") {
-    handleSessionStart(event);
-    return;
-  }
-  if (nexusEvent === "SubagentStart") {
-    handleSubagentStart(event);
-    return;
-  }
-  if (nexusEvent === "SubagentStop") {
-    handleSubagentStop(event);
-    return;
-  }
-  const hasToolName = "tool_name" in event;
-  const hasPrompt = "prompt" in event || "user_prompt" in event;
-  if (hasToolName) {
-    handlePreToolUse(event);
-  } else if (hasPrompt) {
-    handleUserPromptSubmit(event);
-  } else {
-    handleStop();
+  const eventName = event.hook_event_name ?? "";
+  switch (eventName) {
+    case "SessionStart":
+      handleSessionStart(event);
+      break;
+    case "SubagentStart":
+      handleSubagentStart(event);
+      break;
+    case "SubagentStop":
+      handleSubagentStop(event);
+      break;
+    case "PreToolUse":
+      handlePreToolUse(event);
+      break;
+    case "UserPromptSubmit":
+      handleUserPromptSubmit(event);
+      break;
+    case "Stop":
+      handleStop();
+      break;
+    default:
+      pass();
   }
 }
 main().catch(() => {
