@@ -19,7 +19,7 @@ Modify src/ â†’ bun run dev (build + template generation + plugin cache sync) â†
 - `bun run dev` = `node esbuild.config.mjs && node dev-sync.mjs`
 - `esbuild.config.mjs` bundles TS then calls `generate-template.mjs` to auto-update `templates/nexus-section.md` + CLAUDE.md markers
 - `dev-sync.mjs` syncs build outputs + agents + skills + hooks + templates etc. to `~/.claude/plugins/cache/nexus/` (syncs to latest version directory using semver sorting)
-- E2E tests: `bash test/e2e.sh` (32 tests)
+- E2E tests: `bash test/e2e.sh` (45 tests)
 
 ## Template Generation
 
@@ -37,7 +37,7 @@ Modify src/ â†’ bun run dev (build + template generation + plugin cache sync) â†
 - Paths: Centrally managed in `src/shared/paths.ts`. `PROJECT_ROOT`, `NEXUS_ROOT`, `STATE_ROOT`, `CORE_ROOT`, `LAYERS`, `corePath()`, `coreLayerDir()` (for core layers).
 - Agent definitions: `agents/{name}.md` frontmatter specifies model, maxTurns, task, disallowedTools, etc.
 - Skill definitions: `skills/{name}/SKILL.md` frontmatter specifies name, description, trigger_display, purpose, triggers, disable-model-invocation, etc.
-- Current skills count: 5 (nx-run, nx-meet, nx-init, nx-setup, nx-sync)
+- Current skills count: 5 (nx-run, nx-plan, nx-init, nx-setup, nx-sync)
 
 ## Release
 

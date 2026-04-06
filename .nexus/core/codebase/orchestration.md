@@ -1,4 +1,5 @@
 <!-- tags: orchestration, gate, tags, agents, skills, plan, rules, pipeline -->
+<!-- tags: orchestration, gate, tags, agents, skills, plan, rules, pipeline -->
 # Orchestration
 
 ## Tag System
@@ -116,8 +117,24 @@ Pipeline phase ordering is guided by skill prompt. Agent behavior is enforced by
 
 - Pending tasks → block stop, remind to complete
 - All completed → one-time warning to call nx_task_close
-- stop_hook_active=true on second fire → allow (infinite loop prevention)
+- `stop_hook_active=true` on second fire → allow (platform-provided re-entry flag; replaces the retired stop-warned file)
 - Sync nudge: if 3+ cycles since last nx-sync → suggest synchronization
+
+### PostCompact Handler
+
+Fired after context compaction. Rebuilds a session state snapshot and injects it as `additionalContext`:
+- Current mode and task counts (pending/completed) from tasks.json
+- Active plan session topic and issue status from plan.json
+- Core knowledge file count across all 4 layers
+- Agent tracker summary (agent type + status)
+
+### buildCoreIndex
+
+Called on `[plan]` and `[run]` mode entry. Scans `.nexus/core/` and builds a compact index of all layer/topic files with their first 3 tags. Injected into `additionalContext` to remind Lead of available knowledge before starting research or execution. Output capped at 2000 characters.
+
+### Stale tasks.json Detection (Plan Mode)
+
+When `[plan]` is detected, gate checks whether tasks.json exists with all tasks already completed. If so, it blocks plan mode entry and instructs Lead to call `nx_task_close` first to archive the previous cycle before starting a new plan.
 
 ### SubagentStop Verification ([run] mode only)
 
@@ -136,12 +153,26 @@ Any one triggers Tester verification (Lead discretion):
 
 nx_task_close archives plan.json + tasks.json → history.json, then deletes source files.
 
+## Gate Events
+
+gate.ts handles all hook events dispatched via `hook_event_name`:
+
+| Event | Handler | Purpose |
+|-------|---------|---------|
+| `SessionStart` | handleSessionStart | Initialize agent-tracker.json, ensure .nexus structure |
+| `SubagentStart` | handleSubagentStart | Record agent start in agent-tracker.json |
+| `SubagentStop` | handleSubagentStop | Record agent stop; warn Lead if owned tasks incomplete |
+| `PreToolUse` | handlePreToolUse | Block Edit/Write when tasks completed; guard Agent tool |
+| `UserPromptSubmit` | handleUserPromptSubmit | Tag detection, mode routing, additionalContext injection |
+| `Stop` | handleStop | Block stop if pending tasks; sync nudge |
+| `PreCompact` | — | pass() (no-op) |
+| `PostCompact` | handlePostCompact | Inject session state snapshot after compaction |
+
 ## State Files
 
 ```
 .nexus/state/
 ├── tasks.json            ← plan document (git-ignored)
 ├── plan.json             ← [plan] session issues/decisions (git-ignored)
-├── agent-tracker.json    ← subagent lifecycle tracking (git-ignored)
-└── stop-warned           ← infinite loop prevention flag (git-ignored)
+└── agent-tracker.json    ← subagent lifecycle tracking (git-ignored)
 ```
