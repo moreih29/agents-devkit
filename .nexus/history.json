@@ -3971,6 +3971,70 @@
           "created_at": "2026-04-06T13:04:05.944Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-06T13:25:41.324Z",
+      "branch": "feature/redesign",
+      "plan": {
+        "id": 4,
+        "topic": "Rules 시스템 검토 + E2E 테스트 커버리지 개선",
+        "issues": [
+          {
+            "id": 1,
+            "title": "Rules 시스템 활용도 — 완전 구현되었지만 사용된 적 없음. 유지/단순화/제거?",
+            "status": "decided",
+            "decision": "Rules 시스템 유지. 코드 비용 낮고 외부 프로젝트용 인프라로 필요. 현 구현 수준 충분."
+          },
+          {
+            "id": 2,
+            "title": "E2E 테스트 갭 — Task(0/4), Plan(0/4), PostCompact, buildCoreIndex 등 핵심 기능 미테스트",
+            "status": "decided",
+            "decision": "핵심만 10개 추가. Hook 5개(PostCompact 스냅샷, stop_hook_active, buildCoreIndex, stale tasks.json 감지, PreCompact pass) + MCP 5개(plan_start, plan_decide, task_add, task_update, task_close)."
+          },
+          {
+            "id": 3,
+            "title": "기존 E2E 테스트 35개 중 불필요한 항목 있는지 검토",
+            "status": "decided",
+            "decision": "기존 35개 전부 유지. 중복 후보 3개(Stop count, Plan researcher, Run subagent)도 동일 응답의 다른 필드 검증으로 가치 있음. 제거 시 이득 미미."
+          },
+          {
+            "id": 4,
+            "title": "Rules 기능 완성도 — 최근 변경(코어 인덱스, PostCompact 등)과의 정합성 및 기능적 갭",
+            "status": "decided",
+            "decision": "현행 유지. rules는 briefing 경로가 적절. buildCoreIndex는 지식 계층만 커버, rules는 설정이므로 별도 경로. rules 실사용 시 재평가."
+          }
+        ],
+        "research_summary": "## Rules 조사 결과\n- MCP 도구(nx_rules_read/write), gate.ts [rule] 핸들러, briefing 통합, git 추적 완전 구현\n- .nexus/rules/ 디렉토리 미생성 — 실제 규칙 파일 0개\n- nx-init Step 4(optional), nx-run 템플릿, CLAUDE.md 태그 설명에 참조\n- markdown-store.ts로 core와 동일 패턴 공유 (코드 재사용)\n\n## E2E 테스트 조사 결과\n- 35개 전부 통과, 중복 없음\n- 완벽: LSP/AST(8개), Hook 감지(16개), Statusline(2개), Core read(2개), Context(2개)\n- 누락: Task 도구(4개), Plan 도구(4개), Rule 도구(2개), nx_briefing, nx_core_write, nx_artifact_write, PostCompact 내용 검증, buildCoreIndex, stop_hook_active\n- 기존 테스트 중 불필요한 것: 초기 분석상 없음 — 각각 다른 기능 검증",
+        "created_at": "2026-04-06T13:13:58.585Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "E2E Hook 테스트 5개 추가",
+          "context": "test/e2e.sh에 Hook 테스트 5개 추가: PostCompact 스냅샷, stop_hook_active pass, buildCoreIndex plan 모드, stale tasks.json 감지, PreCompact pass.",
+          "approach": "기존 Hook 테스트 패턴(stdin JSON → gate.cjs → stdout 검증) 따라 추가. 1) PostCompact: tasks.json 생성 후 PostCompact 이벤트 → \"restored\" 또는 스냅샷 키워드 확인. 2) stop_hook_active: Stop + stop_hook_active=true → pass(빈 출력 또는 continue 없음). 3) buildCoreIndex: [plan] UserPromptSubmit → \"core\" 또는 \"knowledge\" 포함 확인. 4) stale tasks.json: all-completed tasks.json 생성 + [plan] → \"nx_task_close\" 안내 확인. 5) PreCompact → pass 확인.",
+          "acceptance": "5개 Hook 테스트 추가, 전체 테스트 통과.",
+          "risk": "테스트 환경에서 .nexus/core/ 파일이 없으면 buildCoreIndex 테스트가 빈 결과 반환 가능 — 테스트용 임시 파일 필요할 수 있음.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-06T13:19:47.875Z"
+        },
+        {
+          "id": 2,
+          "title": "E2E MCP 도구 테스트 5개 추가",
+          "context": "test/e2e.sh에 MCP 도구 테스트 5개 추가: nx_plan_start, nx_plan_decide, nx_task_add, nx_task_update, nx_task_close.",
+          "approach": "기존 MCP 테스트 패턴(mcp_call 함수) 따라 추가. 순서 중요: 1) nx_plan_start → plan.json 생성 확인. 2) nx_plan_decide → issue decided 확인. 3) nx_task_add → tasks.json 생성 확인. 4) nx_task_update → 상태 변경 확인. 5) nx_task_close → history.json 아카이브 + plan.json/tasks.json 삭제 확인. 각 테스트 후 상태 정리(cleanup) 필요.",
+          "acceptance": "5개 MCP 도구 테스트 추가, 전체 테스트 통과.",
+          "risk": "MCP 테스트는 서버 프로세스를 띄워야 하므로 기존 mcp_call 패턴이 plan/task 도구를 지원하는지 확인 필요. cleanup 순서 실수 시 다른 테스트에 영향.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-06T13:19:58.494Z"
+        }
+      ]
     }
   ]
 }
