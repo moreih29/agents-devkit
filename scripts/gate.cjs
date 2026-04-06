@@ -331,6 +331,14 @@ Task pipeline not required \u2014 save directly.</nexus>`;
   });
 }
 function handlePlanMode({ prompt, tasksReminder, claudeMdNotice }) {
+  const staleSummary = readTasksSummary(STATE_ROOT);
+  if (staleSummary.exists && staleSummary.allCompleted) {
+    respond({
+      continue: true,
+      additionalContext: `<nexus>\u26A0 Previous cycle not closed \u2014 tasks.json exists with all tasks completed. Call nx_task_close first to archive before starting a new plan.</nexus>`
+    });
+    return;
+  }
   const isAuto = /\[plan:auto\]/i.test(prompt);
   const planFile = (0, import_path3.join)(STATE_ROOT, "plan.json");
   const hasExistingSession = (0, import_fs3.existsSync)(planFile);

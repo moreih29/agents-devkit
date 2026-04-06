@@ -161,11 +161,11 @@ After each decision, Lead automatically checks for derived issues.
   - Gap found → register additional issues with `nx_plan_update(action='add', ...)`, return to Step 4.
   - No gap → signal planning complete.
 - Wrap-up: confirm all analysis threads have reported conclusions to Lead.
-- Offer transition: "모든 안건이 결정되었습니다. 실행하시겠습니까? `[run]`으로 전환하거나, 계획서를 먼저 생성할 수 있습니다."
+- Proceed to Step 7 automatically — do not ask whether to generate the plan document.
 
 ### Step 7: Plan Document Generation
 
-After all issues are decided, generate the plan document (tasks.json):
+All issues decided → generate the plan document (tasks.json) immediately:
 
 1. **Collect decisions** — gather all `decided` issues from plan.json
 2. **Derive tasks** — decompose decisions into concrete, actionable tasks
@@ -191,6 +191,7 @@ After all issues are decided, generate the plan document (tasks.json):
    - Set `decisions` from plan.json decided summaries
    - Call `nx_task_add(plan_issue=N, approach, acceptance, risk, owner)` for each task
 5. **Present plan document** — show the user the generated tasks.json summary for review
+6. **Offer transition**: "`[run]`으로 전환하시겠습니까?"
 
 **Incremental mode**: if tasks.json already exists (e.g., after adding follow-up issues), only add tasks for new decisions. Check `plan_issue` field to avoid duplicating tasks for already-covered issues.
 

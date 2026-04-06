@@ -340,6 +340,16 @@ Task pipeline not required — save directly.</nexus>`;
 }
 
 function handlePlanMode({ prompt, tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  // 2차 안전망: 이전 사이클의 stale tasks.json 감지
+  const staleSummary = readTasksSummary(STATE_ROOT);
+  if (staleSummary.exists && staleSummary.allCompleted) {
+    respond({
+      continue: true,
+      additionalContext: `<nexus>⚠ Previous cycle not closed — tasks.json exists with all tasks completed. Call nx_task_close first to archive before starting a new plan.</nexus>`,
+    });
+    return;
+  }
+
   const isAuto = /\[plan:auto\]/i.test(prompt);
   const planFile = join(STATE_ROOT, 'plan.json');
   const hasExistingSession = existsSync(planFile);

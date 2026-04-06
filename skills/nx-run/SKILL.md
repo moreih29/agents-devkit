@@ -19,6 +19,7 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes s
 - MUST NOT spawn parallel Engineers if their target files overlap — serialize instead
 - MUST NOT auto-shutdown How subagents mid-session unless the session ends
 - How subagents cap: maximum 4
+- MUST call nx_task_close before completing the cycle — archive plan+tasks to history.json
 </constraints>
 
 <guidelines>
