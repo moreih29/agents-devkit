@@ -232,6 +232,67 @@ check "Rule tag (explicit tags)" 'dev, test' "$result"
 # 정리
 rm -f "$TRACKER_STATE/edit-tracker.json" "$TRACKER_STATE/tasks.json"
 
+# --- 추가 훅 테스트 ---
+echo ""
+echo "=== 추가 훅 테스트 ==="
+
+# PostCompact 스냅샷: pending 태스크 포함 tasks.json → restored 응답
+echo '{"tasks":[{"id":1,"title":"pending task","status":"pending"}]}' > "$E2E_STATE/tasks.json"
+result=$(echo '{"hook_event_name":"PostCompact"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/PostCompact (snapshot restored)" 'restored' "$result"
+rm -f "$E2E_STATE/tasks.json"
+
+# stop_hook_active pass: stop_hook_active=true + all-completed tasks → continue:true (not blocked)
+echo '{"tasks":[{"id":1,"title":"done","status":"completed"}]}' > "$E2E_STATE/tasks.json"
+result=$(echo '{"hook_event_name":"Stop","stop_hook_active":true}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/Stop (stop_hook_active pass)" '"continue":true' "$result"
+rm -f "$E2E_STATE/tasks.json"
+
+# buildCoreIndex in plan mode: core/ 파일이 있으므로 인덱스 생성
+rm -f "$E2E_STATE/tasks.json"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] 분석하자"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (plan core index)" 'identity' "$result"
+
+# stale tasks.json on plan entry: all-completed → nx_task_close 요구
+echo '{"tasks":[{"id":1,"title":"done","status":"completed"}]}' > "$E2E_STATE/tasks.json"
+result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] 새 계획"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/UserPromptSubmit (stale tasks on plan)" 'nx_task_close' "$result"
+rm -f "$E2E_STATE/tasks.json"
+
+# PreCompact pass: 빈 stdout (continue:true)
+result=$(echo '{"hook_event_name":"PreCompact"}' | node scripts/gate.cjs 2>/dev/null)
+check "Gate/PreCompact (pass)" '"continue":true' "$result"
+
+# --- 추가 MCP 도구 테스트 (plan/task 흐름) ---
+echo ""
+echo "=== 추가 MCP 도구 테스트 ==="
+
+# plan/task 테스트용 격리된 임시 디렉토리
+PLAN_TMP=$(mktemp -d)
+PLAN_TMP_ORIG="$NEXUS_RUNTIME_ROOT"
+export NEXUS_RUNTIME_ROOT="$PLAN_TMP"
+mkdir -p "$PLAN_TMP/state" "$PLAN_TMP/core/codebase"
+echo '# Architecture' > "$PLAN_TMP/core/codebase/architecture.md"
+
+result=$(mcp_call "nx_plan_start" '{"topic":"E2E Test","issues":["issue1"],"research_summary":"test"}')
+check "nx_plan_start" 'created' "$result"
+
+result=$(mcp_call "nx_plan_decide" '{"issue_id":1,"summary":"Test decision"}')
+check "nx_plan_decide" 'decided' "$result"
+
+result=$(mcp_call "nx_task_add" '{"title":"Test task","context":"Testing","goal":"e2e"}')
+check "nx_task_add" 'task' "$result"
+
+result=$(mcp_call "nx_task_update" '{"id":1,"status":"completed"}')
+check "nx_task_update" 'completed' "$result"
+
+result=$(mcp_call "nx_task_close" '{}')
+check "nx_task_close" 'closed' "$result"
+
+# plan/task 임시 디렉토리 정리 및 원래 상태 복원
+rm -rf "$PLAN_TMP"
+export NEXUS_RUNTIME_ROOT="$PLAN_TMP_ORIG"
+
 # --- Statusline ---
 echo ""
 echo "=== Statusline ==="
