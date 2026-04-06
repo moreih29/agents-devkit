@@ -17,10 +17,9 @@ Facilitate structured multi-perspective analysis using subagents to decompose is
 - NEVER ask groundless questions — always research code/knowledge/decisions first
 - NEVER use TeamCreate or SendMessage — subagent parallelism replaces team-based discussion
 - MUST record all decisions with `[d]` tag so they are not scattered across turns
-- MUST call `nx_plan_decide` when recording `[d]` — discussion must be recorded before deciding
+- MUST call `nx_plan_decide` when recording `[d]`
 - MUST check for existing plan.json before starting a new session
 - `[d]` without an active plan.json is BLOCKED — "[d]는 plan 세션 안에서만 유효합니다."
-- MUST use `nx_plan_discuss` to log significant analysis points during deliberation
 - MUST present a comparison table before asking for a decision — never present options as prose only. Format:
 
 ```
@@ -110,8 +109,6 @@ Register the planning session.
 1. **`nx_plan_start(topic, issues, research_summary)`** — register plan in plan.json; auto-archives any existing plan.json.
 2. Show the issue list to the user and confirm before proceeding.
 
-No TeamCreate step. HOW subagents are spawned independently per issue as analysis is needed.
-
 ### Step 4: Analysis
 
 **Always proceed one issue at a time.** Never present multiple issues simultaneously.
@@ -124,11 +121,7 @@ For each issue:
    - **Complex issues** (3+ viable options OR technical trade-offs exist): spawn 1–3 HOW subagents, collect their independent analyses, then synthesize.
    - HOW subagents do NOT communicate with each other — each reports independently to Lead.
    - When in doubt, spawn — the cost of an unnecessary subagent (~$0.05) is lower than the cost of a shallow analysis.
-3. **Record analysis** — call `nx_plan_discuss` for significant findings:
-   - Required: when issue transitions from `pending` → `discussing`
-   - Required: when a key argument or counter-argument surfaces
-   - Lead's discretion: for other noteworthy analysis points
-4. **Present Options** — after synthesis, Lead presents a comparison:
+3. **Present Options** — after synthesis, Lead presents a comparison:
 
 ```
 | Item | A: {title} | B: {title} | C: {title} |
@@ -145,7 +138,7 @@ For each issue:
 - Option X overcomes {A/B limitations} → {core benefit}
 ```
 
-5. **Await user response** — receive free-form responses. Users may combine options, push back, or ask follow-up questions.
+4. **Await user response** — receive free-form responses. Users may combine options, push back, or ask follow-up questions.
 
 ### Step 5: Record Decision
 
@@ -225,10 +218,9 @@ When the user activates `[run]` after a plan session:
 6. **One at a time** — never present multiple issues at once. Reduce the user's cognitive load.
 7. **Options must include pros/cons/trade-offs/recommendation** — when recommending, explain why other options fall short.
 8. **Objective pushback** — even for the user's own suggestions, actively counter with evidence if there are problems or better alternatives.
-9. **Analysis recorded, not just decisions** — `nx_plan_discuss` captures the reasoning behind decisions, not just the outcome.
-10. **Prose conversation by default** — free-form user responses (combinations, pushback, follow-up questions) are the core of planning quality.
-11. **Dynamic agenda** — decisions create new questions. Lead proactively surfaces derived issues rather than waiting for the user to notice gaps.
-12. **Subagents are independent analysts** — HOW subagents each analyze independently and report to Lead. Lead synthesizes; subagents do not debate each other.
+9. **Prose conversation by default** — free-form user responses (combinations, pushback, follow-up questions) are the core of planning quality.
+10. **Dynamic agenda** — decisions create new questions. Lead proactively surfaces derived issues rather than waiting for the user to notice gaps.
+11. **Subagents are independent analysts** — HOW subagents each analyze independently and report to Lead. Lead synthesizes; subagents do not debate each other.
 
 ---
 
@@ -246,22 +238,12 @@ When the user activates `[run]` after a plan session:
     {
       "id": 1,
       "title": "issue title",
-      "status": "pending",
-      "discussion": []
+      "status": "pending"
     },
     {
       "id": 2,
       "title": "issue title",
-      "status": "discussing",
-      "discussion": [
-        { "speaker": "architect", "content": "...", "timestamp": "..." }
-      ]
-    },
-    {
-      "id": 3,
-      "title": "issue title",
       "status": "decided",
-      "discussion": [...],
       "decision": "결정 요약"
     }
   ],
@@ -271,11 +253,9 @@ When the user activates `[run]` after a plan session:
 ```
 
 - **Create**: `nx_plan_start(topic, issues, research_summary)` — called in Step 3; auto-archives any existing plan.json
-- **Read**: `nx_plan_status()` — check current issue state + discussion + decisions
+- **Read**: `nx_plan_status()` — check current issue state + decisions
 - **Update**: `nx_plan_update(action, ...)` — add/remove/edit/reopen issues
-- **Discuss**: `nx_plan_discuss(issue_id, speaker, content)` — log analysis entries; auto-transitions `pending` → `discussing`
 - **Decide**: `nx_plan_decide(issue_id, summary)` — marks issue as `decided`, writes decision inline
-- **Join**: `nx_plan_join(role, name)` — record that a HOW subagent contributed analysis for this session
 - **File presence = session in progress**
 
 ### Topic Switching
@@ -294,7 +274,7 @@ When the user activates `[run]` after a plan session:
 Intent discovery → research (parallel subagents) → nx_plan_start (register issues)
   ↓
 Per-issue: HOW subagent analysis (parallel, independent) → Lead synthesis
-  → nx_plan_discuss (record) → options comparison → [d] → nx_plan_decide
+  → options comparison → [d] → nx_plan_decide
   → dynamic agenda check → propose derived issues if found
   ↓
 Next issue → ... → gap check → planning complete

@@ -22118,13 +22118,9 @@ function registerPlanTools(server2) {
     {
       topic: external_exports.string().describe("\uD50C\uB798\uB2DD \uC8FC\uC81C"),
       issues: external_exports.array(external_exports.string()).describe("\uC548\uAC74 \uBAA9\uB85D"),
-      research_summary: external_exports.string().describe("\uC0AC\uC804\uC870\uC0AC \uACB0\uACFC \uC694\uC57D. \uB9AC\uC11C\uCE58 \uC644\uB8CC\uB97C \uAC15\uC81C\uD558\uAE30 \uC704\uD55C \uD544\uC218 \uD30C\uB77C\uBBF8\uD130."),
-      attendees: external_exports.array(external_exports.object({
-        role: external_exports.string(),
-        name: external_exports.string()
-      })).optional().describe("\uCD08\uAE30 \uCC38\uC11D\uC790 \uBAA9\uB85D. \uC0DD\uB7B5 \uC2DC Lead\uB9CC \uAE30\uBCF8 \uB4F1\uB85D.")
+      research_summary: external_exports.string().describe("\uC0AC\uC804\uC870\uC0AC \uACB0\uACFC \uC694\uC57D. \uB9AC\uC11C\uCE58 \uC644\uB8CC\uB97C \uAC15\uC81C\uD558\uAE30 \uC704\uD55C \uD544\uC218 \uD30C\uB77C\uBBF8\uD130.")
     },
-    async ({ topic, issues, research_summary, attendees }) => {
+    async ({ topic, issues, research_summary }) => {
       const projectHistoryPath = (0, import_path9.join)(NEXUS_ROOT, "history.json");
       let history = { cycles: [] };
       if ((0, import_fs9.existsSync)(projectHistoryPath)) {
@@ -22155,16 +22151,13 @@ function registerPlanTools(server2) {
       }
       const now = (/* @__PURE__ */ new Date()).toISOString();
       const newId = lastPlanId + 1;
-      const initialAttendees = attendees ? attendees.map((a) => ({ role: a.role, name: a.name, joined_at: now })) : [{ role: "lead", name: "lead", joined_at: now }];
       const data = {
         id: newId,
         topic,
-        attendees: initialAttendees,
         issues: issues.map((title, i) => ({
           id: i + 1,
           title,
-          status: "pending",
-          discussion: []
+          status: "pending"
         })),
         research_summary,
         created_at: now
@@ -22183,16 +22176,14 @@ function registerPlanTools(server2) {
         return textResult({ active: false });
       }
       const pending = data.issues.filter((i) => i.status === "pending").length;
-      const discussing = data.issues.filter((i) => i.status === "discussing").length;
       const decided = data.issues.filter((i) => i.status === "decided").length;
       return textResult({
         active: true,
         plan_id: data.id,
         topic: data.topic,
-        attendees: data.attendees,
         issues: data.issues,
         research_summary: data.research_summary,
-        summary: { total: data.issues.length, pending, discussing, decided }
+        summary: { total: data.issues.length, pending, decided }
       });
     }
   );
@@ -22214,7 +22205,7 @@ function registerPlanTools(server2) {
           return textResult({ error: "title is required for add" });
         }
         const maxId = data.issues.reduce((max, i) => Math.max(max, i.id), 0);
-        const newIssue = { id: maxId + 1, title, status: "pending", discussion: [] };
+        const newIssue = { id: maxId + 1, title, status: "pending" };
         data.issues.push(newIssue);
         await writePlan(data);
         return textResult({ added: true, issue: newIssue });
@@ -22251,49 +22242,12 @@ function registerPlanTools(server2) {
         if (!issue2) {
           return textResult({ error: `Issue ${issue_id} not found` });
         }
-        issue2.status = "discussing";
+        issue2.status = "pending";
         delete issue2.decision;
         await writePlan(data);
         return textResult({ reopened: true, issue: issue2 });
       }
       return textResult({ error: "Unknown action" });
-    }
-  );
-  server2.tool(
-    "nx_plan_discuss",
-    "\uC548\uAC74\uC5D0 \uB17C\uC758 \uB0B4\uC6A9 \uAE30\uB85D",
-    {
-      issue_id: external_exports.number().describe("\uC548\uAC74 ID"),
-      speaker: external_exports.string().describe("\uBC1C\uC5B8\uC790 (\uC5D0\uC774\uC804\uD2B8\uBA85 \uB610\uB294 user/lead)"),
-      content: external_exports.string().describe("\uBC1C\uC5B8 \uB0B4\uC6A9 \uC694\uC57D")
-    },
-    async ({ issue_id, speaker, content }) => {
-      const data = await readPlan();
-      if (!data) {
-        return textResult({ error: "No active plan session" });
-      }
-      const allowedSpeakers = ["lead", "user"];
-      const attendeeRoles = data.attendees.map((a) => a.role);
-      if (!allowedSpeakers.includes(speaker) && !attendeeRoles.includes(speaker)) {
-        return textResult({
-          error: `Speaker '${speaker}' is not a registered attendee. Registered: ${attendeeRoles.join(", ")}. Use nx_plan_join to add attendees first.`
-        });
-      }
-      const issue2 = data.issues.find((i) => i.id === issue_id);
-      if (!issue2) {
-        return textResult({ error: `Issue ${issue_id} not found` });
-      }
-      const entry = {
-        speaker,
-        content,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      issue2.discussion.push(entry);
-      if (issue2.status === "pending") {
-        issue2.status = "discussing";
-      }
-      await writePlan(data);
-      return textResult({ recorded: true, issue_id, discussionCount: issue2.discussion.length });
     }
   );
   server2.tool(
@@ -22333,32 +22287,6 @@ function registerPlanTools(server2) {
         allComplete: false,
         remaining: remaining.map((i) => ({ id: i.id, title: i.title, status: i.status }))
       });
-    }
-  );
-  server2.tool(
-    "nx_plan_join",
-    "\uD50C\uB798\uB2DD\uC5D0 \uCC38\uC11D\uC790 \uCD94\uAC00",
-    {
-      role: external_exports.string().describe("\uC5D0\uC774\uC804\uD2B8 \uC5ED\uD560 (architect, engineer \uB4F1)"),
-      name: external_exports.string().describe("\uD300 \uB0B4 \uC5D0\uC774\uC804\uD2B8 \uC774\uB984")
-    },
-    async ({ role, name }) => {
-      const data = await readPlan();
-      if (!data) {
-        return textResult({ error: "No active plan session" });
-      }
-      const duplicate = data.attendees.find((a) => a.name === name);
-      if (duplicate) {
-        return textResult({ error: `Attendee '${name}' already joined`, attendee: duplicate });
-      }
-      const attendee = {
-        role,
-        name,
-        joined_at: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      data.attendees.push(attendee);
-      await writePlan(data);
-      return textResult({ joined: true, attendee, totalAttendees: data.attendees.length });
     }
   );
 }
@@ -22509,9 +22437,8 @@ function registerTaskTools(server2) {
         hadLoopDetection,
         cycleTopics: [plan?.topic, tasksData?.goal].filter(Boolean)
       };
-      const stopWarnedPath = (0, import_path10.join)(root, "stop-warned");
       const deleted = [];
-      for (const p of [planJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath, stopWarnedPath]) {
+      for (const p of [planJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath]) {
         if ((0, import_fs10.existsSync)(p)) {
           (0, import_fs10.unlinkSync)(p);
           deleted.push(p.split("/").pop());

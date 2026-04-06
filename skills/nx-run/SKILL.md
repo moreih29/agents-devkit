@@ -35,6 +35,16 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes s
   - **Absent** → inform the user: "계획서가 없습니다. [plan:auto]로 자동 계획을 생성하거나, [plan]으로 대화형 플래닝을 시작하세요." If the user chooses `[plan:auto]`, invoke `nx-plan` skill in auto mode via Skill tool. After plan generation, proceed to Step 2.
 - If tasks.json exists, check prior decisions with `nx_plan_status`.
 
+### Step 1.5: TUI Progress (Optional)
+
+When running in CLI terminal (TTY), register top-level tasks for visual progress tracking:
+
+- Group tasks by `plan_issue` or keep as-is if ≤ 10 tasks
+- Call `TaskCreate` for each group/task (max 10 — TUI hard limit, no scroll)
+- Use `TaskUpdate` to reflect progress (`in_progress` / `completed`) as execution proceeds
+- **Skip if**: running in VSCode/non-TTY, or tasks exceed 10 even after grouping
+- **Known issue**: TUI may freeze during auto-compact (#27919) — task data on disk remains correct
+
 ### Step 2: Execute
 
 - **Present tasks.json** to the user — show task list with owner, deps, approach summary. Confirm before proceeding.

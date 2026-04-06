@@ -6,34 +6,18 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { STATE_ROOT, NEXUS_ROOT, ensureDir, getCurrentBranch } from '../../shared/paths.js';
 import { textResult } from '../../shared/mcp-utils.js';
 
-/** 논의 기록 — 에이전트 간 대화 또는 Lead 요약 */
-export interface DiscussionEntry {
-  speaker: string;    // 에이전트 이름 또는 'lead', 'user'
-  content: string;    // 발언 내용 (요약)
-  timestamp: string;  // ISO 8601
-}
-
-/** 참석자 */
-export interface PlanAttendee {
-  role: string;       // 에이전트 역할명: 'architect', 'engineer', 'tester' 등
-  name: string;       // 팀 내 에이전트 이름 (teammate name)
-  joined_at: string;  // ISO 8601
-}
-
 /** 개별 안건 */
 export interface PlanIssue {
-  id: number;                                     // 단순 숫자 (plan 내 고유)
+  id: number;          // 단순 숫자 (plan 내 고유)
   title: string;
-  status: 'pending' | 'discussing' | 'decided';
-  discussion: DiscussionEntry[];                  // 논의 과정 기록
-  decision?: string;                              // decided 시 결정 요약
+  status: 'pending' | 'decided';
+  decision?: string;   // decided 시 결정 요약
 }
 
 /** plan.json 루트 */
 export interface PlanFile {
   id: number;             // 단순 숫자 (1부터 증가, history에서 역추적용)
   topic: string;
-  attendees: PlanAttendee[];
   issues: PlanIssue[];
   research_summary?: string;
   created_at: string;     // ISO 8601
@@ -64,12 +48,8 @@ export function registerPlanTools(server: McpServer): void {
       topic: z.string().describe('플래닝 주제'),
       issues: z.array(z.string()).describe('안건 목록'),
       research_summary: z.string().describe('사전조사 결과 요약. 리서치 완료를 강제하기 위한 필수 파라미터.'),
-      attendees: z.array(z.object({
-        role: z.string(),
-        name: z.string(),
-      })).optional().describe('초기 참석자 목록. 생략 시 Lead만 기본 등록.'),
     },
-    async ({ topic, issues, research_summary, attendees }) => {
+    async ({ topic, issues, research_summary }) => {
       // history.json에서 마지막 plan id 추출
       const projectHistoryPath = join(NEXUS_ROOT, 'history.json');
       interface Cycle { completed_at: string; branch: string; meet: PlanFile | null; tasks: never[]; }
@@ -106,19 +86,13 @@ export function registerPlanTools(server: McpServer): void {
       const now = new Date().toISOString();
       const newId = lastPlanId + 1;
 
-      const initialAttendees: PlanAttendee[] = attendees
-        ? attendees.map(a => ({ role: a.role, name: a.name, joined_at: now }))
-        : [{ role: 'lead', name: 'lead', joined_at: now }];
-
       const data: PlanFile = {
         id: newId,
         topic,
-        attendees: initialAttendees,
         issues: issues.map((title, i) => ({
           id: i + 1,
           title,
           status: 'pending' as const,
-          discussion: [],
         })),
         research_summary,
         created_at: now,
@@ -141,17 +115,15 @@ export function registerPlanTools(server: McpServer): void {
       }
 
       const pending = data.issues.filter(i => i.status === 'pending').length;
-      const discussing = data.issues.filter(i => i.status === 'discussing').length;
       const decided = data.issues.filter(i => i.status === 'decided').length;
 
       return textResult({
         active: true,
         plan_id: data.id,
         topic: data.topic,
-        attendees: data.attendees,
         issues: data.issues,
         research_summary: data.research_summary,
-        summary: { total: data.issues.length, pending, discussing, decided },
+        summary: { total: data.issues.length, pending, decided },
       });
     }
   );
@@ -176,7 +148,7 @@ export function registerPlanTools(server: McpServer): void {
           return textResult({ error: 'title is required for add' });
         }
         const maxId = data.issues.reduce((max, i) => Math.max(max, i.id), 0);
-        const newIssue: PlanIssue = { id: maxId + 1, title, status: 'pending', discussion: [] };
+        const newIssue: PlanIssue = { id: maxId + 1, title, status: 'pending' };
         data.issues.push(newIssue);
         await writePlan(data);
         return textResult({ added: true, issue: newIssue });
@@ -216,59 +188,13 @@ export function registerPlanTools(server: McpServer): void {
         if (!issue) {
           return textResult({ error: `Issue ${issue_id} not found` });
         }
-        issue.status = 'discussing';
+        issue.status = 'pending';
         delete issue.decision;
         await writePlan(data);
         return textResult({ reopened: true, issue });
       }
 
       return textResult({ error: 'Unknown action' });
-    }
-  );
-
-  // nx_plan_discuss — 논의 내용 기록
-  server.tool(
-    'nx_plan_discuss',
-    '안건에 논의 내용 기록',
-    {
-      issue_id: z.number().describe('안건 ID'),
-      speaker: z.string().describe('발언자 (에이전트명 또는 user/lead)'),
-      content: z.string().describe('발언 내용 요약'),
-    },
-    async ({ issue_id, speaker, content }) => {
-      const data = await readPlan();
-      if (!data) {
-        return textResult({ error: 'No active plan session' });
-      }
-
-      // speaker 검증: attendees에 등록된 role 또는 lead/user만 허용
-      const allowedSpeakers = ['lead', 'user'];
-      const attendeeRoles = data.attendees.map(a => a.role);
-      if (!allowedSpeakers.includes(speaker) && !attendeeRoles.includes(speaker)) {
-        return textResult({
-          error: `Speaker '${speaker}' is not a registered attendee. Registered: ${attendeeRoles.join(', ')}. Use nx_plan_join to add attendees first.`,
-        });
-      }
-
-      const issue = data.issues.find(i => i.id === issue_id);
-      if (!issue) {
-        return textResult({ error: `Issue ${issue_id} not found` });
-      }
-
-      const entry: DiscussionEntry = {
-        speaker,
-        content,
-        timestamp: new Date().toISOString(),
-      };
-      issue.discussion.push(entry);
-
-      // pending → discussing 자동 전환
-      if (issue.status === 'pending') {
-        issue.status = 'discussing';
-      }
-
-      await writePlan(data);
-      return textResult({ recorded: true, issue_id, discussionCount: issue.discussion.length });
     }
   );
 
@@ -319,33 +245,4 @@ export function registerPlanTools(server: McpServer): void {
     }
   );
 
-  // nx_plan_join — 참석자 추가
-  server.tool(
-    'nx_plan_join',
-    '플래닝에 참석자 추가',
-    {
-      role: z.string().describe('에이전트 역할 (architect, engineer 등)'),
-      name: z.string().describe('팀 내 에이전트 이름'),
-    },
-    async ({ role, name }) => {
-      const data = await readPlan();
-      if (!data) {
-        return textResult({ error: 'No active plan session' });
-      }
-
-      const duplicate = data.attendees.find(a => a.name === name);
-      if (duplicate) {
-        return textResult({ error: `Attendee '${name}' already joined`, attendee: duplicate });
-      }
-
-      const attendee: PlanAttendee = {
-        role,
-        name,
-        joined_at: new Date().toISOString(),
-      };
-      data.attendees.push(attendee);
-      await writePlan(data);
-      return textResult({ joined: true, attendee, totalAttendees: data.attendees.length });
-    }
-  );
 }

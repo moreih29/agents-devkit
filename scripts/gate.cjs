@@ -147,7 +147,7 @@ function getSyncNudge() {
   }
   return null;
 }
-function handleStop() {
+function handleStop(event) {
   const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) {
     const syncNudge = getSyncNudge();
@@ -169,13 +169,10 @@ function handleStop() {
     });
     return;
   }
-  const stopWarnedPath = (0, import_path3.join)(STATE_ROOT, "stop-warned");
-  if ((0, import_fs3.existsSync)(stopWarnedPath)) {
-    (0, import_fs3.unlinkSync)(stopWarnedPath);
+  if (event.stop_hook_active) {
     pass();
     return;
   }
-  (0, import_fs3.writeFileSync)(stopWarnedPath, "");
   respond({
     continue: true,
     additionalContext: `<nexus>All tasks completed. Call nx_task_close now.</nexus>`
@@ -269,14 +266,53 @@ function getPlanReminder() {
   try {
     const data = JSON.parse((0, import_fs3.readFileSync)(planFilePath, "utf-8"));
     const issues = data.issues ?? [];
-    const discussing = issues.find((i) => i.status === "discussing");
     const pending = issues.filter((i) => i.status === "pending");
-    const current = discussing ? `Current: #${discussing.id} "${discussing.title}"` : pending.length > 0 ? `Next: #${pending[0].id} "${pending[0].title}"` : "All issues decided.";
+    const current = pending.length > 0 ? `Next: #${pending[0].id} "${pending[0].title}"` : "All issues decided.";
     return `<nexus>Plan: "${data.topic}" | ${current} | ${pending.length} pending
 Present comparison table with pros/cons/recommendation. Record decisions with [d].</nexus>`;
   } catch {
     return null;
   }
+}
+var CORE_LAYERS = ["identity", "codebase", "reference", "memory"];
+function buildCoreIndex() {
+  const coreRoot = (0, import_path3.join)(process.cwd(), ".nexus", "core");
+  if (!(0, import_fs3.existsSync)(coreRoot)) return "";
+  const layerLines = [];
+  for (const layer of CORE_LAYERS) {
+    const layerDir = (0, import_path3.join)(coreRoot, layer);
+    if (!(0, import_fs3.existsSync)(layerDir)) continue;
+    let files;
+    try {
+      files = (0, import_fs3.readdirSync)(layerDir).filter((f) => f.endsWith(".md"));
+    } catch {
+      continue;
+    }
+    if (files.length === 0) continue;
+    const entries = [];
+    for (const file of files) {
+      const name = (0, import_path3.basename)(file, ".md");
+      const filePath = (0, import_path3.join)(layerDir, file);
+      let tags = "";
+      try {
+        const content = (0, import_fs3.readFileSync)(filePath, "utf-8");
+        const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
+        if (tagMatch) {
+          const tagList = tagMatch[1].split(",").map((t) => t.trim()).filter(Boolean);
+          const shortTags = tagList.slice(0, 3).join(", ");
+          tags = ` [${shortTags}]`;
+        }
+      } catch {
+      }
+      entries.push(`${name}${tags}`);
+    }
+    layerLines.push(`${layer}: ${entries.join(", ")}`);
+  }
+  if (layerLines.length === 0) return "";
+  const header = "[Core Knowledge] (call nx_core_read for details)";
+  const result = `${header}
+${layerLines.join("\n")}`;
+  return result.length <= 2e3 ? result : result.slice(0, 1997) + "...";
 }
 function withNotices(base, tasksReminder, claudeMdNotice, planReminder) {
   return [planReminder, tasksReminder, base, claudeMdNotice].filter(Boolean).join("\n");
@@ -316,17 +352,24 @@ STEP 4: Present comparison table \u2192 user decides \u2192 [d] to record. Sugge
   if (isAuto) {
     base += "\n<nexus>AUTO MODE: Skip user confirmation. For each issue, select the recommended option and decide automatically. Output plan document (tasks.json) directly.</nexus>";
   }
+  const coreIndex = buildCoreIndex();
+  const coreSection = coreIndex ? `
+${coreIndex}
+Check core/reference/ BEFORE web searching for known topics.` : "";
   respond({
     continue: true,
-    additionalContext: withNotices(base, tasksReminder, claudeMdNotice, null)
+    additionalContext: withNotices(base + coreSection, tasksReminder, claudeMdNotice, null)
   });
 }
 function handleRunMode({ tasksReminder, claudeMdNotice }) {
   const planReminder = getPlanReminder();
+  const coreIndex = buildCoreIndex();
+  const coreSection = coreIndex ? `
+${coreIndex}` : "";
   const base = `<nexus>Run mode \u2014 full pipeline execution requested.
 MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
 Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.
-For multi-task work, spawn subagents in parallel (one per task). Do NOT handle multi-task work as Lead solo.</nexus>`;
+For multi-task work, spawn subagents in parallel (one per task). Do NOT handle multi-task work as Lead solo.</nexus>${coreSection}`;
   respond({
     continue: true,
     additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, planReminder)
@@ -462,6 +505,63 @@ function handleSubagentStop(event) {
   }
   pass();
 }
+function handlePostCompact(_event) {
+  const lines = ["Session restored after compaction."];
+  const summary = readTasksSummary(STATE_ROOT);
+  if (summary.exists) {
+    lines.push(`[Mode]: run (${summary.pending} pending / ${summary.completed} completed tasks)`);
+  }
+  const planFilePath = (0, import_path3.join)(STATE_ROOT, "plan.json");
+  if ((0, import_fs3.existsSync)(planFilePath)) {
+    try {
+      const data = JSON.parse((0, import_fs3.readFileSync)(planFilePath, "utf-8"));
+      const issues = data.issues ?? [];
+      const discussing = issues.find((i) => i.status === "discussing");
+      const pending = issues.filter((i) => i.status === "pending");
+      let issueInfo;
+      if (discussing) {
+        issueInfo = `issue #${discussing.id} discussing, ${pending.length > 0 ? `#${pending.map((i) => i.id).join("-#")} pending` : "none pending"}`;
+      } else if (pending.length > 0) {
+        issueInfo = `#${pending.map((i) => i.id).join("-#")} pending`;
+      } else {
+        issueInfo = "all issues decided";
+      }
+      lines.push(`[Plan]: "${data.topic}" \u2014 ${issueInfo}`);
+    } catch {
+    }
+  }
+  const coreRoot = (0, import_path3.join)(process.cwd(), ".nexus", "core");
+  if ((0, import_fs3.existsSync)(coreRoot)) {
+    try {
+      let totalFiles = 0;
+      for (const layer of CORE_LAYERS) {
+        const layerDir = (0, import_path3.join)(coreRoot, layer);
+        if ((0, import_fs3.existsSync)(layerDir)) {
+          totalFiles += (0, import_fs3.readdirSync)(layerDir).filter((f) => f.endsWith(".md")).length;
+        }
+      }
+      if (totalFiles > 0) {
+        lines.push(`[Core]: ${totalFiles} files across ${CORE_LAYERS.length} layers`);
+      }
+    } catch {
+    }
+  }
+  const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
+  if ((0, import_fs3.existsSync)(trackerPath)) {
+    try {
+      const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+      if (tracker.length > 0) {
+        const agentParts = tracker.map((a) => `${a.agent_type ?? "unknown"} (${a.status ?? "unknown"})`);
+        lines.push(`[Agents]: ${agentParts.join(", ")}`);
+      }
+    } catch {
+    }
+  }
+  const snapshot = `<nexus>
+${lines.join("\n")}
+</nexus>`;
+  respond({ continue: true, additionalContext: snapshot });
+}
 async function main() {
   const input = await readStdin();
   const event = JSON.parse(input);
@@ -483,7 +583,13 @@ async function main() {
       handleUserPromptSubmit(event);
       break;
     case "Stop":
-      handleStop();
+      handleStop(event);
+      break;
+    case "PreCompact":
+      pass();
+      break;
+    case "PostCompact":
+      handlePostCompact(event);
       break;
     default:
       pass();

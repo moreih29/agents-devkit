@@ -2,8 +2,8 @@
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { STATE_ROOT, ensureDir, getCurrentBranch, ensureNexusStructure } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { join, basename } from 'path';
 import { homedir } from 'os';
 
 const TASK_PIPELINE = `
@@ -93,7 +93,7 @@ function getSyncNudge(): string | null {
   return null;
 }
 
-function handleStop(): void {
+function handleStop(event: Record<string, unknown>): void {
   const summary = readTasksSummary(STATE_ROOT);
   if (!summary.exists) {
     // 동기화 넛지만 확인
@@ -115,15 +115,11 @@ function handleStop(): void {
   }
 
   // all completed → 1회만 차단 후 해제 (무한 루프 방지)
-  const stopWarnedPath = join(STATE_ROOT, 'stop-warned');
-  if (existsSync(stopWarnedPath)) {
-    // 2회차: 이미 경고함 → 종료 허용. 다음 세션에서 stale cycle로 정리됨.
-    unlinkSync(stopWarnedPath);
+  // stop_hook_active: 플랫폼이 제공하는 재진입 플래그 — true면 이미 경고 후 재시도
+  if (event.stop_hook_active) {
     pass();
     return;
   }
-  // 1회차: 경고 + 차단
-  writeFileSync(stopWarnedPath, '');
   respond({
     continue: true,
     additionalContext: `<nexus>All tasks completed. Call nx_task_close now.</nexus>`,
@@ -248,17 +244,63 @@ function getPlanReminder(): string | null {
   try {
     const data = JSON.parse(readFileSync(planFilePath, 'utf-8'));
     const issues = data.issues ?? [];
-    const discussing = issues.find((i: { status: string }) => i.status === 'discussing');
     const pending = issues.filter((i: { status: string }) => i.status === 'pending');
-    const current = discussing
-      ? `Current: #${discussing.id} "${discussing.title}"`
-      : pending.length > 0
-        ? `Next: #${pending[0].id} "${pending[0].title}"`
-        : 'All issues decided.';
+    const current = pending.length > 0
+      ? `Next: #${pending[0].id} "${pending[0].title}"`
+      : 'All issues decided.';
     return `<nexus>Plan: "${data.topic}" | ${current} | ${pending.length} pending\nPresent comparison table with pros/cons/recommendation. Record decisions with [d].</nexus>`;
   } catch {
     return null;
   }
+}
+
+// --- Core Knowledge 인덱스 빌드 ---
+
+const CORE_LAYERS = ['identity', 'codebase', 'reference', 'memory'] as const;
+
+function buildCoreIndex(): string {
+  const coreRoot = join(process.cwd(), '.nexus', 'core');
+  if (!existsSync(coreRoot)) return '';
+
+  const layerLines: string[] = [];
+
+  for (const layer of CORE_LAYERS) {
+    const layerDir = join(coreRoot, layer);
+    if (!existsSync(layerDir)) continue;
+
+    let files: string[];
+    try {
+      files = readdirSync(layerDir).filter(f => f.endsWith('.md'));
+    } catch {
+      continue;
+    }
+    if (files.length === 0) continue;
+
+    const entries: string[] = [];
+    for (const file of files) {
+      const name = basename(file, '.md');
+      const filePath = join(layerDir, file);
+      let tags = '';
+      try {
+        const content = readFileSync(filePath, 'utf-8');
+        const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
+        if (tagMatch) {
+          const tagList = tagMatch[1].split(',').map(t => t.trim()).filter(Boolean);
+          // keep only the most distinctive tags (up to 3, skip redundant ones)
+          const shortTags = tagList.slice(0, 3).join(', ');
+          tags = ` [${shortTags}]`;
+        }
+      } catch {}
+      entries.push(`${name}${tags}`);
+    }
+    layerLines.push(`${layer}: ${entries.join(', ')}`);
+  }
+
+  if (layerLines.length === 0) return '';
+
+  const header = '[Core Knowledge] (call nx_core_read for details)';
+  const result = `${header}\n${layerLines.join('\n')}`;
+  return result.length <= 2000 ? result : result.slice(0, 1997) + '...';
 }
 
 /** additionalContext에 notices를 자동 병합 */
@@ -319,18 +361,24 @@ STEP 4: Present comparison table → user decides → [d] to record. Suggest fol
   if (isAuto) {
     base += '\n<nexus>AUTO MODE: Skip user confirmation. For each issue, select the recommended option and decide automatically. Output plan document (tasks.json) directly.</nexus>';
   }
+  const coreIndex = buildCoreIndex();
+  const coreSection = coreIndex
+    ? `\n${coreIndex}\nCheck core/reference/ BEFORE web searching for known topics.`
+    : '';
   respond({
     continue: true,
-    additionalContext: withNotices(base, tasksReminder, claudeMdNotice, null),
+    additionalContext: withNotices(base + coreSection, tasksReminder, claudeMdNotice, null),
   });
 }
 
 function handleRunMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
   const planReminder = getPlanReminder();
+  const coreIndex = buildCoreIndex();
+  const coreSection = coreIndex ? `\n${coreIndex}` : '';
   const base = `<nexus>Run mode — full pipeline execution requested.
 MANDATORY: Invoke Skill tool with skill="claude-nexus:nx-run" to load the full orchestration pipeline.
 Do NOT skip any phases. Do NOT attempt direct execution. Follow nx-run SKILL.md strictly.
-For multi-task work, spawn subagents in parallel (one per task). Do NOT handle multi-task work as Lead solo.</nexus>`;
+For multi-task work, spawn subagents in parallel (one per task). Do NOT handle multi-task work as Lead solo.</nexus>${coreSection}`;
   respond({
     continue: true,
     additionalContext: withNotices(taskPipelineMessage(base), tasksReminder, claudeMdNotice, planReminder),
@@ -485,6 +533,70 @@ function handleSubagentStop(event: Record<string, unknown>): void {
   pass();
 }
 
+// --- PostCompact 이벤트 처리: 컴팩션 후 세션 상태 복원 ---
+
+function handlePostCompact(_event: Record<string, unknown>): void {
+  const lines: string[] = ['Session restored after compaction.'];
+
+  // Mode + tasks
+  const summary = readTasksSummary(STATE_ROOT);
+  if (summary.exists) {
+    lines.push(`[Mode]: run (${summary.pending} pending / ${summary.completed} completed tasks)`);
+  }
+
+  // Plan
+  const planFilePath = join(STATE_ROOT, 'plan.json');
+  if (existsSync(planFilePath)) {
+    try {
+      const data = JSON.parse(readFileSync(planFilePath, 'utf-8'));
+      const issues = data.issues ?? [];
+      const discussing = issues.find((i: { status: string }) => i.status === 'discussing');
+      const pending = issues.filter((i: { status: string }) => i.status === 'pending');
+      let issueInfo: string;
+      if (discussing) {
+        issueInfo = `issue #${discussing.id} discussing, ${pending.length > 0 ? `#${pending.map((i: { id: number }) => i.id).join('-#')} pending` : 'none pending'}`;
+      } else if (pending.length > 0) {
+        issueInfo = `#${pending.map((i: { id: number }) => i.id).join('-#')} pending`;
+      } else {
+        issueInfo = 'all issues decided';
+      }
+      lines.push(`[Plan]: "${data.topic}" — ${issueInfo}`);
+    } catch {}
+  }
+
+  // Core knowledge file count
+  const coreRoot = join(process.cwd(), '.nexus', 'core');
+  if (existsSync(coreRoot)) {
+    try {
+      let totalFiles = 0;
+      for (const layer of CORE_LAYERS) {
+        const layerDir = join(coreRoot, layer);
+        if (existsSync(layerDir)) {
+          totalFiles += readdirSync(layerDir).filter(f => f.endsWith('.md')).length;
+        }
+      }
+      if (totalFiles > 0) {
+        lines.push(`[Core]: ${totalFiles} files across ${CORE_LAYERS.length} layers`);
+      }
+    } catch {}
+  }
+
+  // Agents
+  const trackerPath = join(STATE_ROOT, 'agent-tracker.json');
+  if (existsSync(trackerPath)) {
+    try {
+      const tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')) as Array<{ agent_type?: string; status?: string }>;
+      if (tracker.length > 0) {
+        const agentParts = tracker.map(a => `${a.agent_type ?? 'unknown'} (${a.status ?? 'unknown'})`);
+        lines.push(`[Agents]: ${agentParts.join(', ')}`);
+      }
+    } catch {}
+  }
+
+  const snapshot = `<nexus>\n${lines.join('\n')}\n</nexus>`;
+  respond({ continue: true, additionalContext: snapshot });
+}
+
 // --- 메인 ---
 
 async function main() {
@@ -510,7 +622,13 @@ async function main() {
       handleUserPromptSubmit(event);
       break;
     case 'Stop':
-      handleStop();
+      handleStop(event);
+      break;
+    case 'PreCompact':
+      pass();
+      break;
+    case 'PostCompact':
+      handlePostCompact(event);
       break;
     default:
       pass();
