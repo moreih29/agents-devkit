@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.21.0 (2026-04-06)
+
+### Features
+- deterministic skill loading — BLOCKING invoke, trigger tags, pre-checks
+
 ## 0.20.0 (2026-04-06)
 
 ### Features
