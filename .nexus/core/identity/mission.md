@@ -15,7 +15,7 @@ Quality is guaranteed structurally through guardrails and pipelines. Agent behav
 
 ### 3. Intent Discovery on Demand
 
-Enters intent-discovery mode only on the [consult] tag. Investigation is performed first, and questions are posed to the user on that basis.
+Enters intent-discovery mode on the [plan] tag. Investigation is performed first, and questions are posed to the user on that basis.
 
 ### 4. User-Directed Composition
 
@@ -23,4 +23,4 @@ The user's direction determines agent composition. When the user sets a directio
 
 ### 5. Progressive Depth
 
-Discovery depth is automatically adjusted based on clarity of intent. Obvious requests are executed immediately; ambiguous requests enter deep consultation.
+Discovery depth is automatically adjusted based on clarity of intent. Obvious requests are executed immediately; ambiguous requests enter deep planning.

@@ -36,7 +36,7 @@ Collect information from all available sources:
    - Identifies which source files changed
    - Primary source for codebase/ layer updates
 2. **history.json** — read `.nexus/history.json` for recent cycles
-   - Decisions made, tasks completed, consult topics
+   - Decisions made, tasks completed, plan topics
    - Primary source for identity/, reference/, memory/ updates
 3. **Conversation context** — if available in current session
    - Supplementary source for all layers
