@@ -21,6 +21,16 @@ Facilitate structured multi-perspective analysis using subagents to decompose is
 - MUST check for existing plan.json before starting a new session
 - `[d]` without an active plan.json is BLOCKED — "[d]는 plan 세션 안에서만 유효합니다."
 - MUST use `nx_plan_discuss` to log significant analysis points during deliberation
+- MUST present a comparison table before asking for a decision — never present options as prose only. Format:
+
+```
+| | A: {title} | B: {title} |
+|---|---|---|
+| 장점 | ... | ... |
+| 단점 | ... | ... |
+| 추천 | | **(Recommended)** |
+```
+
 </constraints>
 
 <guidelines>
@@ -33,7 +43,25 @@ Facilitate structured multi-perspective analysis using subagents to decompose is
 
 ---
 
-## Procedure
+## Auto Mode (`[plan:auto]`)
+
+When triggered with `[plan:auto]`, run the full planning process **without user interaction**:
+
+1. **Research** — spawn researcher+Explore subagents (same as interactive)
+2. **Issue derivation** — Lead identifies issues from research
+3. **Auto-decide** — for each issue, Lead selects the recommended option without presenting choices to the user. Log each decision via `nx_plan_decide`.
+4. **Plan document** — generate tasks.json with all decisions, approaches, acceptance criteria, and risks
+
+Key differences from interactive mode:
+- No `AskUserQuestion` or comparison tables — Lead decides autonomously
+- No dynamic agenda proposals — Lead handles all derived issues internally
+- Output: tasks.json ready for `[run]` execution
+
+This mode is invoked internally by `[run]` when no tasks.json exists, or explicitly by the user with `[plan:auto]`.
+
+---
+
+## Procedure (Interactive Mode)
 
 ### Step 1: Intent Discovery
 
@@ -92,9 +120,10 @@ For each issue:
 
 1. **Current State Analysis** — Lead summarizes the current state and problems, drawing on research.
 2. **Subagent Analysis** — for complex issues, spawn HOW subagents (architect, strategist, etc.) in parallel via Agent tool. Each subagent independently analyzes the issue and returns findings.
-   - Simple issues: Lead synthesizes directly from research without spawning HOW subagents.
-   - Complex issues: spawn 1–3 HOW subagents, collect their independent analyses, then synthesize.
+   - **Simple issues** (clear answer, no trade-offs): Lead synthesizes directly from research without spawning HOW subagents.
+   - **Complex issues** (3+ viable options OR technical trade-offs exist): spawn 1–3 HOW subagents, collect their independent analyses, then synthesize.
    - HOW subagents do NOT communicate with each other — each reports independently to Lead.
+   - When in doubt, spawn — the cost of an unnecessary subagent (~$0.05) is lower than the cost of a shallow analysis.
 3. **Record analysis** — call `nx_plan_discuss` for significant findings:
    - Required: when issue transitions from `pending` → `discussing`
    - Required: when a key argument or counter-argument surfaces
@@ -127,6 +156,8 @@ When the user decides, record with the `[d]` tag.
 - Decisions are NOT written to decisions.json — plan.json is the single source of truth.
 - `[d]` without plan.json is blocked.
 
+**Immediately after each decision**, Lead checks: "Does this decision create follow-up questions or new issues?" If yes, propose adding via `nx_plan_update(action='add')` before moving to the next issue.
+
 ### Step 6: Dynamic Agenda + Wrap-up
 
 After each decision, Lead automatically checks for derived issues.
@@ -137,7 +168,27 @@ After each decision, Lead automatically checks for derived issues.
   - Gap found → register additional issues with `nx_plan_update(action='add', ...)`, return to Step 4.
   - No gap → signal planning complete.
 - Wrap-up: confirm all analysis threads have reported conclusions to Lead.
-- Offer transition: "모든 안건이 결정되었습니다. 실행하시겠습니까? `[run]`으로 전환하면 결정사항을 바탕으로 계획서(tasks.json)를 구성합니다."
+- Offer transition: "모든 안건이 결정되었습니다. 실행하시겠습니까? `[run]`으로 전환하거나, 계획서를 먼저 생성할 수 있습니다."
+
+### Step 7: Plan Document Generation
+
+After all issues are decided, generate the plan document (tasks.json):
+
+1. **Collect decisions** — gather all `decided` issues from plan.json
+2. **Derive tasks** — decompose decisions into concrete, actionable tasks
+3. **Enrich each task** with:
+   - `approach` — implementation strategy derived from the decision rationale
+   - `acceptance` — definition of done, verifiable criteria
+   - `risk` — known risks or caveats from the analysis
+   - `owner` — appropriate agent role (engineer, researcher, writer, etc.)
+   - `deps` — task dependencies based on execution order
+4. **Write tasks.json** via `nx_task_add`:
+   - Set `goal` from the plan topic
+   - Set `decisions` from plan.json decided summaries
+   - Call `nx_task_add(plan_issue=N, approach, acceptance, risk, owner)` for each task
+5. **Present plan document** — show the user the generated tasks.json summary for review
+
+This step is optional — the user may prefer to generate tasks manually during `[run]`, or skip to `[run]` which will auto-generate via `[plan:auto]` if needed.
 
 ---
 

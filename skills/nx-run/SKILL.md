@@ -30,55 +30,28 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes s
 - **[run] only (no direction)** → confirm direction with user before proceeding.
 - User decides scope and composition. Lead fills in what is not specified.
 - **Branch Guard**: if on main/master, create a branch appropriate to the task type before proceeding (prefix: `feat/`, `fix/`, `chore/`, `research/`, etc. — Lead's judgment). Auto-create without user confirmation.
-- Check for `plan.json`: if it exists, read it and proceed to Step 3. If absent, proceed to Step 2 to write the plan.
-- If plan.json exists, check prior decisions with `nx_plan_status`.
+- Check for `tasks.json`:
+  - **Exists** → read it and proceed to Step 2.
+  - **Absent** → inform the user: "계획서가 없습니다. [plan:auto]로 자동 계획을 생성하거나, [plan]으로 대화형 플래닝을 시작하세요." If the user chooses `[plan:auto]`, invoke `nx-plan` skill in auto mode via Skill tool. After plan generation, proceed to Step 2.
+- If tasks.json exists, check prior decisions with `nx_plan_status`.
 
-### Step 2: Design (Lead + How subagent)
+### Step 2: Execute (Do subagents)
 
-**Default: skip if plan.json already exists.** Write plan.json first when it is absent.
-
-Plan writing:
-- Lead drafts the plan inline or spawns a How subagent to assist when design complexity warrants it.
-- Write `plan.json` with this schema:
-
-```json
-{
-  "goal": "<what this cycle accomplishes>",
-  "decisions": ["<key decision 1>", "<key decision 2>"],
-  "tasks": [
-    {
-      "id": "t1",
-      "title": "<short title>",
-      "context": "<relevant state, files, prior work>",
-      "approach": "<how to do it>",
-      "acceptance": ["<criterion 1>", "<criterion 2>"],
-      "risk": "<known risk or empty string>",
-      "status": "pending",
-      "deps": [],
-      "owner": "engineer"
-    }
-  ]
-}
-```
-
-How subagent is spawned when:
-- Engineer escalates scope (reports expanded scope)
-- User explicitly requests design review
-- Lead judges the task requires architectural decisions (multiple modules, new patterns)
-
-When triggered:
-- Determine How subagent based on goal (code → Architect, content → Strategist/Postdoc, mixed → both).
-- Spawn How subagent with `nx_briefing(role, hint?)` for briefing.
-- Lead ↔ How subagent discussion → reach consensus on approach, then finalize plan.json.
-
-### Step 3: Execute (Do subagents)
-
-- Read tasks from plan.json. Register tasks with `nx_task_add`.
+- Read tasks from tasks.json. Register tasks with `nx_task_add`.
 - For each task, spawn a subagent matching the `owner` field, passing the task's context, approach, and acceptance as the prompt.
-- For independent tasks (no deps) with non-overlapping target files, spawn subagents in parallel. Overlapping files → serialize.
-- **SubagentStop gate**: when a subagent stops, Lead checks plan.json. If the subagent's task is not in `done` status, Lead emits a warning and either re-spawns or handles the task before proceeding.
+- **Delegation criteria** — decide per task:
 
-### Step 4: Verify (Lead + Check subagent)
+| 상황 | 처리 방식 |
+|------|----------|
+| 단일 파일, 작은 변경 | Lead 직접 |
+| 단일 파일, 큰 변경 | 서브에이전트 위임 |
+| 여러 파일, 독립적 | 서브에이전트 병렬 스폰 |
+| 같은 파일, 순차 의존 | Lead 순차 처리 또는 deps로 순서 강제 |
+
+- **File conflict prevention**: 같은 파일을 수정하는 태스크들을 동시에 서브에이전트로 위임하지 마라. Overlapping target files → serialize execution.
+- **SubagentStop gate**: when a subagent stops, Lead checks tasks.json. If the subagent's task is not in `done` status, Lead emits a warning and either re-spawns or handles the task before proceeding.
+
+### Step 3: Verify (Lead + Check subagent)
 
 - Lead: confirm build + E2E pass/fail only.
 - QA/Reviewer: verify quality, intent alignment, edge cases, security (spawn Check subagent when conditions are met).
@@ -87,9 +60,9 @@ When triggered:
   - Existing test files modified
   - External API/DB access code changed
   - Failure history for this area exists in memory
-- If issues found: code problems → Step 3 rework (reopen task); design problems → Step 2 (even if Step 2 was originally skipped — design issues require Design phase).
+- If issues found: code problems → Step 2 rework (reopen task); design problems → re-run nx-plan before re-executing.
 
-### Step 5: Complete
+### Step 4: Complete
 
 - Invoke /claude-nexus:nx-sync to synchronize core knowledge with changes made in this cycle.
 - Call `nx_task_close` → archive to history.json. Check `memoryHint` in the return value.
@@ -101,11 +74,10 @@ When triggered:
 
 | Phase | Owner | Content |
 |-------|-------|---------|
-| 1. Intake | Lead | Clarify intent, confirm direction, Branch Guard, check plan.json |
-| 2. Design | Lead + How subagent | Write plan.json, reach consensus on approach |
-| 3. Execute | Do subagents | Spawn per-task by owner, parallel where safe |
-| 4. Verify | Lead + Check subagent | Build check, quality verification |
-| 5. Complete | Lead | nx-sync, nx_task_close, report |
+| 1. Intake | Lead | Clarify intent, confirm direction, Branch Guard, check tasks.json / invoke nx-plan if absent |
+| 2. Execute | Do subagents | Spawn per-task by owner, delegation criteria, parallel where safe |
+| 3. Verify | Lead + Check subagent | Build check, quality verification |
+| 4. Complete | Lead | nx-sync, nx_task_close, report |
 
 ---
 
@@ -182,12 +154,12 @@ ACCEPTANCE:
 
 1. **Lead = interpret user direction + coordinate + own tasks**
 2. **User decides scope and composition**
-3. **plan.json is the single source of state** — write it before executing, update it as tasks complete
-4. **Do subagents = execute per owner** — Lead spawns one subagent per task based on the `owner` field. Engineers focus on code changes. Doc updates are done in bulk by Writer in Step 5. Researcher records to reference/ immediately.
+3. **tasks.json is the single source of state** — produced by nx-plan, read at Step 1, updated as tasks complete
+4. **Do subagents = execute per owner** — Lead spawns one subagent per task based on the `owner` field. Engineers focus on code changes. Doc updates are done in bulk by Writer in Step 4. Researcher records to reference/ immediately.
 5. **Check subagents = verify** — Lead's discretion + 4 conditions
 6. **SubagentStop gate** — when a subagent stops, Lead validates task completion before moving forward
 7. **Gate Stop nonstop** — cannot terminate while pending tasks exist
-8. **Design = plan.json consensus** (Lead + How subagent discussion → finalize plan)
+8. **Plan first** — if tasks.json is absent, nx-plan must run before Step 2
 9. **No file modification via Bash** — sed, echo >, cat <<EOF, tee, and similar Bash-based file edits are prohibited. Always use Edit/Write tools (Gate enforced)
 10. **Lean start** — default composition is Engineer only. How subagent joins on escalation or user request. Check subagent joins on trigger conditions. Do not pre-spawn subagents "just in case."
 
@@ -212,18 +184,18 @@ When team custom rules are needed, create them in `.nexus/rules/` with `nx_rules
 ## Subagent Spawn Examples
 
 ```
-// Step 2: Spawn How subagent when design is needed
-Agent({ subagent_type: "claude-nexus:architect", prompt: nx_briefing("architect", "dev") })
+// Step 1: Invoke nx-plan in auto mode when tasks.json is absent
+Skill({ skill: "claude-nexus:nx-plan", args: "auto" })
 
-// Step 3: Spawn Do subagents per task owner (parallel for independent tasks)
+// Step 2: Spawn Do subagents per task owner (parallel for independent tasks)
 Agent({ subagent_type: "claude-nexus:engineer", prompt: "TASK: ...\nCONTEXT: ...\nACCEPTANCE: ..." })
 Agent({ subagent_type: "claude-nexus:researcher", prompt: "TASK: ...\nCONTEXT: ...\nACCEPTANCE: ..." })
 
-// Step 4: Spawn Check subagent when conditions are met
+// Step 3: Spawn Check subagent when conditions are met
 Agent({ subagent_type: "claude-nexus:qa", prompt: nx_briefing("qa") })
-// If issues found: code problems → Step 3 rework, design problems → Step 2
+// If issues found: code problems → Step 2 rework, design problems → re-run nx-plan
 
-// Step 5: Spawn Writer only for needed documentation layers
+// Step 4: Spawn Writer only for needed documentation layers
 Agent({ subagent_type: "claude-nexus:writer", prompt: nx_briefing("writer") })
 ```
 
@@ -231,6 +203,5 @@ Note: `TaskCreate` is the Claude Code task creation tool. Subagents are spawned 
 
 ## State Management
 
-`.nexus/state/tasks.json` — managed via `nx_task_add`/`nx_task_update`. Gate Stop enforcement.
-`plan.json` — written at Step 2, read at Step 1 to skip design when already present.
+`.nexus/state/tasks.json` — produced by nx-plan, managed via `nx_task_add`/`nx_task_update`. Gate Stop enforcement.
 On cycle end, archive plan+tasks to `.nexus/history.json` via `nx_task_close`.

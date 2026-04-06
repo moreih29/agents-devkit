@@ -36,7 +36,7 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
 | nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish identity, generate core knowledge |
-| nx-meet | [meet] | Team discussion — convene agents, deliberate, and decide before executing |
+| nx-plan | [plan] | Structured planning — subagent-based analysis, deliberate decisions, produce execution plan |
 | nx-run | nx-run | Execution — user-directed agent composition |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
 | nx-sync | /claude-nexus:nx-sync | Synchronize core knowledge with current project state |
@@ -45,8 +45,8 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 
 | Tag | Purpose |
 |-----|---------|
-| [meet] | 미팅 — 팀 소집, 논의, 결정 후 실행 |
-| [d] | 결정 기록 (meet 세션 내 nx_meet_decide 호출) |
-| [run] | 실행 — nx-run 풀 파이프라인 강제 |
+| [plan] | 계획 — 리서치, 다관점 분석, 결정, 계획서 생성 |
+| [d] | 결정 기록 (plan 세션 내 nx_plan_decide 호출) |
+| [run] | 실행 — 계획서 기반 서브에이전트 병렬 실행 |
 | [rule] | 규칙 저장 — [rule:태그] 형식 지원 |
 <!-- NEXUS:END -->

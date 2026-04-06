@@ -44,22 +44,25 @@ Collect information from all available sources:
 ### Step 2: Determine Scope
 
 - If user specified layers → sync only those
-- If no layers specified → scan all 4:
-  - **identity/**: Check if mission, design principles, or roadmap changed (from decisions/history)
-  - **codebase/**: Cross-reference git diff with existing docs (architecture, orchestration, tools, development)
-  - **reference/**: Check if new research was conducted (from history tasks with research topics)
-  - **memory/**: Check memoryHint from recent cycles (taskCount≥3, hadLoopDetection, decisionCount≥2)
+- If no layers specified → analyze git diff to determine which core/ layers are affected:
+  - **codebase/**: `src/` changes → update architecture, tools, development docs
+  - **reference/**: External research added → update reference files
+  - **identity/**: Rarely changes — skip unless user explicitly requests
+  - **memory/**: Auto-updated on task_close — skip unless memoryHint indicates lessons
+
+Only spawn Writer for layers that have detectable changes. If no changes detected for a layer, report "already current" and skip.
 
 ### Step 3: Execute Updates
 
-For each layer that needs updates, spawn Writer agent(s) with `nx_briefing(role: "writer")`:
+For each **affected layer only**, spawn Writer agent(s) with `nx_briefing(role: "writer")`:
 
 ```
 Agent({ subagent_type: "claude-nexus:writer", name: "writer-sync-{layer}",
   prompt: "Update .nexus/core/{layer}/ based on the following changes. Read current files with nx_core_read, then update with nx_core_write. Changes: {change_manifest}" })
 ```
 
-- Independent layers can be updated in parallel
+- Do not spawn Writer for layers with no detectable changes
+- Affected layers can be updated in parallel
 - Writer reads current content first (nx_core_read), then applies targeted updates (nx_core_write)
 
 ### Step 4: Report

@@ -91,6 +91,8 @@ Collected items:
 
 Output: scan summary (language, framework, structure overview)
 
+For large projects (10+ top-level directories or 100+ files), consider spawning an Explore subagent for parallel scanning to reduce Lead context usage.
+
 ### Step 2: Identity Establishment (Interactive)
 
 Confirm the core direction of the project together with the user.
@@ -126,6 +128,8 @@ Generation targets (adjusted per project):
 - Development workflow (build, test, deploy)
 - Conventions (naming, code style)
 - Implementation specs from design decisions (pipeline details, agent model configuration, file structure, tool restrictions — anything that was too specific for identity/design.md)
+
+For large projects, spawn Writer subagents per topic (e.g., one for architecture, one for tools) to generate codebase knowledge in parallel. Lead coordinates and reviews outputs.
 
 Create files via `nx_core_write(layer: "codebase")`.
 

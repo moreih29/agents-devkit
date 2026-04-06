@@ -188,6 +188,7 @@ interface KeywordMatch {
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   plan: { primitive: 'plan', skill: 'claude-nexus:nx-plan' },
+  'plan:auto': { primitive: 'plan', skill: 'claude-nexus:nx-plan' },
   run: { primitive: 'run', skill: 'claude-nexus:nx-run' },
 };
 
@@ -214,8 +215,8 @@ function isPrimitiveMention(prompt: string): boolean {
 }
 
 function detectKeywords(prompt: string): KeywordMatch | null {
-  // 1차: 명시적 태그 [plan] — 항상 확정
-  const tagMatch = prompt.match(/\[(plan|run)\]/i);
+  // 1차: 명시적 태그 [plan] / [plan:auto] — 항상 확정
+  const tagMatch = prompt.match(/\[(plan(?::auto)?|run)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -296,7 +297,8 @@ Task pipeline not required — save directly.</nexus>`;
   });
 }
 
-function handlePlanMode({ tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+function handlePlanMode({ prompt, tasksReminder, claudeMdNotice }: Parameters<PrimitiveHandler>[0]): void {
+  const isAuto = /\[plan:auto\]/i.test(prompt);
   const planFile = join(STATE_ROOT, 'plan.json');
   const hasExistingSession = existsSync(planFile);
   let base: string;
@@ -313,6 +315,9 @@ STEP 2: Call nx_plan_start with findings to organize issues.
 Do not call nx_plan_start before research is complete.
 STEP 3: Lead synthesizes multi-perspective analysis. Spawn HOW subagents for independent analysis if complex.
 STEP 4: Present comparison table → user decides → [d] to record. Suggest follow-up issues if decisions create new questions.</nexus>`;
+  }
+  if (isAuto) {
+    base += '\n<nexus>AUTO MODE: Skip user confirmation. For each issue, select the recommended option and decide automatically. Output plan document (tasks.json) directly.</nexus>';
   }
   respond({
     continue: true,

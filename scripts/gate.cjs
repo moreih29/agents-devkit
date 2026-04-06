@@ -215,6 +215,7 @@ function handlePreToolUse(event) {
 }
 var EXPLICIT_TAGS = {
   plan: { primitive: "plan", skill: "claude-nexus:nx-plan" },
+  "plan:auto": { primitive: "plan", skill: "claude-nexus:nx-plan" },
   run: { primitive: "run", skill: "claude-nexus:nx-run" }
 };
 var NATURAL_PATTERNS = [
@@ -241,7 +242,7 @@ function isPrimitiveMention(prompt) {
   return false;
 }
 function detectKeywords(prompt) {
-  const tagMatch = prompt.match(/\[(plan|run)\]/i);
+  const tagMatch = prompt.match(/\[(plan(?::auto)?|run)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
@@ -293,7 +294,8 @@ Task pipeline not required \u2014 save directly.</nexus>`;
     additionalContext: withNotices(base, tasksReminder, claudeMdNotice)
   });
 }
-function handlePlanMode({ tasksReminder, claudeMdNotice }) {
+function handlePlanMode({ prompt, tasksReminder, claudeMdNotice }) {
+  const isAuto = /\[plan:auto\]/i.test(prompt);
   const planFile = (0, import_path3.join)(STATE_ROOT, "plan.json");
   const hasExistingSession = (0, import_fs3.existsSync)(planFile);
   let base;
@@ -310,6 +312,9 @@ STEP 2: Call nx_plan_start with findings to organize issues.
 Do not call nx_plan_start before research is complete.
 STEP 3: Lead synthesizes multi-perspective analysis. Spawn HOW subagents for independent analysis if complex.
 STEP 4: Present comparison table \u2192 user decides \u2192 [d] to record. Suggest follow-up issues if decisions create new questions.</nexus>`;
+  }
+  if (isAuto) {
+    base += "\n<nexus>AUTO MODE: Skip user confirmation. For each issue, select the recommended option and decide automatically. Output plan document (tasks.json) directly.</nexus>";
   }
   respond({
     continue: true,
