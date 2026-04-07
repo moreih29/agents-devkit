@@ -46,7 +46,7 @@ Invert Lead's default behavior and introduce automatic system briefing and 2-sta
 
 **Goals**:
 - [x] Lead+Director always-on team — Phase 2 Lead intuitive judgment → Director always-on team structure (Lead direct execution only when 3 conditions met)
-- [x] nx_briefing automatic briefing — role-based auto-briefing collection (core/ 4-layer matrix, optional hint filter)
+- [x] SubagentStart lazy-read index injection — role-based MATRIX-filtered core+rules index auto-injected on spawn, agents read on demand
 - [x] 2-stage verification — Director intent verification + QA output verification (Director discretion + 4 conditions)
 
 ## Phase 4 — Harness Hardening

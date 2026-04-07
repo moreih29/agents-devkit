@@ -139,7 +139,6 @@ Gate 단일 모듈로 동작합니다.
 ```
 .nexus/state/
 ├── tasks.json
-├── meet.json
 ├── edit-tracker.json
 ├── reopen-tracker.json
 ├── agent-tracker.json

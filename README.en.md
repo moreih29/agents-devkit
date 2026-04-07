@@ -153,17 +153,19 @@ Project knowledge and rules are stored under `.nexus/` and tracked by git.
 <details>
 <summary>Runtime State</summary>
 
-Runtime state is stored under `.nexus/` and is excluded from git.
+Runtime state is stored under `.nexus/state/` and is excluded from git. `history.json` is at `.nexus/` root and git-tracked.
 
 ```
 .nexus/
-├── branches/               ← Per-branch isolation
-│   └── {branch}/
-│       ├── tasks.json      ← Task list
-│       ├── meet.json       ← Meeting issue tracker
-│       ├── history.json    ← Cycle archive (created by nx_task_close)
-│       └── artifacts/      ← Team artifacts
-└── sync-state.json         ← Last sync commit
+├── history.json            ← Cycle archive (git-tracked, created by nx_task_close)
+└── state/                  ← Runtime state (git-ignored)
+    ├── tasks.json          ← Task list
+    ├── plan.json           ← Planning session
+    ├── decisions.json      ← Plan decisions
+    ├── edit-tracker.json
+    ├── reopen-tracker.json
+    ├── agent-tracker.json
+    └── artifacts/          ← Artifacts
 ```
 
 </details>
