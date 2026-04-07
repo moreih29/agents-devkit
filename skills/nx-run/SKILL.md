@@ -210,11 +210,13 @@ Agent({ subagent_type: "claude-nexus:engineer", prompt: "TASK: ...\nCONTEXT: ...
 Agent({ subagent_type: "claude-nexus:researcher", prompt: "TASK: ...\nCONTEXT: ...\nACCEPTANCE: ..." })
 
 // Step 3: Spawn Check subagent when conditions are met
-Agent({ subagent_type: "claude-nexus:tester", prompt: nx_briefing("tester") })
+// SubagentStart hook auto-injects core knowledge index for the tester role
+Agent({ subagent_type: "claude-nexus:tester", prompt: "TASK: Verify acceptance criteria\nCONTEXT: ...\nACCEPTANCE: ..." })
 // If issues found: code problems → Step 2 rework, design problems → re-run nx-plan
 
 // Step 4: Spawn Writer only for needed documentation layers
-Agent({ subagent_type: "claude-nexus:writer", prompt: nx_briefing("writer") })
+// SubagentStart hook auto-injects core knowledge index for the writer role
+Agent({ subagent_type: "claude-nexus:writer", prompt: "TASK: Update .nexus/core/{layer}/ documentation\nCONTEXT: ...\nACCEPTANCE: ..." })
 ```
 
 Note: `TaskCreate` is the Claude Code task creation tool. Subagents are spawned with `Agent(...)` — no team required.

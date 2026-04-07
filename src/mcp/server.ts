@@ -9,7 +9,6 @@ import { registerAstTools } from './tools/ast.js';
 import { registerTaskTools } from './tools/task.js';
 import { registerArtifactTools } from './tools/artifact.js';
 import { registerPlanTools } from './tools/plan.js';
-import { registerBriefingTool } from './tools/briefing.js';
 import { rulesPath, NEXUS_ROOT } from '../shared/paths.js';
 import { join } from 'path';
 
@@ -35,7 +34,6 @@ registerAstTools(server);
 registerTaskTools(server);
 registerArtifactTools(server);
 registerPlanTools(server);
-registerBriefingTool(server);
 
 async function main() {
   const transport = new StdioServerTransport();

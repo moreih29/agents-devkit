@@ -12,7 +12,6 @@ List of tools provided by the MCP server (`bridge/mcp-server.cjs`). Source: `src
 | `nx_core_write` | core-store.ts | `.nexus/core/{layer}/{topic}.md` | Write core knowledge (layer enum: identity/codebase/reference/memory, tags option) |
 | `nx_rules_read` | markdown-store.ts | `.nexus/rules/{name}.md` | Read rules (specify name or search by tag) |
 | `nx_rules_write` | markdown-store.ts | `.nexus/rules/{name}.md` | Write rules (tags option, HTML comment frontmatter) |
-| `nx_briefing` | briefing.ts | `.nexus/core/{layer}/` + `plan.json` + `rules/` | Assemble role-based briefing. role (9 values: architect/postdoc/designer/strategist/engineer/researcher/writer/tester/reviewer) + hint (optional). Matrix-based layer collection. When hint is provided, filters by tag/filename. Auto-includes plan.json decisions + rules/. Returns a single markdown string. |
 | `nx_context` | context.ts | `.nexus/state/tasks.json`, `plan.json` reference | Query current branch, team mode, task summary, and plan decisions |
 | `nx_task_list` | task.ts | `.nexus/state/tasks.json` | Task list + summary + ready tasks |
 | `nx_task_add` | task.ts | `.nexus/state/tasks.json` | Add a task (title, context, deps, plan_issue, goal, owner parameters). `plan_issue` traces task back to plan session issue. |

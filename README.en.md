@@ -85,11 +85,10 @@ Typical flow: use `[plan]` to discuss and align → decide → use `[run]` to ex
 
 Claude-callable tools exposed by the Nexus MCP server.
 
-### Core (15 tools)
+### Core (14 tools)
 
 | Tool | Purpose |
 |------|---------|
-| `nx_briefing` | Assemble role-specific briefing (core knowledge + rules) |
 | `nx_core_read/write` | Project knowledge management (git-tracked) |
 | `nx_rules_read/write` | Team custom rules management (git-tracked) |
 | `nx_context` | Current session state lookup (branch, tasks, plan) |

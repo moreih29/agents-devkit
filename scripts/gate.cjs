@@ -77,6 +77,30 @@ function readTasksSummary(branchRoot) {
   }
 }
 
+// src/shared/matrix.ts
+var MATRIX = {
+  architect: { identity: "all", codebase: "all", reference: "all", memory: "all" },
+  postdoc: { identity: "all", codebase: "all", reference: "all", memory: "all" },
+  designer: { identity: "all", codebase: "all", reference: "all", memory: "all" },
+  strategist: { identity: "all", codebase: "all", reference: "all", memory: "all" },
+  engineer: { identity: null, codebase: "all", reference: "all", memory: "all" },
+  researcher: { identity: null, codebase: null, reference: "all", memory: "all" },
+  writer: { identity: null, codebase: "all", reference: "all", memory: "all" },
+  tester: { identity: null, codebase: "all", reference: "all", memory: "all" },
+  reviewer: { identity: null, codebase: null, reference: "all", memory: "all" }
+};
+function extractRole(agentType) {
+  const prefix = "claude-nexus:";
+  if (!agentType.startsWith(prefix)) return null;
+  const role = agentType.slice(prefix.length);
+  return role in MATRIX ? role : null;
+}
+function getAllowedLayers(role) {
+  const row = MATRIX[role];
+  if (!row) return [];
+  return Object.entries(row).filter(([, value]) => value !== null).map(([layer]) => layer);
+}
+
 // src/hooks/gate.ts
 var import_fs3 = require("fs");
 var import_path3 = require("path");
@@ -275,41 +299,72 @@ Present comparison table with pros/cons/recommendation. Record decisions with [d
   }
 }
 var CORE_LAYERS = ["identity", "codebase", "reference", "memory"];
-function buildCoreIndex() {
+function buildCoreIndex(allowedLayers) {
   const coreRoot = (0, import_path3.join)(process.cwd(), ".nexus", "core");
-  if (!(0, import_fs3.existsSync)(coreRoot)) return "";
+  const rulesRoot = (0, import_path3.join)(process.cwd(), ".nexus", "rules");
+  const layers = allowedLayers ?? [...CORE_LAYERS];
   const layerLines = [];
-  for (const layer of CORE_LAYERS) {
-    const layerDir = (0, import_path3.join)(coreRoot, layer);
-    if (!(0, import_fs3.existsSync)(layerDir)) continue;
-    let files;
-    try {
-      files = (0, import_fs3.readdirSync)(layerDir).filter((f) => f.endsWith(".md"));
-    } catch {
-      continue;
-    }
-    if (files.length === 0) continue;
-    const entries = [];
-    for (const file of files) {
-      const name = (0, import_path3.basename)(file, ".md");
-      const filePath = (0, import_path3.join)(layerDir, file);
-      let tags = "";
+  if ((0, import_fs3.existsSync)(coreRoot)) {
+    for (const layer of layers) {
+      const layerDir = (0, import_path3.join)(coreRoot, layer);
+      if (!(0, import_fs3.existsSync)(layerDir)) continue;
+      let files;
       try {
-        const content = (0, import_fs3.readFileSync)(filePath, "utf-8");
-        const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
-        if (tagMatch) {
-          const tagList = tagMatch[1].split(",").map((t) => t.trim()).filter(Boolean);
-          const shortTags = tagList.slice(0, 3).join(", ");
-          tags = ` [${shortTags}]`;
-        }
+        files = (0, import_fs3.readdirSync)(layerDir).filter((f) => f.endsWith(".md"));
       } catch {
+        continue;
       }
-      entries.push(`${name}${tags}`);
+      if (files.length === 0) continue;
+      const entries = [];
+      for (const file of files) {
+        const name = (0, import_path3.basename)(file, ".md");
+        const filePath = (0, import_path3.join)(layerDir, file);
+        let tags = "";
+        try {
+          const content = (0, import_fs3.readFileSync)(filePath, "utf-8");
+          const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
+          if (tagMatch) {
+            const tagList = tagMatch[1].split(",").map((t) => t.trim()).filter(Boolean);
+            const shortTags = tagList.slice(0, 3).join(", ");
+            tags = ` [${shortTags}]`;
+          }
+        } catch {
+        }
+        entries.push(`${name}${tags}`);
+      }
+      layerLines.push(`${layer}: ${entries.join(", ")}`);
     }
-    layerLines.push(`${layer}: ${entries.join(", ")}`);
+  }
+  if ((0, import_fs3.existsSync)(rulesRoot)) {
+    let rulesFiles;
+    try {
+      rulesFiles = (0, import_fs3.readdirSync)(rulesRoot).filter((f) => f.endsWith(".md"));
+    } catch {
+      rulesFiles = [];
+    }
+    if (rulesFiles.length > 0) {
+      const entries = [];
+      for (const file of rulesFiles) {
+        const name = (0, import_path3.basename)(file, ".md");
+        const filePath = (0, import_path3.join)(rulesRoot, file);
+        let tags = "";
+        try {
+          const content = (0, import_fs3.readFileSync)(filePath, "utf-8");
+          const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
+          if (tagMatch) {
+            const tagList = tagMatch[1].split(",").map((t) => t.trim()).filter(Boolean);
+            const shortTags = tagList.slice(0, 3).join(", ");
+            tags = ` [${shortTags}]`;
+          }
+        } catch {
+        }
+        entries.push(`${name}${tags}`);
+      }
+      layerLines.push(`rules: ${entries.join(", ")}`);
+    }
   }
   if (layerLines.length === 0) return "";
-  const header = "[Core Knowledge] (call nx_core_read for details)";
+  const header = "[Core Knowledge] (call nx_core_read for details; call nx_rules_read for rules)";
   const result = `${header}
 ${layerLines.join("\n")}`;
   return result.length <= 2e3 ? result : result.slice(0, 1997) + "...";
@@ -323,7 +378,7 @@ function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }) {
 ${tagInfo}
 1. Extract and clean up rule content from the user message.
 2. Save to .nexus/rules/{name}.md via nx_rules_write(name, content).
-Rules are git-tracked and auto-delivered to agents via nx_briefing hint tag filtering.
+Rules are git-tracked and auto-delivered to agents via SubagentStart hook index injection.
 Task pipeline not required \u2014 save directly.</nexus>`;
   respond({
     continue: true,
@@ -467,6 +522,15 @@ function handleSubagentStart(event) {
   tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
   ensureDir(STATE_ROOT);
   (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
+  const role = extractRole(agentType);
+  if (role !== null) {
+    const allowedLayers = getAllowedLayers(role);
+    const index = buildCoreIndex(allowedLayers);
+    if (index !== "") {
+      respond({ continue: true, additionalContext: index });
+      return;
+    }
+  }
   pass();
 }
 function handleSubagentStop(event) {

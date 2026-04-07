@@ -2,6 +2,7 @@
 import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { STATE_ROOT, ensureDir, getCurrentBranch, ensureNexusStructure } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
+import { extractRole, getAllowedLayers } from '../shared/matrix.js';
 import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join, basename } from 'path';
 import { homedir } from 'os';
@@ -258,47 +259,79 @@ function getPlanReminder(): string | null {
 
 const CORE_LAYERS = ['identity', 'codebase', 'reference', 'memory'] as const;
 
-function buildCoreIndex(): string {
+function buildCoreIndex(allowedLayers?: string[]): string {
   const coreRoot = join(process.cwd(), '.nexus', 'core');
-  if (!existsSync(coreRoot)) return '';
+  const rulesRoot = join(process.cwd(), '.nexus', 'rules');
+
+  const layers = allowedLayers ?? [...CORE_LAYERS];
 
   const layerLines: string[] = [];
 
-  for (const layer of CORE_LAYERS) {
-    const layerDir = join(coreRoot, layer);
-    if (!existsSync(layerDir)) continue;
+  if (existsSync(coreRoot)) {
+    for (const layer of layers) {
+      const layerDir = join(coreRoot, layer);
+      if (!existsSync(layerDir)) continue;
 
-    let files: string[];
-    try {
-      files = readdirSync(layerDir).filter(f => f.endsWith('.md'));
-    } catch {
-      continue;
-    }
-    if (files.length === 0) continue;
-
-    const entries: string[] = [];
-    for (const file of files) {
-      const name = basename(file, '.md');
-      const filePath = join(layerDir, file);
-      let tags = '';
+      let files: string[];
       try {
-        const content = readFileSync(filePath, 'utf-8');
-        const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
-        if (tagMatch) {
-          const tagList = tagMatch[1].split(',').map(t => t.trim()).filter(Boolean);
-          // keep only the most distinctive tags (up to 3, skip redundant ones)
-          const shortTags = tagList.slice(0, 3).join(', ');
-          tags = ` [${shortTags}]`;
-        }
-      } catch {}
-      entries.push(`${name}${tags}`);
+        files = readdirSync(layerDir).filter(f => f.endsWith('.md'));
+      } catch {
+        continue;
+      }
+      if (files.length === 0) continue;
+
+      const entries: string[] = [];
+      for (const file of files) {
+        const name = basename(file, '.md');
+        const filePath = join(layerDir, file);
+        let tags = '';
+        try {
+          const content = readFileSync(filePath, 'utf-8');
+          const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
+          if (tagMatch) {
+            const tagList = tagMatch[1].split(',').map(t => t.trim()).filter(Boolean);
+            // keep only the most distinctive tags (up to 3, skip redundant ones)
+            const shortTags = tagList.slice(0, 3).join(', ');
+            tags = ` [${shortTags}]`;
+          }
+        } catch {}
+        entries.push(`${name}${tags}`);
+      }
+      layerLines.push(`${layer}: ${entries.join(', ')}`);
     }
-    layerLines.push(`${layer}: ${entries.join(', ')}`);
+  }
+
+  if (existsSync(rulesRoot)) {
+    let rulesFiles: string[];
+    try {
+      rulesFiles = readdirSync(rulesRoot).filter(f => f.endsWith('.md'));
+    } catch {
+      rulesFiles = [];
+    }
+    if (rulesFiles.length > 0) {
+      const entries: string[] = [];
+      for (const file of rulesFiles) {
+        const name = basename(file, '.md');
+        const filePath = join(rulesRoot, file);
+        let tags = '';
+        try {
+          const content = readFileSync(filePath, 'utf-8');
+          const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
+          if (tagMatch) {
+            const tagList = tagMatch[1].split(',').map(t => t.trim()).filter(Boolean);
+            const shortTags = tagList.slice(0, 3).join(', ');
+            tags = ` [${shortTags}]`;
+          }
+        } catch {}
+        entries.push(`${name}${tags}`);
+      }
+      layerLines.push(`rules: ${entries.join(', ')}`);
+    }
   }
 
   if (layerLines.length === 0) return '';
 
-  const header = '[Core Knowledge] (call nx_core_read for details)';
+  const header = '[Core Knowledge] (call nx_core_read for details; call nx_rules_read for rules)';
   const result = `${header}\n${layerLines.join('\n')}`;
   return result.length <= 2000 ? result : result.slice(0, 1997) + '...';
 }
@@ -330,7 +363,7 @@ function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }: {
 ${tagInfo}
 1. Extract and clean up rule content from the user message.
 2. Save to .nexus/rules/{name}.md via nx_rules_write(name, content).
-Rules are git-tracked and auto-delivered to agents via nx_briefing hint tag filtering.
+Rules are git-tracked and auto-delivered to agents via SubagentStart hook index injection.
 Task pipeline not required — save directly.</nexus>`;
 
   respond({
@@ -496,6 +529,16 @@ function handleSubagentStart(event: Record<string, unknown>): void {
 
   ensureDir(STATE_ROOT);
   writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
+
+  const role = extractRole(agentType);
+  if (role !== null) {
+    const allowedLayers = getAllowedLayers(role);
+    const index = buildCoreIndex(allowedLayers);
+    if (index !== '') {
+      respond({ continue: true, additionalContext: index });
+      return;
+    }
+  }
   pass();
 }
 

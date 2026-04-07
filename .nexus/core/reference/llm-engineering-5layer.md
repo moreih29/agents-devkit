@@ -9,7 +9,7 @@ Source: moreih29.github.io/posts/llm-eng-{1~5}
 | Layer | Definition | Nexus Mapping |
 |-------|------------|---------------|
 | L1 Prompt | Single prompt optimization | agents/*.md static prompts + gate.ts additionalContext |
-| L2 Context | Right information at the right time | nx_briefing matrix + hint filter |
+| L2 Context | Right information at the right time | SubagentStart index injection (MATRIX-based layer filter) + nx_core_read on demand |
 | L3 Tools | Tool design + protocol | MCP tools 30+ (core, task, plan, rules, LSP, AST) |
 | L4 Orchestration | Multi-agent coordination | Lead permanent team + User-Directed Composition |
 | L5 Harness | Quality assurance via structural constraints | gate.ts (Stop/PreToolUse/UserPromptSubmit) + task pipeline |

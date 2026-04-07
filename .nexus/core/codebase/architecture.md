@@ -8,7 +8,7 @@ Claude Code plugin. Three runtime entry points are bundled by esbuild.
 
 | Entry Point | Source | Build Output | Role |
 |-------------|--------|--------------|------|
-| MCP Server | `src/mcp/server.ts` | `bridge/mcp-server.cjs` | Tool provision (core, rules, context, task, plan, artifact, briefing, LSP, AST) |
+| MCP Server | `src/mcp/server.ts` | `bridge/mcp-server.cjs` | Tool provision (core, rules, context, task, plan, artifact, LSP, AST) |
 | Gate Hook | `src/hooks/gate.ts` | `scripts/gate.cjs` | Event handling (Stop, PreToolUse, UserPromptSubmit, SessionStart, SubagentStart/Stop, PreCompact, PostCompact) + CLAUDE.md auto-sync |
 | Statusline | `src/statusline/statusline.ts` | `scripts/statusline.cjs` | Status bar (model, branch, usage) |
 
@@ -19,10 +19,11 @@ src/
 ├── hooks/gate.ts          ← single hook module (8 events + CLAUDE.md sync)
 ├── mcp/
 │   ├── server.ts          ← McpServer instance + tool registration
-│   └── tools/             ← per-tool modules (core-store, markdown-store, context, task, plan, artifact, branch, lsp, ast)
+│   └── tools/             ← per-tool modules (core-store, markdown-store, context, task, plan, artifact, lsp, ast)
 ├── shared/
 │   ├── paths.ts           ← PROJECT_ROOT, NEXUS_ROOT, STATE_ROOT, CORE_ROOT, LAYERS, corePath(), coreLayerDir(), findProjectRoot(), getCurrentBranch() etc.
 │   ├── hook-io.ts         ← readStdin/respond/pass — hook I/O protocol
+│   ├── matrix.ts          ← MATRIX (role→layer policy), extractRole(), getAllowedLayers()
 │   ├── mcp-utils.ts       ← textResult() — MCP response helper
 │   ├── tasks.ts           ← readTasksSummary() — tasks.json read utility
 │   └── version.ts         ← VERSION file reader
