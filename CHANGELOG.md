@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.22.0 (2026-04-07)
+
+### Features
+- replace nx_briefing with SubagentStart lazy-read index injection
+
+### Other
+- merge: feat/briefing-lazy-read — SubagentStart lazy-read index injection
+
 ## 0.21.0 (2026-04-06)
 
 ### Features
