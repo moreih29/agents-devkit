@@ -29,14 +29,15 @@ claude plugin install claude-nexus@nexus
 **첫 사용**
 
 - **플랜**: `[plan] 인증 시스템 어떻게 설계하면 좋을까?`
-- **결정 기록**: `응 그 방향으로 [d]`
+- **결정 기록**: (plan 중) `응 그 방향으로 [d]`
+- **실행**: `[run] 로그인 API 구현`
 
 ## 사용법
 
 | 태그 | 동작 | 예시 |
 |------|------|------|
 | `[plan]` | 플랜 모드 활성화 | `[plan] DB 마이그레이션 전략 논의` |
-| `[d]` | 결정 기록 | `응 그 방향으로 [d]` |
+| `[d]` | 결정 기록 (plan 세션 내) | `응 그 방향으로 [d]` |
 | `[run]` | 실행 (에이전트 팀) | `[run] 결제 모듈 리팩토링` |
 | `[rule]` | 규칙 저장 | `[rule] npm 대신 bun 사용` |
 
@@ -59,7 +60,7 @@ claude plugin install claude-nexus@nexus
 | 스킬 | 트리거 | 설명 |
 |------|--------|------|
 | **nx-plan** | `[plan]` | 구조화된 플랜. 요구사항 정리 → 결정 기록 |
-| **nx-run** | (기본 동작) | 동적 에이전트 구성 실행 |
+| **nx-run** | `[run]` | 동적 에이전트 구성 실행 |
 | **nx-init** | `/claude-nexus:nx-init` | 프로젝트 온보딩. 코드 스캔 → 지식 생성 |
 | **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정 |
 | **nx-sync** | `/claude-nexus:nx-sync` | 코어 지식 동기화. 소스 변경사항을 .nexus/core/ 문서에 반영 |
@@ -112,9 +113,13 @@ Gate 단일 모듈로 동작합니다.
 
 | 이벤트 | 역할 |
 |--------|------|
+| `SessionStart` | `.nexus/` 구조 초기화, agent-tracker 리셋 |
 | `UserPromptSubmit` | 태그 감지 → 모드 활성화 + TASK_PIPELINE 주입 + additionalContext 안내 |
-| `PreToolUse` | Edit/Write: tasks.json 없으면 차단. nx_plan_start: 참석자 팀 검증. Agent: team_name 트래킹 |
+| `PreToolUse` | Edit/Write: tasks.json 미완료 시 차단. nx_plan_start: 참석자 팀 검증 |
+| `SubagentStart` | 에이전트 역할별 코어 지식 인덱스 자동 주입 (lazy-read) |
+| `SubagentStop` | 에이전트 완료 기록. 미완료 태스크 경고 |
 | `Stop` | pending 태스크 있으면 종료 차단. all completed면 nx_task_close 강제 |
+| `PostCompact` | 세션 상태 스냅샷 (모드, 플랜, 에이전트 현황) |
 
 </details>
 
@@ -127,7 +132,7 @@ Gate 단일 모듈로 동작합니다.
 - `rules/` — 팀 커스텀 규칙. git 추적.
 - `config.json` — Nexus 설정. git 추적.
 - `history.json` — 사이클 아카이브. git 추적.
-- `state/` — 런타임 상태 (tasks, meet 등). git 무시.
+- `state/` — 런타임 상태 (tasks, plan 등). git 무시.
 
 </details>
 
@@ -138,11 +143,10 @@ Gate 단일 모듈로 동작합니다.
 
 ```
 .nexus/state/
-├── tasks.json
-├── edit-tracker.json
-├── reopen-tracker.json
-├── agent-tracker.json
-└── artifacts/
+├── tasks.json          ← 태스크 목록 ([run] 사이클)
+├── plan.json           ← 플랜 세션 ([plan] 사이클)
+├── agent-tracker.json  ← 서브에이전트 라이프사이클
+└── artifacts/          ← 산출물
 ```
 
 </details>

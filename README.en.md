@@ -37,10 +37,10 @@ Tag your message to route it to the right workflow:
 |-----|--------|---------|
 | `[plan]` | Pre-execution planning | `[plan] Discuss DB migration strategy` |
 | `[run]` | Execution (agent team) | `[run] Refactor payment module` |
-| `[d]` | Record a decision | `[d] Use PostgreSQL for primary storage` |
+| `[d]` | Record a decision (within plan session) | `[d] Use PostgreSQL for primary storage` |
 | `[rule]` | Save a rule | `[rule] Always use bun instead of npm` |
 
-Typical flow: use `[plan]` to discuss and align → decide → use `[run]` to execute.
+Typical flow: `[plan]` to discuss and align → `[d]` to decide (within plan) → `[run]` to execute.
 
 ## Agents
 
@@ -126,9 +126,13 @@ Nexus registers a single Gate module as a Claude Code hook.
 
 | Event | Role |
 |-------|------|
+| `SessionStart` | Initialize `.nexus/` structure, reset agent-tracker |
 | `UserPromptSubmit` | Tag detection → mode activation + TASK_PIPELINE injection + additionalContext guidance |
-| `PreToolUse` | Edit/Write: blocks when tasks.json missing. nx_plan_start: attendee team verification. Agent: team_name tracking |
+| `PreToolUse` | Edit/Write: blocks when incomplete tasks exist. nx_plan_start: attendee team verification |
+| `SubagentStart` | Auto-inject role-filtered core knowledge index (lazy-read) |
+| `SubagentStop` | Record agent completion. Warn if owned tasks remain incomplete |
 | `Stop` | Blocks exit with pending tasks. Forces nx_task_close when all completed |
+| `PostCompact` | Snapshot session state (mode, plan, agent status) |
 
 </details>
 
@@ -159,12 +163,9 @@ Runtime state is stored under `.nexus/state/` and is excluded from git. `history
 .nexus/
 ├── history.json            ← Cycle archive (git-tracked, created by nx_task_close)
 └── state/                  ← Runtime state (git-ignored)
-    ├── tasks.json          ← Task list
-    ├── plan.json           ← Planning session
-    ├── decisions.json      ← Plan decisions
-    ├── edit-tracker.json
-    ├── reopen-tracker.json
-    ├── agent-tracker.json
+    ├── tasks.json          ← Task list ([run] cycle)
+    ├── plan.json           ← Planning session ([plan] cycle)
+    ├── agent-tracker.json  ← Subagent lifecycle tracking
     └── artifacts/          ← Artifacts
 ```
 
