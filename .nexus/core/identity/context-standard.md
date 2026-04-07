@@ -81,9 +81,9 @@ Short dynamic messages wrapped in a single XML tag.
 <nexus>Task pipeline required. Register tasks with nx_task_add before editing files.</nexus>
 ```
 
-### Briefing Output (nx_briefing)
+### Core Knowledge Index (SubagentStart injection)
 
-Collected data — order follows the 4-layer structure (identity → codebase → reference → memory). No XML section tags needed; briefing is data, not instruction.
+Compact index injected via `additionalContext` on SubagentStart. Format: one line per layer listing file names and tags. Agents call `nx_core_read` to fetch full file content on demand. No XML section tags; index is data, not instruction.
 
 ## Tag Naming
 

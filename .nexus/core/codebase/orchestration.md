@@ -160,7 +160,7 @@ gate.ts handles all hook events dispatched via `hook_event_name`:
 | Event | Handler | Purpose |
 |-------|---------|---------|
 | `SessionStart` | handleSessionStart | Initialize agent-tracker.json, ensure .nexus structure |
-| `SubagentStart` | handleSubagentStart | Record agent start in agent-tracker.json |
+| `SubagentStart` | handleSubagentStart | Record agent start in agent-tracker.json; inject MATRIX-filtered core+rules index via additionalContext for nexus agents (lazy-read) |
 | `SubagentStop` | handleSubagentStop | Record agent stop; warn Lead if owned tasks incomplete |
 | `PreToolUse` | handlePreToolUse | Block Edit/Write when tasks completed; guard Agent tool |
 | `UserPromptSubmit` | handleUserPromptSubmit | Tag detection, mode routing, additionalContext injection |

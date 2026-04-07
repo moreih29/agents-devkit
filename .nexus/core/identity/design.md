@@ -56,9 +56,9 @@ memory/     — WHEN: past lessons, failure patterns (grows over time)
 
 **identity/** is the stable foundation. **codebase/** is the living documentation that tracks implementation reality. Separating them prevents implementation drift from corrupting design principles.
 
-### Per-Role Briefing
+### Per-Role Context Injection
 
-`nx_briefing(role, hint?)` auto-assembles context from the 4 layers based on what each role needs. HOW agents get full access; DO agents get focused context.
+The SubagentStart hook auto-injects a compact core knowledge index into `additionalContext` when a subagent starts. The index is filtered by the agent's allowed layers (MATRIX-based). HOW agents get full access; DO agents get focused context. Agents use `nx_core_read` to fetch full file content on demand.
 
 ## Harness Philosophy
 

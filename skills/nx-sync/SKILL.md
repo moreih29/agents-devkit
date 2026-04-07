@@ -54,12 +54,14 @@ Only spawn Writer for layers that have detectable changes. If no changes detecte
 
 ### Step 3: Execute Updates
 
-For each **affected layer only**, spawn Writer agent(s) with `nx_briefing(role: "writer")`:
+For each **affected layer only**, spawn Writer agent(s):
 
 ```
 Agent({ subagent_type: "claude-nexus:writer", name: "writer-sync-{layer}",
   prompt: "Update .nexus/core/{layer}/ based on the following changes. Read current files with nx_core_read, then update with nx_core_write. Changes: {change_manifest}" })
 ```
+
+The SubagentStart hook auto-injects the core knowledge index for the writer role.
 
 - Do not spawn Writer for layers with no detectable changes
 - Affected layers can be updated in parallel

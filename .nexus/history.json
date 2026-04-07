@@ -4035,6 +4035,118 @@
           "created_at": "2026-04-06T13:19:58.494Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-07T01:11:58.445Z",
+      "branch": "feat/briefing-lazy-read",
+      "plan": {
+        "id": 4,
+        "topic": "브리핑 전달 구조 개선 — push-full → index+lazy-read 전환",
+        "issues": [
+          {
+            "id": 1,
+            "title": "주입 시점과 메커니즘: SubagentStart additionalContext vs 현재 nx_briefing pull 방식",
+            "status": "decided",
+            "decision": "SubagentStart additionalContext push 방식 채택. handleSubagentStart에서 buildCoreIndex() 호출하여 경량 인덱스(파일경로+태그)를 자동 주입. 서브에이전트는 필요 시 nx_core_read/nx_rules_read로 자율 읽기."
+          },
+          {
+            "id": 2,
+            "title": "인덱스 전달 범위: 전체 core + rules 인덱스 vs 역할별 필터링",
+            "status": "decided",
+            "decision": "agent_type별 MATRIX 필터링 적용. 기존 MATRIX 기준으로 역할에 해당하는 레이어의 인덱스만 전달. nexus 에이전트가 아닌 Explore/general-purpose 등에는 주입하지 않음. 엔지니어에게 identity 등 불필요 레이어 노출 차단."
+          },
+          {
+            "id": 3,
+            "title": "nx_briefing 도구의 존폐: index+lazy-read 전환 시 유지/제거/변환",
+            "status": "decided",
+            "decision": "nx_briefing 도구 제거. 인덱스는 SubagentStart 훅이, 내용 읽기는 nx_core_read/nx_rules_read가 담당. briefing.ts의 MATRIX 로직은 SubagentStart 핸들러로 이동."
+          },
+          {
+            "id": 4,
+            "title": "토큰 절약 vs 추가 도구 호출 비용: lazy-read의 실질적 이득 분석",
+            "status": "decided",
+            "decision": "index+lazy-read 방식 채택. 일반적 사용 패턴에서 architect 기준 75% 토큰 절약. 최악 케이스에도 내용 동일하고 호출 오버헤드만 추가. 인덱스의 파일명+태그가 에이전트 판단의 충분한 단서."
+          }
+        ],
+        "research_summary": "1) SubagentStart 훅 존재(gate.ts:485-499), additionalContext 주입 공식 지원, 현재 pass()만 호출\n2) buildCoreIndex() 이미 구현(gate.ts:261-303), plan/run 모드 Lead에게만 주입 중\n3) 서브에이전트 MCP 도구 제한 없음 — nx_core_read/nx_rules_read 호출 가능\n4) .nexus/core/ 총 175KB(25파일), reference 72.6%(128KB). architect 브리핑 1회 ~44K tokens, engineer ~7K tokens\n5) PreToolUse에서 Agent 도구 prompt 수정도 구조적으로 가능(미실험)",
+        "created_at": "2026-04-07T00:53:24.529Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "SubagentStart 핸들러에 인덱스 주입 구현",
+          "context": "handleSubagentStart에서 pass()만 호출하는 현재 구조를 변경. agent_type으로 nexus 에이전트 판별 → MATRIX 기반 레이어 필터링 → buildCoreIndex()로 경량 인덱스 생성 → additionalContext로 주입",
+          "approach": "1) briefing.ts에서 MATRIX 상수를 공유 모듈로 추출 2) handleSubagentStart에서 agent_type이 claude-nexus:* 패턴인지 확인 3) MATRIX에서 역할 매핑하여 허용 레이어 결정 4) buildCoreIndex()에 레이어 필터 파라미터 추가 5) rules 인덱스도 포함 6) additionalContext로 respond",
+          "acceptance": "nexus 서브에이전트 스폰 시 역할별 필터링된 core+rules 인덱스가 additionalContext로 자동 주입됨. Explore/general-purpose 등 비-nexus 에이전트에는 미주입.",
+          "risk": "agent_type 문자열 매칭 — nexus 에이전트 타입 네이밍 규칙이 바뀌면 필터 깨짐",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-07T00:59:11.795Z"
+        },
+        {
+          "id": 2,
+          "title": "MATRIX 로직 공유 모듈 추출",
+          "context": "briefing.ts의 MATRIX 상수와 역할→레이어 매핑 로직을 SubagentStart 핸들러에서도 사용할 수 있도록 공유 모듈로 분리",
+          "approach": "src/shared/matrix.ts (또는 유사) 생성. MATRIX 상수 + agent_type에서 역할명 추출 유틸 (claude-nexus:engineer → engineer) 포함",
+          "acceptance": "MATRIX가 단일 소스로 관리되며 briefing.ts 제거 후에도 SubagentStart 핸들러에서 참조 가능",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-07T00:59:16.615Z"
+        },
+        {
+          "id": 3,
+          "title": "nx_briefing 도구 제거",
+          "context": "briefing.ts 삭제, server.ts에서 registerBriefingTool 호출 제거, 관련 참조 정리",
+          "approach": "1) server.ts에서 registerBriefingTool import/호출 제거 2) src/mcp/tools/briefing.ts 파일 삭제 3) nx-run SKILL.md 등에서 nx_briefing 참조 업데이트 4) CLAUDE.md/README에서 관련 문서 정리",
+          "acceptance": "nx_briefing MCP 도구가 완전히 제거됨. bun run dev 빌드 성공. 기존 참조 없음.",
+          "risk": "nx_briefing을 직접 호출하는 외부 스킬/문서가 있을 수 있음 — grep으로 전수 검사 필요",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "plan_issue": 3,
+          "owner": "engineer",
+          "created_at": "2026-04-07T00:59:22.529Z"
+        },
+        {
+          "id": 4,
+          "title": "buildCoreIndex에 레이어 필터 + rules 인덱스 추가",
+          "context": "현재 buildCoreIndex()는 전체 core 파일 인덱스를 생성. MATRIX 필터링과 rules 디렉토리 인덱스를 지원하도록 확장",
+          "approach": "buildCoreIndex(allowedLayers?: string[]) 시그니처로 변경. layers 파라미터가 있으면 해당 레이어만 포함. .nexus/rules/ 파일도 인덱스에 포함 (파일명+태그)",
+          "acceptance": "buildCoreIndex(['codebase', 'memory']) 호출 시 해당 레이어+rules 인덱스만 반환. 기존 호출(파라미터 없음)은 전체 인덱스 유지.",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-07T00:59:27.698Z"
+        },
+        {
+          "id": 5,
+          "title": "E2E 검증",
+          "context": "변경사항 전체 통합 검증. nexus 서브에이전트 스폰 시 인덱스 주입 확인, 비-nexus 에이전트 미주입 확인, nx_core_read로 파일 읽기 정상 동작 확인",
+          "approach": "bun run dev 빌드 → nexus-test 프로젝트에서 서브에이전트 스폰 테스트 → 인덱스 주입 여부 확인",
+          "acceptance": "1) nexus 에이전트 스폰 시 역할별 인덱스 주입 확인 2) Explore 등 비-nexus 에이전트 미주입 확인 3) 에이전트가 nx_core_read로 필요 파일 읽기 성공",
+          "risk": "SubagentStart 훅의 additionalContext가 실제로 서브에이전트 컨텍스트에 반영되는지 실환경 검증 필요",
+          "status": "completed",
+          "deps": [
+            1,
+            3,
+            4
+          ],
+          "plan_issue": 4,
+          "owner": "tester",
+          "created_at": "2026-04-07T00:59:32.843Z"
+        }
+      ]
     }
   ]
 }

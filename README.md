@@ -71,11 +71,10 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (15개)
+### Core (14개)
 
 | 도구 | 용도 |
 |------|------|
-| `nx_briefing` | 에이전트 역할별 브리핑 조립 (core knowledge + rules 기반) |
 | `nx_core_read/write` | 프로젝트 지식 관리 (`.nexus/core/`, git 추적) |
 | `nx_rules_read/write` | 팀 커스텀 규칙 관리 (`.nexus/rules/`, git 추적) |
 | `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 플랜) |
