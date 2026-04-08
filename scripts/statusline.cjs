@@ -32,8 +32,9 @@ function findProjectRoot(startDir) {
 }
 var PROJECT_ROOT = findProjectRoot();
 var NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
-var CORE_ROOT = (0, import_path2.join)(NEXUS_ROOT, "core");
 var STATE_ROOT = (0, import_path2.join)(NEXUS_ROOT, "state");
+var MEMORY_ROOT = (0, import_path2.join)(NEXUS_ROOT, "memory");
+var CONTEXT_ROOT = (0, import_path2.join)(NEXUS_ROOT, "context");
 
 // src/statusline/statusline.ts
 var input = "";

@@ -28,8 +28,9 @@ function findProjectRoot(startDir) {
 }
 var PROJECT_ROOT = findProjectRoot();
 var NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path.join)(PROJECT_ROOT, ".nexus");
-var CORE_ROOT = (0, import_path.join)(NEXUS_ROOT, "core");
 var STATE_ROOT = (0, import_path.join)(NEXUS_ROOT, "state");
+var MEMORY_ROOT = (0, import_path.join)(NEXUS_ROOT, "memory");
+var CONTEXT_ROOT = (0, import_path.join)(NEXUS_ROOT, "context");
 function ensureDir(dir) {
   if (!(0, import_fs.existsSync)(dir)) {
     (0, import_fs.mkdirSync)(dir, { recursive: true });
@@ -38,8 +39,10 @@ function ensureDir(dir) {
 var GITIGNORE_CONTENT = `# Nexus: whitelist tracked files, ignore everything else
 *
 !.gitignore
-!core/
-!core/**
+!memory/
+!memory/**
+!context/
+!context/**
 !config.json
 !history.json
 !rules/
@@ -78,27 +81,22 @@ function readTasksSummary(branchRoot) {
 }
 
 // src/shared/matrix.ts
-var MATRIX = {
-  architect: { identity: "all", codebase: "all", reference: "all", memory: "all" },
-  postdoc: { identity: "all", codebase: "all", reference: "all", memory: "all" },
-  designer: { identity: "all", codebase: "all", reference: "all", memory: "all" },
-  strategist: { identity: "all", codebase: "all", reference: "all", memory: "all" },
-  engineer: { identity: null, codebase: "all", reference: "all", memory: "all" },
-  researcher: { identity: null, codebase: null, reference: "all", memory: "all" },
-  writer: { identity: null, codebase: "all", reference: "all", memory: "all" },
-  tester: { identity: null, codebase: "all", reference: "all", memory: "all" },
-  reviewer: { identity: null, codebase: null, reference: "all", memory: "all" }
-};
+var AGENT_ROLES = [
+  "architect",
+  "postdoc",
+  "designer",
+  "strategist",
+  "engineer",
+  "researcher",
+  "writer",
+  "tester",
+  "reviewer"
+];
 function extractRole(agentType) {
   const prefix = "claude-nexus:";
   if (!agentType.startsWith(prefix)) return null;
   const role = agentType.slice(prefix.length);
-  return role in MATRIX ? role : null;
-}
-function getAllowedLayers(role) {
-  const row = MATRIX[role];
-  if (!row) return [];
-  return Object.entries(row).filter(([, value]) => value !== null).map(([layer]) => layer);
+  return AGENT_ROLES.includes(role) ? role : null;
 }
 
 // src/hooks/gate.ts
@@ -269,73 +267,51 @@ Present comparison table with pros/cons/recommendation. Record decisions with [d
     return null;
   }
 }
-var CORE_LAYERS = ["identity", "codebase", "reference", "memory"];
-function buildCoreIndex(allowedLayers) {
-  const coreRoot = (0, import_path3.join)(process.cwd(), ".nexus", "core");
-  const rulesRoot = (0, import_path3.join)(process.cwd(), ".nexus", "rules");
-  const layers = allowedLayers ?? [...CORE_LAYERS];
-  const layerLines = [];
-  if ((0, import_fs3.existsSync)(coreRoot)) {
-    for (const layer of layers) {
-      const layerDir = (0, import_path3.join)(coreRoot, layer);
-      if (!(0, import_fs3.existsSync)(layerDir)) continue;
-      let files;
-      try {
-        files = (0, import_fs3.readdirSync)(layerDir).filter((f) => f.endsWith(".md"));
-      } catch {
-        continue;
-      }
-      if (files.length === 0) continue;
-      const entries = [];
-      for (const file of files) {
-        const name = (0, import_path3.basename)(file, ".md");
-        const filePath = (0, import_path3.join)(layerDir, file);
-        let tags = "";
-        try {
-          const content = (0, import_fs3.readFileSync)(filePath, "utf-8");
-          const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
-          if (tagMatch) {
-            const tagList = tagMatch[1].split(",").map((t) => t.trim()).filter(Boolean);
-            const shortTags = tagList.slice(0, 3).join(", ");
-            tags = ` [${shortTags}]`;
-          }
-        } catch {
-        }
-        entries.push(`${name}${tags}`);
-      }
-      layerLines.push(`${layer}: ${entries.join(", ")}`);
-    }
+function scanFolderEntries(folderPath) {
+  if (!(0, import_fs3.existsSync)(folderPath)) return [];
+  let files;
+  try {
+    files = (0, import_fs3.readdirSync)(folderPath).filter((f) => f.endsWith(".md"));
+  } catch {
+    return [];
   }
-  if ((0, import_fs3.existsSync)(rulesRoot)) {
-    let rulesFiles;
+  const entries = [];
+  for (const file of files) {
+    const name = (0, import_path3.basename)(file, ".md");
+    const filePath = (0, import_path3.join)(folderPath, file);
+    let tags = "";
     try {
-      rulesFiles = (0, import_fs3.readdirSync)(rulesRoot).filter((f) => f.endsWith(".md"));
-    } catch {
-      rulesFiles = [];
-    }
-    if (rulesFiles.length > 0) {
-      const entries = [];
-      for (const file of rulesFiles) {
-        const name = (0, import_path3.basename)(file, ".md");
-        const filePath = (0, import_path3.join)(rulesRoot, file);
-        let tags = "";
-        try {
-          const content = (0, import_fs3.readFileSync)(filePath, "utf-8");
-          const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
-          if (tagMatch) {
-            const tagList = tagMatch[1].split(",").map((t) => t.trim()).filter(Boolean);
-            const shortTags = tagList.slice(0, 3).join(", ");
-            tags = ` [${shortTags}]`;
-          }
-        } catch {
-        }
-        entries.push(`${name}${tags}`);
+      const content = (0, import_fs3.readFileSync)(filePath, "utf-8");
+      const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
+      if (tagMatch) {
+        const tagList = tagMatch[1].split(",").map((t) => t.trim()).filter(Boolean);
+        const shortTags = tagList.slice(0, 3).join(", ");
+        tags = ` [${shortTags}]`;
       }
-      layerLines.push(`rules: ${entries.join(", ")}`);
+    } catch {
     }
+    entries.push(`${name}${tags}`);
+  }
+  return entries;
+}
+function buildCoreIndex() {
+  const nexusRoot = (0, import_path3.join)(process.cwd(), ".nexus");
+  const rulesRoot = (0, import_path3.join)(nexusRoot, "rules");
+  const layerLines = [];
+  const memoryEntries = scanFolderEntries(MEMORY_ROOT);
+  if (memoryEntries.length > 0) {
+    layerLines.push(`memory: ${memoryEntries.join(", ")}`);
+  }
+  const contextEntries = scanFolderEntries(CONTEXT_ROOT);
+  if (contextEntries.length > 0) {
+    layerLines.push(`context: ${contextEntries.join(", ")}`);
+  }
+  const rulesEntries = scanFolderEntries(rulesRoot);
+  if (rulesEntries.length > 0) {
+    layerLines.push(`rules: ${rulesEntries.join(", ")}`);
   }
   if (layerLines.length === 0) return "";
-  const header = "[Core Knowledge] (call nx_core_read for details; call nx_rules_read for rules)";
+  const header = "[.nexus Knowledge]";
   const result = `${header}
 ${layerLines.join("\n")}`;
   return result.length <= 2e3 ? result : result.slice(0, 1997) + "...";
@@ -348,7 +324,7 @@ function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }) {
   const base = `<nexus>Rule mode \u2014 saving user instruction as a project rule.
 ${tagInfo}
 1. Extract and clean up rule content from the user message.
-2. Save to .nexus/rules/{name}.md via nx_rules_write(name, content).
+2. Save to .nexus/rules/{name}.md via the Write tool.
 Rules are git-tracked and auto-delivered to agents via SubagentStart hook index injection.
 Task pipeline not required \u2014 save directly.</nexus>`;
   respond({
@@ -437,6 +413,31 @@ Record decision only. For implementation, use [run].`;
     }
     return;
   }
+  const mTag = prompt.match(/\[m(?::([^\]]*))?\]/i);
+  if (mTag) {
+    const subCmd = mTag[1]?.trim().toLowerCase();
+    if (subCmd === "gc") {
+      respond({
+        continue: true,
+        additionalContext: withNotices(
+          `<nexus>Memory GC mode \u2014 \uAE30\uC874 .nexus/memory/ \uD30C\uC77C\uC744 Glob\uC73C\uB85C \uD655\uC778\uD558\uACE0, \uAD00\uB828 \uBA54\uBAA8\uB97C \uBCD1\uD569/\uC0AD\uC81C\uD558\uC5EC \uC815\uB9AC\uD558\uB77C. Write \uB3C4\uAD6C\uB85C \uC800\uC7A5.</nexus>`,
+          tasksReminder,
+          claudeMdNotice
+        )
+      });
+    } else {
+      const userContent = prompt.replace(/\[m(?::([^\]]*))?\]/i, "").trim();
+      respond({
+        continue: true,
+        additionalContext: withNotices(
+          `<nexus>Memory save mode \u2014 \uB2E4\uC74C \uB0B4\uC6A9\uC744 \uC555\uCD95\xB7\uC815\uC81C\uD558\uC5EC .nexus/memory/{\uC801\uC808\uD55C_\uD1A0\uD53D}.md\uC5D0 Write\uB85C \uC800\uC7A5\uD558\uB77C. \uAE30\uC874 \uD30C\uC77C \uC911 \uAD00\uB828\uB41C \uAC83\uC774 \uC788\uC73C\uBA74 \uC5C5\uB370\uC774\uD2B8\uD558\uACE0, \uC5C6\uC73C\uBA74 \uC0C8 \uD30C\uC77C \uC0DD\uC131. \uC6D0\uBB38: ${userContent}</nexus>`,
+          tasksReminder,
+          claudeMdNotice
+        )
+      });
+    }
+    return;
+  }
   const ruleMatch = prompt.match(/\[rule(?::([^\]]+))?\]/i);
   if (ruleMatch) {
     const rawTags = ruleMatch[1];
@@ -495,8 +496,7 @@ function handleSubagentStart(event) {
   (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
   const role = extractRole(agentType);
   if (role !== null) {
-    const allowedLayers = getAllowedLayers(role);
-    const index = buildCoreIndex(allowedLayers);
+    const index = buildCoreIndex();
     if (index !== "") {
       respond({ continue: true, additionalContext: index });
       return;
@@ -568,21 +568,29 @@ function handlePostCompact(_event) {
     } catch {
     }
   }
-  const coreRoot = (0, import_path3.join)(process.cwd(), ".nexus", "core");
-  if ((0, import_fs3.existsSync)(coreRoot)) {
-    try {
-      let totalFiles = 0;
-      for (const layer of CORE_LAYERS) {
-        const layerDir = (0, import_path3.join)(coreRoot, layer);
-        if ((0, import_fs3.existsSync)(layerDir)) {
-          totalFiles += (0, import_fs3.readdirSync)(layerDir).filter((f) => f.endsWith(".md")).length;
+  try {
+    const nexusRoot = (0, import_path3.join)(process.cwd(), ".nexus");
+    const rulesRoot = (0, import_path3.join)(nexusRoot, "rules");
+    const folders = [
+      ["memory", MEMORY_ROOT],
+      ["context", CONTEXT_ROOT],
+      ["rules", rulesRoot]
+    ];
+    const folderCounts = [];
+    let totalFiles = 0;
+    for (const [label, folderPath] of folders) {
+      if ((0, import_fs3.existsSync)(folderPath)) {
+        const count = (0, import_fs3.readdirSync)(folderPath).filter((f) => f.endsWith(".md")).length;
+        if (count > 0) {
+          folderCounts.push(`${count} ${label}`);
+          totalFiles += count;
         }
       }
-      if (totalFiles > 0) {
-        lines.push(`[Core]: ${totalFiles} files across ${CORE_LAYERS.length} layers`);
-      }
-    } catch {
     }
+    if (totalFiles > 0) {
+      lines.push(`[Knowledge]: ${folderCounts.join(", ")}`);
+    }
+  } catch {
   }
   const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
   if ((0, import_fs3.existsSync)(trackerPath)) {

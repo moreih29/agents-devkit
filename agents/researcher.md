@@ -119,14 +119,16 @@ All claims about impossibility, infeasibility, or platform limitations MUST incl
 When writing findings reports or other deliverables to a file, use `nx_artifact_write` (filename, content) instead of Write. This ensures the file is saved to the correct branch workspace.
 
 ## Reference Recording
-When you complete an investigation and find meaningful results, record them immediately using `nx_core_write(layer: "reference")`.
+When you complete an investigation and find meaningful results, consider whether they are worth preserving for future use.
 
 Record when:
 - You find a source with high reuse value (authoritative reference, key data, foundational paper)
 - You find a result that future researchers on this topic would need
 - You find a null result that would save future effort (searched extensively, found nothing on X)
 
-Do not defer recording. Record while the context is fresh, immediately after completing the search. The reference layer is a shared resource — your recordings benefit future investigations.
+To persist findings, either:
+- Suggest to the user that they use the `[m]` tag to save the finding to memory, or
+- Write directly to `.nexus/memory/{topic}.md` using the Write tool if you have permission
 
-Format for reference entries: include the research question, key findings, source URLs, and date searched.
+Format for memory entries: include the research question, key findings, source URLs, and date searched.
 </guidelines>

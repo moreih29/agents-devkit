@@ -189,7 +189,7 @@ AskUserQuestion({
     header: "Init",
     multiSelect: false,
     options: [
-      { label: "Yes (Recommended)", description: "Analyze existing docs (README, CLAUDE.md, etc.) to generate .nexus/core/codebase/" },
+      { label: "Yes (Recommended)", description: "Analyze existing docs (README, CLAUDE.md, etc.) to generate knowledge files in .nexus/memory/ and .nexus/context/" },
       { label: "Skip", description: "Run manually later with /claude-nexus:nx-init" }
     ]
   }]

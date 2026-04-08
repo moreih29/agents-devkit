@@ -4698,6 +4698,246 @@
           "created_at": "2026-04-08T11:05:41.186Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-08T14:37:51.686Z",
+      "branch": "main",
+      "plan": {
+        "id": 4,
+        "topic": "코어 메모리 자동 축적 메커니즘 설계",
+        "issues": [
+          {
+            "id": 1,
+            "title": "메모리 트리거 메커니즘 — advisory text를 실제 동작으로 전환하는 방법",
+            "status": "decided",
+            "decision": "[memo] 태그 (또는 [m]) 도입 — 사용자가 원하는 시점에 직접 코어 메모리에 저장. gate.ts 태그 시스템 재활용. run 스킬의 기존 memory advisory 지시는 제거."
+          },
+          {
+            "id": 2,
+            "title": "캡처 대상과 기준 — 어떤 경험을 기억할 것인가",
+            "status": "decided",
+            "decision": "[memo] 태그는 항상 .nexus/core/memory/ 레이어에 저장. 레이어 선택 없이 단순하게. 단, 사용자 입력을 Lead가 압축·정제하여 저장 (raw dump가 아닌 핵심 교훈 형태로)."
+          },
+          {
+            "id": 3,
+            "title": "core 지식 전달 메커니즘 — 좋은 지식이 에이전트에게 실제로 도달하는 방법",
+            "status": "decided",
+            "decision": "core 지식 전달을 \"인덱스 + nx_core_read 자율 호출\"에서 \"구체적 경로 + 네이티브 Read/Write\"로 전환.\n\n1) plan 스킬 Step 2에 \"core/ 디렉토리 먼저 탐색\" 강하게 명시. 외부 리서치 전에 내부 지식부터 확인. run은 항상 plan을 선행하므로 별도 처리 불필요 — plan의 결정과 task context에 지식이 녹아듦.\n\n2) nx_core_read / nx_core_write 제거. 에이전트는 Read/Write + 경로 컨벤션(.nexus/core/{layer}/{topic}.md)으로 직접 접근. 도구 수 감소 → 에이전트 정확도 개선.\n\n3) buildCoreIndex 헤더의 \"call nx_core_read for details\" 힌트 제거 또는 구체적 경로 안내로 변경.\n\n4) [memo] 태그: gate.ts가 감지 → Lead에게 \"압축해서 memory/에 Write\" 지시 (gate.ts는 라우터, LLM 통과 후 저장)."
+          },
+          {
+            "id": 4,
+            "title": "memory(교훈)의 전달 경로 — Nexus 자체 시스템 vs Claude Code 네이티브(Auto Memory, CLAUDE.md)",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "서브에이전트 지식 전달 — 인덱스 실패 이후 대안 설계",
+            "status": "pending"
+          }
+        ],
+        "research_summary": "## 리서치 결과\n\n### 현재 상태\n1. **Run 스킬 지시**: Step 4(Complete)에서 \"nx_task_close 호출 시 memoryHint 확인, hadLoopDetection이나 cycleTopics가 있으면 auto-memory에 저장 고려\" — **advisory text일 뿐, 강제성 없음**\n2. **nx_task_close 반환값**: memoryHint 객체 반환 (taskCount, decisionCount, hadLoopDetection, cycleTopics) — **정보 제공만, 자동 저장 안 함**\n3. **PostToolUse 훅 부재**: gate.ts에 nx_task_close 반환값을 가로채서 자동 저장하는 훅이 없음\n4. **nx_core_write**: 정상 동작 — `nx_core_write(layer='memory', topic, content, tags)` 호출하면 `.nexus/core/memory/{topic}.md`에 저장\n5. **실제 메모리**: .nexus/core/memory/에 파일 1개만 존재 (identity-redesign-session.md) — 수많은 세션 중 1번만 기억됨\n6. **로드맵 괴리**: Phase 4에 \"Lessons auto-extracted to memory/ on task_close [x]\" 완료로 표시되었으나 실제 자동 추출 코드 없음\n\n### 핵심 문제\n\"consider saving\"이라는 advisory instruction은 Lead 에이전트가 세션 종료 시점에 거의 실행하지 않음. 이유:\n- 세션 종료 시점에 컨텍스트 압박이 높음\n- \"고려하라\"는 지시는 우선순위가 낮게 처리됨\n- memoryHint 반환값을 받아도 별도 nx_core_write 호출을 해야 하는 추가 단계가 존재\n- 어떤 내용을 어떤 형식으로 써야 하는지 구체적 가이드 없음\n\n### 관련 코드\n- Run skill: skills/nx-run/SKILL.md:88-90\n- memoryHint 생성: src/mcp/tools/task.ts:199-233\n- Gate hooks: src/hooks/gate.ts (PostToolUse 없음)\n- Core store: src/mcp/tools/core-store.ts\n- Core layers: identity/, codebase/, reference/, memory/",
+        "created_at": "2026-04-08T14:02:15.556Z"
+      },
+      "tasks": []
+    },
+    {
+      "completed_at": "2026-04-08T16:20:34.826Z",
+      "branch": "feat/context-management-redesign",
+      "plan": {
+        "id": 4,
+        "topic": "Nexus 플러그인 컨텍스트 관리 재설계 — 장기/단기/인메모리",
+        "issues": [
+          {
+            "id": 1,
+            "title": "CLAUDE.md 전략 — user/project scope에서 무엇을 넣을지, 200줄 한계 안에서 identity 병합 여부",
+            "status": "decided",
+            "decision": "CLAUDE.md 전략 확정:\n- User scope 설치: ~/.claude/CLAUDE.md에 Nexus 운영 지시(routing, skills, tags) + .nexus/ 폴더 구조 안내. 프로젝트 CLAUDE.md에 프로젝트 핵심 철학.\n- Project scope 설치: ./CLAUDE.md에 Nexus 운영 지시 + 프로젝트 철학 통합.\n- nx-init이 mission.md 대신 ./CLAUDE.md에 프로젝트 철학 직접 작성하도록 변경.\n- identity 레이어 포함 전체 core 레이어는 별도 재논의."
+          },
+          {
+            "id": 2,
+            "title": "컨텍스트 계층 재정의 — 접근 빈도 데이터 기반으로 현재 4-layer를 어떻게 재분류할지",
+            "status": "decided",
+            "decision": "4-layer(identity/codebase/reference/memory) 폐기 → 플랫 구조로 재정의.\n\n새 구조:\n.nexus/\n  memory/ — [memo]로 교훈+참조 통합 축적. 유일하게 고유 가치 있는 저장소.\n  design/ — 추상적 설계 문서 1-2개 (코드에서 읽을 수 없는 원칙/철학)\n  state/ — plan.json, tasks.json (현행 유지)\n  rules/ — [rule] (현행 유지)\n  history.json — 아카이브 (현행 유지)\n\n폐기 근거:\n- identity: 핵심 철학은 CLAUDE.md로 이동\n- codebase: 코드 직접 읽기로 대체, 동기화 문제 해결 불가\n- reference: 웹 서치로 대체 가능, 69% 파일 사망. 기록할 가치 있는 건 [memo]로 memory에.\n- core/ 래퍼 제거 — 플랫 구조 채택"
+          },
+          {
+            "id": 3,
+            "title": "저장 vs 실시간 조회 트레이드오프 — 어떤 지식이 저장할 가치가 있고, 어떤 건 매번 조회하는 게 나은가",
+            "status": "decided",
+            "decision": "저장 vs 실시간 원칙 확정: \"코드/웹에서 다시 얻을 수 없는 것만 저장한다.\"\n- 저장: 프로젝트 철학(CLAUDE.md), 설계 원칙(design/), 교훈+경험(memory/ via [memo])\n- 실시간: 코드 구조(Read/Explore), 외부 지식(웹 서치)\n- 외부 지식 중 사용자가 기록 판단한 것 → [memo]로 memory/"
+          },
+          {
+            "id": 4,
+            "title": "전달 메커니즘 선택 — CLAUDE.md / Auto Memory / .nexus/core/ 중 어디에 뭘 태울 것인가",
+            "status": "decided",
+            "decision": "전달 메커니즘: ~/.claude/CLAUDE.md에 행동 지시를 넣는 방식.\n\n- 내용 자체가 아닌 \"여기를 읽어라\"는 지시를 CLAUDE.md에 배치\n- .nexus/ 폴더 구조 설명 + \"작업 시작 전 .nexus/memory/와 .nexus/design/ 확인\" 행동 지시\n- 매 세션 자동 로드, 서브에이전트도 수신, 모든 Nexus 프로젝트에 공통 적용\n- 실제 내용은 각 프로젝트의 .nexus/design/, .nexus/memory/에 위치\n- 기존 인덱스 힌트(0.1%) 대비 CLAUDE.md adherence(~70-80%)로 전달률 대폭 개선 기대"
+          },
+          {
+            "id": 5,
+            "title": "design/ 문서 관리 — 고정 문서 vs 자유 형식, 어떤 문서가 들어가는지",
+            "status": "decided",
+            "decision": "design/ 문서 관리 — 하이브리드 방식.\n- nx-init이 프로젝트 분석 후 적절한 문서 자동 생성 (개발 스택, 설계 방향성 등 프로젝트 성격에 따라)\n- 이후 자유 형식으로 추가/수정/삭제\n- 고정 파일명 없음 — 프로젝트마다 다름\n- 업데이트 시점: plan 세션에서 설계 결정 시 tasks.json에 design/ 업데이트 태스크 자동 포함. 급한 수정은 직접 요청."
+          },
+          {
+            "id": 6,
+            "title": "memory/ 문서 관리 — 파일 구조, 축적/통합 방식, 양이 많아질 때 처리",
+            "status": "decided",
+            "decision": "memory/ 문서 관리:\n- 개별 파일로 축적 (파일명 = 주제, 내용 = 압축된 교훈)\n- 파일명 자체가 인덱스 역할 — Glob으로 목록 확인 후 선택적 읽기\n- 양 관리: 사용자 판단으로 정리 요청 시 관련 메모 병합/삭제\n- 복잡한 자동화 없이 단순하게 운영"
+          },
+          {
+            "id": 7,
+            "title": "[memo] 서브커맨드 설계 + [sync]의 역할 재정의 + design/ 폴더명 재검토",
+            "status": "decided",
+            "decision": "[memo] → [m]으로 축약. [m] 내용 = 메모 추가 (LLM 압축 후 기존 파일 업데이트 또는 새 파일 생성). [m:gc] = 메모 정리 (병합/삭제).\n\ndesign/ → context/로 폴더명 변경. [sync]가 context/를 동기화하는 역할. \"sync가 context를 동기화한다\"로 의미 명확.\n\n최종 .nexus/ 구조:\n  memory/ — [m]으로 축적, [m:gc]로 정리\n  context/ — nx-init 생성, [sync]로 동기화\n  state/ — plan.json, tasks.json\n  rules/ — [rule]\n  history.json"
+          },
+          {
+            "id": 8,
+            "title": "rules 시스템 — 실제 사용되고 있는지, nx_rules_read 사용률, Claude Code 자체 .claude/rules/와의 관계",
+            "status": "decided",
+            "decision": "rules 시스템: .nexus/rules/ 유지하되, nx_rules_read/write 제거. memory/, context/와 동일한 패턴 적용.\n\n- CLAUDE.md에 \".nexus/rules/ 확인하라\" 행동 지시\n- [rule] 태그: gate.ts 감지 → Lead가 정리 → Write로 .nexus/rules/{topic}.md 저장\n- 에이전트는 Read/Glob으로 직접 접근\n\nMCP 도구 4개 일괄 제거: nx_core_read, nx_core_write, nx_rules_read, nx_rules_write → 네이티브 Read/Write/Glob으로 대체."
+          }
+        ],
+        "research_summary": "## 리서치 결과 요약\n\n### 접근 빈도 (객관적 데이터)\n- .nexus/core/ 직접 읽기: 3,723회 Read 중 33회 (0.9%)\n- 31개 세션 중 5개만 접근\n- identity 레이어가 가장 활발 (21회), reference는 69% 파일이 한 번도 읽히지 않음\n- 전체 25개 파일 중 11개 (44%)가 사망 (0 reads)\n- 이전 시스템 대비 접근 감소 (214→33회)\n\n### Claude Code 네이티브 메커니즘\n- CLAUDE.md: 매 세션 자동 로드, compaction 후 재로드, 서브에이전트도 수신. 200줄 권장, adherence 선형 저하.\n- Auto Memory: MEMORY.md 첫 200줄/25KB 세션 시작 시 로드. topic files on-demand. 서브에이전트도 수신.\n- 서브에이전트 자체 memory: frontmatter로 설정 가능 (project/user/local scope)\n- CLAUDE.md는 user message로 전달 (system prompt 아님) — 관련 없다 판단 시 skip 가능\n\n### 현재 Nexus CLAUDE.md 관리\n- gate.ts가 UserPromptSubmit마다 ~/.claude/CLAUDE.md + ./CLAUDE.md 자동 동기화\n- 템플릿: agent routing table + skills + tags (~40줄)\n- .nexus/core/identity/는 별도 (mission, design, roadmap, context-standard)\n- 현재 중복 없음: CLAUDE.md = 운영 지시, core = 프로젝트 지식\n\n### 제약 조건\n- CLAUDE.md 200줄 넘으면 모든 지시의 준수율 균등 저하\n- 지시 슬롯 ~150-200개 실효 상한 (시스템 프롬프트가 ~50개 선점)\n- 커뮤니티: 100줄 이하 선호, \"코드에서 유추 가능한 건 삭제\"\n- core 레이어 전체 주입 시 ~45K 토큰 (비현실적)",
+        "created_at": "2026-04-08T15:20:49.385Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "paths.ts + MATRIX 구조 변경",
+          "context": "src/shared/paths.ts: CORE_ROOT, corePath(), coreLayerDir() 삭제. CORE_LAYERS 상수 제거. 새 경로 헬퍼 추가 (memoryDir, contextDir). GITIGNORE_CONTENT 업데이트. src/shared/matrix.ts: 레이어 필터링 로직 제거 또는 새 구조에 맞게 수정 — context/memory 2개 폴더 기반으로.",
+          "approach": "1) paths.ts에서 CORE_ROOT, corePath(), coreLayerDir() 삭제 2) memoryDir(), contextDir() 추가 3) GITIGNORE_CONTENT에서 core/ 제거, memory/, context/ 추가 4) matrix.ts에서 4-layer 기반 필터링을 2-folder 기반으로 단순화 5) 빌드 확인",
+          "acceptance": "1) paths.ts에 core 관련 함수/상수 없음 2) 새 경로 헬퍼가 .nexus/memory/, .nexus/context/ 반환 3) matrix.ts가 새 구조 반영 4) bun run dev 빌드 성공",
+          "risk": "다른 소스 파일에서 paths.ts 함수 import — 빌드 깨질 수 있음. gate.ts, core-store.ts 등 동시 수정 필요.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T16:09:07.250Z"
+        },
+        {
+          "id": 2,
+          "title": "MCP 도구 4개 제거 — core-store.ts 삭제 + server.ts 정리",
+          "context": "src/mcp/tools/core-store.ts 전체 삭제 (nx_core_read/write). src/mcp/tools/markdown-store.ts에서 nx_rules_read/write 제거. src/mcp/server.ts에서 registerCoreStore import/호출 삭제 + markdown-store rules 등록 제거.",
+          "approach": "1) core-store.ts 파일 삭제 2) server.ts에서 import/registration 제거 3) markdown-store.ts에서 rules 관련 도구 등록 제거 (또는 파일 자체가 rules 전용이면 삭제) 4) 빌드 확인",
+          "acceptance": "1) core-store.ts 없음 2) server.ts에 core-store/rules 관련 import 없음 3) MCP 도구 목록에서 nx_core_read, nx_core_write, nx_rules_read, nx_rules_write 제거됨 4) bun run dev 성공",
+          "risk": "다른 코드에서 이 도구들을 참조하는 곳이 있을 수 있음 — gate.ts buildCoreIndex 헤더 등.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 8,
+          "owner": "engineer",
+          "created_at": "2026-04-08T16:09:16.265Z"
+        },
+        {
+          "id": 3,
+          "title": "gate.ts 대폭 수정 — buildCoreIndex 재작성 + [m]/[m:gc] 태그 + 훅 업데이트",
+          "context": "gate.ts가 가장 큰 변경. buildCoreIndex()를 새 플랫 구조(memory/, context/, rules/)에 맞게 재작성. [m] 태그 핸들러 추가 (Lead에게 압축 후 Write 지시). [m:gc] 핸들러 추가 (Lead에게 정리 지시). [rule] 핸들러에서 nx_rules_write 대신 Write 도구 사용 지시. SubagentStart 훅의 인덱스 주입 업데이트. PostCompact 스냅샷 업데이트. \"call nx_core_read for details\" 힌트 제거.",
+          "approach": "1) CORE_LAYERS 상수 삭제 2) buildCoreIndex() 재작성: .nexus/memory/, .nexus/context/, .nexus/rules/ 스캔 3) handleUserPromptSubmit에 [m] 태그 분기 추가: gate.ts가 감지 → additionalContext로 \"압축해서 .nexus/memory/{topic}.md에 Write\" 지시 4) [m:gc] 분기: \"기존 memory/ 파일 정리/병합\" 지시 5) [rule] 분기: nx_rules_write 대신 Write 도구 사용 지시 6) SubagentStart: buildCoreIndex 호출 유지하되 새 구조 반영 7) PostCompact: core/ 참조 → 새 구조 참조 8) 인덱스 헤더에서 nx_core_read/nx_rules_read 힌트 제거",
+          "acceptance": "1) [m] 입력 시 Lead에게 memory/ Write 지시가 additionalContext로 전달 2) [m:gc] 입력 시 정리 지시 전달 3) [rule] 입력 시 Write 도구 사용 지시 4) buildCoreIndex가 memory/, context/, rules/ 스캔 5) \"nx_core_read\" 문자열 gate.ts에 없음 6) bun run dev 성공",
+          "risk": "gate.ts 변경량이 크므로 단계별 검증 필요. buildCoreIndex 시그니처 변경 시 모든 호출부 동시 수정.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T16:09:27.815Z"
+        },
+        {
+          "id": 4,
+          "title": "CLAUDE.md 템플릿 재작성",
+          "context": "templates/nexus-section.md를 새 구조에 맞게 재작성. .nexus/ 폴더 구조 안내 + 행동 지시(\"작업 전 memory/, context/, rules/ 확인\") 추가. 기존 agent routing + skills + tags 유지하되 [m], [m:gc] 태그 추가.",
+          "approach": "1) 기존 템플릿 읽기 2) .nexus/ Structure 섹션 추가 (memory, context, state, rules, history.json 설명) 3) Tags 테이블에 [m], [m:gc] 추가 4) 행동 지시 추가: \"작업 시작 전 .nexus/memory/와 .nexus/context/ 확인\" 5) \"call nx_core_read\" 류 참조 제거",
+          "acceptance": "1) .nexus/ 구조 섹션 존재 2) [m], [m:gc] 태그가 Tags 테이블에 포함 3) 행동 지시 포함 4) nx_core_read/write 참조 없음 5) 총 줄 수 합리적 (user scope ~60줄 이내)",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "writer",
+          "created_at": "2026-04-08T16:09:37.400Z"
+        },
+        {
+          "id": 5,
+          "title": "nx-init 스킬 재작성",
+          "context": "skills/nx-init/SKILL.md 재작성. 기존: .nexus/core/{identity,codebase,reference,memory}/ 생성 + mission.md, architecture.md 등 작성. 신규: .nexus/{memory,context,state,rules}/ 생성 + 프로젝트 철학을 CLAUDE.md에 직접 작성 + context/ 문서 생성 (프로젝트 분석 기반). nx_core_write 참조 모두 제거 → Write 도구 사용.",
+          "approach": "1) 현재 SKILL.md 구조 파악 2) 디렉토리 생성 로직을 새 플랫 구조로 변경 3) Step에서 mission.md → CLAUDE.md 프로젝트 철학 섹션으로 변경 4) codebase 문서 → context/ 추상적 설계 문서로 변경 5) reference, identity 생성 단계 제거 6) nx_core_write → Write 도구 지시로 변경 7) 모드 감지(fresh/update) 로직을 새 구조에 맞게 수정",
+          "acceptance": "1) 새 플랫 구조(.nexus/memory/, context/, state/, rules/) 생성 지시 2) 프로젝트 철학이 CLAUDE.md에 작성되는 절차 3) context/ 문서가 프로젝트 분석 기반 생성 4) nx_core_write 참조 없음 5) identity/, codebase/, reference/ 참조 없음",
+          "risk": "nx-init은 온보딩의 첫 접점 — 새 사용자 경험에 직결. 기존 프로젝트 마이그레이션 경로도 고려 필요.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "writer",
+          "created_at": "2026-04-08T16:09:48.295Z"
+        },
+        {
+          "id": 6,
+          "title": "nx-sync 스킬 재작성 — context/ 전용 동기화",
+          "context": "skills/nx-sync/SKILL.md 재작성. 기존: core 4레이어 전체 동기화. 신규: context/ 폴더만 동기화. [sync] 태그로 트리거. nx_core_read/write 참조 제거 → Read/Write 사용.",
+          "approach": "1) scope를 context/ 전용으로 축소 2) 동기화 대상: 코드 변경에 따른 설계 문서 업데이트, 새 설계 결정 반영 3) Writer 서브에이전트가 Read로 현재 context/ 읽고 → 코드 분석 → Write로 업데이트 4) nx_core_read/write 참조 제거",
+          "acceptance": "1) context/ 동기화만 수행 2) identity/, codebase/, reference/ 참조 없음 3) nx_core_read/write 참조 없음 4) [sync] 트리거 설명 포함",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 7,
+          "owner": "writer",
+          "created_at": "2026-04-08T16:09:53.955Z"
+        },
+        {
+          "id": 7,
+          "title": "nx-plan + nx-run + nx-setup 스킬 업데이트",
+          "context": "3개 스킬의 소규모 업데이트. nx-plan: Step 2에 \".nexus/memory/, context/ 먼저 탐색\" 강화, Step 7에 설계 결정 시 context/ 업데이트 태스크 자동 포함. nx-run: Step 4의 memory advisory 제거 (이미 부분 수정됨), core 참조 업데이트. nx-setup: 새 .nexus/ 구조에 맞게 설정 절차 업데이트.",
+          "approach": "1) nx-plan Step 2: \"research 시작 시 .nexus/memory/, context/ Glob/Read\" 추가 2) nx-plan Step 7: \"설계 관련 결정 시 context/ 업데이트 태스크 생성\" 명시 3) nx-run Step 4: memoryHint advisory 제거, core 참조 정리 4) nx-setup: 새 구조 반영",
+          "acceptance": "1) nx-plan Step 2에 .nexus/ 탐색 지시 포함 2) nx-run에 memoryHint/nx_core 참조 없음 3) 3개 스킬 모두 core/ 4-layer 참조 없음",
+          "status": "completed",
+          "deps": [
+            4
+          ],
+          "plan_issue": 5,
+          "owner": "writer",
+          "created_at": "2026-04-08T16:10:01.548Z"
+        },
+        {
+          "id": 8,
+          "title": "에이전트 스펙 업데이트 — nx_core_read/write 참조 제거",
+          "context": "agents/ 하위 4개 파일. architect.md(L51), designer.md(L50), strategist.md(L50): nx_core_read 참조 제거. researcher.md(L122,129): nx_core_write 참조 제거, reference 레이어 참조를 새 구조(memory/ via [m])로 변경.",
+          "approach": "1) architect/designer/strategist: \"check nx_core_read, nx_context\" → \"check .nexus/context/ and .nexus/memory/\" 2) researcher: nx_core_write(layer: \"reference\") → \"기록할 가치 있는 발견은 사용자에게 [m] 태그 사용 제안\" 또는 직접 Write",
+          "acceptance": "1) 4개 파일에 nx_core_read/write 참조 없음 2) 새 .nexus/ 구조 경로 사용",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 8,
+          "owner": "writer",
+          "created_at": "2026-04-08T16:10:07.771Z"
+        },
+        {
+          "id": 9,
+          "title": "E2E + bench 테스트 업데이트",
+          "context": "test/e2e.sh: core/codebase 경로 fixture → context/ 경로로 변경. nx_core_read 테스트 케이스 삭제. buildCoreIndex plan mode 테스트 업데이트. test/bench.sh: nx_core_read 벤치마크 제거.",
+          "approach": "1) e2e.sh fixture 경로 변경 (L20-21: core/codebase → context/) 2) nx_core_read 테스트 삭제 (L127-131) 3) buildCoreIndex 테스트 업데이트 (L251-254) 4) bench.sh nx_core_read 벤치마크 제거 (L67-68) 5) [m] 태그 동작 테스트 추가",
+          "acceptance": "1) bash test/e2e.sh 전체 통과 2) core/ 경로 참조 없음 3) [m] 태그 기본 동작 테스트 포함",
+          "risk": "기존 테스트가 삭제된 도구에 의존 — 실행 시 즉시 실패할 수 있으므로 소스 변경 후 테스트 수정.",
+          "status": "completed",
+          "deps": [
+            1,
+            2,
+            3
+          ],
+          "plan_issue": 8,
+          "owner": "tester",
+          "created_at": "2026-04-08T16:10:14.766Z"
+        },
+        {
+          "id": 10,
+          "title": "README.md + README.en.md 업데이트",
+          "context": "README.md(L25, 66, 79-80, 131), README.en.md(L25, 79-80, 92-93, 146, 151): .nexus/core/ → 새 구조. 도구 테이블에서 nx_core_read/write 제거. 디렉토리 구조 문서 재작성.",
+          "approach": "1) 도구 테이블에서 nx_core_read/write, nx_rules_read/write 제거 2) .nexus/ 디렉토리 구조 섹션 재작성 3) 양쪽 README 동일하게 업데이트",
+          "acceptance": "1) core/ 참조 없음 2) 새 플랫 구조 반영 3) 제거된 도구 언급 없음",
+          "status": "completed",
+          "deps": [
+            1,
+            2,
+            3
+          ],
+          "plan_issue": 2,
+          "owner": "writer",
+          "created_at": "2026-04-08T16:10:19.721Z"
+        }
+      ]
     }
   ]
 }

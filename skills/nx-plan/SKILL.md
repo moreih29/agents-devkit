@@ -95,6 +95,8 @@ Determine planning depth and identify which HOW subagents to delegate analysis t
 
 Understand code, core knowledge, and prior decisions before forming a planning agenda.
 
+**Start by checking existing knowledge**: before spawning any subagent, use Glob/Read to scan `.nexus/memory/` and `.nexus/context/` for relevant memos and context files. If the needed information is already there, use it directly and skip or narrow the subagent spawn. Only spawn subagents to fill gaps not covered by existing knowledge.
+
 **Approach selection:**
 
 | Scenario | Approach |
@@ -220,6 +222,7 @@ All issues decided → generate the plan document (tasks.json) immediately:
    - Set `goal` from the plan topic
    - Set `decisions` from plan.json decided summaries
    - Call `nx_task_add(plan_issue=N, approach, acceptance, risk, owner)` for each task
+   - If any decisions involve design or architecture changes, include a task (owner: `writer` or `lead`) to update the relevant files in `.nexus/context/` to reflect those decisions
 5. **Present plan document** — show the user the generated tasks.json summary for review
 6. **Present transition**: "Proceed with `[run]` to execute."
 
