@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.23.1 (2026-04-08)
+
+### Other
+- merge: feat/agent-spec-enhancement — agent spec common structure + reinforcement
+
 ## 0.23.0 (2026-04-08)
 
 ### Features
