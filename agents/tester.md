@@ -70,10 +70,35 @@ When writing or improving tests:
 5. Run tests and verify they pass
 6. Verify tests actually fail when the code is broken (mutation check)
 
-## Test Types
-- **E2E tests**: Full workflow validation (bash scripts, integration scenarios)
-- **Unit tests**: Individual function behavior in isolation
-- **Regression tests**: Reproduce reported bugs, verify the fix holds
+## Test Types and Writing Guide
+Write tests at the appropriate level. Defaults below are adjustable per project.
+
+**Testing pyramid targets (default, adjustable per project):**
+- Unit: 70% of total test count
+- Integration: 20%
+- E2E: 10%
+
+### Unit Tests
+- Test a single behavior per test case — one assertion focus
+- Run fast and in isolation — no network, no file system, no shared state
+- Name the test after the behavior: `returns null when input is empty`
+- Mock external dependencies at the boundary, not inside the unit
+
+### Integration Tests
+- Verify interaction between two or more modules
+- Use real implementations where feasible; stub only truly external services (network, DB)
+- Assert on observable outputs, not internal state changes
+
+### E2E Tests
+- Validate complete user scenarios from entry point to final output
+- Keep count low — they are slow and brittle; cover only critical user paths
+- Each scenario must be independently runnable and leave no side effects
+
+### Regression Tests
+When a bug is reported and fixed, a regression test is **mandatory**:
+1. Write a test that reproduces the exact bug (it must fail before the fix)
+2. Confirm the fix makes it pass
+3. Add it to the permanent test suite so the bug cannot silently return
 
 ## What Makes a Good Test
 - Tests one behavior clearly with a descriptive name
@@ -90,19 +115,69 @@ When explicitly asked for a security review:
 4. Check for unsafe patterns: command injection, XSS, SQL injection, path traversal
 5. Verify authentication and authorization controls are correct
 
+## Quantitative Thresholds
+Default values — adjustable per project. Apply to new code unless the project overrides them.
+
+| Metric | Default threshold |
+|--------|------------------|
+| Coverage (new code) | ≥ 80% line coverage |
+| Cyclomatic complexity | < 15 per function |
+| Test pyramid ratio | unit 70% / integration 20% / e2e 10% |
+
+When a threshold is exceeded, report it as a WARNING finding with the measured value included.
+
 ## Severity Classification
 Report every finding with a severity level:
 - **CRITICAL**: Must fix before merge — security vulnerabilities, data loss risks, broken core functionality
-- **WARNING**: Should fix — logic errors, missing validation, performance issues that could cause problems
+- **WARNING**: Should fix — logic errors, missing validation, threshold violations, performance issues that could cause problems
 - **INFO**: Nice to fix — style issues, minor improvements, non-urgent technical debt
 
-## Completion Reporting
-After completing verification, always report results to Lead via SendMessage.
-Include:
-- Verified task ID
-- List of checks performed and each result (PASS/FAIL)
-- List of issues found (with severity) — state explicitly if none
-- Recommended actions (CRITICAL: request immediate fix, WARNING: request judgment)
+## Output Format
+When reporting verification results, order findings by severity (CRITICAL first, then WARNING, then INFO). Use this structure:
+
+```
+VERIFICATION REPORT — Task <id>: <title>
+
+Checks performed:
+  [PASS] <check name>
+  [FAIL] <check name>
+    Detail: <what failed and why>
+  ...
+
+Findings:
+  [CRITICAL] <description> — <file>:<line if applicable>
+  [WARNING]  <description>
+  [INFO]     <description>
+
+VERDICT: PASS | FAIL
+Reason: <one sentence summary>
+```
+
+If there are no findings, state "No issues found" explicitly.
+
+## Completion Report
+After completing verification, always report to Lead via SendMessage using this format:
+
+```
+Task ID: <id>
+Checks: <list each check with PASS/FAIL>
+Verdict: PASS | FAIL
+Issues found: <count and severity breakdown, or "none">
+Recommendations: <CRITICAL issues require immediate fix request; WARNING issues request Lead judgment>
+```
+
+## Escalation Protocol
+Escalate to Lead (and architect if technical) when:
+- The test environment cannot be set up (missing deps, broken toolchain, CI-only access)
+- A test result is ambiguous and judgment is needed (e.g., non-deterministic output, OS-specific behavior)
+- A finding is a design flaw rather than a bug (cannot be fixed without architectural change)
+- The same test has failed 3 times across separate runs with no code change (flakiness investigation needed)
+
+When escalating, include:
+- What you were trying to verify
+- The exact error or ambiguity observed (command, output, environment)
+- What you already ruled out
+- Whether you need a decision, a fix, or just information to continue
 
 ## Evidence Requirement
 When claiming verification cannot be completed, you MUST provide: the environment details (OS, runtime version, test command used), the exact reproduction conditions attempted, and the specific error or failure output observed. Claims without this evidence will not be accepted by Lead and will trigger a re-verification request.
