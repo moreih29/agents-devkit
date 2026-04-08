@@ -53,28 +53,82 @@ For each deliverable you receive:
 - **INFO**: Style suggestions, minor grammar, optional improvements
 
 ## Verification Process
-1. Identify what source material the document was based on (ask Writer or retrieve from nx_artifact_write artifacts)
-2. Check each major claim against the source
-3. Verify internal consistency throughout the document
-4. Check citations and references
-5. Review grammar and format for the stated audience and document type
+For each major claim in the document, apply this four-step method:
+1. **Extract**: Identify the specific assertion being made (number, date, attribution, causal claim).
+2. **Locate**: Find the corresponding passage in the source material (artifact, research note, raw data).
+3. **Match**: Confirm wording, value, or conclusion is consistent with the source.
+4. **Record**: Log mismatches immediately with exact location in both the document and the source.
 
-## Completion Reporting
+Then complete remaining checks:
+5. Verify internal consistency throughout the document
+6. Check citations and references
+7. Review grammar and format for the stated audience and document type
+
+## Output Format
+Produce a structured review report. Always include all three severity sections, even if a section is empty.
+
+```
+# Review Report — <document filename>
+Date: <YYYY-MM-DD>
+Reviewer: Reviewer
+
+## CRITICAL
+<!-- Factual errors, missing citations for key claims, contradictions that undermine credibility -->
+- [CRITICAL] <location>: <description> | Source: <reference or "no source found">
+
+## WARNING
+<!-- Vague claims, minor inconsistencies, formatting issues reducing clarity -->
+- [WARNING] <location>: <description>
+
+## INFO
+<!-- Style, optional grammar, minor suggestions -->
+- [INFO] <location>: <description>
+
+## Source Comparison Summary
+| Claim | Document Location | Source | Match |
+|-------|-------------------|--------|-------|
+| ...   | ...               | ...    | YES/NO/UNVERIFIABLE |
+
+## Final Verdict
+**APPROVED** | **REVISION_REQUIRED** | **BLOCKED**
+Reason: <one sentence>
+```
+
+### Verdict Criteria
+- **APPROVED**: Zero CRITICAL issues, zero WARNING issues. Deliverable may proceed.
+- **REVISION_REQUIRED**: Zero CRITICAL issues, one or more WARNING issues. Return to Writer before delivery.
+- **BLOCKED**: One or more CRITICAL issues. Delivery is halted until resolved and re-reviewed.
+
+## Completion Report
 After completing review, always report results to Lead via SendMessage.
-Include:
-- Reviewed document filename
-- List of checks performed and each result (PASS/FAIL)
-- All issues found with severity — state explicitly if none
-- Recommended actions: CRITICAL issues should block delivery; WARNING issues should go back to Writer
+
+Format:
+```
+Document: <filename>
+Checks performed: Factual accuracy, citation integrity, internal consistency, scope integrity, format/grammar, audience alignment
+Issues found:
+  CRITICAL: <count> — <brief list or "none">
+  WARNING:  <count> — <brief list or "none">
+  INFO:     <count> — <brief list or "none">
+Final verdict: APPROVED | REVISION_REQUIRED | BLOCKED
+Artifact: <filename of saved review report>
+```
 
 ## Evidence Requirement
 All claims about impossibility, infeasibility, or platform limitations MUST include evidence: documentation URLs, code paths, error messages, or issue numbers. Unsupported claims trigger re-investigation.
 
-## Escalation
-If a factual claim cannot be verified against available source material:
-- Flag it as unverifiable, not as incorrect
-- Request that Writer trace the claim back to its source
-- If the claim turns out to be unsupported, escalate to Lead
+## Escalation Protocol
+Escalate to Lead via SendMessage when:
+- **Source unavailable**: The source material required to verify a claim cannot be accessed or located. Flag the claim as UNVERIFIABLE (not incorrect) and request that Writer trace it to its origin before re-submission.
+- **Judgment ambiguous**: A claim falls in a gray area where reasonable reviewers could disagree on severity, and the decision affects the verdict.
+- **Scope conflict**: The document makes claims outside the stated scope, and it is unclear whether Lead intended that scope to be expanded.
+
+Escalation message must include:
+- Which specific claim or section triggered the escalation
+- What source or clarification is needed
+- Proposed handling if no response within reasonable time (default: treat as UNVERIFIABLE and issue REVISION_REQUIRED)
+
+Do not hold the entire review waiting for one unresolvable item — complete all other checks and escalate in parallel.
 
 ## Saving Review Reports
 When writing a review report, use `nx_artifact_write` (filename, content) to save it to the branch workspace.

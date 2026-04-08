@@ -4520,6 +4520,184 @@
           "created_at": "2026-04-08T07:12:51.773Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-08T11:42:19.755Z",
+      "branch": "feat/agent-spec-enhancement",
+      "plan": {
+        "id": 4,
+        "topic": "에이전트 명세 구체화 및 보완",
+        "issues": [
+          {
+            "id": 1,
+            "title": "공통 명세 구조 표준화 — 현재 role/constraints/guidelines 외에 추가할 섹션 (출력 형식, 단계별 프로세스, 예시/반례, 정량 기준 등)",
+            "status": "decided",
+            "decision": "C안 채택: 공통 베이스 + 역할별 확장. 공통 필수 3섹션(Output Format, Completion Report, Escalation Protocol)을 모든 에이전트에 추가하고, 역할별 선택 섹션(정량 기준→CHECK, 단계별 프로세스→DO, 심각도 분류→HOW+CHECK, 예시/반례→필요시)은 해당 에이전트에만 적용."
+          },
+          {
+            "id": 2,
+            "title": "개별 에이전트 보강 방향 — 9개 에이전트 각각의 구체적 개선 포인트",
+            "status": "decided",
+            "decision": "개별 에이전트 보강 방향 결정. DO 에이전트 자체 체크는 \"넘기기 전 게이트\"로 통일 (Engineer: 빌드 게이트, Writer: 구조 게이트, Researcher: 보고 게이트). 기능·내용 검증은 CHECK 전담. 보강 우선순위: Architect(리뷰 프로세스 단계화, ADR 템플릿, 안티패턴), Strategist(분석 프레임워크, 시장분석 템플릿), Engineer(구현 프로세스 단계화, 빌드 게이트 체크리스트), Tester(정량 기준, 테스트 유형별 가이드). Postdoc은 이미 충실하여 최소 보강. Designer(휴리스틱 체크리스트, 시나리오 분석), Writer(문서 유형별 템플릿, 구조 게이트), Researcher(구조화 프로세스 강화, 출처 품질 등급), Reviewer(보고서 템플릿 구체화, 승인/반려 기준)도 보강."
+          },
+          {
+            "id": 3,
+            "title": "에이전트 간 협력 프로토콜 — handoff 형식, 입출력 계약, 데이터 전달 표준화",
+            "status": "decided",
+            "decision": "C안 채택: 양쪽 분담. 에이전트 명세에는 Completion Report(공통 필수 섹션)로 출력 형식만 정의 — \"나는 이 형태로 결과를 돌려준다\". 오케스트레이션(run 스킬)이 라우팅과 컨텍스트 주입 담당 — \"누구에게 넘기며 어떤 컨텍스트를 함께 전달할지\". 에이전트 명세에 협력 대상은 명시하지 않음."
+          },
+          {
+            "id": 4,
+            "title": "도메인 특화 전략 — 범용 에이전트에 프로젝트/언어/프레임워크별 특화 지침을 어떻게 통합할지",
+            "status": "decided",
+            "decision": "도메인 특화는 Nexus가 관여하지 않음. 에이전트 명세는 범용으로 유지. 프로젝트/언어/프레임워크별 특화는 Claude Code 기존 메커니즘(.claude/rules/, CLAUDE.md)에 완전 위임. nx-init 안내도 하지 않음 — 사용자 재량."
+          }
+        ],
+        "research_summary": "내부: 9개 에이전트 agents/*.md에 정의. HOW(architect/designer/postdoc/strategist)=Opus, DO(engineer/researcher/writer)/CHECK(tester/reviewer)=Sonnet. 도구 제약은 disallowedTools로 관리. 공통 구조: role → constraints → guidelines.\n\n외부: VoltAgent(100+서브에이전트), wshobson/agents(182에이전트), rohitg00(135에이전트) 등 대규모 큐레이션 존재. 주요 발견: (1) 커뮤니티는 출력 형식 템플릿, 정량 기준(coverage>80% 등), 단계별 프로세스를 명시적으로 포함 (2) 에이전트 간 협력 대상을 명시 (3) 도메인 특화 스킬이 별도로 존재 (4) 예시/반례 포함 일반화 (5) Anthropic 공식 SKILL.md는 500줄 이하 권장, progressive disclosure 패턴 사용.",
+        "created_at": "2026-04-08T10:08:14.143Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Architect 명세 보강",
+          "context": "architect.md에 공통 필수 섹션 추가 + 역할 특화 보강",
+          "approach": "1. Output Format 추가: ADR(Architecture Decision Record) 템플릿 — 제목/맥락/결정/결과/트레이드오프. 2. Completion Report 추가: 리뷰 대상, 심각도별 발견사항, 권장사항. 3. Escalation Protocol 추가: 판단 불가 시 Lead에 보고 기준. 4. 리뷰 프로세스 단계화: 현재 상태 분석→요구사항 확인→설계 제안→트레이드오프 문서화. 5. 안티패턴 체크리스트 추가.",
+          "acceptance": "Output Format, Completion Report, Escalation Protocol 3개 섹션 존재. 리뷰 프로세스가 단계별로 명시. 기존 constraints/guidelines 유지.",
+          "risk": "명세 길이 증가로 토큰 비용 상승",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T11:04:45.402Z"
+        },
+        {
+          "id": 2,
+          "title": "Designer 명세 보강",
+          "context": "designer.md에 공통 필수 섹션 추가 + 역할 특화 보강",
+          "approach": "1. Output Format 추가: 사용자 관점→문제→권장→트레이드오프→위험 형식 구체화. 2. Completion Report 추가. 3. Escalation Protocol 추가. 4. 사용성 휴리스틱 체크리스트 (Nielsen 10 등). 5. 사용자 시나리오 기반 분석 프로세스 단계화.",
+          "acceptance": "Output Format, Completion Report, Escalation Protocol 3개 섹션 존재. 휴리스틱 체크리스트 포함. 기존 constraints/guidelines 유지.",
+          "risk": "명세 길이 증가",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T11:04:50.188Z"
+        },
+        {
+          "id": 3,
+          "title": "Postdoc 명세 보강 (최소)",
+          "context": "postdoc.md에 공통 필수 섹션 추가. 이미 충실하므로 최소 보강.",
+          "approach": "1. Completion Report 형식 명시 (기존 합성문서 형식과 별도로 Lead 보고용). 2. Escalation Protocol 추가. 3. Output Format은 기존 합성문서 형식이 충분하므로 정리만.",
+          "acceptance": "Completion Report, Escalation Protocol 섹션 존재. 기존 내용 손상 없음.",
+          "risk": "낮음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T11:04:54.418Z"
+        },
+        {
+          "id": 4,
+          "title": "Strategist 명세 보강",
+          "context": "strategist.md에 공통 필수 섹션 추가 + 역할 특화 보강",
+          "approach": "1. Output Format 추가: 시장 분석 템플릿 — 시장 맥락/경쟁 분석/전략 평가/권장/위험. 2. Completion Report 추가. 3. Escalation Protocol 추가. 4. 분석 프레임워크 명시 (SWOT, Porter's 5 등 상황별 선택 가이드). 5. 정량 근거 요구 수준 명시.",
+          "acceptance": "Output Format, Completion Report, Escalation Protocol 3개 섹션 존재. 분석 프레임워크 가이드 포함. 기존 constraints/guidelines 유지.",
+          "risk": "프레임워크 과다 명시 시 유연성 저하",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T11:04:58.801Z"
+        },
+        {
+          "id": 5,
+          "title": "Engineer 명세 보강",
+          "context": "engineer.md에 공통 필수 섹션 추가 + 자체 체크를 빌드 게이트로 재정의",
+          "approach": "1. Output Format 추가: 완료 보고 형식 구체화 (태스크 ID, 수정 파일, 구현 요약, 제약사항). 2. Completion Report 추가. 3. Escalation Protocol 정리 (기존 3회 실패 규칙 유지 + 형식 표준화). 4. 구현 프로세스 단계화: 요구사항 확인→설계 이해→구현→빌드 게이트. 5. 빌드 게이트 체크리스트: build pass, type check pass, lint clean. 기능 검증은 Tester 전담임을 명시.",
+          "acceptance": "Output Format, Completion Report, Escalation Protocol 3개 섹션 존재. 빌드 게이트가 자체 체크로 명시. 기능 검증은 Tester 전담 명시. 기존 constraints 유지.",
+          "risk": "기존 품질 검사 섹션과 중복 가능 — 통합 필요",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T11:05:11.430Z"
+        },
+        {
+          "id": 6,
+          "title": "Researcher 명세 보강",
+          "context": "researcher.md에 공통 필수 섹션 추가 + 보고 게이트 명시",
+          "approach": "1. Output Format 정리 (기존 보고 형식 유지 + 구조화). 2. Completion Report 추가. 3. Escalation Protocol 정리 (기존 3회 실패 규칙 유지). 4. 보고 게이트: 출처 첨부, 널결과 명시, 모순 증거 표기. 5. 출처 품질 등급 체계 추가 (현재 Postdoc에만 있음).",
+          "acceptance": "Completion Report, Escalation Protocol 섹션 존재. 보고 게이트 체크리스트 명시. 출처 품질 등급 추가.",
+          "risk": "Postdoc 증거 등급과 중복 — 참조로 처리",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T11:05:16.676Z"
+        },
+        {
+          "id": 7,
+          "title": "Writer 명세 보강",
+          "context": "writer.md에 공통 필수 섹션 추가 + 구조 게이트 명시",
+          "approach": "1. Output Format 추가: 문서 유형별 템플릿 (기술문서, 보고서, 릴리스노트). 2. Completion Report 추가. 3. Escalation Protocol 추가. 4. 구조 게이트: 섹션 완성, 형식 일관성, 인용 출처 존재. 내용 검증은 Reviewer 전담 명시.",
+          "acceptance": "Output Format, Completion Report, Escalation Protocol 3개 섹션 존재. 구조 게이트 체크리스트 명시. 내용 검증은 Reviewer 전담 명시.",
+          "risk": "문서 유형 템플릿이 과도하면 유연성 저하",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T11:05:20.791Z"
+        },
+        {
+          "id": 8,
+          "title": "Tester 명세 보강",
+          "context": "tester.md에 공통 필수 섹션 추가 + 정량 기준 도입",
+          "approach": "1. Output Format 정리 (기존 보고서 형식 구체화). 2. Completion Report 추가. 3. Escalation Protocol 추가. 4. 정량 기준 추가: 테스트 유형별 가이드 (unit/integration/e2e), coverage 목표, complexity 임계값. 5. regression 테스트 판단 기준.",
+          "acceptance": "Completion Report, Escalation Protocol 섹션 존재. 정량 기준(coverage, complexity) 포함. 테스트 유형별 가이드 포함.",
+          "risk": "정량 기준이 프로젝트마다 다를 수 있음 — 기본값으로 제시",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T11:05:26.804Z"
+        },
+        {
+          "id": 9,
+          "title": "Reviewer 명세 보강",
+          "context": "reviewer.md에 공통 필수 섹션 추가 + 보고서 템플릿 구체화",
+          "approach": "1. Output Format 구체화: 리뷰 보고서 템플릿 (심각도별 정렬, 원본 대조 결과, 승인/반려 판정). 2. Completion Report 추가. 3. Escalation Protocol 추가. 4. 승인/반려 판단 기준 명확화. 5. 원본 대조 방법론 (인용 검증 절차) 보강.",
+          "acceptance": "Output Format, Completion Report, Escalation Protocol 3개 섹션 존재. 승인/반려 기준 명시. 기존 체크리스트 유지.",
+          "risk": "낮음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T11:05:29.421Z"
+        },
+        {
+          "id": 10,
+          "title": "에이전트 명세 보강 결과 검증",
+          "context": "9개 에이전트 명세 보강 결과를 일괄 검증. 공통 구조 준수 여부, 기존 내용 손상 없음, 일관성 확인.",
+          "approach": "1. 모든 agents/*.md 파일에 공통 필수 섹션(Output Format, Completion Report, Escalation Protocol) 존재 확인. 2. DO 에이전트(Engineer/Writer/Researcher)에 넘기기 전 게이트 체크리스트 존재 확인. 3. 기존 constraints/guidelines 손상 없음 확인. 4. 에이전트 간 용어/형식 일관성 검증. 5. 빌드 테스트 (bun run build, bun test).",
+          "acceptance": "모든 에이전트 명세가 공통 구조 준수. 기존 테스트 통과. 명세 간 용어 일관성 확인.",
+          "risk": "낮음",
+          "status": "completed",
+          "deps": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          "plan_issue": 1,
+          "owner": "tester",
+          "created_at": "2026-04-08T11:05:41.186Z"
+        }
+      ]
     }
   ]
 }
