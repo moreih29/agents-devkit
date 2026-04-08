@@ -38,7 +38,7 @@ claude plugin install claude-nexus@nexus
 |------|------|------|
 | `[plan]` | 플랜 모드 활성화 | `[plan] DB 마이그레이션 전략 논의` |
 | `[d]` | 결정 기록 (plan 세션 내) | `응 그 방향으로 [d]` |
-| `[run]` | 실행 (에이전트 팀) | `[run] 결제 모듈 리팩토링` |
+| `[run]` | 실행 (서브에이전트 구성) | `[run] 결제 모듈 리팩토링` |
 | `[rule]` | 규칙 저장 | `[rule] npm 대신 bun 사용` |
 
 ## 에이전트
@@ -81,7 +81,7 @@ Claude가 직접 호출하는 도구입니다.
 | `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 플랜) |
 | `nx_task_list/add/update/close` | `.nexus/state/tasks.json` 기반 태스크 관리 + `.nexus/history.json` 아카이브 |
 | `nx_artifact_write` | 팀 산출물 저장 (`.nexus/state/artifacts/`) |
-| `nx_plan_start` | 플랜 세션 시작 (토픽 + 논점 등록, 참석자 팀 검증) |
+| `nx_plan_start` | 플랜 세션 시작 (토픽 + 논점 + 리서치 요약 등록) |
 | `nx_plan_status` | 플랜 상태 조회 |
 | `nx_plan_update` | 플랜 논점 수정 (add/remove/edit/reopen) |
 | `nx_plan_decide` | 논점 결정 처리 (plan.json) |
@@ -115,7 +115,7 @@ Gate 단일 모듈로 동작합니다.
 |--------|------|
 | `SessionStart` | `.nexus/` 구조 초기화, agent-tracker 리셋 |
 | `UserPromptSubmit` | 태그 감지 → 모드 활성화 + TASK_PIPELINE 주입 + additionalContext 안내 |
-| `PreToolUse` | Edit/Write: tasks.json 미완료 시 차단. nx_plan_start: 참석자 팀 검증 |
+| `PreToolUse` | Edit/Write: tasks.json 미완료 시 차단 |
 | `SubagentStart` | 에이전트 역할별 코어 지식 인덱스 자동 주입 (lazy-read) |
 | `SubagentStop` | 에이전트 완료 기록. 미완료 태스크 경고 |
 | `Stop` | pending 태스크 있으면 종료 차단. all completed면 nx_task_close 강제 |

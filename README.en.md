@@ -9,7 +9,7 @@ Agent orchestration plugin for Claude Code.
 
 ## Why
 
-Specialized agent teams handle development and research systematically — architect, engineer, tester, researcher, and more. One tag triggers automatic orchestration of complex tasks across the right agents without manual coordination.
+Specialized subagents handle development and research systematically — architect, engineer, tester, researcher, and more. One tag triggers automatic orchestration of complex tasks across the right agents without manual coordination.
 
 ## Quick Start
 
@@ -27,7 +27,7 @@ Run `/claude-nexus:nx-init` — scans your project and auto-generates structured
 **3. Start using**
 
 - **Plan**: `[plan] How should we design the auth system?` — clarify intent and align before executing
-- **Run**: `[run] Implement login API` — agent team handles analysis through implementation
+- **Run**: `[run] Implement login API` — subagents handle analysis through implementation
 
 ## Usage
 
@@ -36,7 +36,7 @@ Tag your message to route it to the right workflow:
 | Tag | Action | Example |
 |-----|--------|---------|
 | `[plan]` | Pre-execution planning | `[plan] Discuss DB migration strategy` |
-| `[run]` | Execution (agent team) | `[run] Refactor payment module` |
+| `[run]` | Execution (subagent composition) | `[run] Refactor payment module` |
 | `[d]` | Record a decision (within plan session) | `[d] Use PostgreSQL for primary storage` |
 | `[rule]` | Save a rule | `[rule] Always use bun instead of npm` |
 
@@ -44,7 +44,7 @@ Typical flow: `[plan]` to discuss and align → `[d]` to decide (within plan) �
 
 ## Agents
 
-### How Team (4 agents)
+### How (4 agents)
 
 | Agent | Invocation | Role | Model |
 |-------|-----------|------|-------|
@@ -53,7 +53,7 @@ Typical flow: `[plan]` to discuss and align → `[d]` to decide (within plan) �
 | **Postdoc** | `claude-nexus:postdoc` | Research methodology and evidence synthesis | opus |
 | **Strategist** | `claude-nexus:strategist` | Business strategy and competitive positioning | opus |
 
-### Do Team (3 agents)
+### Do (3 agents)
 
 | Agent | Invocation | Role | Model |
 |-------|-----------|------|-------|
@@ -61,7 +61,7 @@ Typical flow: `[plan]` to discuss and align → `[d]` to decide (within plan) �
 | **Researcher** | `claude-nexus:researcher` | Web search, independent investigation | sonnet |
 | **Writer** | `claude-nexus:writer` | Technical writing and documentation | sonnet |
 
-### Check Team (2 agents)
+### Check (2 agents)
 
 | Agent | Invocation | Role | Model |
 |-------|-----------|------|-------|
@@ -93,8 +93,8 @@ Claude-callable tools exposed by the Nexus MCP server.
 | `nx_rules_read/write` | Team custom rules management (git-tracked) |
 | `nx_context` | Current session state lookup (branch, tasks, plan) |
 | `nx_task_list/add/update/close` | Task management + history.json archiving |
-| `nx_artifact_write` | Save team artifacts (branch-isolated) |
-| `nx_plan_start` | Start plan session (topic + issues, team verification) |
+| `nx_artifact_write` | Save artifacts (branch-isolated) |
+| `nx_plan_start` | Start plan session (topic + issues + research summary) |
 | `nx_plan_status` | Query plan state |
 | `nx_plan_update` | Modify plan issues (add/remove/edit/reopen) |
 | `nx_plan_decide` | Record issue decision (plan.json) |
@@ -128,7 +128,7 @@ Nexus registers a single Gate module as a Claude Code hook.
 |-------|------|
 | `SessionStart` | Initialize `.nexus/` structure, reset agent-tracker |
 | `UserPromptSubmit` | Tag detection → mode activation + TASK_PIPELINE injection + additionalContext guidance |
-| `PreToolUse` | Edit/Write: blocks when incomplete tasks exist. nx_plan_start: attendee team verification |
+| `PreToolUse` | Edit/Write: blocks when incomplete tasks exist |
 | `SubagentStart` | Auto-inject role-filtered core knowledge index (lazy-read) |
 | `SubagentStop` | Record agent completion. Warn if owned tasks remain incomplete |
 | `Stop` | Blocks exit with pending tasks. Forces nx_task_close when all completed |
