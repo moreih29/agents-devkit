@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.24.0 (2026-04-08)
+
+### Refactoring
+- redesign context management — flatten .nexus/ structure, remove 4 MCP tools
+
+### Other
+- merge: feat/context-management-redesign — context management redesign, flat .nexus/ structure
+
 ## 0.23.1 (2026-04-08)
 
 ### Other
