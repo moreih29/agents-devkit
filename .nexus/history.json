@@ -4147,6 +4147,66 @@
           "created_at": "2026-04-07T00:59:32.843Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-08T03:50:05.867Z",
+      "branch": "fix/plan-run-transition",
+      "plan": {
+        "id": 4,
+        "topic": "nx-run 스킬 로딩 신뢰성 & task close 누락 문제 개선",
+        "issues": [
+          {
+            "id": 1,
+            "title": "run 스킬 로딩 신뢰성 — additionalContext BLOCKING 지시 방식의 한계와 개선",
+            "status": "decided",
+            "decision": "plan SKILL.md에서 plan→run Transition 섹션의 실행 절차 상세(task 생성, enrichment, execution rules 등)를 제거하고, 안내 문구만 남긴다(\"tasks.json은 Step 7에서 이미 생성됨. Plan의 역할은 여기서 끝. [run]으로 실행하세요.\"). Self-Reinforcing Loop 다이어그램과 Deactivation 섹션도 동일하게 정리. Lead가 plan 문서만으로 실행할 수 있는 대안 경로를 제거하여, run 스킬 로딩을 구조적으로 필수화."
+          },
+          {
+            "id": 2,
+            "title": "task close 누락 — 파이프라인 종료 시 nx_task_close가 호출되지 않는 구조적 원인과 대책",
+            "status": "decided",
+            "decision": "task close 누락은 run 스킬 미로딩의 하류 효과. run 스킬이 로드되면 4중 안전망(constraint, Step 4, getTasksReminder 매턴, Stop hook)이 이미 존재. 별도 메커니즘 추가 불필요 — 안건 1 해결이 primary fix."
+          },
+          {
+            "id": 3,
+            "title": "plan→run 전환 UX — plan 세션 종료 후 run이 자연스럽게 트리거되지 않는 문제",
+            "status": "decided",
+            "decision": "plan 종료 시 질문형(\"[run]으로 전환하시겠습니까?\") 대신 안내형(\"`[run]`으로 실행하세요.\")으로 변경. 사용자가 \"응\" 등 자연어로 답해 gate가 [run] 태그를 감지 못하는 문제를 방지하고, 불필요한 턴을 제거."
+          }
+        ],
+        "research_summary": "**리서치 결과 요약:**\n\n1. **\"Successfully loaded skill\" 메시지**: Claude Code 내부 시스템에서 발생. Skill() 도구 호출 시마다 표시됨 (1회 제한 아님).\n\n2. **run 스킬 트리거 메커니즘**: gate.ts의 `handleRunMode()`가 additionalContext에 \"BLOCKING: Invoke Skill tool with skill='claude-nexus:nx-run' BEFORE any other action\"을 주입. 하지만 이것은 텍스트 지시일 뿐 — Claude Code LLM이 최종 판단. plan 대비 run이 누락되는 이유: (a) plan 세션 후 컨텍스트가 무거워 additionalContext 우선순위 하락, (b) additionalContext가 압축 시 유실 가능, (c) plan이 이미 로딩된 상태에서 추가 Skill() 호출 필요.\n\n3. **task close 누락**: `nx_task_close`는 수동 MCP 도구 — Lead가 명시적으로 호출해야 함. 3곳에서 리마인더 (constraint, step 4, gate stop hook) 하지만: (a) 긴 실행 파이프라인 끝에서 요구사항 망각, (b) stop hook이 차단하지만 last resort, (c) 자동 호출 메커니즘 없음.\n\n4. **gate.ts 구조**: UserPromptSubmit에서 [d]→[rule]→[plan]/[run]→free 순서로 감지. run 감지 시 handleRunMode() 호출하여 BLOCKING additionalContext 주입. Stop 훅에서 pending tasks 있으면 차단.\n\n5. **스킬 정의 비교**: nx-plan triggers=['[plan]', 'plan', '계획', '설계', '분석하자' 등 10개], nx-run triggers=['[run]', 'run', '실행', '개발', '구현', '연구', '조사' 7개]. plan이 더 많은 자연어 트리거 보유.",
+        "created_at": "2026-04-08T00:26:58.498Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "plan SKILL.md plan→run Transition 섹션 정리",
+          "context": "skills/nx-plan/SKILL.md의 plan→run Transition 섹션(lines 200-209), Self-Reinforcing Loop 다이어그램(line 285), Deactivation 섹션(lines 292-294)에서 실행 절차 상세를 제거하고 안내 문구만 남긴다.",
+          "approach": "1. plan→run Transition 섹션: 5개 실행 절차 항목을 제거하고 \"tasks.json은 Step 7에서 생성됨. Plan의 역할은 여기서 끝. `[run]`으로 실행하세요.\"로 교체. 2. Self-Reinforcing Loop: \"[run]: nx_task_add(…) → execution\"을 \"[run]: 실행 스킬이 담당\"으로 간소화. 3. Deactivation 섹션: 실행 절차 제거, run 전환 안내만 유지.",
+          "acceptance": "1. plan→run Transition 섹션에 실행 절차(task 생성, enrichment, execution rules)가 없을 것. 2. [run] 전환 안내 문구가 안내형으로 존재할 것. 3. Self-Reinforcing Loop 다이어그램이 정리될 것.",
+          "risk": "plan SKILL.md 내용 변경이므로 캐시 동기화(bun run dev) 필요",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-08T00:57:52.067Z"
+        },
+        {
+          "id": 2,
+          "title": "plan SKILL.md Step 7 전환 안내 문구 변경",
+          "context": "Step 7의 마지막 항목 \"Offer transition: `[run]`으로 전환하시겠습니까?\"를 안내형으로 변경",
+          "approach": "Step 7 item 6을 \"Present transition: `[run]`으로 실행하세요.\"로 변경. 질문형 → 안내형.",
+          "acceptance": "Step 7 마지막에 질문형이 아닌 안내형 문구가 있을 것",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 3,
+          "owner": "engineer",
+          "created_at": "2026-04-08T00:57:55.769Z"
+        }
+      ]
     }
   ]
 }

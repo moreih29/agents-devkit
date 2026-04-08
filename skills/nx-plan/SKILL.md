@@ -191,7 +191,7 @@ All issues decided → generate the plan document (tasks.json) immediately:
    - Set `decisions` from plan.json decided summaries
    - Call `nx_task_add(plan_issue=N, approach, acceptance, risk, owner)` for each task
 5. **Present plan document** — show the user the generated tasks.json summary for review
-6. **Offer transition**: "`[run]`으로 전환하시겠습니까?"
+6. **Present transition**: "`[run]`으로 실행하세요."
 
 **Incremental mode**: if tasks.json already exists (e.g., after adding follow-up issues), only add tasks for new decisions. Check `plan_issue` field to avoid duplicating tasks for already-covered issues.
 
@@ -199,13 +199,8 @@ All issues decided → generate the plan document (tasks.json) immediately:
 
 ## plan → run Transition
 
-When the user activates `[run]` after a plan session:
-
-1. Tasks are created with `nx_task_add(plan_issue=N)` — linking each task to its originating plan issue.
-2. Each task is enriched with `approach`, `acceptance`, and `risk` fields derived from decisions.
-3. The `decisions` array in tasks.json is populated from plan.json decisions.
-4. Execution proceeds under [run] pipeline rules.
-5. Close: all tasks done → "close할까요?" → `nx_task_close` archives plan+tasks → history.json.
+tasks.json은 Step 7에서 이미 생성됨. Plan의 역할은 여기서 끝.
+`[run]`으로 실행하세요.
 
 ---
 
@@ -280,15 +275,15 @@ Per-issue: HOW subagent analysis (parallel, independent) → Lead synthesis
   ↓
 Next issue → ... → gap check → planning complete
   ↓
-"[run]으로 전환하시겠습니까?"
+"[run]으로 실행하세요."
   ↓
-[run]: nx_task_add(plan_issue=N, approach, acceptance, risk) → execution
+[run]: 실행 스킬이 전체 파이프라인을 담당
   ↓
-All done → "close할까요?" → nx_task_close → plan+tasks → history.json
+All done → nx_task_close (run 스킬이 처리)
 ```
 
 gate.ts detects `[d]` and routes to `nx_plan_decide` if plan.json exists; blocks otherwise.
 
 ## Deactivation
 
-When user switches to `[run]`, execute plan→run transition (Step 6). Tasks are enriched with approach/acceptance/risk from plan decisions. The full cycle is archived via `nx_task_close` (plan+tasks → history.json) when all tasks complete.
+`[run]` 전환 시 Plan의 역할은 종료. 실행은 run 스킬이 담당.
