@@ -196,7 +196,7 @@ AskUserQuestion({
 })
 ```
 
-If "Yes": run the nx-init skill.
+If "Yes": invoke `Skill({ skill: "claude-nexus:nx-init" })`.
 If "Skip": proceed to next step.
 
 ### Step 6: Complete

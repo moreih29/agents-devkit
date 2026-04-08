@@ -3,7 +3,7 @@ name: nx-sync
 description: "Core knowledge synchronization — scans project state and updates .nexus/core/ layers"
 trigger_display: "/claude-nexus:nx-sync"
 purpose: "Synchronize core knowledge with current project state"
-triggers: ["sync", "동기화", "core 업데이트", "문서 동기화"]
+triggers: ["/claude-nexus:nx-sync"]
 ---
 
 <role>
@@ -23,8 +23,7 @@ Scans the current project state and synchronizes .nexus/core/ knowledge layers. 
 - `/claude-nexus:nx-sync` — sync all layers (default)
 - `/claude-nexus:nx-sync codebase` — sync specific layer only
 - `/claude-nexus:nx-sync identity codebase` — sync multiple specific layers
-- Natural language: "sync core", "update docs", "동기화"
-- Auto-invoked by Lead in [run] Step 5
+- Auto-invoked by Lead in [run] Step 4
 
 ## Process
 
@@ -32,7 +31,7 @@ Scans the current project state and synchronizes .nexus/core/ knowledge layers. 
 
 Collect information from all available sources:
 
-1. **git diff** — run `git diff --name-only {last-sync-commit}..HEAD` (if no last-sync marker, use recent commits)
+1. **git diff** — run `git diff --name-only HEAD~10..HEAD` (or use recent commits to identify changed files)
    - Identifies which source files changed
    - Primary source for codebase/ layer updates
 2. **history.json** — read `.nexus/history.json` for recent cycles
@@ -84,23 +83,17 @@ Report to user:
 
 ## Layer-Specific Guidance
 
+Update files that exist in each layer based on detected changes. Do not assume specific filenames — each project has different core/ structure.
+
 ### identity/
-- mission.md: update only if fundamental project direction changed
-- design.md: update if architecture, principles, or role definitions changed
-- roadmap.md: add new completed items, update current phase
-- context-standard.md: update if format conventions changed
+- Update only if fundamental project direction, design principles, or priorities changed
+- Rarely needs sync — skip unless user explicitly requests or major shifts detected
 
 ### codebase/
-- architecture.md: update if file structure, entry points, or data paths changed
-- orchestration.md: update if gate behavior, tags, or agent catalog changed
-- tools.md: update if MCP tools were added, removed, or modified
-- development.md: update if build process, conventions, or workflow changed
+- Primary sync target — update when source code structure, tools, workflows, or conventions changed
+- Match updates to the project's existing documentation files
 
 ### reference/
 - Add new research findings from completed research tasks
 - Update existing references if new data contradicts or supplements them
-
-### memory/
-- Record lessons from cycles with memoryHint indicators
-- Format: `## {date} — {topic}\n- lesson item`
 </guidelines>

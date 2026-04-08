@@ -4207,6 +4207,319 @@
           "created_at": "2026-04-08T00:57:55.769Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-08T05:22:33.697Z",
+      "branch": "feat/skill-structural-improvements",
+      "plan": {
+        "id": 4,
+        "topic": "plan/run 스킬 구조적 개선",
+        "issues": [
+          {
+            "id": 1,
+            "title": "HOW 서브에이전트 스폰 구조 — opt-in을 opt-out으로 전환하고 도메인-에이전트 매핑 추가",
+            "status": "decided",
+            "decision": "plan SKILL.md Step 4에 도메인-에이전트 매핑 테이블 추가 (UI/UX→Designer, 아키텍처/구조→Architect, 비즈니스/전략→Strategist, 연구방법론→Postdoc) + opt-out 전환. 이슈별로 매핑 키워드에 해당하는 HOW가 있으면 스폰이 default이고 복수 해당 시 복수 스폰. 안 쓰려면 분석 텍스트에 불필요 이유 명시 필수."
+          },
+          {
+            "id": 2,
+            "title": "plan:auto 모드 품질 보장 — 자체 검증 없이 결정하는 문제와 auto-plan 후 사용자 확인 부재",
+            "status": "decided",
+            "decision": "A: auto 결정 품질 — nx_plan_decide 시 \"선택 이유 + 기각 대안\"을 summary에 포함하도록 auto 모드 지시 강화. 비교표는 불필요하되 내부 검증은 필수. B: 브리핑 — auto 완료 후 결정사항 요약을 출력하되 대기 없이 바로 진행(X안). 범위 명확화: auto-plan 단독 시 브리핑+tasks.json 생성까지 자동, run에서 auto-plan 시 tasks.json 생성 후 실행까지 자동(끊김 없이 연속)."
+          },
+          {
+            "id": 3,
+            "title": "세션 관리 — abort 메커니즘 부재, 결정 reopen 디스커버리빌리티, 서브에이전트 실패 복구",
+            "status": "decided",
+            "decision": "3-1 abort: 스킬 문서에 세션 중단 경로 안내 추가 (nx_task_close로 아카이브). 별도 메커니즘 구현 없음. 3-2 reopen: 스킬 문서에 결정 번복 시 nx_plan_update(action='reopen') 사용 안내 추가. 3-3 실패 복구: run SKILL.md SubagentStop 부분을 에스컬레이션 체인으로 교체 — Do/Check 실패 시 관련 HOW가 원인 분석+접근법 재검토 후 재위임, HOW까지 실패 시 Lead가 사용자에게 보고."
+          },
+          {
+            "id": 4,
+            "title": "UX 개선 — 비교표 경직성, 진행 앵커링, dead triggers 정리",
+            "status": "decided",
+            "decision": "4-1 비교표: 경직성은 문제가 아닌 강점. 사용자가 확신을 가져와도 Lead는 독립적 비교 분석으로 몰랐던 trade-off를 제시해야 함 — \"객관적 pushback\"을 프롬프트에 보강. shortcut 도입하지 않음. 4-2 진행 앵커링: 결정 후 한 줄 \"Issue #N decided (M of K). Next: #X - {title}\" 출력하도록 Step 5에 추가. 4-3 dead triggers: plan과 run 모두 자연어 트리거 제거, 명시적 태그([plan], [plan:auto], [run])로만 동작. SKILL.md frontmatter에서 자연어 triggers 삭제 + gate.ts NATURAL_PATTERNS 제거."
+          },
+          {
+            "id": 5,
+            "title": "Step 7 태스크 생성 품질 — owner 배정 정확도와 태스크 분해 깊이 개선",
+            "status": "decided",
+            "decision": "A+C 규칙 강화 (owner 배정 정밀화 + 검증 태스크 자동 페어링) + HOW 연계 태스크 생성. plan Steps 1-6에서 HOW 스폰 시 참여 에이전트와 핵심 의견을 plan.json에 기록. Step 7에서 plan.json의 HOW 참여 이력을 확인하고, 참여 HOW가 있으면 재스폰하여 결정사항+자기 의견 컨텍스트로 함께 태스크 분해. HOW 없었으면 Lead 단독+규칙 기반 생성. plan 복잡도에 비례하는 자연스러운 조절."
+          }
+        ],
+        "research_summary": "**아키텍트 리뷰 (10건):**\nHigh: (1) simple/complex 판단이 Lead 재량이라 HOW 스폰 회피 가능, (2) plan:auto가 비교표/대안분석 없이 결정 — 품질 보장 없음\nMedium: (3) plan.json→tasks.json 전달 시 결정 근거 손실, (4) auto-plan 후 Step 2 확인이 있으나 거부 시 경로 미정의, (5) Tester 스폰 조건에 acceptance 없는 ad-hoc 태스크 빠짐, (6) SubagentStop 복구 — 재시도 제한/에스컬레이션 없음\nLow: (7) run 자연어 트리거가 gate.ts에 미구현 (dead triggers), (8) 컴팩션 시 분석 컨텍스트 유실, (9) Branch guard 충돌 미감지, (10) Step 7 owner 테이블 vs run \"Lean start\" 충돌\n\n**디자이너 리뷰 (10건):**\nHigh: (1) [run] 없이 plan:auto 자동 실행 시 사용자 인지 없이 결정됨, (2) abort 메커니즘 부재 — 세션 탈출 불가, (3) dead triggers 정리 필요\nMedium: (4) 비교표 강제 — 사용자가 이미 결정한 경우에도 필수, (5) 결정 후 진행 앵커링 없음 (N of M), (6) 중간 방향 전환 가이드 없음, (7) reopen 디스커버빌리티 낮음\nLow: (8) dynamic agenda가 결정 직후 인지 부하 가중, (9) 서브에이전트 작업 진행 시그널 부재, (10) 서브에이전트 실패를 사용자에게 안 알림",
+        "created_at": "2026-04-08T04:43:24.885Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "plan SKILL.md — HOW 스폰 구조 개선 (도메인 매핑 + opt-out)",
+          "context": "Step 4 Analysis 섹션에 도메인-에이전트 매핑 테이블 추가하고 simple/complex 분기를 opt-out 구조로 전환",
+          "approach": "1. Step 4의 \"Subagent Analysis\" 부분에 매핑 테이블 삽입 (UI/UX→Designer, 아키텍처/구조→Architect, 비즈니스/전략→Strategist, 연구방법론→Postdoc). 2. \"Simple issues\" 분기를 \"매핑 해당 HOW 없고 Lead가 충분히 분석 가능한 경우에만 스킵 — 불필요 이유 명시 필수\"로 교체. 3. \"When in doubt, spawn\" 유지하되 opt-out이 default임을 명확화.",
+          "acceptance": "1. 도메인-에이전트 매핑 테이블이 Step 4에 존재. 2. HOW 스폰이 opt-out 구조로 전환됨 (안 쓰면 이유 명시). 3. 기존 \"3+ viable options\" 기준 제거 또는 보조 기준으로 격하.",
+          "risk": "매핑이 너무 넓으면 모든 이슈에 HOW 스폰 → 비용 증가. \"강력 권장\"으로 톤 조절 필요.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-08T05:03:35.776Z"
+        },
+        {
+          "id": 2,
+          "title": "plan SKILL.md — auto 모드 품질 보강 + 브리핑 추가",
+          "context": "Auto Mode 섹션에 결정 품질 요구사항과 브리핑 출력 지시 추가",
+          "approach": "1. Auto Mode의 \"Auto-decide\" 항목에 \"nx_plan_decide summary에 선택 이유 + 기각된 대안과 이유를 반드시 포함\"하도록 지시 추가. 2. plan 생성 직전에 결정 브리핑을 출력하도록 지시 추가 (대기 없이 바로 진행). 3. auto-plan 단독 범위(tasks.json까지)와 run에서 auto-plan 범위(실행까지) 명확화.",
+          "acceptance": "1. auto 모드 결정에 선택 이유+기각 대안이 필수로 명시됨. 2. 브리핑 출력 지시가 있음. 3. 단독/run 범위가 구분되어 기술됨.",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-08T05:03:43.868Z"
+        },
+        {
+          "id": 3,
+          "title": "plan SKILL.md — 세션 관리 안내 추가 (abort, reopen)",
+          "context": "abort 경로 안내와 reopen 사용 안내를 스킬 문서에 추가",
+          "approach": "1. State Management 섹션 또는 별도 섹션에 abort 경로 안내: \"세션 중단 시 nx_task_close로 현재 상태를 아카이브\". 2. Step 5 또는 Step 6에 reopen 안내: \"사용자가 이전 결정을 번복하려면 nx_plan_update(action='reopen', issue_id=N)으로 재개\".",
+          "acceptance": "1. abort 경로가 문서에 명시됨. 2. reopen 사용법이 상호작용 패턴으로 기술됨.",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 3,
+          "owner": "engineer",
+          "created_at": "2026-04-08T05:03:48.583Z"
+        },
+        {
+          "id": 4,
+          "title": "run SKILL.md — 에스컬레이션 체인 추가",
+          "context": "Step 2의 SubagentStop 부분을 에스컬레이션 체인으로 교체",
+          "approach": "현재 \"re-spawn or handle directly\"를 교체: Do/Check 실패 → 관련 HOW에게 원인 분석+접근법 재검토 위임 → 재위임 → HOW까지 실패 시 Lead가 사용자에게 보고. 재시도 제한 명시 (HOW 진단 1회, 재위임 1회).",
+          "acceptance": "1. 에스컬레이션 체인이 명확히 기술됨 (Do/Check→HOW→Lead→사용자). 2. 기존 \"re-spawn or handle directly\" 제거.",
+          "risk": "HOW 스폰이 추가되므로 실패 시 비용 증가. 단, 맹목적 재시도보다 효율적.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 3,
+          "owner": "engineer",
+          "created_at": "2026-04-08T05:03:54.714Z"
+        },
+        {
+          "id": 5,
+          "title": "plan SKILL.md — 비교표 독립성 보강 + 진행 앵커링",
+          "context": "Principles/Constraints에 비교표 독립성 강화, Step 5에 앵커링 출력 추가",
+          "approach": "1. Principle 8 \"Objective pushback\" 보강: 사용자가 확신을 가져와도 Lead는 독립적으로 분석하고 사용자가 몰랐던 trade-off를 제시해야 함을 명시. 2. Step 5(결정 기록) 직후에 \"Issue #N decided (M of K). Next: #X - {title}\" 앵커링 출력 추가.",
+          "acceptance": "1. 비교표 독립성이 Principles에 보강됨. 2. 결정 후 앵커링 출력 지시가 Step 5에 있음.",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 4,
+          "owner": "engineer",
+          "created_at": "2026-04-08T05:03:59.486Z"
+        },
+        {
+          "id": 6,
+          "title": "plan/run SKILL.md + gate.ts — 자연어 트리거 제거",
+          "context": "plan, run 모두 명시적 태그로만 동작하도록 자연어 트리거 제거",
+          "approach": "1. nx-plan SKILL.md frontmatter triggers에서 자연어 항목 제거, [plan]과 [plan:auto]만 유지. 2. nx-run SKILL.md frontmatter triggers에서 자연어 항목 제거, [run]만 유지. 3. gate.ts NATURAL_PATTERNS 배열 제거 (plan 자연어 패턴). isPrimitiveMention도 정리.",
+          "acceptance": "1. 두 SKILL.md frontmatter에 자연어 triggers 없음. 2. gate.ts에 NATURAL_PATTERNS 없음. 3. [plan], [plan:auto], [run] 명시적 태그만 동작.",
+          "risk": "자연어로 plan을 트리거하던 사용자 습관이 있으면 혼란 가능. 단, 명시적 태그가 더 안전.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 4,
+          "owner": "engineer",
+          "created_at": "2026-04-08T05:04:06.213Z"
+        },
+        {
+          "id": 7,
+          "title": "plan SKILL.md — Step 7 owner 규칙 정밀화 + 검증 태스크 자동 페어링",
+          "context": "Step 7의 owner 배정 테이블을 정밀화하고, acceptance/writer 산출물에 대한 검증 태스크 자동 페어링 규칙 추가",
+          "approach": "1. owner 테이블 정밀화: .md/.문서 파일 수정 → writer, 기존 \"코드 구현/수정 → engineer\"에서 비코드 파일을 분리. 2. 자동 페어링 규칙 추가: acceptance 필드가 있는 태스크 → tester 태스크 페어링, writer 산출물 있으면 → reviewer 태스크 페어링. 이를 Step 7 지시에 명시.",
+          "acceptance": "1. owner 테이블에서 비코드 파일이 writer로 분리됨. 2. 검증 태스크 자동 페어링 규칙이 Step 7에 명시됨.",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 5,
+          "owner": "engineer",
+          "created_at": "2026-04-08T05:13:25.448Z"
+        },
+        {
+          "id": 8,
+          "title": "plan SKILL.md + plan.ts — HOW 참여 기록 + Step 7 HOW 재스폰",
+          "context": "Step 4에서 HOW 스폰 시 참여/의견을 plan.json에 기록하고, Step 7에서 참여 HOW를 재스폰하여 태스크 분해에 참여시키는 구조",
+          "approach": "1. plan.json issue 스키마에 how_agents(string[])와 how_summary(Record) 필드 추가 — plan.ts nx_plan_decide 또는 별도 도구로 기록. 2. Step 4 지시에 \"HOW 스폰 후 핵심 의견을 plan.json에 기록\"하도록 추가. 3. Step 7 지시에 \"plan.json에서 HOW 참여 이력 확인 → 참여 HOW 재스폰, 결정+의견 컨텍스트로 함께 태스크 분해\" 추가. HOW 없으면 Lead 단독+규칙 기���.",
+          "acceptance": "1. plan.json에 how_agents/how_summary 기록 가능. 2. Step 4에 HOW 의견 기록 지시 있음. 3. Step 7에 HOW 재스폰 조건부 지시 있음.",
+          "risk": "plan.json 스키마 변경 → plan.ts 수정 필요. MCP 도구 인터페이스 변경 가능.",
+          "status": "completed",
+          "deps": [
+            7
+          ],
+          "plan_issue": 5,
+          "owner": "engineer",
+          "created_at": "2026-04-08T05:13:33.063Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-08T05:55:20.004Z",
+      "branch": "feat/skill-structural-improvements",
+      "plan": {
+        "id": 4,
+        "topic": "plan SKILL.md 상세 리뷰 — 10개 포인트 정리",
+        "issues": [
+          {
+            "id": 1,
+            "title": "트리거 섹션 정리 — frontmatter에 태그 있는데 내부 Trigger 섹션이 여전히 자연어 트리거 나열",
+            "status": "decided",
+            "decision": "Trigger 섹션에서 Natural 트리거 줄 삭제, 나머지 유지 (explicit tag 설명 + mid-session HOW 스폰 + 태그 없는 대화 시 세션 계속 규칙). frontmatter와 gate.ts에 이미 자연어 제거 완료되었으므로 일관성 확보."
+          },
+          {
+            "id": 2,
+            "title": "auto 모드에 HOW 태스크 분해 파이프라인 부재 + 인텐트/리서치/분석 구조 개선",
+            "status": "decided",
+            "decision": "2-1: auto 모드 step 5에 Step 7 규칙 참조 추가 (HOW-assisted decomposition 포함). 2-2: Intent Discovery Progressive Depth 테이블에서 HOW Subagents 컬럼 제거, Exploration Scope에만 집중. HOW 결정은 Step 4 domain mapping에 위임. 2-3: Research 테이블을 Explore agent(코드베이스)와 Researcher(웹검색)로 명확 분리. 2-4: \"HOW subagents do NOT communicate\" 문구 삭제 (서브에이전트 구조에서 불필요). Principle 11도 동일 내용이므로 함께 제거."
+          },
+          {
+            "id": 3,
+            "title": "언어 통일 + plan.json 예시 업데이트 + 불필요 문구 제거",
+            "status": "decided",
+            "decision": "영어 통일: opt-out 규칙, plan→run transition, session abort, self-reinforcing loop, deactivation, owner 테이블, verification pairing, 비교표 예시 헤더. 한글 유지: 도메인 키워드 매핑, [d] 차단 메시지, decision reversal 사용자 입력 예시. plan.json 예시에 how_agents/how_summary 필드 추가."
+          }
+        ],
+        "research_summary": "**10개 포인트 분석 결과:**\n\n1. **Trigger 섹션 (line 36-41)**: frontmatter triggers는 [\"[plan]\", \"[plan:auto]\"]로 정리됐는데, 내부 Trigger 섹션에 여전히 자연어 트리거(\"계획\", \"설계\", \"분석하자\" 등)가 나열됨. gate.ts에서도 제거했으므로 완전히 불일치.\n\n2. **Auto 모드 HOW 태스크 분해**: auto 모드(line 45-70)의 step 5 \"Plan document\"가 그냥 \"generate tasks.json\"만 명시. Step 7의 HOW-assisted task decomposition(line 196-199)을 참조하지 않음. auto에서도 HOW 참여 이력이 있으면 재스폰해서 태스크를 만들어야 하는데 빠져있음.\n\n3. **Intent Discovery (line 76-93)**: Progressive Depth 테이블이 \"HOW 수\"를 매핑하는데, Step 4에 domain-agent 매핑+opt-out을 추가한 후 역할이 중복. 이 테이블의 HOW 수 컬럼이 아직 필요한지 검토 필요.\n\n4. **Research (line 95-114)**: \"Spawn researcher subagent with Explore scope\"가 모호. researcher=웹검색, Explore=코드베이스 탐색인데 경계가 혼재. \"Spawn researcher\" vs \"Spawn Explore agent\"로 구분해야 함.\n\n5. **Step 4 언어 (line 131-143)**: 도메인 키워드는 한글 유지 맞음. 하지만 opt-out 규칙(line 140-141)이 한글로 작성됨. 명세 부분은 영어로 통일 필요.\n\n6. **\"HOW subagents do NOT communicate\" (line 142)**: 서브에이전트는 구조적으로 상호 통신 불가. 이 문구는 팀 기반 아키텍처 잔재. 현재 구조에서 불필요.\n\n7. **HOW 기록 (line 143)**: nx_plan_decide에 how_agents/how_summary가 추가됨. 구조는 맞음. plan.json 예시에 반영 필요.\n\n8. **plan→run transition (line 232-235)**: 한글. 영어로 통일 필요.\n\n9. **plan.json 예시 (line 261-280)**: how_agents, how_summary 필드 없음. 최신 포맷과 불일치.\n\n10. **전체 언어**: abort(line 297), Self-Reinforcing Loop(line 314,316,318), Deactivation(line 325), 비교표 헤더(line 26-30) 등 한글 산재. 도메인 키워드 제외 영어 통일.",
+        "created_at": "2026-04-08T05:46:35.244Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "plan SKILL.md 전체 수정 — 트리거, auto, 인텐트, 리서치, 분석, 언어통일",
+          "context": "skills/nx-plan/SKILL.md 단일 파일 대상. 안건 1-3의 모든 결정사항을 반영하는 일괄 수정.",
+          "approach": "1. Trigger 섹션: Natural 줄 삭제. 2. Auto Mode step 5: Step 7 규칙 참조 추가. 3. Intent Discovery: HOW Subagents 컬럼 제거. 4. Research: Explore/Researcher 분리. 5. Step 4: HOW communicate 문구 삭제, opt-out 영어 전환. 6. Principles: #11 삭제. 7. plan.json 예시: how_agents/how_summary 추가. 8. 전체 한글→영어 통일 (키워드/사용자입력/gate메시지 제외).",
+          "acceptance": "1. Trigger에 자연어 없음. 2. auto에 Step 7 참조 있음. 3. Intent Discovery에 HOW 수 없음. 4. Research가 Explore/Researcher 분리됨. 5. HOW communicate 없음, Principle 11 없음. 6. plan.json 예시에 how 필드 있음. 7. 도메인 키워드 외 영어 통일.",
+          "risk": "대규모 수정이므로 구조 깨짐 주의",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-08T05:51:12.637Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-08T07:05:31.548Z",
+      "branch": "feat/skill-structural-improvements",
+      "plan": {
+        "id": 4,
+        "topic": "run SKILL.md 상세 리뷰",
+        "issues": [
+          {
+            "id": 1,
+            "title": "Step 3 Tester 스폰 조건 한글 + 언어 통일",
+            "status": "decided",
+            "decision": "Tester 스폰 조건 한글 1줄을 영어로 전환. 나머지는 이미 영어 통일 완료."
+          },
+          {
+            "id": 2,
+            "title": "Lean start 원칙과 plan 의 owner 배정 충돌 + Dynamic Composition 중복",
+            "status": "decided",
+            "decision": "Lean start 원칙 제거 (plan의 owner 배정과 충돌). Dynamic Composition 섹션 전체 제거 (Agent Catalog, Pipeline Combinations, Decision Criteria — auto-plan이 항상 선행하므로 tasks.json에 owner가 이미 존재). 에스컬레이션 HOW 매핑은 Step 2에 이미 있으므로 충분."
+          },
+          {
+            "id": 3,
+            "title": "구조적 문제 — Step 4 강화, auto-plan 호출 명시화, Rules Template, Spawn Examples, HOW constraint",
+            "status": "decided",
+            "decision": "3-1: Step 4 강화 — nx-sync는 코드 변경 시만 호출(best effort), nx_task_close의 memoryHint 활용 안내, Report에 변경 파일/결정 요약/다음 단계 포함. 3-2: plan SKILL.md Auto Mode에 \"When invoked via Skill({ args: 'auto' }), enter Auto Mode\" 추가. 3-3: Rules Template 삭제 (프로젝트 설정용, 매 실행 참조 불필요). 3-4: Spawn Examples 삭제 (Structured Delegation 템플릿으로 충분). 3-5: \"MUST NOT auto-shutdown How subagents\" constraint 삭제 (팀 기반 잔재). 3-6: Principle 번호 재정리."
+          }
+        ],
+        "research_summary": "**run SKILL.md 분석 결과:**\n\n1. **언어 통일**: Tester 스폰 조건 (line 75) \"tasks.json에 acceptance 필드가 있는 태스크가 1개 이상\" 한글. 나머지는 대부분 영어로 잘 되어있음.\n\n2. **Lean start (Principle 10) vs plan owner**: \"default composition is Engineer only. How subagent joins on escalation or user request.\" 이것은 plan Step 7에서 owner를 architect, tester 등으로 배정한 것과 충돌. plan이 owner를 정했으면 run은 그걸 따라야 하는데, lean start가 \"Engineer만 기본\"이라고 함.\n\n3. **Dynamic Composition 섹션 (line 107-148)**: Agent Catalog, Pipeline Combinations, Decision Criteria가 매우 상세하지만, tasks.json에 이미 owner가 배정되어 있으므로 run에서 이 섹션이 실제로 쓰이는 경우는 plan 없이 [run]을 직접 쓸 때뿐. 이 경우도 auto-plan이 먼저 실행되므로 사실상 중복.\n\n4. **Step 4 Complete**: nx-sync 호출 지시가 있는데, 실제로 Lead가 이걸 일관되게 호출하는지 관찰 필요. Skill 내 Skill 호출.\n\n5. **Rules Template (line 189-205)**: 이게 run 스킬에 있어야 하는지? 프로젝트 설정 시 한 번 쓰는 거지 매 실행마다 참조할 건 아님.\n\n6. **Spawn Examples (line 207-225)**: 에스컬레이션 체인 패턴이 없음 (방금 추가한 기능). 또한 Step 4의 Writer 스폰 예시가 있는데, plan의 verification auto-pairing과의 관계가 불명확.\n\n7. **Step 2 \"Confirm before proceeding\" (line 51)**: plan 리뷰에서 논의한 auto-plan 후 확인 경로와 연결. auto-plan으로 만들어진 tasks를 사용자가 거부하면? 경로 미정의.\n\n8. **constraint \"MUST NOT auto-shutdown How subagents mid-session\" (line 20)**: run에서 HOW를 스폰하는 경우는 에스컬레이션 체인뿐인데, 이 constraint가 의미있는지? 에스컬레이션 HOW는 진단 후 바로 끝나니까.",
+        "created_at": "2026-04-08T05:58:22.857Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "run SKILL.md 전체 수정 + plan SKILL.md auto 호출 명시화",
+          "context": "run SKILL.md 대규모 수정 + plan SKILL.md Auto Mode에 1줄 추가",
+          "approach": "run SKILL.md: 1) Tester 조건 영어화 2) Dynamic Composition 전체 삭제 (Agent Catalog, Pipeline Combinations, Decision Criteria) 3) Step 4 확장 (nx-sync/memoryHint/report) 4) Rules Template 삭제 5) Spawn Examples 삭제 6) HOW auto-shutdown constraint 삭제 7) Lean start 원칙 삭제 8) Principle 번호 재정리. plan SKILL.md: Auto Mode에 args 인식 지시 1줄 추가.",
+          "acceptance": "1. Tester 조건 영어. 2. Dynamic Composition 없음. 3. Step 4가 nx-sync/memoryHint/report 상세. 4. Rules Template 없음. 5. Spawn Examples 없음. 6. HOW auto-shutdown constraint 없음. 7. Lean start 없음. 8. Principles 번호 정리됨. 9. plan auto 호출 명시.",
+          "risk": "대규모 삭제이므로 구조 확인 필요",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-08T06:53:56.712Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-08T07:14:02.396Z",
+      "branch": "feat/skill-structural-improvements",
+      "plan": {
+        "id": 4,
+        "topic": "init/sync/setup 스킬 리뷰",
+        "issues": [
+          {
+            "id": 1,
+            "title": "init 스킬 — 자연어 트리거 + 한글 통일 + Trigger 섹션 정리",
+            "status": "decided",
+            "decision": "init: frontmatter triggers에서 자연어 제거, 슬래시 커맨드 형태만 유지. 나머지는 깔끔하여 추가 수정 불필요."
+          },
+          {
+            "id": 2,
+            "title": "sync 스킬 — 자연어 트리거 + 레거시 참조 + Step 4 호출 명시화",
+            "status": "decided",
+            "decision": "sync: (1) frontmatter triggers 자연어 제거 (2) Trigger 섹션 자연어 줄 삭제 (3) \"Step 5\" → \"Step 4\" 참조 수정 (4) last-sync-commit을 현실적으로 수정 (\"use recent commits or HEAD~10\") (5) Layer-Specific Guidance에서 하드코딩된 파일명 목록 제거, 일반화 (\"update files that exist in each layer based on detected changes\")."
+          },
+          {
+            "id": 3,
+            "title": "setup 스킬 — 구조적 검토",
+            "status": "decided",
+            "decision": "setup: Step 5에서 init 호출을 Skill({ skill: \"claude-nexus:nx-init\" })로 명시. 그 외 수정 불필요."
+          }
+        ],
+        "research_summary": "**nx-init SKILL.md:**\n1. triggers에 자연어 포함: [\"init\", \"onboard\", \"온보딩\", \"초기화\", \"프로젝트 설정\"] — plan/run에서 제거한 패턴과 동일\n2. 내부 Trigger 섹션 (line 22-26): 슬래시 커맨드 기반 — 자연어 아닌 명시적 호출이라 문제 적음. 하지만 frontmatter와의 불일치는 있음\n3. 한글: 거의 없음. 잘 되어있음\n4. Step 2 Identity: AskUserQuestion으로 interactive — 잘 구조화됨\n5. Step 3 Codebase: Writer 서브에이전트 스폰 — 적절\n6. Step 4 Rules: 이건 setup에서도 하는 건데 중복? setup Step 5에서 init을 호출하니까 규칙 설정이 두 곳에 있음\n\n**nx-sync SKILL.md:**\n1. triggers에 자연어 포함: [\"sync\", \"동기화\", \"core 업데이트\", \"문서 동기화\"] — 제거 대상\n2. 내부 Trigger 섹션 (line 23-27): 자연어 \"Natural language: sync core, update docs, 동기화\" 있음\n3. \"Auto-invoked by Lead in [run] Step 5\" — 실제로는 Step 4. 잘못된 참조\n4. Step 1: `git diff --name-only {last-sync-commit}..HEAD` — last-sync marker가 어디에도 관리 안 됨. 실제로는 이 마커를 쓰지 않을 가능성 높음\n5. memory/ 레이어 (line 51, 103-105): auto-memory와 역할 중복? \"Record lessons from cycles\" — 이건 auto-memory가 하는 거 아닌가?\n6. context-standard.md (line 91): 이 파일이 실제로 존재하는지? 레거시 참조일 수 있음\n7. 한글: trigger 부분만\n\n**nx-setup SKILL.md:**\n1. triggers 없음 (frontmatter에 없음) — 슬래시 커맨드 전용. 깔끔\n2. disable-model-invocation: true — 자동 트리거 방지. 적절\n3. 구조: 잘 되어있음. AskUserQuestion 기반 wizard\n4. Step 5 Knowledge Init: \"If Yes: run the nx-init skill\" — Skill() 호출 방식 명시 없음\n5. 한글: 없음\n6. 전반적으로 가장 깔끔한 스킬",
+        "created_at": "2026-04-08T07:09:19.363Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "init SKILL.md — triggers 정리",
+          "context": "frontmatter triggers에서 자연어 제거",
+          "approach": "triggers 배열을 슬래시 커맨드 형태로 정리. init은 태그가 아닌 슬래시 커맨드 기반이므로 빈 배열 또는 제거.",
+          "acceptance": "frontmatter에 자연어 triggers 없음",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-08T07:12:44.734Z"
+        },
+        {
+          "id": 2,
+          "title": "sync SKILL.md — triggers + 레거시 참조 + 가이드 일반화",
+          "context": "5건 수정: triggers, Trigger 섹션, Step 참조, last-sync, Layer-Specific Guidance",
+          "approach": "1) frontmatter triggers 자연어 제거 2) Trigger 섹션 Natural language 줄 삭제 3) \"Step 5\" → \"Step 4\" 4) last-sync-commit → recent commits 5) Layer-Specific Guidance 파일명 하드코딩 → 일반화",
+          "acceptance": "1. 자연어 triggers 없음 2. Trigger에 natural language 없음 3. Step 4 참조 정확 4. last-sync 현실적 5. 파일명 하드코딩 없음",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "lead",
+          "created_at": "2026-04-08T07:12:49.578Z"
+        },
+        {
+          "id": 3,
+          "title": "setup SKILL.md — init 호출 명시화",
+          "context": "Step 5에서 \"run the nx-init skill\"을 Skill() 호출로 명시",
+          "approach": "\"run the nx-init skill\" → \"invoke Skill({ skill: \\\"claude-nexus:nx-init\\\" })\"",
+          "acceptance": "Skill() 호출이 명시되어 있음",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 3,
+          "owner": "lead",
+          "created_at": "2026-04-08T07:12:51.773Z"
+        }
+      ]
     }
   ]
 }

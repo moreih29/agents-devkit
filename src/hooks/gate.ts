@@ -189,44 +189,13 @@ const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   run: { primitive: 'run', skill: 'claude-nexus:nx-run' },
 };
 
-const NATURAL_PATTERNS: Array<{ patterns: RegExp[]; match: KeywordMatch }> = [
-  {
-    patterns: [
-      /\bplan\b/i, /계획/, /설계/, /분석해/, /검토해/,
-      /어떻게\s*하면\s*좋을까/, /뭐가\s*좋을까/, /방법을?\s*찾아/,
-    ],
-    match: { primitive: 'plan', skill: 'claude-nexus:nx-plan' },
-  },
-];
-
-// 프리미티브 이름이 에러/버그 맥락에서 언급되면 활성화가 아닌 "대화" — 오탐 방지
-const ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-const PRIMITIVE_NAMES = /\b(plan|run)\b/i;
-
-/** 프리미티브 이름이 에러/버그 맥락과 함께 등장하거나, 단순 질문/인용 맥락인지 판별 */
-function isPrimitiveMention(prompt: string): boolean {
-  if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
-  if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  if (/[`"'](?:plan)[`"']/i.test(prompt)) return true;
-  return false;
-}
-
 function detectKeywords(prompt: string): KeywordMatch | null {
-  // 1차: 명시적 태그 [plan] / [plan:auto] — 항상 확정
+  // 명시적 태그 [plan] / [plan:auto] / [run] — 항상 확정
   const tagMatch = prompt.match(/\[(plan(?::auto)?|run)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
   }
-
-  // 2차: 자연어 패턴 (프리미티브 이름 + 에러 맥락일 때만 필터)
-  for (const { patterns, match } of NATURAL_PATTERNS) {
-    if (patterns.some((p) => p.test(prompt))) {
-      if (isPrimitiveMention(prompt)) continue;
-      return match;
-    }
-  }
-
   return null;
 }
 
