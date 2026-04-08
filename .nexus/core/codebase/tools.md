@@ -26,7 +26,7 @@ List of tools provided by the MCP server (`bridge/mcp-server.cjs`). Source: `src
 | `nx_plan_start` | plan.ts | Start a new plan session (topic + issues + research_summary). Auto-archives existing plan.json to history if present. research_summary is required — forces research completion before session creation. |
 | `nx_plan_status` | plan.ts | Query current plan state (issue list/status + decisions inline) |
 | `nx_plan_update` | plan.ts | Modify issues in an active plan session. action: add/remove/edit/reopen |
-| `nx_plan_decide` | plan.ts | Record decision for an issue (issue_id + summary). Returns completion signal when all issues decided, with guidance to generate tasks.json (Step 7). |
+| `nx_plan_decide` | plan.ts | Record decision for an issue (issue_id + summary). Optional: how_agents (string[]) and how_summary (Record) to record HOW participation. Returns completion signal when all issues decided. |
 
 ## nx_plan_update Actions
 
@@ -76,7 +76,9 @@ Structure of `.nexus/state/plan.json`:
       "id": 1,
       "title": "issue title",
       "status": "pending | decided",
-      "decision": "decision summary (only when status=decided)"
+      "decision": "decision summary (only when status=decided)",
+      "how_agents": ["architect", "designer"],
+      "how_summary": { "architect": "key findings...", "designer": "key findings..." }
     }
   ],
   "research_summary": "prior research findings",

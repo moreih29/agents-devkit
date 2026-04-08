@@ -15,12 +15,6 @@ The `UserPromptSubmit` event in the gate hook detects tags in the user prompt an
 | `[run]` | BLOCKING skill invoke → nx-run. Pre-checks: tasks.json absent (hint plan required), exists (task count/status hint). Auto plan:auto when tasks.json absent. |
 | `[rule]` | Rule — save rule to .nexus/rules/. Supports [rule:tags] format |
 
-### Natural Language Patterns
-
-Plan: `plan`, `계획`, `설계`, `분석해`, `검토해`, `어떻게 하면 좋을까`, `뭐가 좋을까`, `방법을 찾아`
-
-False positive guards: error/bug context filter, question context filter, quoted mention filter.
-
 ## Agent Configuration
 
 ### 9 Agents — HOW / DO / CHECK
@@ -39,7 +33,6 @@ False positive guards: error/bug context filter, question context filter, quoted
 
 ### Parallelism
 
-- HOW: max 4 parallel (judgment requires focused analysis)
 - DO: unlimited parallel (independent execution)
 - CHECK: unlimited parallel (independent verification)
 
@@ -50,22 +43,21 @@ All agents are spawned as **subagents** (not team agents). No TeamCreate/SendMes
 - Multiple subagents can be spawned in parallel
 - HOW agents are spawned for independent analysis when needed, not for team discussion
 
-## Pipeline (5 Phases)
+## Pipeline (4 Steps)
 
 Activated only with `[run]` tag. Managed by nx-run skill.
 
-| Phase | Name | Owner | Description |
-|-------|------|-------|-------------|
-| 1 | Intake | Lead | Verify plan document exists, clarify scope |
-| 2 | Design | HOW subagents | Architecture/strategy analysis (optional, Lead judges need) |
-| 3 | Execute | DO subagents | Implementation, parallel per task |
-| 4 | Verify | CHECK subagents | test/review, cannot edit code |
-| 5 | Complete | Lead | Archive cycle, record memory |
+| Step | Name | Owner | Description |
+|------|------|-------|-------------|
+| 1 | Intake | Lead | Verify tasks.json exists, clarify scope, Branch Guard |
+| 2 | Execute | Do subagents | Spawn per task by owner, parallel where safe |
+| 3 | Verify | Lead + Check subagents | Build check, acceptance criteria verification |
+| 4 | Complete | Lead | nx-sync, nx_task_close, report |
 
 ### Rollback Rules
 
-- Phase 4 finds code issue → back to Phase 3
-- Phase 4 finds design issue → back to Phase 2
+- Step 3 finds code issue → back to Step 2
+- Step 3 finds design issue → re-run nx-plan before re-executing
 
 ### Phase Enforcement
 
@@ -136,14 +128,18 @@ Called on `[plan]` and `[run]` mode entry. Scans `.nexus/core/` and builds a com
 
 When `[plan]` is detected, gate checks whether tasks.json exists with all tasks already completed. If so, it blocks plan mode entry and instructs Lead to call `nx_task_close` first to archive the previous cycle before starting a new plan.
 
-### SubagentStop Verification ([run] mode only)
+### SubagentStop Escalation Chain ([run] mode only)
 
-- On agent stop, check if agent's owned tasks are still pending/in_progress
-- If incomplete tasks found → inject warning to Lead
+When a subagent stops with incomplete work:
+1. Do/Check failed → spawn relevant HOW to diagnose (Engineer→Architect, Writer→Strategist, Researcher→Postdoc, Tester→Architect)
+2. Re-delegate with HOW's adjusted approach
+3. HOW also failed → Lead reports to user
+- Max 1 HOW diagnosis + 1 re-delegation per task
 
 ### Tester Auto-Spawn Conditions
 
 Any one triggers Tester verification (Lead discretion):
+- tasks.json contains at least 1 task with an `acceptance` field
 - 3 or more files changed
 - Existing test files modified
 - External API/DB access code changed
