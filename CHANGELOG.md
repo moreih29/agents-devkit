@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.23.0 (2026-04-08)
+
+### Features
+- restructure plan/run skills — HOW opt-out, auto quality, escalation chain, language unification
+
+### Fixes
+- remove execution details from plan SKILL.md to enforce run skill loading
+
+### Other
+- merge: feat/skill-structural-improvements — plan/run/init/sync/setup skill restructuring
+- merge: fix/plan-run-transition — enforce run skill loading by removing plan execution details
+
 ## 0.22.0 (2026-04-07)
 
 ### Features
