@@ -171,7 +171,7 @@ result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] UI 구조 
 check "Gate/UserPromptSubmit (plan tag)" 'nx-plan' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"계획 세우자"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (plan natural)" 'nx-plan' "$result"
+check "Gate/UserPromptSubmit (natural ignored)" '"continue":true' "$result"
 
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] 인증 모듈 설계"}' | node scripts/gate.cjs 2>/dev/null)
 check "Plan (skill invoke)" 'Invoke Skill' "$result"
