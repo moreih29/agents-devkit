@@ -1,5 +1,4 @@
 <!-- tags: orchestration, gate, tags, agents, skills, plan, rules, pipeline -->
-<!-- tags: orchestration, gate, tags, agents, skills, plan, rules, pipeline -->
 # Orchestration
 
 ## Tag System
@@ -42,6 +41,95 @@ All agents are spawned as **subagents** (not team agents). No TeamCreate/SendMes
 - Subagents execute independently and return results to Lead
 - Multiple subagents can be spawned in parallel
 - HOW agents are spawned for independent analysis when needed, not for team discussion
+
+## Agent Roles and Specializations
+
+### HOW Agents
+
+**Architect** — technical design authority
+- 리뷰 프로세스 5단계: Analyze current state → Clarify requirements → Evaluate approach → Propose design → Document trade-offs
+- ADR (Architecture Decision Record) 형식으로 산출물 작성: Context / Decision / Consequences / Trade-offs / Findings(by severity)
+- 안티패턴 체크리스트 7개: God object, Tight coupling, Premature optimization, Leaky abstraction, Shotgun surgery, Implicit global state, Missing error boundaries
+- Planning Gate: Lead가 실행 태스크 확정 전 기술적 승인 필요
+
+**Designer** — UX/UI design authority
+- Nielsen 10 Usability Heuristics 체크리스트 적용 (리뷰 시 위반 항목 명시)
+- 시나리오 분석 프로세스 5단계: Identify users → Derive scenarios → Map current flow → Identify problems → Propose improvements
+- 산출물 형식: User perspective → Problem identification → Recommendation → Trade-offs → Risks
+- 리뷰 판정: Approved / Approved with concerns / Needs revision
+
+**Postdoc** — research methodology authority
+- 방법론 설계, 증거 품질 평가, 합성 문서 작성
+- Planning Gate: Lead가 리서치 태스크 확정 전 방법론 승인 필요
+- Completion Report: 완료 후 Lead에게 SendMessage (태스크 ID, 산출물, 증거 품질 등급, 주요 한계)
+- Escalation Protocol: 답변 불가 질문, 잘못된 질문 발견, 방어 불가능한 합성 상황 시 에스컬레이션
+
+**Strategist** — business/market authority
+- 분석 프레임워크 선택 가이드 (상황별):
+  - 신규 시장 진입/제품 출시 → SWOT + Porter's 5 Forces
+  - 경쟁 차별화 평가 → Porter's 5 Forces (경쟁, 대체재, 신규 진입)
+  - 가치 창출/소실 진단 → Value Chain Analysis
+  - 기존 제품의 PMF 평가 → Jobs-to-be-Done
+  - 불확실성 하에서 전략 우선순위 → 2x2 matrix
+- 정량 근거 요구: 시장 규모, 성장률, 경쟁사 역량 등 시장 주장은 데이터/인용 출처 필수
+- Completion Report: Subject / Key Findings / Strategic Recommendation / Open Questions
+
+### DO Agents
+
+**Engineer** — code implementation
+- Build Gate (완료 보고 전 자체 검증): `bun run build` 통과 + 타입 체크 통과 + 신규 lint 경고 없음
+- Build Gate 범위: 컴파일·정적 분석만. 기능 검증(테스트 작성·실행·정확성 판단)은 Tester 전담
+- Output Format: Task ID / Modified Files / Implementation Summary / Caveats
+- Escalation: 동일 파일/문제 3회 반복 시 즉시 중단 → Lead에 보고
+
+**Researcher** — web research
+- Report Gate (보고서 발송 전 자체 검증):
+  - 모든 사실 주장에 출처 tier 태그 첨부
+  - Null results 명시 (묵시적 생략 금지)
+  - 반증 증거 전용 섹션 존재
+  - Tertiary 출처만 있는 발견 사항 명시
+  - 검색어 목록 포함
+  - 추론은 `[Inference: ...]` 레이블
+- 출처 품질 3등급:
+  - Primary `[P]`: 공식 문서, 동료 검토 논문, RFC, 변경 로그, 1차 데이터셋
+  - Secondary `[S]`: 뉴스, 기술 블로그, 저명한 저널리즘, 큐레이션 튜토리얼
+  - Tertiary `[T]`: 포럼, 댓글, Reddit, 미검증 위키
+- Completion Report: RESEARCH COMPLETE 형식 (조사 질문 수, 각 요약, 아티팩트, 플래그)
+
+**Writer** — technical writing
+- Structure Gate (Reviewer 발송 전 자체 검증): 선택 템플릿의 모든 섹션 존재·비어있지 않음 + 형식 일관성 + 모든 사실 주장이 명시된 출처와 연결 + placeholder/TODO 없음
+- Structure Gate 범위: 구조·형식·인용 확인만. 사실 정확성(원본 출처와의 대조)은 Reviewer 전담
+- Completion Report: File / Audience / Sources / Gaps (SendMessage to Lead)
+- 산출물 저장: 항상 `nx_artifact_write` 사용 (Write/Edit 직접 사용 금지)
+
+### CHECK Agents
+
+**Tester** — code verification
+- 정량 기준 (프로젝트별 조정 가능):
+  - 커버리지(신규 코드): ≥ 80% line coverage
+  - 순환 복잡도: < 15 per function
+  - 테스트 피라미드: unit 70% / integration 20% / e2e 10%
+- 테스트 유형별 가이드: Unit (단일 동작, 고립 실행) / Integration (모듈 간 상호작용) / E2E (완전한 사용자 시나리오, 최소화)
+- 회귀 테스트: 버그 수정 시 필수 — 수정 전 실패, 수정 후 통과하는 테스트 작성
+- Completion Report: Task ID / Checks / Verdict / Issues found / Recommendations
+
+**Reviewer** — content verification
+- 검증 프로세스 4단계 (주요 주장 각각): Extract → Locate → Match → Record
+- 승인/반려 기준:
+  - **APPROVED**: CRITICAL 0개 + WARNING 0개. 전달 가능.
+  - **REVISION_REQUIRED**: CRITICAL 0개 + WARNING 1개 이상. Writer로 반환 후 전달.
+  - **BLOCKED**: CRITICAL 1개 이상. 해결 및 재검토 전까지 전달 중단.
+- Completion Report: Document / Checks performed / Issues found / Final verdict / Artifact
+
+## Common Agent Sections (All Agents)
+
+모든 에이전트는 다음 3개 공통 섹션을 포함한다:
+
+1. **Output Format** — 완료 보고 시 포함할 필드 (역할별 커스텀)
+2. **Completion Report** — 작업 완료 후 Lead에게 SendMessage 전송
+3. **Escalation Protocol** — 루프 방지, 기술적 차단, 범위 확장 등 에스컬레이션 조건
+
+도메인 특화 규칙 (프로젝트별 프레임워크, 코딩 스타일, 테스트 전략 등)은 Nexus 관여 없음 — `.claude/rules/`에 위임.
 
 ## Pipeline (4 Steps)
 
