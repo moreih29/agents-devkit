@@ -15,7 +15,7 @@ Scans the current project state and synchronizes .nexus/context/ design document
 - NEVER modify source code — this skill updates documentation only
 - NEVER guess information that cannot be confirmed from sources — mark as "needs verification" instead
 - MUST preserve existing content structure — update sections, don't rewrite entire files unnecessarily
-- NEVER use nx_core_read or nx_core_write — use Read and Write native tools only
+- NEVER use deprecated MCP knowledge tools — use Read and Write native tools only
 </constraints>
 
 <guidelines>
@@ -52,7 +52,7 @@ Spawn Writer agent to update affected context documents:
 
 ```
 Agent({ subagent_type: "claude-nexus:writer", name: "writer-sync-context",
-  prompt: "Update .nexus/context/ documents based on the following changes. Read current files with the Read tool, then write updates with the Write tool. Do not use nx_core_read or nx_core_write. Changes: {change_manifest}" })
+  prompt: "Update .nexus/context/ documents based on the following changes. Read current files with the Read tool, then write updates with the Write tool. Changes: {change_manifest}" })
 ```
 
 The Writer agent:

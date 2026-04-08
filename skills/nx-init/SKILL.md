@@ -16,7 +16,6 @@ Scans the project and builds Nexus knowledge in the flat .nexus/ structure. On f
 - NEVER store secrets (API keys, credentials, etc.) in knowledge files.
 - NEVER overwrite existing files without `--reset`. On resume, preserve existing files.
 - Project philosophy in CLAUDE.md MUST go through user confirmation before writing.
-- NEVER use nx_core_write — use the Write tool directly for all file creation.
 - NEVER reference or create identity/, codebase/, reference/, or core/ paths.
 </constraints>
 
@@ -163,13 +162,13 @@ AskUserQuestion({
     question: "Do you want to set up development rules now?",
     options: [
       { label: "Set up", description: "Coding conventions, test policy, commit rules, etc." },
-      { label: "Skip", description: "Can be added later via nx_rules_write" }
+      { label: "Skip", description: "Can be added later via [rule] tag" }
     ]
   }]
 })
 ```
 
-If "Set up": present a draft based on scan results → user confirms → save via `nx_rules_write`.
+If "Set up": present a draft based on scan results → user confirms → save via Write tool to `.nexus/rules/{topic}.md`.
 
 If "Skip": inform and proceed to Step 5.
 
