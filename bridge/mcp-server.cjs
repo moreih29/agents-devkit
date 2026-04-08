@@ -22255,9 +22255,11 @@ function registerPlanTools(server2) {
     "\uC548\uAC74 \uACB0\uC815 \uAE30\uB85D \u2014 [d] \uD0DC\uADF8\uB85C \uD2B8\uB9AC\uAC70",
     {
       issue_id: external_exports.number().describe("\uACB0\uC815\uD560 \uC548\uAC74 ID"),
-      summary: external_exports.string().describe("\uACB0\uC815 \uC694\uC57D")
+      summary: external_exports.string().describe("\uACB0\uC815 \uC694\uC57D"),
+      how_agents: external_exports.array(external_exports.string()).optional().describe('\uC774\uC288 \uBD84\uC11D\uC5D0 \uCC38\uC5EC\uD55C HOW \uC5D0\uC774\uC804\uD2B8 \uC774\uB984 \uBAA9\uB85D (\uC608: ["architect", "designer"])'),
+      how_summary: external_exports.record(external_exports.string(), external_exports.string()).optional().describe('\uC5D0\uC774\uC804\uD2B8\uBCC4 \uD575\uC2EC \uC758\uACAC \uC694\uC57D (\uC608: { "architect": "...", "designer": "..." })')
     },
-    async ({ issue_id, summary }) => {
+    async ({ issue_id, summary, how_agents, how_summary }) => {
       const data = await readPlan();
       if (!data) {
         return textResult({ error: "No active plan session" });
@@ -22268,6 +22270,8 @@ function registerPlanTools(server2) {
       }
       issue2.status = "decided";
       issue2.decision = summary;
+      if (how_agents !== void 0) issue2.how_agents = how_agents;
+      if (how_summary !== void 0) issue2.how_summary = how_summary;
       await writePlan(data);
       const allComplete = data.issues.every((i) => i.status === "decided");
       if (allComplete) {

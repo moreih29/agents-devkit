@@ -239,40 +239,11 @@ var EXPLICIT_TAGS = {
   "plan:auto": { primitive: "plan", skill: "claude-nexus:nx-plan" },
   run: { primitive: "run", skill: "claude-nexus:nx-run" }
 };
-var NATURAL_PATTERNS = [
-  {
-    patterns: [
-      /\bplan\b/i,
-      /계획/,
-      /설계/,
-      /분석해/,
-      /검토해/,
-      /어떻게\s*하면\s*좋을까/,
-      /뭐가\s*좋을까/,
-      /방법을?\s*찾아/
-    ],
-    match: { primitive: "plan", skill: "claude-nexus:nx-plan" }
-  }
-];
-var ERROR_CONTEXT = /에러|버그|오류|\bfix\b|\bbug\b|\berror\b|이슈|\bissue\b/i;
-var PRIMITIVE_NAMES = /\b(plan|run)\b/i;
-function isPrimitiveMention(prompt) {
-  if (PRIMITIVE_NAMES.test(prompt) && ERROR_CONTEXT.test(prompt)) return true;
-  if (PRIMITIVE_NAMES.test(prompt) && /뭐야|뭔가요|what\s+is|what\s+does|설명해|explain/i.test(prompt)) return true;
-  if (/[`"'](?:plan)[`"']/i.test(prompt)) return true;
-  return false;
-}
 function detectKeywords(prompt) {
   const tagMatch = prompt.match(/\[(plan(?::auto)?|run)\]/i);
   if (tagMatch) {
     const tag = tagMatch[1].toLowerCase();
     if (tag in EXPLICIT_TAGS) return EXPLICIT_TAGS[tag];
-  }
-  for (const { patterns, match } of NATURAL_PATTERNS) {
-    if (patterns.some((p) => p.test(prompt))) {
-      if (isPrimitiveMention(prompt)) continue;
-      return match;
-    }
   }
   return null;
 }

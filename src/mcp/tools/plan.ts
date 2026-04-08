@@ -12,6 +12,8 @@ export interface PlanIssue {
   title: string;
   status: 'pending' | 'decided';
   decision?: string;   // decided 시 결정 요약
+  how_agents?: string[];              // 이슈 분석에 참여한 HOW 에이전트 이름 목록
+  how_summary?: Record<string, string>; // 에이전트별 핵심 의견 요약
 }
 
 /** plan.json 루트 */
@@ -205,8 +207,10 @@ export function registerPlanTools(server: McpServer): void {
     {
       issue_id: z.number().describe('결정할 안건 ID'),
       summary: z.string().describe('결정 요약'),
+      how_agents: z.array(z.string()).optional().describe('이슈 분석에 참여한 HOW 에이전트 이름 목록 (예: ["architect", "designer"])'),
+      how_summary: z.record(z.string(), z.string()).optional().describe('에이전트별 핵심 의견 요약 (예: { "architect": "...", "designer": "..." })'),
     },
-    async ({ issue_id, summary }) => {
+    async ({ issue_id, summary, how_agents, how_summary }) => {
       const data = await readPlan();
       if (!data) {
         return textResult({ error: 'No active plan session' });
@@ -219,6 +223,8 @@ export function registerPlanTools(server: McpServer): void {
 
       issue.status = 'decided';
       issue.decision = summary;
+      if (how_agents !== undefined) issue.how_agents = how_agents;
+      if (how_summary !== undefined) issue.how_summary = how_summary;
       await writePlan(data);
 
       const allComplete = data.issues.every(i => i.status === 'decided');
