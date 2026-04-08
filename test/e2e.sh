@@ -16,9 +16,9 @@ export NEXUS_RUNTIME_ROOT="$E2E_TMP"
 # gate.cjs는 STATE_ROOT(.nexus/state/)에서 tasks.json을 읽음
 E2E_STATE="$E2E_TMP/state"
 mkdir -p "$E2E_STATE"
-# MCP 도구 테스트용 core 파일 생성
-mkdir -p "$E2E_TMP/core/codebase"
-echo '# Architecture' > "$E2E_TMP/core/codebase/architecture.md"
+# MCP 도구 테스트용 context 파일 생성
+mkdir -p "$E2E_TMP/context"
+echo '# Architecture' > "$E2E_TMP/context/architecture.md"
 
 green() { echo -e "\033[32m✔ $1\033[0m"; }
 red() { echo -e "\033[31m✘ $1\033[0m"; }
@@ -123,12 +123,6 @@ CI_PID=$!
 # ============================================================================
 
 echo "=== MCP 도구 ==="
-
-result=$(mcp_call "nx_core_read" '{"layer":"codebase","topic":"architecture"}')
-check "nx_core_read" 'Architecture' "$result"
-
-result=$(mcp_call "nx_core_read" '{}')
-check "nx_core_read (list)" '"layers"' "$result"
 
 result=$(mcp_call "nx_context" '{}')
 check "nx_context" '"branch"' "$result"
@@ -248,10 +242,10 @@ result=$(echo '{"hook_event_name":"Stop","stop_hook_active":true}' | node script
 check "Gate/Stop (stop_hook_active pass)" '"continue":true' "$result"
 rm -f "$E2E_STATE/tasks.json"
 
-# buildCoreIndex in plan mode: core/ 파일이 있으므로 인덱스 생성
+# buildCoreIndex in plan mode: context/ 파일이 있으므로 인덱스 생성
 rm -f "$E2E_STATE/tasks.json"
 result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] 분석하자"}' | node scripts/gate.cjs 2>/dev/null)
-check "Gate/UserPromptSubmit (plan core index)" 'identity' "$result"
+check "Gate/UserPromptSubmit (plan core index)" 'context' "$result"
 
 # stale tasks.json on plan entry: all-completed → nx_task_close 요구
 echo '{"tasks":[{"id":1,"title":"done","status":"completed"}]}' > "$E2E_STATE/tasks.json"
@@ -271,8 +265,8 @@ echo "=== 추가 MCP 도구 테스트 ==="
 PLAN_TMP=$(mktemp -d)
 PLAN_TMP_ORIG="$NEXUS_RUNTIME_ROOT"
 export NEXUS_RUNTIME_ROOT="$PLAN_TMP"
-mkdir -p "$PLAN_TMP/state" "$PLAN_TMP/core/codebase"
-echo '# Architecture' > "$PLAN_TMP/core/codebase/architecture.md"
+mkdir -p "$PLAN_TMP/state" "$PLAN_TMP/context"
+echo '# Architecture' > "$PLAN_TMP/context/architecture.md"
 
 result=$(mcp_call "nx_plan_start" '{"topic":"E2E Test","issues":["issue1"],"research_summary":"test"}')
 check "nx_plan_start" 'created' "$result"

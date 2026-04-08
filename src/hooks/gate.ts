@@ -1,8 +1,8 @@
 // Gate 훅: Stop (Task 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { STATE_ROOT, ensureDir, getCurrentBranch, ensureNexusStructure } from '../shared/paths.js';
+import { STATE_ROOT, MEMORY_ROOT, CONTEXT_ROOT, ensureDir, ensureNexusStructure } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
-import { extractRole, getAllowedLayers } from '../shared/matrix.js';
+import { extractRole } from '../shared/matrix.js';
 import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join, basename } from 'path';
 import { homedir } from 'os';
@@ -226,81 +226,57 @@ function getPlanReminder(): string | null {
 
 // --- Core Knowledge 인덱스 빌드 ---
 
-const CORE_LAYERS = ['identity', 'codebase', 'reference', 'memory'] as const;
+function scanFolderEntries(folderPath: string): string[] {
+  if (!existsSync(folderPath)) return [];
+  let files: string[];
+  try {
+    files = readdirSync(folderPath).filter(f => f.endsWith('.md'));
+  } catch {
+    return [];
+  }
+  const entries: string[] = [];
+  for (const file of files) {
+    const name = basename(file, '.md');
+    const filePath = join(folderPath, file);
+    let tags = '';
+    try {
+      const content = readFileSync(filePath, 'utf-8');
+      const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
+      if (tagMatch) {
+        const tagList = tagMatch[1].split(',').map(t => t.trim()).filter(Boolean);
+        const shortTags = tagList.slice(0, 3).join(', ');
+        tags = ` [${shortTags}]`;
+      }
+    } catch {}
+    entries.push(`${name}${tags}`);
+  }
+  return entries;
+}
 
-function buildCoreIndex(allowedLayers?: string[]): string {
-  const coreRoot = join(process.cwd(), '.nexus', 'core');
-  const rulesRoot = join(process.cwd(), '.nexus', 'rules');
-
-  const layers = allowedLayers ?? [...CORE_LAYERS];
+function buildCoreIndex(): string {
+  const nexusRoot = join(process.cwd(), '.nexus');
+  const rulesRoot = join(nexusRoot, 'rules');
 
   const layerLines: string[] = [];
 
-  if (existsSync(coreRoot)) {
-    for (const layer of layers) {
-      const layerDir = join(coreRoot, layer);
-      if (!existsSync(layerDir)) continue;
-
-      let files: string[];
-      try {
-        files = readdirSync(layerDir).filter(f => f.endsWith('.md'));
-      } catch {
-        continue;
-      }
-      if (files.length === 0) continue;
-
-      const entries: string[] = [];
-      for (const file of files) {
-        const name = basename(file, '.md');
-        const filePath = join(layerDir, file);
-        let tags = '';
-        try {
-          const content = readFileSync(filePath, 'utf-8');
-          const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
-          if (tagMatch) {
-            const tagList = tagMatch[1].split(',').map(t => t.trim()).filter(Boolean);
-            // keep only the most distinctive tags (up to 3, skip redundant ones)
-            const shortTags = tagList.slice(0, 3).join(', ');
-            tags = ` [${shortTags}]`;
-          }
-        } catch {}
-        entries.push(`${name}${tags}`);
-      }
-      layerLines.push(`${layer}: ${entries.join(', ')}`);
-    }
+  const memoryEntries = scanFolderEntries(MEMORY_ROOT);
+  if (memoryEntries.length > 0) {
+    layerLines.push(`memory: ${memoryEntries.join(', ')}`);
   }
 
-  if (existsSync(rulesRoot)) {
-    let rulesFiles: string[];
-    try {
-      rulesFiles = readdirSync(rulesRoot).filter(f => f.endsWith('.md'));
-    } catch {
-      rulesFiles = [];
-    }
-    if (rulesFiles.length > 0) {
-      const entries: string[] = [];
-      for (const file of rulesFiles) {
-        const name = basename(file, '.md');
-        const filePath = join(rulesRoot, file);
-        let tags = '';
-        try {
-          const content = readFileSync(filePath, 'utf-8');
-          const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
-          if (tagMatch) {
-            const tagList = tagMatch[1].split(',').map(t => t.trim()).filter(Boolean);
-            const shortTags = tagList.slice(0, 3).join(', ');
-            tags = ` [${shortTags}]`;
-          }
-        } catch {}
-        entries.push(`${name}${tags}`);
-      }
-      layerLines.push(`rules: ${entries.join(', ')}`);
-    }
+  const contextEntries = scanFolderEntries(CONTEXT_ROOT);
+  if (contextEntries.length > 0) {
+    layerLines.push(`context: ${contextEntries.join(', ')}`);
+  }
+
+  const rulesEntries = scanFolderEntries(rulesRoot);
+  if (rulesEntries.length > 0) {
+    layerLines.push(`rules: ${rulesEntries.join(', ')}`);
   }
 
   if (layerLines.length === 0) return '';
 
-  const header = '[Core Knowledge] (call nx_core_read for details; call nx_rules_read for rules)';
+  const header = '[.nexus Knowledge]';
   const result = `${header}\n${layerLines.join('\n')}`;
   return result.length <= 2000 ? result : result.slice(0, 1997) + '...';
 }
@@ -331,7 +307,7 @@ function handleRuleMode({ tasksReminder, claudeMdNotice, ruleTags }: {
   const base = `<nexus>Rule mode — saving user instruction as a project rule.
 ${tagInfo}
 1. Extract and clean up rule content from the user message.
-2. Save to .nexus/rules/{name}.md via nx_rules_write(name, content).
+2. Save to .nexus/rules/{name}.md via the Write tool.
 Rules are git-tracked and auto-delivered to agents via SubagentStart hook index injection.
 Task pipeline not required — save directly.</nexus>`;
 
@@ -428,6 +404,33 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     return;
   }
 
+  // [m] 메모리 저장 태그 감지
+  const mTag = prompt.match(/\[m(?::([^\]]*))?\]/i);
+  if (mTag) {
+    const subCmd = mTag[1]?.trim().toLowerCase();
+    if (subCmd === 'gc') {
+      respond({
+        continue: true,
+        additionalContext: withNotices(
+          `<nexus>Memory GC mode — 기존 .nexus/memory/ 파일을 Glob으로 확인하고, 관련 메모를 병합/삭제하여 정리하라. Write 도구로 저장.</nexus>`,
+          tasksReminder,
+          claudeMdNotice,
+        ),
+      });
+    } else {
+      const userContent = prompt.replace(/\[m(?::([^\]]*))?\]/i, '').trim();
+      respond({
+        continue: true,
+        additionalContext: withNotices(
+          `<nexus>Memory save mode — 다음 내용을 압축·정제하여 .nexus/memory/{적절한_토픽}.md에 Write로 저장하라. 기존 파일 중 관련된 것이 있으면 업데이트하고, 없으면 새 파일 생성. 원문: ${userContent}</nexus>`,
+          tasksReminder,
+          claudeMdNotice,
+        ),
+      });
+    }
+    return;
+  }
+
   // [rule] 규칙 저장 태그 감지
   const ruleMatch = prompt.match(/\[rule(?::([^\]]+))?\]/i);
   if (ruleMatch) {
@@ -501,8 +504,7 @@ function handleSubagentStart(event: Record<string, unknown>): void {
 
   const role = extractRole(agentType);
   if (role !== null) {
-    const allowedLayers = getAllowedLayers(role);
-    const index = buildCoreIndex(allowedLayers);
+    const index = buildCoreIndex();
     if (index !== '') {
       respond({ continue: true, additionalContext: index });
       return;
@@ -584,22 +586,30 @@ function handlePostCompact(_event: Record<string, unknown>): void {
     } catch {}
   }
 
-  // Core knowledge file count
-  const coreRoot = join(process.cwd(), '.nexus', 'core');
-  if (existsSync(coreRoot)) {
-    try {
-      let totalFiles = 0;
-      for (const layer of CORE_LAYERS) {
-        const layerDir = join(coreRoot, layer);
-        if (existsSync(layerDir)) {
-          totalFiles += readdirSync(layerDir).filter(f => f.endsWith('.md')).length;
+  // Knowledge file count (memory, context, rules)
+  try {
+    const nexusRoot = join(process.cwd(), '.nexus');
+    const rulesRoot = join(nexusRoot, 'rules');
+    const folders: Array<[string, string]> = [
+      ['memory', MEMORY_ROOT],
+      ['context', CONTEXT_ROOT],
+      ['rules', rulesRoot],
+    ];
+    const folderCounts: string[] = [];
+    let totalFiles = 0;
+    for (const [label, folderPath] of folders) {
+      if (existsSync(folderPath)) {
+        const count = readdirSync(folderPath).filter(f => f.endsWith('.md')).length;
+        if (count > 0) {
+          folderCounts.push(`${count} ${label}`);
+          totalFiles += count;
         }
       }
-      if (totalFiles > 0) {
-        lines.push(`[Core]: ${totalFiles} files across ${CORE_LAYERS.length} layers`);
-      }
-    } catch {}
-  }
+    }
+    if (totalFiles > 0) {
+      lines.push(`[Knowledge]: ${folderCounts.join(', ')}`);
+    }
+  } catch {}
 
   // Agents
   const trackerPath = join(STATE_ROOT, 'agent-tracker.json');

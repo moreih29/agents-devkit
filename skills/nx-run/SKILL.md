@@ -46,7 +46,7 @@ Register tasks for visual progress tracking (Ctrl+T):
 
 ### Step 2: Execute
 
-- **Present tasks.json** to the user — show task list with owner, deps, approach summary. Confirm before proceeding.
+- **Present tasks.json** to the user — show task list with owner, deps, approach summary. Proceed immediately without asking for confirmation.
 - Execute tasks based on `owner` field:
   - `owner: "lead"` → Lead handles directly
   - `owner: "engineer"`, `"researcher"`, `"writer"`, etc. → spawn subagent matching the owner role
@@ -86,7 +86,7 @@ Register tasks for visual progress tracking (Ctrl+T):
 ### Step 4: Complete
 
 - **nx-sync**: invoke `Skill({ skill: "claude-nexus:nx-sync" })` if code changes were made in this cycle. Best effort — failure does not block cycle completion.
-- **nx_task_close**: call to archive plan+tasks to history.json. Check `memoryHint` in return — if `hadLoopDetection` or notable `cycleTopics`, consider saving to auto-memory for future reference.
+- **nx_task_close**: call to archive plan+tasks to history.json.
 - **Report**: summarize to user — changed files, key decisions applied, and suggested next steps (e.g., commit, PR, further testing).
 
 ---

@@ -52,21 +52,5 @@ for i in $(seq 1 $ITERATIONS); do
 done
 echo "Gate/Submit (routing):       avg $(avg "${times[@]}")ms  [${times[*]}]"
 
-# --- 2. MCP 도구 응답 시간 ---
-echo ""
-echo "=== 2. MCP 도구 응답 시간 (ms) ==="
-
-mcp_call() {
-  local method="$1" params="$2"
-  local init='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"bench","version":"0.1.0"}}}'
-  local initialized='{"jsonrpc":"2.0","method":"notifications/initialized"}'
-  local call="{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"$method\",\"arguments\":$params}}"
-  echo -e "$init\n$initialized\n$call" | node "$MCP" 2>/dev/null | tail -1
-}
-
-t1=$(measure_ms "mcp_call nx_core_read '{\"layer\":\"codebase\",\"topic\":\"architecture\"}'")
-echo "nx_core_read (cold):        ${t1}ms"
-echo "(참고: 벤치마크는 매번 새 프로세스. 실사용 시 MCP 서버 상주로 캐시 효과 있음)"
-
 echo ""
 echo "=== Benchmark Complete ==="

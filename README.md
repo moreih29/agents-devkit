@@ -22,7 +22,7 @@ claude plugin install claude-nexus@nexus
 
 **온보딩**
 
-`/claude-nexus:nx-init`을 처음 실행하면 프로젝트를 스캔해 `.nexus/core/`에 지식을 자동 생성합니다.
+`/claude-nexus:nx-init`을 처음 실행하면 프로젝트를 스캔해 `.nexus/`에 지식을 자동 생성합니다.
 
 > **Important**: 하나의 워크스페이스에서 동시에 여러 Claude Code 세션을 실행하는 것은 지원되지 않습니다. 상태 파일 충돌이 발생할 수 있습니다.
 
@@ -40,6 +40,9 @@ claude plugin install claude-nexus@nexus
 | `[d]` | 결정 기록 (plan 세션 내) | `응 그 방향으로 [d]` |
 | `[run]` | 실행 (서브에이전트 구성) | `[run] 결제 모듈 리팩토링` |
 | `[rule]` | 규칙 저장 | `[rule] npm 대신 bun 사용` |
+| `[m]` | 메모 추가 | `[m] 이 패턴은 나중에 참고` |
+| `[m:gc]` | 메모 정리 | `[m:gc]` |
+| `[sync]` | context/ 동기화 | `[sync]` |
 
 ## 에이전트
 
@@ -63,7 +66,7 @@ claude plugin install claude-nexus@nexus
 | **nx-run** | `[run]` | 동적 에이전트 구성 실행 |
 | **nx-init** | `/claude-nexus:nx-init` | 프로젝트 온보딩. 코드 스캔 → 지식 생성 |
 | **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정 |
-| **nx-sync** | `/claude-nexus:nx-sync` | 코어 지식 동기화. 소스 변경사항을 .nexus/core/ 문서에 반영 |
+| **nx-sync** | `/claude-nexus:nx-sync` | context/ 동기화. 소스 변경사항을 .nexus/context/ 문서에 반영 |
 
 ## 고급 기능
 
@@ -72,12 +75,10 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (14개)
+### Core (12개)
 
 | 도구 | 용도 |
 |------|------|
-| `nx_core_read/write` | 프로젝트 지식 관리 (`.nexus/core/`, git 추적) |
-| `nx_rules_read/write` | 팀 커스텀 규칙 관리 (`.nexus/rules/`, git 추적) |
 | `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 플랜) |
 | `nx_task_list/add/update/close` | `.nexus/state/tasks.json` 기반 태스크 관리 + `.nexus/history.json` 아카이브 |
 | `nx_artifact_write` | 팀 산출물 저장 (`.nexus/state/artifacts/`) |
@@ -128,11 +129,18 @@ Gate 단일 모듈로 동작합니다.
 
 `.nexus/`에 프로젝트 지식과 런타임 상태를 저장합니다.
 
-- `core/` — 4계층 지식 (identity/codebase/reference/memory). git 추적.
-- `rules/` — 팀 커스텀 규칙. git 추적.
-- `config.json` — Nexus 설정. git 추적.
+```
+.nexus/
+  memory/    — 학습한 교훈, 참고 자료
+  context/   — 설계 원칙, 아키텍처 철학
+  state/     — plan.json, tasks.json
+  rules/     — 프로젝트 커스텀 규칙
+  history.json
+```
+
+- `memory/`, `context/`, `rules/` — git 추적.
+- `state/` — 런타임 상태. git 무시.
 - `history.json` — 사이클 아카이브. git 추적.
-- `state/` — 런타임 상태 (tasks, plan 등). git 무시.
 
 </details>
 

@@ -47,7 +47,7 @@ When evaluating strategic options:
 2. How does this compare to what competitors offer?
 3. What is the adoption path — who uses this first and how does it spread?
 4. What is the strategic risk if this doesn't work?
-5. Is there precedent in decisions log? (check nx_core_read, nx_context)
+5. Is there precedent in decisions log? (check .nexus/context/ and .nexus/memory/ via Read/Glob)
 
 ## Collaboration with Lead
 Lead owns scope and project goals; Strategist informs those decisions with market reality:

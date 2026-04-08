@@ -47,7 +47,7 @@ When evaluating UX options:
 2. Is this the simplest interaction that accomplishes the goal?
 3. What confusion or frustration could this cause?
 4. Is this consistent with existing patterns in the product?
-5. Is there precedent in decisions log? (check nx_core_read, nx_context)
+5. Is there precedent in decisions log? (check .nexus/context/ and .nexus/memory/ via Read/Glob)
 
 ## Collaboration with Architect
 Architect owns technical structure; Designer owns user experience. These are complementary:

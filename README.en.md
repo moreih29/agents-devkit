@@ -22,7 +22,7 @@ claude plugin install claude-nexus@nexus
 
 **2. Onboard your project**
 
-Run `/claude-nexus:nx-init` — scans your project and auto-generates structured knowledge under `.nexus/core/`.
+Run `/claude-nexus:nx-init` — scans your project and auto-generates structured knowledge under `.nexus/`.
 
 **3. Start using**
 
@@ -39,6 +39,9 @@ Tag your message to route it to the right workflow:
 | `[run]` | Execution (subagent composition) | `[run] Refactor payment module` |
 | `[d]` | Record a decision (within plan session) | `[d] Use PostgreSQL for primary storage` |
 | `[rule]` | Save a rule | `[rule] Always use bun instead of npm` |
+| `[m]` | Add a memo | `[m] Revisit this pattern later` |
+| `[m:gc]` | Garbage-collect memos | `[m:gc]` |
+| `[sync]` | Sync context/ | `[sync]` |
 
 Typical flow: `[plan]` to discuss and align → `[d]` to decide (within plan) → `[run]` to execute.
 
@@ -76,7 +79,7 @@ Typical flow: `[plan]` to discuss and align → `[d]` to decide (within plan) �
 | **nx-run** | `[run]` | Execution. User-directed agent composition for development, research, and more |
 | **nx-init** | `/claude-nexus:nx-init` | Full project onboarding: scan codebase, establish identity, generate core knowledge |
 | **nx-setup** | `/claude-nexus:nx-setup` | Interactive setup. Injects agent/skill/tag configuration into CLAUDE.md |
-| **nx-sync** | `/claude-nexus:nx-sync` | Core knowledge sync. Reflects source changes into .nexus/core/ docs |
+| **nx-sync** | `/claude-nexus:nx-sync` | Context sync. Reflects source changes into .nexus/context/ docs |
 
 ## Advanced
 
@@ -85,12 +88,10 @@ Typical flow: `[plan]` to discuss and align → `[d]` to decide (within plan) �
 
 Claude-callable tools exposed by the Nexus MCP server.
 
-### Core (14 tools)
+### Core (12 tools)
 
 | Tool | Purpose |
 |------|---------|
-| `nx_core_read/write` | Project knowledge management (git-tracked) |
-| `nx_rules_read/write` | Team custom rules management (git-tracked) |
 | `nx_context` | Current session state lookup (branch, tasks, plan) |
 | `nx_task_list/add/update/close` | Task management + history.json archiving |
 | `nx_artifact_write` | Save artifacts (branch-isolated) |
@@ -143,30 +144,30 @@ Project knowledge and rules are stored under `.nexus/` and tracked by git.
 
 ```
 .nexus/
-├── core/               ← Project knowledge (4 layers)
-│   ├── identity/       ← Project identity and purpose
-│   ├── codebase/       ← Architecture and structure
-│   ├── reference/      ← Reference materials
-│   └── memory/         ← Session memory and context
-├── rules/              ← Team custom rules (created via nx_rules_write)
-└── config.json         ← Nexus configuration
+  memory/    — lessons learned, references
+  context/   — design principles, architecture philosophy
+  state/     — plan.json, tasks.json
+  rules/     — project custom rules
+  history.json
 ```
+
+- `memory/`, `context/`, `rules/` — git-tracked.
+- `state/` — runtime state. git-ignored.
+- `history.json` — cycle archive. git-tracked.
 
 </details>
 
 <details>
 <summary>Runtime State</summary>
 
-Runtime state is stored under `.nexus/state/` and is excluded from git. `history.json` is at `.nexus/` root and git-tracked.
+Runtime state is stored under `.nexus/state/` and is excluded from git.
 
 ```
-.nexus/
-├── history.json            ← Cycle archive (git-tracked, created by nx_task_close)
-└── state/                  ← Runtime state (git-ignored)
-    ├── tasks.json          ← Task list ([run] cycle)
-    ├── plan.json           ← Planning session ([plan] cycle)
-    ├── agent-tracker.json  ← Subagent lifecycle tracking
-    └── artifacts/          ← Artifacts
+.nexus/state/
+├── tasks.json          ← Task list ([run] cycle)
+├── plan.json           ← Planning session ([plan] cycle)
+├── agent-tracker.json  ← Subagent lifecycle tracking
+└── artifacts/          ← Artifacts
 ```
 
 </details>
