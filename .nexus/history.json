@@ -4449,6 +4449,77 @@
           "created_at": "2026-04-08T06:53:56.712Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-08T07:14:02.396Z",
+      "branch": "feat/skill-structural-improvements",
+      "plan": {
+        "id": 4,
+        "topic": "init/sync/setup 스킬 리뷰",
+        "issues": [
+          {
+            "id": 1,
+            "title": "init 스킬 — 자연어 트리거 + 한글 통일 + Trigger 섹션 정리",
+            "status": "decided",
+            "decision": "init: frontmatter triggers에서 자연어 제거, 슬래시 커맨드 형태만 유지. 나머지는 깔끔하여 추가 수정 불필요."
+          },
+          {
+            "id": 2,
+            "title": "sync 스킬 — 자연어 트리거 + 레거시 참조 + Step 4 호출 명시화",
+            "status": "decided",
+            "decision": "sync: (1) frontmatter triggers 자연어 제거 (2) Trigger 섹션 자연어 줄 삭제 (3) \"Step 5\" → \"Step 4\" 참조 수정 (4) last-sync-commit을 현실적으로 수정 (\"use recent commits or HEAD~10\") (5) Layer-Specific Guidance에서 하드코딩된 파일명 목록 제거, 일반화 (\"update files that exist in each layer based on detected changes\")."
+          },
+          {
+            "id": 3,
+            "title": "setup 스킬 — 구조적 검토",
+            "status": "decided",
+            "decision": "setup: Step 5에서 init 호출을 Skill({ skill: \"claude-nexus:nx-init\" })로 명시. 그 외 수정 불필요."
+          }
+        ],
+        "research_summary": "**nx-init SKILL.md:**\n1. triggers에 자연어 포함: [\"init\", \"onboard\", \"온보딩\", \"초기화\", \"프로젝트 설정\"] — plan/run에서 제거한 패턴과 동일\n2. 내부 Trigger 섹션 (line 22-26): 슬래시 커맨드 기반 — 자연어 아닌 명시적 호출이라 문제 적음. 하지만 frontmatter와의 불일치는 있음\n3. 한글: 거의 없음. 잘 되어있음\n4. Step 2 Identity: AskUserQuestion으로 interactive — 잘 구조화됨\n5. Step 3 Codebase: Writer 서브에이전트 스폰 — 적절\n6. Step 4 Rules: 이건 setup에서도 하는 건데 중복? setup Step 5에서 init을 호출하니까 규칙 설정이 두 곳에 있음\n\n**nx-sync SKILL.md:**\n1. triggers에 자연어 포함: [\"sync\", \"동기화\", \"core 업데이트\", \"문서 동기화\"] — 제거 대상\n2. 내부 Trigger 섹션 (line 23-27): 자연어 \"Natural language: sync core, update docs, 동기화\" 있음\n3. \"Auto-invoked by Lead in [run] Step 5\" — 실제로는 Step 4. 잘못된 참조\n4. Step 1: `git diff --name-only {last-sync-commit}..HEAD` — last-sync marker가 어디에도 관리 안 됨. 실제로는 이 마커를 쓰지 않을 가능성 높음\n5. memory/ 레이어 (line 51, 103-105): auto-memory와 역할 중복? \"Record lessons from cycles\" — 이건 auto-memory가 하는 거 아닌가?\n6. context-standard.md (line 91): 이 파일이 실제로 존재하는지? 레거시 참조일 수 있음\n7. 한글: trigger 부분만\n\n**nx-setup SKILL.md:**\n1. triggers 없음 (frontmatter에 없음) — 슬래시 커맨드 전용. 깔끔\n2. disable-model-invocation: true — 자동 트리거 방지. 적절\n3. 구조: 잘 되어있음. AskUserQuestion 기반 wizard\n4. Step 5 Knowledge Init: \"If Yes: run the nx-init skill\" — Skill() 호출 방식 명시 없음\n5. 한글: 없음\n6. 전반적으로 가장 깔끔한 스킬",
+        "created_at": "2026-04-08T07:09:19.363Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "init SKILL.md — triggers 정리",
+          "context": "frontmatter triggers에서 자연어 제거",
+          "approach": "triggers 배열을 슬래시 커맨드 형태로 정리. init은 태그가 아닌 슬래시 커맨드 기반이므로 빈 배열 또는 제거.",
+          "acceptance": "frontmatter에 자연어 triggers 없음",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-08T07:12:44.734Z"
+        },
+        {
+          "id": 2,
+          "title": "sync SKILL.md — triggers + 레거시 참조 + 가이드 일반화",
+          "context": "5건 수정: triggers, Trigger 섹션, Step 참조, last-sync, Layer-Specific Guidance",
+          "approach": "1) frontmatter triggers 자연어 제거 2) Trigger 섹션 Natural language 줄 삭제 3) \"Step 5\" → \"Step 4\" 4) last-sync-commit → recent commits 5) Layer-Specific Guidance 파일명 하드코딩 → 일반화",
+          "acceptance": "1. 자연어 triggers 없음 2. Trigger에 natural language 없음 3. Step 4 참조 정확 4. last-sync 현실적 5. 파일명 하드코딩 없음",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "lead",
+          "created_at": "2026-04-08T07:12:49.578Z"
+        },
+        {
+          "id": 3,
+          "title": "setup SKILL.md — init 호출 명시화",
+          "context": "Step 5에서 \"run the nx-init skill\"을 Skill() 호출로 명시",
+          "approach": "\"run the nx-init skill\" → \"invoke Skill({ skill: \\\"claude-nexus:nx-init\\\" })\"",
+          "acceptance": "Skill() 호출이 명시되어 있음",
+          "risk": "없음",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 3,
+          "owner": "lead",
+          "created_at": "2026-04-08T07:12:51.773Z"
+        }
+      ]
     }
   ]
 }

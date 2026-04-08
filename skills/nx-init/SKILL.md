@@ -3,7 +3,7 @@ name: nx-init
 description: "Project onboarding — scan, identity, codebase generation"
 trigger_display: "/claude-nexus:nx-init"
 purpose: "Full project onboarding: scan codebase, establish identity, generate core knowledge"
-triggers: ["init", "onboard", "온보딩", "초기화", "프로젝트 설정"]
+triggers: ["/claude-nexus:nx-init"]
 ---
 
 <role>
