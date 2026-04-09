@@ -1,12 +1,14 @@
-# claude-nexus
+<!-- PROJECT:START -->
+## claude-nexus
 
-Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트는 Nexus 자체를 사용하여 개발한다 (부트스트랩).
+Claude Code용 에이전트 오케스트레이션 플러그인. Nexus 자체를 사용하여 개발한다 (부트스트랩).
 
-- omc는 이 프로젝트에서 비활성화. Nexus 에이전트/스킬만 사용.
-- 설계 문서: `.nexus/core/`
-- 개발 사이클: `src/ 수정 → bun run dev (빌드+캐시동기화) → nexus-test에서 검증`
-- E2E 테스트: `bash test/e2e.sh`
-- 런타임: npm/node 대신 **bun** 사용 (`bun run`, `bun install`, `bun test` 등)
+### Essentials
+- 런타임: **bun** 사용 (npm/node 대신) — `bun run`, `bun install`, `bun test`
+- 빌드: `bun run dev` (빌드 + 로컬 플러그인 캐시 동기화)
+- 테스트: `bash test/e2e.sh`
+- 플러그인 구조: src/ → esbuild → bridge/mcp-server.cjs + scripts/{gate,statusline}.cjs
+<!-- PROJECT:END -->
 
 <!-- NEXUS:START -->
 ## Nexus Agent Orchestration
@@ -14,6 +16,15 @@ Claude Code용 에이전트 오케스트레이션 플러그인. 이 프로젝트
 **Default: DELEGATE** — route code work, analysis, and multi-file changes to agents.
 
 Lead는 사용자와 직접 대화하는 메인 에이전트. tasks.json에서 `owner: "lead"`는 Lead가 직접 처리.
+
+Before starting work, check `.nexus/memory/` and `.nexus/context/` for project-specific knowledge.
+
+### .nexus/ Structure
+
+- `memory/` — lessons learned, references (`[m]`)
+- `context/` — design principles, architecture philosophy (`[sync]`)
+- `rules/` — project custom rules (`[rule]`)
+- `state/` — plan.json, tasks.json (runtime)
 
 ### Agent Routing
 
@@ -37,7 +48,7 @@ Lead는 사용자와 직접 대화하는 메인 에이전트. tasks.json에서 `
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish project philosophy, generate context knowledge |
+| nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish project mission and essentials, generate context knowledge |
 | nx-plan | [plan] | Structured planning — subagent-based analysis, deliberate decisions, produce execution plan |
 | nx-run | [run] | Execution — user-directed agent composition |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
@@ -51,4 +62,7 @@ Lead는 사용자와 직접 대화하는 메인 에이전트. tasks.json에서 `
 | [d] | 결정 기록 (plan 세션 내 nx_plan_decide 호출) |
 | [run] | 실행 — 계획서 기반 서브에이전트 병렬 실행 |
 | [rule] | 규칙 저장 — [rule:태그] 형식 지원 |
+| [m] | 메모 저장 — 교훈, 참조를 .nexus/memory/에 압축 저장 |
+| [m:gc] | 메모 정리 — .nexus/memory/ 파일 병합/삭제 |
+| [sync] | 컨텍스트 동기화 — .nexus/context/ 설계 문서 업데이트 |
 <!-- NEXUS:END -->
