@@ -29,23 +29,6 @@ function getNum(key: string): number {
 const PROJECT_ROOT = findProjectRoot(getVal('cwd') || process.cwd());
 const NEXUS_ROOT = join(PROJECT_ROOT, '.nexus');
 
-// --- Preset ---
-
-type Preset = 'minimal' | 'full';
-
-function getPreset(): Preset {
-  const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
-  if (env === 'minimal' || env === 'full') return env;
-  const configFile = join(NEXUS_ROOT, 'config.json');
-  if (existsSync(configFile)) {
-    try {
-      const data = JSON.parse(readFileSync(configFile, 'utf-8'));
-      const p = data.statuslinePreset;
-      if (p === 'minimal' || p === 'full') return p;
-    } catch { /* skip */ }
-  }
-  return 'full';
-}
 
 // --- 색상 ---
 
@@ -387,14 +370,7 @@ function buildLine2(): string {
 // --- 메인 ---
 
 function main() {
-  const preset = getPreset();
-  const lines: string[] = [buildLine1()];
-
-  if (preset === 'full') {
-    lines.push(buildLine2());
-  }
-
-  process.stdout.write(lines.join('\n') + '\n');
+  process.stdout.write(buildLine1() + '\n' + buildLine2() + '\n');
 }
 
 main();

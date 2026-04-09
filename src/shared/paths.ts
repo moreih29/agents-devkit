@@ -58,7 +58,6 @@ const GITIGNORE_CONTENT = `# Nexus: whitelist tracked files, ignore everything e
 !memory/**
 !context/
 !context/**
-!config.json
 !history.json
 !rules/
 !rules/**

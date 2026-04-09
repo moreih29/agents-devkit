@@ -35,7 +35,7 @@ AskUserQuestion({
     multiSelect: false,
     options: [
       { label: "User (Global)", description: "Apply to all projects (~/.claude/CLAUDE.md, ~/.claude/settings.json statusline)" },
-      { label: "Project", description: "Apply to this project only (CLAUDE.md, .claude/settings.local.json, .nexus/config.json)" }
+      { label: "Project", description: "Apply to this project only (CLAUDE.md, .claude/settings.local.json)" }
     ]
   }]
 })
@@ -43,26 +43,25 @@ AskUserQuestion({
 
 All file write paths for subsequent steps are determined by this selection:
 - User: `~/.claude/CLAUDE.md`, `~/.claude/settings.json` (statusline wrapper)
-- Project: `./CLAUDE.md`, `./.nexus/config.json`
+- Project: `./CLAUDE.md`, `./.claude/settings.local.json`
 
-### Step 2: Statusline Preset
+### Step 2: Statusline
 
 ```
 AskUserQuestion({
   questions: [{
-    question: "Select the statusline display level.",
+    question: "Enable the Nexus statusline? (model, branch, context usage, rate limits)",
     header: "Statusline",
     multiSelect: false,
     options: [
-      { label: "Full (Recommended)", description: "2 lines: model+branch, task+usage" },
-      { label: "Minimal", description: "1 line: model+branch only" },
+      { label: "Enable (Recommended)", description: "2 lines: model+branch+git, context+usage meters" },
       { label: "Skip", description: "Skip statusline configuration" }
     ]
   }]
 })
 ```
 
-**Create wrapper script** (for Full/Minimal, run via Bash tool):
+**Create wrapper script** (for Enable, run via Bash tool):
 ```bash
 mkdir -p ~/.claude/hooks
 cat > ~/.claude/hooks/nexus-statusline.sh << 'EOF'
@@ -90,8 +89,6 @@ chmod +x ~/.claude/hooks/nexus-statusline.sh
   { "statusLine": { "type": "command", "command": "bash $HOME/.claude/hooks/nexus-statusline.sh" } }
   ```
 - If `statusLine` field **already exists** in `.claude/settings.local.json`: create wrapper only, do not modify settings.local.json — ask user to confirm replacement (see "Statusline coexistence handling" below)
-- Also save the selected value to the `statuslinePreset` field in `.nexus/config.json` (preserve existing values)
-
 **(3) Skip:**
 - Do not create wrapper or modify settings.json.
 
@@ -125,22 +122,7 @@ AskUserQuestion({
 
 If no existing statusline configuration is detected, skip this sub-step.
 
-### Step 3: CLAUDE.md Nexus Section
-
-Write the Nexus section in CLAUDE.md using `<!-- NEXUS:START -->` / `<!-- NEXUS:END -->` markers.
-
-If a Nexus section already exists, replace the content between markers. Content outside the markers is preserved unchanged.
-
-Write location depends on scope selected in Step 1.
-
-**Section content is read from the plugin's template file at runtime:**
-
-1. **Read `$CLAUDE_PLUGIN_ROOT/templates/nexus-section.md`** — this file is auto-generated at build time from agents/skills/tags source files
-2. **If not found:** Error — "Nexus section template not found. Please verify that the plugin is installed correctly."
-
-Write the template content wrapped in `<!-- NEXUS:START -->` / `<!-- NEXUS:END -->` markers to the target CLAUDE.md (respecting scope from Step 1).
-
-### Step 4: Recommended Plugin
+### Step 3: Recommended Plugin
 
 Check if `context7@claude-plugins-official` is in `enabledPlugins` (global or project settings.json).
 
@@ -180,7 +162,7 @@ Claude Code will automatically install the plugin at the start of the next sessi
 
 Note: Once added to `enabledPlugins`, Claude Code automatically installs the plugin at the start of the next session.
 
-### Step 5: Knowledge Init
+### Step 4: Knowledge Init
 
 ```
 AskUserQuestion({
@@ -199,7 +181,7 @@ AskUserQuestion({
 If "Yes": invoke `Skill({ skill: "claude-nexus:nx-init" })`.
 If "Skip": proceed to next step.
 
-### Step 6: Complete
+### Step 5: Complete
 
 Output a setup completion message:
 - Summary of applied settings
@@ -218,5 +200,5 @@ Output a setup completion message:
 ## State Management
 
 Setup operates via sequential AskUserQuestion calls with no state file.
-Configuration results are written immediately to `.nexus/config.json` at each step (for Project scope).
+Configuration results are written to the scope-appropriate settings file at each step.
 </guidelines>

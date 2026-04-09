@@ -43,7 +43,6 @@ var GITIGNORE_CONTENT = `# Nexus: whitelist tracked files, ignore everything els
 !memory/**
 !context/
 !context/**
-!config.json
 !history.json
 !rules/
 !rules/**
@@ -202,7 +201,6 @@ function handleStop(event) {
 }
 function isNexusInternalPath(filePath) {
   if (/[\\/]\.nexus[\\/]state[\\/]/.test(filePath)) return true;
-  if (/[\\/]\.nexus[\\/]config\.json$/.test(filePath)) return true;
   if (/[\\/]\.claude[\\/]settings\.json$/.test(filePath)) return true;
   if (/[\\/]CLAUDE\.md$/.test(filePath)) return true;
   return false;
@@ -443,6 +441,17 @@ Record decision only. For implementation, use [run].`;
     const rawTags = ruleMatch[1];
     const ruleTags = rawTags ? rawTags.split(",").map((t) => t.trim()).filter(Boolean) : null;
     handleRuleMode({ prompt, tasksReminder, claudeMdNotice, ruleTags });
+    return;
+  }
+  if (/\[sync\]/i.test(prompt)) {
+    respond({
+      continue: true,
+      additionalContext: withNotices(
+        `<nexus>BLOCKING: Invoke Skill tool with skill="claude-nexus:nx-sync" [before any other action].</nexus>`,
+        tasksReminder,
+        claudeMdNotice
+      )
+    });
     return;
   }
   const match = detectKeywords(prompt);

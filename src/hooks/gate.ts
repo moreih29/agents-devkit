@@ -133,8 +133,6 @@ function handleStop(event: Record<string, unknown>): void {
 function isNexusInternalPath(filePath: string): boolean {
   // .nexus/state/ 런타임 상태 — task 없이 수정 허용
   if (/[\\/]\.nexus[\\/]state[\\/]/.test(filePath)) return true;
-  // .nexus/config.json — setup 스킬 대상
-  if (/[\\/]\.nexus[\\/]config\.json$/.test(filePath)) return true;
   // .claude/settings.json — setup 스킬 대상
   if (/[\\/]\.claude[\\/]settings\.json$/.test(filePath)) return true;
   // CLAUDE.md — sync 스킬 대상
@@ -437,6 +435,19 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     const rawTags = ruleMatch[1];
     const ruleTags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : null;
     handleRuleMode({ prompt, tasksReminder, claudeMdNotice, ruleTags });
+    return;
+  }
+
+  // [sync] 컨텍스트 동기화 태그 감지
+  if (/\[sync\]/i.test(prompt)) {
+    respond({
+      continue: true,
+      additionalContext: withNotices(
+        `<nexus>BLOCKING: Invoke Skill tool with skill="claude-nexus:nx-sync" [before any other action].</nexus>`,
+        tasksReminder,
+        claudeMdNotice,
+      ),
+    });
     return;
   }
 

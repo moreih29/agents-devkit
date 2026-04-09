@@ -52,20 +52,6 @@ function getNum(key) {
 }
 var PROJECT_ROOT2 = findProjectRoot(getVal("cwd") || process.cwd());
 var NEXUS_ROOT2 = (0, import_path3.join)(PROJECT_ROOT2, ".nexus");
-function getPreset() {
-  const env = process.env.NEXUS_STATUSLINE || process.env.LATTICE_STATUSLINE;
-  if (env === "minimal" || env === "full") return env;
-  const configFile = (0, import_path3.join)(NEXUS_ROOT2, "config.json");
-  if ((0, import_fs3.existsSync)(configFile)) {
-    try {
-      const data = JSON.parse((0, import_fs3.readFileSync)(configFile, "utf-8"));
-      const p = data.statuslinePreset;
-      if (p === "minimal" || p === "full") return p;
-    } catch {
-    }
-  }
-  return "full";
-}
 var RESET = "\x1B[0m";
 var BOLD = "\x1B[1m";
 var DIM = "\x1B[2m";
@@ -342,12 +328,7 @@ function buildLine2() {
   return `${ctx} ${SEP} ${m5h}${r5h} ${SEP} ${m7d}${r7d}${stalePart}`;
 }
 function main() {
-  const preset = getPreset();
-  const lines = [buildLine1()];
-  if (preset === "full") {
-    lines.push(buildLine2());
-  }
-  process.stdout.write(lines.join("\n") + "\n");
+  process.stdout.write(buildLine1() + "\n" + buildLine2() + "\n");
 }
 main();
 //# sourceMappingURL=statusline.cjs.map
