@@ -1,8 +1,8 @@
 ---
 name: nx-init
-description: "Project onboarding — scan, philosophy, context generation"
+description: "Project onboarding — scan, mission, essentials, context generation"
 trigger_display: "/claude-nexus:nx-init"
-purpose: "Full project onboarding: scan codebase, establish project philosophy, generate context knowledge"
+purpose: "Full project onboarding: scan codebase, establish project mission and essentials, generate context knowledge"
 triggers: ["/claude-nexus:nx-init"]
 ---
 
@@ -11,12 +11,13 @@ Scans the project and builds Nexus knowledge in the flat .nexus/ structure. On f
 </role>
 
 <constraints>
-- NEVER modify source code. Slimming down CLAUDE.md beyond the project philosophy section is not this skill's responsibility.
+- NEVER modify source code. Slimming down CLAUDE.md beyond the project section is not this skill's responsibility.
 - NEVER infer or guess information that cannot be confirmed from code — do not write it to context/.
 - NEVER store secrets (API keys, credentials, etc.) in knowledge files.
 - NEVER overwrite existing files without `--reset`. On resume, preserve existing files.
-- Project philosophy in CLAUDE.md MUST go through user confirmation before writing.
+- Project section in CLAUDE.md MUST go through user confirmation before writing.
 - NEVER reference or create identity/, codebase/, reference/, or core/ paths.
+- Essentials section MUST NOT exceed 10 lines. If more items are needed, move lower-priority ones to .nexus/context/.
 </constraints>
 
 <guidelines>
@@ -102,34 +103,47 @@ Output: scan summary (language, framework, structure overview)
 
 For large projects (10+ top-level directories or 100+ files), consider spawning an Explore subagent for parallel scanning to reduce Lead context usage.
 
-### Step 2: Project Philosophy (Interactive)
+### Step 2: Mission + Essentials (Interactive)
 
-Confirm the core direction of the project together with the user, then write it into CLAUDE.md.
+Using the Step 1 scan results, draft a Mission statement (1–2 lines) and an Essentials list, then present both to the user for confirmation in a single pass.
 
-Ask the following 2 items sequentially via AskUserQuestion:
+#### Essentials Guidelines
 
-1. **Mission** — the problem this project solves and its goals
-2. **Design philosophy** — design **principles only** (why these choices were made, not implementation details)
+Essentials are agent-critical facts — things an agent would get wrong if it didn't know them. Apply this judgment criterion: **"Would an agent produce wrong results without knowing this?"** Yes → Essentials. No → .nexus/context/.
 
-For each item, present a draft based on the Step 1 scan results for the user to revise/confirm.
+Draft from these five categories (include only what applies to this project):
 
-**Scope**: Only high-level principles belong here. Implementation specifics (pipeline details, agent configuration, file structure, tool restrictions) belong in `context/`, not in CLAUDE.md.
+- **Tech stack** — runtime, language, package manager, core framework. Flag non-default tools (e.g. bun instead of npm, deno instead of node).
+- **Workflow** — build, test, deploy commands. Must-follow procedures such as required lint or type-check steps before committing.
+- **Constraints** — forbidden tools, patterns, or approaches. Directories or files that must not be modified.
+- **Domain** — target audience, required terminology or tone, compliance or regulatory constraints, methodology for research projects.
+- **Conventions** — naming, structure, or style that deviate from general defaults. Project-specific patterns an agent would not infer.
 
-After confirmation, write the philosophy into CLAUDE.md inside markers using the Edit tool:
+Do not include items that are standard defaults for the detected tech stack. Do not exceed 10 lines total in the Essentials section.
+
+#### Draft Presentation
+
+Present the full draft to the user in this format:
 
 ```
+The following will be added to CLAUDE.md (existing content will not be changed):
+
 <!-- PROJECT:START -->
-## Project Philosophy
+## {project-name}
 
-### Mission
-{confirmed mission text}
+{mission 1-2 lines}
 
-### Design Philosophy
-{confirmed design philosophy text}
+### Essentials
+- {auto-detected item}
+- {auto-detected item}
 <!-- PROJECT:END -->
+
+Any changes?
 ```
 
-If CLAUDE.md already contains `<!-- PROJECT:START -->` markers, replace the content between them. If CLAUDE.md does not exist, create it with the markers.
+Wait for the user to confirm or provide edits. Apply all changes in one pass — do not ask about Mission and Essentials separately.
+
+After confirmation, write the section into CLAUDE.md inside markers using the Edit tool. If CLAUDE.md already contains `<!-- PROJECT:START -->` markers, replace the content between them. If CLAUDE.md does not exist, create it with the markers.
 
 ### Step 3: Context Knowledge Auto-Generation
 
@@ -140,11 +154,12 @@ Principles:
 - Existing docs are information sources only — do not replicate their structure verbatim.
 - Do not guess content that cannot be confirmed from code.
 - Typically 1-3 files are sufficient. More files are not better.
+- **Generate abstract-level content only** — design patterns, architecture direction, module relationships, conventions. Do NOT include code-level details such as file listings, function signatures, or import maps. Those can be read directly from code.
 
 Generation targets (select and name based on what the project actually needs):
 - Development stack (languages, frameworks, runtimes, key dependencies, build/test/deploy workflow)
 - Design and architecture (module relationships, data flow, core entry points, conventions)
-- Implementation specifics (pipeline details, configuration patterns, file structure conventions, tool restrictions — anything too specific for CLAUDE.md philosophy)
+- Implementation specifics (pipeline details, configuration patterns, file structure conventions, tool restrictions — anything too specific for CLAUDE.md but not readable from code alone)
 
 Use the Write tool to create files at `.nexus/context/{chosen-name}.md`.
 
@@ -180,7 +195,7 @@ Output a summary of the onboarding results.
 ## Nexus Initialization Complete
 
 ### Generated Files
-- CLAUDE.md: project philosophy section (<!-- PROJECT:START/END -->)
+- CLAUDE.md: project section — mission and essentials (<!-- PROJECT:START/END -->)
 - .nexus/context/: {list of generated files}
 - .nexus/rules/: {generated files or "none (skipped)"}
 

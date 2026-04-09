@@ -4,6 +4,15 @@
 
 Lead는 사용자와 직접 대화하는 메인 에이전트. tasks.json에서 `owner: "lead"`는 Lead가 직접 처리.
 
+Before starting work, check `.nexus/memory/` and `.nexus/context/` for project-specific knowledge.
+
+### .nexus/ Structure
+
+- `memory/` — lessons learned, references (`[m]`)
+- `context/` — design principles, architecture philosophy (`[sync]`)
+- `rules/` — project custom rules (`[rule]`)
+- `state/` — plan.json, tasks.json (runtime)
+
 ### Agent Routing
 
 병렬 작업이나 다른 관점이 필요할 때 에이전트를 활용하라.
@@ -26,7 +35,7 @@ Lead는 사용자와 직접 대화하는 메인 에이전트. tasks.json에서 `
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish project philosophy, generate context knowledge |
+| nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish project mission and essentials, generate context knowledge |
 | nx-plan | [plan] | Structured planning — subagent-based analysis, deliberate decisions, produce execution plan |
 | nx-run | [run] | Execution — user-directed agent composition |
 | nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
@@ -40,3 +49,6 @@ Lead는 사용자와 직접 대화하는 메인 에이전트. tasks.json에서 `
 | [d] | 결정 기록 (plan 세션 내 nx_plan_decide 호출) |
 | [run] | 실행 — 계획서 기반 서브에이전트 병렬 실행 |
 | [rule] | 규칙 저장 — [rule:태그] 형식 지원 |
+| [m] | 메모 저장 — 교훈, 참조를 .nexus/memory/에 압축 저장 |
+| [m:gc] | 메모 정리 — .nexus/memory/ 파일 병합/삭제 |
+| [sync] | 컨텍스트 동기화 — .nexus/context/ 설계 문서 업데이트 |
