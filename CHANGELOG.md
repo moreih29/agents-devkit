@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.24.1 (2026-04-09)
+
+### Refactoring
+- add [sync] handler, simplify nx-setup, drop config.json
+- nx-init essentials + flatten .nexus/ structure on disk
+
+### Other
+- merge: chore/nx-init-essentials — nx-init essentials redesign, .nexus/core/ removal
+
 ## 0.24.0 (2026-04-08)
 
 ### Refactoring
