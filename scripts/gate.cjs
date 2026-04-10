@@ -98,9 +98,22 @@ function extractRole(agentType) {
   return AGENT_ROLES.includes(role) ? role : null;
 }
 
-// src/hooks/gate.ts
+// src/shared/version.ts
 var import_fs3 = require("fs");
 var import_path3 = require("path");
+function getCurrentVersion() {
+  try {
+    const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+    const versionFile = pluginRoot ? (0, import_path3.join)(pluginRoot, "VERSION") : (0, import_path3.join)(__dirname, "..", "VERSION");
+    if ((0, import_fs3.existsSync)(versionFile)) return (0, import_fs3.readFileSync)(versionFile, "utf-8").trim();
+  } catch {
+  }
+  return "";
+}
+
+// src/hooks/gate.ts
+var import_fs4 = require("fs");
+var import_path4 = require("path");
 var import_os = require("os");
 var TASK_PIPELINE = `
 TASK PIPELINE (mandatory for all file modifications):
@@ -127,34 +140,34 @@ function replaceMarkerContent(fileContent, newContent) {
   return fileContent.slice(0, startIdx + MARKER_START.length) + "\n" + newContent + "\n" + fileContent.slice(endIdx);
 }
 function handleClaudeMdSync() {
-  const templatePath = (0, import_path3.join)(PLUGIN_ROOT, "templates", "nexus-section.md");
-  if (!PLUGIN_ROOT || !(0, import_fs3.existsSync)(templatePath)) return null;
-  const template = (0, import_fs3.readFileSync)(templatePath, "utf-8").trim();
-  const globalClaudeMd = (0, import_path3.join)((0, import_os.homedir)(), ".claude", "CLAUDE.md");
-  if ((0, import_fs3.existsSync)(globalClaudeMd)) {
-    const globalContent = (0, import_fs3.readFileSync)(globalClaudeMd, "utf-8");
+  const templatePath = (0, import_path4.join)(PLUGIN_ROOT, "templates", "nexus-section.md");
+  if (!PLUGIN_ROOT || !(0, import_fs4.existsSync)(templatePath)) return null;
+  const template = (0, import_fs4.readFileSync)(templatePath, "utf-8").trim();
+  const globalClaudeMd = (0, import_path4.join)((0, import_os.homedir)(), ".claude", "CLAUDE.md");
+  if ((0, import_fs4.existsSync)(globalClaudeMd)) {
+    const globalContent = (0, import_fs4.readFileSync)(globalClaudeMd, "utf-8");
     const globalMarker = extractMarkerContent(globalContent);
     if (globalMarker !== null && globalMarker !== template) {
       const updated = replaceMarkerContent(globalContent, template);
-      (0, import_fs3.writeFileSync)(globalClaudeMd, updated);
+      (0, import_fs4.writeFileSync)(globalClaudeMd, updated);
     }
   }
-  const projectClaudeMd = (0, import_path3.join)(process.cwd(), "CLAUDE.md");
-  if ((0, import_fs3.existsSync)(projectClaudeMd)) {
-    const projectContent = (0, import_fs3.readFileSync)(projectClaudeMd, "utf-8");
+  const projectClaudeMd = (0, import_path4.join)(process.cwd(), "CLAUDE.md");
+  if ((0, import_fs4.existsSync)(projectClaudeMd)) {
+    const projectContent = (0, import_fs4.readFileSync)(projectClaudeMd, "utf-8");
     const projectMarker = extractMarkerContent(projectContent);
     if (projectMarker !== null && projectMarker !== template) {
       const updated = replaceMarkerContent(projectContent, template);
-      (0, import_fs3.writeFileSync)(projectClaudeMd, updated);
+      (0, import_fs4.writeFileSync)(projectClaudeMd, updated);
     }
   }
   return null;
 }
 function getSyncNudge() {
-  const historyPath = (0, import_path3.join)(process.cwd(), ".nexus", "history.json");
-  if (!(0, import_fs3.existsSync)(historyPath)) return null;
+  const historyPath = (0, import_path4.join)(process.cwd(), ".nexus", "history.json");
+  if (!(0, import_fs4.existsSync)(historyPath)) return null;
   try {
-    const history = JSON.parse((0, import_fs3.readFileSync)(historyPath, "utf-8"));
+    const history = JSON.parse((0, import_fs4.readFileSync)(historyPath, "utf-8"));
     const cycles = history.cycles ?? [];
     if (cycles.length === 0) return null;
     const lastSyncIdx = cycles.findLastIndex(
@@ -208,8 +221,8 @@ function isNexusInternalPath(filePath) {
 function handlePreToolUse(event) {
   const toolName = event.tool_name ?? "";
   if (toolName === "Edit" || toolName === "Write") {
-    const tasksPath = (0, import_path3.join)(STATE_ROOT, "tasks.json");
-    if (!(0, import_fs3.existsSync)(tasksPath)) {
+    const tasksPath = (0, import_path4.join)(STATE_ROOT, "tasks.json");
+    if (!(0, import_fs4.existsSync)(tasksPath)) {
       pass();
       return;
     }
@@ -252,10 +265,10 @@ function getTasksReminder() {
   return `<nexus>All ${summary.total} tasks completed but not archived. MANDATORY: Call nx_task_close to archive this cycle.</nexus>`;
 }
 function getPlanReminder() {
-  const planFilePath = (0, import_path3.join)(STATE_ROOT, "plan.json");
-  if (!(0, import_fs3.existsSync)(planFilePath)) return null;
+  const planFilePath = (0, import_path4.join)(STATE_ROOT, "plan.json");
+  if (!(0, import_fs4.existsSync)(planFilePath)) return null;
   try {
-    const data = JSON.parse((0, import_fs3.readFileSync)(planFilePath, "utf-8"));
+    const data = JSON.parse((0, import_fs4.readFileSync)(planFilePath, "utf-8"));
     const issues = data.issues ?? [];
     const pending = issues.filter((i) => i.status === "pending");
     const current = pending.length > 0 ? `Next: #${pending[0].id} "${pending[0].title}"` : "All issues decided.";
@@ -266,20 +279,20 @@ Present comparison table with pros/cons/recommendation. Record decisions with [d
   }
 }
 function scanFolderEntries(folderPath) {
-  if (!(0, import_fs3.existsSync)(folderPath)) return [];
+  if (!(0, import_fs4.existsSync)(folderPath)) return [];
   let files;
   try {
-    files = (0, import_fs3.readdirSync)(folderPath).filter((f) => f.endsWith(".md"));
+    files = (0, import_fs4.readdirSync)(folderPath).filter((f) => f.endsWith(".md"));
   } catch {
     return [];
   }
   const entries = [];
   for (const file of files) {
-    const name = (0, import_path3.basename)(file, ".md");
-    const filePath = (0, import_path3.join)(folderPath, file);
+    const name = (0, import_path4.basename)(file, ".md");
+    const filePath = (0, import_path4.join)(folderPath, file);
     let tags = "";
     try {
-      const content = (0, import_fs3.readFileSync)(filePath, "utf-8");
+      const content = (0, import_fs4.readFileSync)(filePath, "utf-8");
       const tagMatch = content.match(/<!--\s*tags:\s*([^-]+?)\s*-->/);
       if (tagMatch) {
         const tagList = tagMatch[1].split(",").map((t) => t.trim()).filter(Boolean);
@@ -293,8 +306,8 @@ function scanFolderEntries(folderPath) {
   return entries;
 }
 function buildCoreIndex() {
-  const nexusRoot = (0, import_path3.join)(process.cwd(), ".nexus");
-  const rulesRoot = (0, import_path3.join)(nexusRoot, "rules");
+  const nexusRoot = (0, import_path4.join)(process.cwd(), ".nexus");
+  const rulesRoot = (0, import_path4.join)(nexusRoot, "rules");
   const layerLines = [];
   const memoryEntries = scanFolderEntries(MEMORY_ROOT);
   if (memoryEntries.length > 0) {
@@ -340,8 +353,8 @@ function handlePlanMode({ prompt, tasksReminder, claudeMdNotice }) {
     return;
   }
   const isAuto = /\[plan:auto\]/i.test(prompt);
-  const planFile = (0, import_path3.join)(STATE_ROOT, "plan.json");
-  const hasExistingSession = (0, import_fs3.existsSync)(planFile);
+  const planFile = (0, import_path4.join)(STATE_ROOT, "plan.json");
+  const hasExistingSession = (0, import_fs4.existsSync)(planFile);
   let hints = "";
   if (hasExistingSession) {
     hints = "\nExisting plan session detected \u2014 check nx_plan_status to resume.";
@@ -397,8 +410,8 @@ function handleUserPromptSubmit(event) {
     const postDecisionRules = `
 
 Record decision only. For implementation, use [run].`;
-    const planFile = (0, import_path3.join)(STATE_ROOT, "plan.json");
-    if ((0, import_fs3.existsSync)(planFile)) {
+    const planFile = (0, import_path4.join)(STATE_ROOT, "plan.json");
+    if ((0, import_fs4.existsSync)(planFile)) {
       respond({
         continue: true,
         additionalContext: withNotices(`<nexus>Decision tag detected in plan mode. Use nx_plan_decide(issue_id, summary) to record.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, planReminder)
@@ -484,25 +497,65 @@ Record decision only. For implementation, use [run].`;
     pass();
   }
 }
+function handlePostToolUse(event) {
+  try {
+    const agentId = event.agent_id;
+    if (!agentId) return;
+    if (!["Edit", "Write", "NotebookEdit"].includes(event.tool_name)) return;
+    const filePath = event.tool_name === "NotebookEdit" ? event.tool_input?.notebook_path : event.tool_input?.file_path;
+    if (!filePath) return;
+    const line = JSON.stringify({
+      ts: (/* @__PURE__ */ new Date()).toISOString(),
+      agent_id: agentId,
+      tool: event.tool_name,
+      file: filePath
+    }) + "\n";
+    (0, import_fs4.appendFileSync)((0, import_path4.join)(STATE_ROOT, "tool-log.jsonl"), line);
+  } catch (e) {
+  }
+}
 function handleSessionStart(_event) {
   ensureNexusStructure();
-  (0, import_fs3.writeFileSync)((0, import_path3.join)(STATE_ROOT, "agent-tracker.json"), "[]");
+  (0, import_fs4.writeFileSync)((0, import_path4.join)(STATE_ROOT, "agent-tracker.json"), "[]");
+  try {
+    const teamsEnabled = process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === "1";
+    const runtimePayload = {
+      teams_enabled: teamsEnabled,
+      session_started_at: (/* @__PURE__ */ new Date()).toISOString(),
+      plugin_version: getCurrentVersion()
+    };
+    (0, import_fs4.writeFileSync)((0, import_path4.join)(STATE_ROOT, "runtime.json"), JSON.stringify(runtimePayload, null, 2));
+  } catch (e) {
+  }
+  try {
+    (0, import_fs4.writeFileSync)((0, import_path4.join)(STATE_ROOT, "tool-log.jsonl"), "");
+  } catch (e) {
+  }
   pass();
 }
 function handleSubagentStart(event) {
   const agentType = String(event.agent_type ?? "");
   const agentId = String(event.agent_id ?? "");
-  const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
+  const trackerPath = (0, import_path4.join)(STATE_ROOT, "agent-tracker.json");
   let tracker = [];
-  if ((0, import_fs3.existsSync)(trackerPath)) {
+  if ((0, import_fs4.existsSync)(trackerPath)) {
     try {
-      tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+      tracker = JSON.parse((0, import_fs4.readFileSync)(trackerPath, "utf-8"));
     } catch {
     }
   }
-  tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
+  const existingIdx = tracker.findIndex((e) => e.agent_id === agentId);
+  if (existingIdx !== -1) {
+    const entry = tracker[existingIdx];
+    entry.resume_count = (entry.resume_count || 0) + 1;
+    entry.last_resumed_at = (/* @__PURE__ */ new Date()).toISOString();
+    entry.status = "running";
+    delete entry.ended_at;
+  } else {
+    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), status: "running" });
+  }
   ensureDir(STATE_ROOT);
-  (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
+  (0, import_fs4.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
   const role = extractRole(agentType);
   if (role !== null) {
     const index = buildCoreIndex();
@@ -517,24 +570,44 @@ function handleSubagentStop(event) {
   const agentId = String(event.agent_id ?? "");
   const agentType = String(event.agent_type ?? "");
   const lastMsg = String(event.last_assistant_message ?? event.last_message ?? "");
-  const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
-  if ((0, import_fs3.existsSync)(trackerPath)) {
+  const trackerPath = (0, import_path4.join)(STATE_ROOT, "agent-tracker.json");
+  if ((0, import_fs4.existsSync)(trackerPath)) {
     try {
-      const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+      const tracker = JSON.parse((0, import_fs4.readFileSync)(trackerPath, "utf-8"));
       const entry = tracker.find((a) => a.agent_id === agentId);
       if (entry) {
         entry.status = "completed";
         entry.last_message = lastMsg;
         entry.stopped_at = (/* @__PURE__ */ new Date()).toISOString();
       }
-      (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
+      try {
+        const toolLogPath = (0, import_path4.join)(STATE_ROOT, "tool-log.jsonl");
+        if ((0, import_fs4.existsSync)(toolLogPath)) {
+          const lines = (0, import_fs4.readFileSync)(toolLogPath, "utf-8").split("\n").filter(Boolean);
+          const filesSet = /* @__PURE__ */ new Set();
+          for (const line of lines) {
+            try {
+              const logEntry = JSON.parse(line);
+              if (logEntry.agent_id === agentId && logEntry.file) {
+                filesSet.add(logEntry.file);
+              }
+            } catch (e) {
+            }
+          }
+          if (entry) {
+            entry.files_touched = Array.from(filesSet);
+          }
+        }
+      } catch (e) {
+      }
+      (0, import_fs4.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
     } catch {
     }
   }
-  const tasksPath = (0, import_path3.join)(STATE_ROOT, "tasks.json");
-  if ((0, import_fs3.existsSync)(tasksPath)) {
+  const tasksPath = (0, import_path4.join)(STATE_ROOT, "tasks.json");
+  if ((0, import_fs4.existsSync)(tasksPath)) {
     try {
-      const tasksData = JSON.parse((0, import_fs3.readFileSync)(tasksPath, "utf-8"));
+      const tasksData = JSON.parse((0, import_fs4.readFileSync)(tasksPath, "utf-8"));
       const tasks = tasksData.tasks ?? [];
       const ownedPending = tasks.filter(
         (t) => t.owner === agentType && (t.status === "pending" || t.status === "in_progress")
@@ -558,10 +631,10 @@ function handlePostCompact(_event) {
   if (summary.exists) {
     lines.push(`[Mode]: run (${summary.pending} pending / ${summary.completed} completed tasks)`);
   }
-  const planFilePath = (0, import_path3.join)(STATE_ROOT, "plan.json");
-  if ((0, import_fs3.existsSync)(planFilePath)) {
+  const planFilePath = (0, import_path4.join)(STATE_ROOT, "plan.json");
+  if ((0, import_fs4.existsSync)(planFilePath)) {
     try {
-      const data = JSON.parse((0, import_fs3.readFileSync)(planFilePath, "utf-8"));
+      const data = JSON.parse((0, import_fs4.readFileSync)(planFilePath, "utf-8"));
       const issues = data.issues ?? [];
       const discussing = issues.find((i) => i.status === "discussing");
       const pending = issues.filter((i) => i.status === "pending");
@@ -578,8 +651,8 @@ function handlePostCompact(_event) {
     }
   }
   try {
-    const nexusRoot = (0, import_path3.join)(process.cwd(), ".nexus");
-    const rulesRoot = (0, import_path3.join)(nexusRoot, "rules");
+    const nexusRoot = (0, import_path4.join)(process.cwd(), ".nexus");
+    const rulesRoot = (0, import_path4.join)(nexusRoot, "rules");
     const folders = [
       ["memory", MEMORY_ROOT],
       ["context", CONTEXT_ROOT],
@@ -588,8 +661,8 @@ function handlePostCompact(_event) {
     const folderCounts = [];
     let totalFiles = 0;
     for (const [label, folderPath] of folders) {
-      if ((0, import_fs3.existsSync)(folderPath)) {
-        const count = (0, import_fs3.readdirSync)(folderPath).filter((f) => f.endsWith(".md")).length;
+      if ((0, import_fs4.existsSync)(folderPath)) {
+        const count = (0, import_fs4.readdirSync)(folderPath).filter((f) => f.endsWith(".md")).length;
         if (count > 0) {
           folderCounts.push(`${count} ${label}`);
           totalFiles += count;
@@ -601,10 +674,10 @@ function handlePostCompact(_event) {
     }
   } catch {
   }
-  const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
-  if ((0, import_fs3.existsSync)(trackerPath)) {
+  const trackerPath = (0, import_path4.join)(STATE_ROOT, "agent-tracker.json");
+  if ((0, import_fs4.existsSync)(trackerPath)) {
     try {
-      const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
+      const tracker = JSON.parse((0, import_fs4.readFileSync)(trackerPath, "utf-8"));
       if (tracker.length > 0) {
         const agentParts = tracker.map((a) => `${a.agent_type ?? "unknown"} (${a.status ?? "unknown"})`);
         lines.push(`[Agents]: ${agentParts.join(", ")}`);
@@ -633,6 +706,9 @@ async function main() {
       break;
     case "PreToolUse":
       handlePreToolUse(event);
+      break;
+    case "PostToolUse":
+      handlePostToolUse(event);
       break;
     case "UserPromptSubmit":
       handleUserPromptSubmit(event);

@@ -3,7 +3,8 @@ import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { STATE_ROOT, MEMORY_ROOT, CONTEXT_ROOT, ensureDir, ensureNexusStructure } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
 import { extractRole } from '../shared/matrix.js';
-import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { getCurrentVersion } from '../shared/version.js';
+import { existsSync, readFileSync, writeFileSync, appendFileSync, readdirSync } from 'fs';
 import { join, basename } from 'path';
 import { homedir } from 'os';
 
@@ -490,11 +491,50 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   }
 }
 
+// --- PostToolUse 이벤트 처리: tool-log.jsonl append ---
+
+function handlePostToolUse(event: any): void {
+  try {
+    const agentId = event.agent_id;
+    if (!agentId) return; // Lead direct edit, skip
+    if (!['Edit', 'Write', 'NotebookEdit'].includes(event.tool_name)) return;
+    const filePath = event.tool_name === 'NotebookEdit'
+      ? event.tool_input?.notebook_path
+      : event.tool_input?.file_path;
+    if (!filePath) return;
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      agent_id: agentId,
+      tool: event.tool_name,
+      file: filePath,
+    }) + '\n';
+    appendFileSync(join(STATE_ROOT, 'tool-log.jsonl'), line);
+  } catch (e) {
+    // silent fail
+  }
+}
+
 // --- 세션 이벤트 핸들러 ---
 
 function handleSessionStart(_event: Record<string, unknown>): void {
   ensureNexusStructure();
   writeFileSync(join(STATE_ROOT, 'agent-tracker.json'), '[]');
+  try {
+    const teamsEnabled = process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === '1';
+    const runtimePayload = {
+      teams_enabled: teamsEnabled,
+      session_started_at: new Date().toISOString(),
+      plugin_version: getCurrentVersion(),
+    };
+    writeFileSync(join(STATE_ROOT, 'runtime.json'), JSON.stringify(runtimePayload, null, 2));
+  } catch (e) {
+    // silent fail
+  }
+  try {
+    writeFileSync(join(STATE_ROOT, 'tool-log.jsonl'), '');
+  } catch (e) {
+    // silent fail
+  }
   pass();
 }
 
@@ -508,7 +548,16 @@ function handleSubagentStart(event: Record<string, unknown>): void {
     try { tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')); } catch {}
   }
 
-  tracker.push({ agent_type: agentType, agent_id: agentId, started_at: new Date().toISOString(), status: 'running' });
+  const existingIdx = tracker.findIndex((e) => e.agent_id === agentId);
+  if (existingIdx !== -1) {
+    const entry = tracker[existingIdx];
+    entry.resume_count = ((entry.resume_count as number) || 0) + 1;
+    entry.last_resumed_at = new Date().toISOString();
+    entry.status = 'running';
+    delete entry.ended_at;
+  } else {
+    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: new Date().toISOString(), status: 'running' });
+  }
 
   ensureDir(STATE_ROOT);
   writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
@@ -538,6 +587,26 @@ function handleSubagentStop(event: Record<string, unknown>): void {
         entry.status = 'completed';
         entry.last_message = lastMsg;
         entry.stopped_at = new Date().toISOString();
+      }
+      try {
+        const toolLogPath = join(STATE_ROOT, 'tool-log.jsonl');
+        if (existsSync(toolLogPath)) {
+          const lines = readFileSync(toolLogPath, 'utf-8').split('\n').filter(Boolean);
+          const filesSet = new Set<string>();
+          for (const line of lines) {
+            try {
+              const logEntry = JSON.parse(line);
+              if (logEntry.agent_id === agentId && logEntry.file) {
+                filesSet.add(logEntry.file);
+              }
+            } catch (e) { /* skip malformed line */ }
+          }
+          if (entry) {
+            entry.files_touched = Array.from(filesSet);
+          }
+        }
+      } catch (e) {
+        // silent fail
       }
       writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
     } catch {}
@@ -658,6 +727,9 @@ async function main() {
       break;
     case 'PreToolUse':
       handlePreToolUse(event);
+      break;
+    case 'PostToolUse':
+      handlePostToolUse(event);
       break;
     case 'UserPromptSubmit':
       handleUserPromptSubmit(event);
