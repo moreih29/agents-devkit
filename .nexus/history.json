@@ -5085,6 +5085,124 @@
           "created_at": "2026-04-10T01:38:37.294Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-10T03:00:09.460Z",
+      "branch": "main",
+      "plan": {
+        "id": 4,
+        "topic": "resume_tier 스킴 Phase 2 — 분할 전략 및 구현 디테일",
+        "issues": [
+          {
+            "id": 1,
+            "title": "Phase 2 분할 전략 — 단일 사이클 vs 3 사이클(Cycle A/B/C) vs 미세 분할",
+            "status": "decided",
+            "decision": "옵션 B 채택 — 3 사이클 분할 (Cycle A: gate.ts 인프라 → Cycle B: MCP 시그니처 확장 → Cycle C: SKILL.md 연결 + e2e). 각 사이클 단독 commit + main 머지로 사이클 단위 롤백 가능성 확보.\n\n**Cycle A (gate.ts 인프라)**:\n- Task 0: PostToolUse 페이로드 필드명 sanity check (3분 실측, agent_id vs subagent_id 확정) — 별도 사이클 분리하지 않고 Cycle A 첫 task로 통합\n- Task 1: handleSessionStart에 runtime.json 쓰기 (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS 감지)\n- Task 2: handlePostToolUse 신규 함수 + tool-log.jsonl append-only 로깅\n- Task 3: handleSubagentStart에 기존 entry 감지 시 resume_count++, last_resumed_at 갱신\n- Task 4: handleSubagentStop에 tool-log 집계 → files_touched 주입\n- Task 5: tester e2e 검증\n\n**Cycle B (MCP 시그니처 확장)**:\n- plan.ts: PlanIssue + nx_plan_decide에 how_agent_ids 필드\n- task.ts: Task + nx_task_add에 owner_agent_id, owner_reuse_policy 필드\n- 모두 optional → 100% backward compat\n- tester MCP 호출 e2e\n\n**Cycle C (SKILL.md 연결 + e2e)**:\n- nx-plan/nx-run SKILL.md에 runtime.json 읽기 절차 추가 (Phase 1에서 이미 추가된 Resume Policy/Dispatch Rule 섹션 보강)\n- test/e2e.sh에 tier scenario 추가\n- reviewer 문서 검증\n- Phase 1처럼 코드 무변경\n\n**근거**: Phase 1이 입증한 단계화 원칙 일관 적용. 각 사이클이 독립 가치 단위(Cycle A 단독으로도 Lead가 수동 활용 가능, Cycle C까지 가야 자동 디스패치 완성). 의존성 그래프는 자연스러운 직선(A→B→C). PostToolUse + agent-tracker 확장은 한 파일 내 상호 의존이라 미세 분할은 인위적 복잡화. 단일 사이클은 17+파일 변경 시 부분 revert 불가능 리스크.\n\n**부수 효과 (self-verifying 구조)**: Cycle A 완료 후 본 부모 세션이 살아있다면 다음 architect resume 시 PostToolUse 로깅이 자동으로 쌓이는 in-vivo 검증이 일어남."
+          },
+          {
+            "id": 2,
+            "title": "구현 디테일 — runtime.json 스키마/라이프사이클, PostToolUse correlate 방식, MCP 시그니처",
+            "status": "decided",
+            "decision": "Architect 권고안 그대로 채택. \n\n**(a) runtime.json**: 위치 `.nexus/state/runtime.json` (state 디렉토리와 라이프사이클 일관, ephemeral). SessionStart 1회 기록 후 불변(감지 비용 0, race 없음). 감지 위치: handleSessionStart 내부에서 process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === '1' 검사. 스키마: { teams_enabled: boolean, session_started_at: ISO string, plugin_version: string }. 최소 3 필드, YAGNI.\n\n**(b) PostToolUse correlate**: `.nexus/state/tool-log.jsonl` append-only. 옵션 1(in-process Map)은 gate.ts가 hook당 새 프로세스 기동이라 원천 불가. 옵션 2(agent-tracker RMW)는 병렬 engineer 동시 Edit 시 race. 옵션 3(jsonl append)은 POSIX append <PIPE_BUF가 원자적이라 안전. 라인 포맷: {ts, agent_id, tool, file}. SessionStart에 초기화(agent-tracker 패턴 동일). gate.ts 변경: switch에 PostToolUse case 추가, handlePostToolUse 신규 함수(Edit/Write/NotebookEdit만 + agent_id 있을 때만), SubagentStop에 jsonl 집계 → tracker entry에 files_touched 주입.\n\n**(c) MCP 시그니처**: 기존 z.record(z.string(), z.string()) 패턴 유지. PlanIssue + nx_plan_decide에 how_agent_ids?: Record<string, string> 추가. Task + nx_task_add에 owner_agent_id?: string + owner_reuse_policy?: 'fresh' | 'resume_if_same_artifact' | 'resume' 추가. 3-value enum 필수 — boolean은 bounded tier의 \"같은 artifact 조건\" 표현 불가. 모든 새 필드 optional → 100% 백워드 호환.\n\n**근거**: 옵션 비교가 trivial한 영역(in-process 원천 불가, boolean 표현 부족, 다른 위치 어색)이 다수. Architect 추천이 명백히 우월한 선택지로 수렴. Lead 검토 후 모두 합의."
+          }
+        ],
+        "research_summary": "Phase 1이 b8df6ac로 main fast-forward 머지 완료(코드 0줄, 12파일 + memory 2개 + orchestration.md sync). Phase 2는 코드 변경 단계 — gate.ts/MCP 도구 확장. Architect 4회 resume(persistent tier Lead opt-in)으로 통합 설계 reasoning surface 활용. 핵심 발견 3가지: (1) gate.ts는 hook 이벤트마다 새 프로세스 기동 → in-process 메모리 옵션 원천 불가, (2) PostToolUse 핸들러는 현재 gate.ts switch에 부재(추가 필요), (3) researcher 조사로 PostToolUse 페이로드에 agent_id 포함 확인되어 correlate 우회 가능. Architect의 통합 추천: 3 사이클 분할(Cycle A: gate.ts 인프라 → Cycle B: MCP 도구 확장 → Cycle C: SKILL.md + 테스트), runtime.json은 SessionStart 1회 기록 후 불변, files_touched는 .nexus/state/tool-log.jsonl append-only(POSIX 원자성), MCP 시그니처는 기존 z.record 패턴 유지 + owner_reuse_policy는 3-value enum(fresh/resume_if_same_artifact/resume). 선결 과제 1건: PostToolUse 페이로드의 agent_id 필드명 실측(Cycle A 첫 task로 통합).",
+        "created_at": "2026-04-10T02:06:15.545Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "PostToolUse 페이로드 필드명 sanity check (Cycle A 선결)",
+          "context": "Cycle A 본 작업 착수 전 3분짜리 실측. researcher 조사로 PostToolUse 페이로드에 agent_id가 포함된다는 사실은 확인됐으나, 정확한 필드명(agent_id vs subagent_id)을 코드 작성 전 확정 필요.",
+          "approach": "간단한 임시 hook handler를 작성하거나, 직접 gate.ts에 임시 console.error로 PostToolUse 페이로드 전체를 stderr 출력하도록 1줄 추가 → 본 세션에서 agent를 spawn하고 Edit 호출 → 출력된 JSON 확인 → 필드명 확정. 또는 Claude Code 공식 문서/소스 코드를 다시 검색하여 sample payload 확보. 결과: 실제 필드명(예: \"agent_id\" 또는 \"subagent_id\")을 명확히 보고. 이 결과가 Cycle A의 handlePostToolUse 함수 구현에 직접 반영됨.",
+          "acceptance": "실측된 PostToolUse 페이로드의 agent 식별 필드명이 명확히 확정됨. 보고서 형식: \"필드명은 X (실측 출력 예시 첨부)\". 임시로 추가한 console.error 등 디버그 코드는 모두 제거됨. Cycle A 다음 task에서 이 필드명을 직접 사용 가능.",
+          "risk": "실측 환경에서 agent_id가 출력되지 않을 수 있음(서브에이전트 컨텍스트 외에서 호출 시). 이 경우 서브에이전트 컨텍스트 내에서 명시적으로 재실측 필요. 임시 디버그 코드 제거 누락 시 stderr 노이즈.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "researcher",
+          "created_at": "2026-04-10T02:14:52.619Z"
+        },
+        {
+          "id": 2,
+          "title": "handleSessionStart에 runtime.json 쓰기 추가",
+          "context": "resume_tier 스킴이 작동하기 위한 첫 인프라. CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS 환경 변수를 SessionStart 시점에 1회 검사하여 .nexus/state/runtime.json에 기록. 이후 SKILL.md가 이 파일을 읽고 teams_enabled 분기. 미감지 시 silent fresh fallback의 기반.",
+          "approach": "src/hooks/gate.ts의 handleSessionStart 함수(line 495 근처) 내부에서 ensureNexusStructure() 직후에 다음 로직 추가: (1) process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === '1' 검사, (2) { teams_enabled: <boolean>, session_started_at: new Date().toISOString(), plugin_version: PLUGIN_VERSION } 객체 생성, (3) writeFileSync('.nexus/state/runtime.json', JSON.stringify(payload, null, 2)). plugin_version은 esbuild build 시 inject되거나 package.json에서 import 가능.",
+          "acceptance": "SessionStart 시 .nexus/state/runtime.json이 생성됨. 환경 변수가 '1'이면 teams_enabled: true, 아니면 false. session_started_at은 ISO 8601, plugin_version은 현재 버전 문자열. 기존 SessionStart 동작(agent-tracker.json 초기화 등) 손상 없음. bun run dev 빌드 정상.",
+          "risk": "PLUGIN_VERSION 상수 위치 확인 필요(이미 정의됐으면 import, 없으면 package.json read 또는 esbuild define). writeFileSync 실패 시 SessionStart가 깨지지 않도록 try-catch로 감싸기 권장. .nexus/state/ 디렉토리 미존재 시 ensureNexusStructure가 보장하는지 확인.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-10T02:15:04.090Z"
+        },
+        {
+          "id": 3,
+          "title": "handlePostToolUse 신규 함수 + tool-log.jsonl append-only 로깅",
+          "context": "PostToolUse 핸들러는 현재 gate.ts switch에 부재. 신규 추가하여 서브에이전트가 Edit/Write/NotebookEdit 호출할 때마다 .nexus/state/tool-log.jsonl에 한 줄 append. 이 로그는 SubagentStop 시점에 집계되어 files_touched 필드로 변환됨. 옵션 3(append-only) 채택 — POSIX append 원자성 활용.",
+          "approach": "src/hooks/gate.ts에 다음 변경: (1) switch 문(handleHook 내부, line 659 근처 PreToolUse 옆)에 case 'PostToolUse': handlePostToolUse(event); break; 추가. (2) 신규 함수 handlePostToolUse(event) 작성: event.tool_name이 'Edit' | 'Write' | 'NotebookEdit' 중 하나이고 event.<agent_id_field> (Task 1 sanity check 결과로 확정된 필드명)가 존재할 때만 .nexus/state/tool-log.jsonl에 한 줄 append. 라인 포맷: { ts: ISO, agent_id: ..., tool: ..., file: event.tool_input.file_path }. (3) handleSessionStart에 tool-log.jsonl 초기화(빈 파일 생성) 추가 — agent-tracker 초기화와 같은 패턴. fs.appendFileSync 사용(POSIX 원자성 보장 < 4KB).",
+          "acceptance": "서브에이전트가 Edit 호출 시 tool-log.jsonl에 새 라인이 append됨. 라인이 유효한 JSON. agent_id 없는 호출(Lead 직접 편집)은 skip되어 라인 미생성. tool_name이 Read/Bash 등인 경우도 skip. SessionStart 시 tool-log.jsonl이 빈 파일로 초기화됨. bun run dev 빌드 정상. 기존 hook 동작 영향 없음.",
+          "risk": "tool_input의 file_path 필드명이 도구별로 다를 수 있음(Edit/Write 모두 file_path 사용 확인 필요). NotebookEdit은 notebook_path 사용 가능 — 실측 필요. appendFileSync가 동시 호출 시 동작 보장 영역(< PIPE_BUF) 안에서만 안전하므로 매우 긴 file_path 시 line tearing 가능성(실무상 무시 가능).",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-10T02:15:19.253Z"
+        },
+        {
+          "id": 4,
+          "title": "handleSubagentStart에 resume_count/last_resumed_at 갱신 로직 추가",
+          "context": "현재 gate.ts의 handleSubagentStart는 동일 agentId가 다시 시작되면 새 entry를 append하는 동작이 본 plan 세션에서 실측 확인됐다(architect 4회 resume으로 검증). 이 동작을 단일 entry 갱신 모델로 통합 — 같은 agentId가 SubagentStart를 다시 받으면 새 entry 대신 기존 entry의 resume_count를 증가시키고 last_resumed_at을 갱신.",
+          "approach": "src/hooks/gate.ts의 handleSubagentStart 함수(line 501-525 영역) 수정: (1) agent-tracker.json 읽기, (2) 기존 entry 중 동일 agent_id 검색, (3) 발견 시: entry.resume_count = (entry.resume_count || 0) + 1, entry.last_resumed_at = new Date().toISOString(), entry.status = 'running' 갱신 (started_at은 보존). (4) 미발견 시: 기존처럼 새 entry append (resume_count: 0, last_resumed_at 미설정). (5) 갱신된 배열 writeFileSync.",
+          "acceptance": "신규 서브에이전트 스폰 시 agent-tracker.json에 새 entry append (기존 동작 보존). 동일 agentId의 resume 발생 시 새 entry 추가되지 않고 기존 entry가 갱신됨 — resume_count가 증가, last_resumed_at이 ISO 8601로 기록, status가 running으로 전환. started_at 원본 보존. 본 세션에서 architect를 한 번 더 resume하여 in-vivo 검증 가능.",
+          "risk": "기존 entry 변경이 다른 hook 호출과 race할 수 있으나 SubagentStart 빈도가 낮아 실무상 안전. resume_count 필드가 없는 기존 entry는 || 0으로 안전하게 처리. 본 변경은 agent-tracker.json 스키마 확장(optional 필드 추가)이라 backward compat 유지.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-10T02:15:30.907Z"
+        },
+        {
+          "id": 5,
+          "title": "handleSubagentStop에 tool-log.jsonl 집계 → files_touched 주입",
+          "context": "handlePostToolUse가 누적한 tool-log.jsonl을 SubagentStop 시점에 해당 agent_id 라인만 필터링하여 files_touched 배열로 집계. agent-tracker.json의 해당 entry에 주입. Cycle B에서 MCP 도구가 이 데이터를 소비.",
+          "approach": "src/hooks/gate.ts의 handleSubagentStop 함수(line 527-567 영역) 수정: (1) tool-log.jsonl을 readFileSync, (2) 라인별 JSON.parse 후 entry.agent_id === event.<agent_id_field>로 필터, (3) 필터된 라인의 file 값을 Set으로 unique 수집(중복 제거), (4) Array.from(set)으로 변환하여 agent-tracker.json의 해당 agent entry에 files_touched 필드 주입, (5) 기존 status='completed', last_message 갱신 동작 보존. 빈 결과 시에도 files_touched: [] 주입(명시성).",
+          "acceptance": "서브에이전트 종료 시 agent-tracker.json의 해당 entry에 files_touched 배열이 존재. Edit/Write 호출이 있었다면 해당 file_path들이 unique하게 포함됨. tool 호출 없는 에이전트는 빈 배열. tool-log.jsonl 자체는 보존(SessionStart에서만 초기화). 기존 SubagentStop 동작(status, last_message, ended_at) 모두 정상.",
+          "risk": "tool-log.jsonl이 매우 큰 세션에서 매 SubagentStop마다 전체 read는 비용 발생. 100개 task 세션에서도 20KB 수준이라 무시 가능. JSON.parse 실패 라인은 try-catch로 skip. agent_id 필드가 없는 라인도 skip(데이터 정합성 방어).",
+          "status": "completed",
+          "deps": [
+            3,
+            4
+          ],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-10T02:15:42.555Z"
+        },
+        {
+          "id": 6,
+          "title": "Cycle A 통합 검증 — tester e2e + bun run dev + in-vivo",
+          "context": "Cycle A의 5개 task가 모두 완료된 후 통합 검증. gate.ts 변경의 e2e 작동, 빌드 정상, 그리고 본 세션에서 architect를 한 번 더 resume하여 in-vivo 검증(self-verifying 구조).",
+          "approach": "tester 스폰 후: (1) bun run dev 실행 + Build complete 확인, (2) test/e2e.sh 실행 (있다면), (3) handleSessionStart 변경 검증: 새 세션이 .nexus/state/runtime.json을 생성하는지(직접 새 Claude 세션을 띄우거나 코드 inspection으로 확인), (4) handlePostToolUse 검증: 임시 서브에이전트 스폰 후 Edit 호출 → tool-log.jsonl에 라인 append 확인, (5) handleSubagentStop 검증: 같은 서브에이전트 종료 후 agent-tracker.json의 해당 entry에 files_touched가 비어있지 않은지, (6) handleSubagentStart resume 검증: 종료된 agentId를 SendMessage로 resume → 새 entry append 대신 resume_count 증가 확인. Lead가 본 세션에서 직접 in-vivo 검증 가능.",
+          "acceptance": "bun run dev 빌드 정상 통과. 기존 hook 동작(SessionStart, PreToolUse, SubagentStart/Stop) 모두 정상. runtime.json이 SessionStart에 생성됨(teams_enabled 값 정확). tool-log.jsonl이 새 세션에 초기화됨. PostToolUse 발생 시 라인 append. SubagentStop 시 files_touched 주입 + tool-log 집계 정확. SubagentStart resume 시 새 entry 대신 기존 entry 갱신(resume_count > 0). 기존 e2e.sh 통과.",
+          "risk": "in-vivo 검증은 본 세션 환경 의존(다른 사용자 환경에서 작동 보장 별도). teams_enabled가 false인 환경에서도 기본 동작이 깨지지 않아야 함(silent fallback). 검증 중 발견된 회귀는 즉시 해당 task로 reopen하여 수정.",
+          "status": "completed",
+          "deps": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "plan_issue": 1,
+          "owner": "tester",
+          "created_at": "2026-04-10T02:15:55.073Z"
+        }
+      ]
     }
   ]
 }

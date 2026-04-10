@@ -22040,9 +22040,10 @@ function registerPlanTools(server2) {
       issue_id: external_exports.number().describe("\uACB0\uC815\uD560 \uC548\uAC74 ID"),
       summary: external_exports.string().describe("\uACB0\uC815 \uC694\uC57D"),
       how_agents: external_exports.array(external_exports.string()).optional().describe('\uC774\uC288 \uBD84\uC11D\uC5D0 \uCC38\uC5EC\uD55C HOW \uC5D0\uC774\uC804\uD2B8 \uC774\uB984 \uBAA9\uB85D (\uC608: ["architect", "designer"])'),
-      how_summary: external_exports.record(external_exports.string(), external_exports.string()).optional().describe('\uC5D0\uC774\uC804\uD2B8\uBCC4 \uD575\uC2EC \uC758\uACAC \uC694\uC57D (\uC608: { "architect": "...", "designer": "..." })')
+      how_summary: external_exports.record(external_exports.string(), external_exports.string()).optional().describe('\uC5D0\uC774\uC804\uD2B8\uBCC4 \uD575\uC2EC \uC758\uACAC \uC694\uC57D (\uC608: { "architect": "...", "designer": "..." })'),
+      how_agent_ids: external_exports.record(external_exports.string(), external_exports.string()).optional().describe('\uC5D0\uC774\uC804\uD2B8 \uC774\uB984 \u2192 agentId \uB9E4\uD551 (resume\uC6A9). \uC608: { "architect": "ac01819f1cd295cb8" }')
     },
-    async ({ issue_id, summary, how_agents, how_summary }) => {
+    async ({ issue_id, summary, how_agents, how_summary, how_agent_ids }) => {
       const data = await readPlan();
       if (!data) {
         return textResult({ error: "No active plan session" });
@@ -22055,6 +22056,7 @@ function registerPlanTools(server2) {
       issue2.decision = summary;
       if (how_agents !== void 0) issue2.how_agents = how_agents;
       if (how_summary !== void 0) issue2.how_summary = how_summary;
+      if (how_agent_ids !== void 0) issue2.how_agent_ids = how_agent_ids;
       await writePlan(data);
       const allComplete = data.issues.every((i) => i.status === "decided");
       if (allComplete) {
@@ -22128,9 +22130,11 @@ function registerTaskTools(server2) {
       plan_issue: external_exports.number().optional().describe("plan issue ID this task originates from \u2014 used for tracing back to the plan session"),
       goal: external_exports.string().optional().describe("Set or update the goal for this task list"),
       decisions: external_exports.array(external_exports.string()).optional().describe("Top-level decisions from [plan] session to append"),
-      owner: external_exports.string().optional().describe("Assignee agent name for this task")
+      owner: external_exports.string().optional().describe("Assignee agent name for this task"),
+      owner_agent_id: external_exports.string().optional().describe("\uD2B9\uC815 agentId\uB85C resume\uD560 \uB54C \uC9C0\uC815. \uBBF8\uC124\uC815 \uC2DC fresh spawn."),
+      owner_reuse_policy: external_exports.enum(["fresh", "resume_if_same_artifact", "resume"]).optional().describe("resume \uD310\uB2E8 \uC815\uCC45. fresh=\uAC15\uC81C \uC0C8 \uC2A4\uD3F0, resume_if_same_artifact=\uC774\uC804 owner\uAC00 \uAC19\uC740 artifact(target file) \uB9CC\uC84C\uC744 \uB54C\uB9CC resume, resume=\uBB34\uC870\uAC74 resume \uC2DC\uB3C4. bounded tier\uB294 resume_if_same_artifact \uAD8C\uC7A5.")
     },
-    async ({ title, context, deps, approach, acceptance, risk, plan_issue, goal, decisions, owner }) => {
+    async ({ title, context, deps, approach, acceptance, risk, plan_issue, goal, decisions, owner, owner_agent_id, owner_reuse_policy }) => {
       let data = await readTasks();
       if (!data) {
         data = { goal: "", decisions: [], tasks: [] };
@@ -22153,6 +22157,8 @@ function registerTaskTools(server2) {
         deps: deps ?? [],
         plan_issue,
         owner,
+        owner_agent_id,
+        owner_reuse_policy,
         created_at: (/* @__PURE__ */ new Date()).toISOString()
       };
       data.tasks.push(newTask);

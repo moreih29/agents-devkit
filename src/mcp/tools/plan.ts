@@ -14,6 +14,7 @@ export interface PlanIssue {
   decision?: string;   // decided 시 결정 요약
   how_agents?: string[];              // 이슈 분석에 참여한 HOW 에이전트 이름 목록
   how_summary?: Record<string, string>; // 에이전트별 핵심 의견 요약
+  how_agent_ids?: Record<string, string>;  // 추가 — 에이전트 이름 → agentId 매핑
 }
 
 /** plan.json 루트 */
@@ -209,8 +210,9 @@ export function registerPlanTools(server: McpServer): void {
       summary: z.string().describe('결정 요약'),
       how_agents: z.array(z.string()).optional().describe('이슈 분석에 참여한 HOW 에이전트 이름 목록 (예: ["architect", "designer"])'),
       how_summary: z.record(z.string(), z.string()).optional().describe('에이전트별 핵심 의견 요약 (예: { "architect": "...", "designer": "..." })'),
+      how_agent_ids: z.record(z.string(), z.string()).optional().describe('에이전트 이름 → agentId 매핑 (resume용). 예: { "architect": "ac01819f1cd295cb8" }'),
     },
-    async ({ issue_id, summary, how_agents, how_summary }) => {
+    async ({ issue_id, summary, how_agents, how_summary, how_agent_ids }) => {
       const data = await readPlan();
       if (!data) {
         return textResult({ error: 'No active plan session' });
@@ -225,6 +227,7 @@ export function registerPlanTools(server: McpServer): void {
       issue.decision = summary;
       if (how_agents !== undefined) issue.how_agents = how_agents;
       if (how_summary !== undefined) issue.how_summary = how_summary;
+      if (how_agent_ids !== undefined) issue.how_agent_ids = how_agent_ids;
       await writePlan(data);
 
       const allComplete = data.issues.every(i => i.status === 'decided');

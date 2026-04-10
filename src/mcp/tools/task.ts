@@ -22,6 +22,8 @@ interface Task {
   deps: number[];
   plan_issue?: number;
   owner?: string;
+  owner_agent_id?: string;                                                       // 추가
+  owner_reuse_policy?: 'fresh' | 'resume_if_same_artifact' | 'resume';           // 추가
   created_at?: string;
 }
 
@@ -86,8 +88,10 @@ export function registerTaskTools(server: McpServer): void {
       goal: z.string().optional().describe('Set or update the goal for this task list'),
       decisions: z.array(z.string()).optional().describe('Top-level decisions from [plan] session to append'),
       owner: z.string().optional().describe('Assignee agent name for this task'),
+      owner_agent_id: z.string().optional().describe('특정 agentId로 resume할 때 지정. 미설정 시 fresh spawn.'),
+      owner_reuse_policy: z.enum(['fresh', 'resume_if_same_artifact', 'resume']).optional().describe('resume 판단 정책. fresh=강제 새 스폰, resume_if_same_artifact=이전 owner가 같은 artifact(target file) 만졌을 때만 resume, resume=무조건 resume 시도. bounded tier는 resume_if_same_artifact 권장.'),
     },
-    async ({ title, context, deps, approach, acceptance, risk, plan_issue, goal, decisions, owner }) => {
+    async ({ title, context, deps, approach, acceptance, risk, plan_issue, goal, decisions, owner, owner_agent_id, owner_reuse_policy }) => {
       let data = await readTasks();
       if (!data) {
         data = { goal: '', decisions: [], tasks: [] };
@@ -112,6 +116,8 @@ export function registerTaskTools(server: McpServer): void {
         deps: deps ?? [],
         plan_issue,
         owner,
+        owner_agent_id,
+        owner_reuse_policy,
         created_at: new Date().toISOString(),
       };
 
