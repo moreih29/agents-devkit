@@ -60,6 +60,16 @@ Register tasks for visual progress tracking (Ctrl+T):
   - Maximum: 1 HOW diagnosis + 1 re-delegation per task. After that, escalate to user.
   - Relevant HOW mapping: Engineer→Architect, Writer→Strategist, Researcher→Postdoc, Tester→Architect.
 
+### Resume Dispatch Rule
+
+For each task, Lead chooses between fresh spawn and resume based on the `owner`'s `resume_tier`:
+
+1. Lookup `resume_tier` from `agents/{owner}.md` frontmatter (if absent → treat as `ephemeral`).
+2. If `ephemeral` → fresh spawn. Stop.
+3. If `bounded` → check tasks.json history: did the same `owner` previously work on overlapping target files? If yes AND no intervening edits by other agents → resume candidate. Otherwise fresh. Always include "re-read target files before any modification" instruction in the resume prompt.
+4. If `persistent` → resume by default if the same agent worked earlier in this run. Cross-task reuse allowed.
+5. Before issuing SendMessage for any resume, verify `.nexus/state/runtime.json` has `teams_enabled: true`. Otherwise fall back to fresh spawn silently — do NOT throw an error.
+
 ### Step 3: Verify (Lead + Check subagents)
 
 **Lead**: confirm build + E2E pass/fail.

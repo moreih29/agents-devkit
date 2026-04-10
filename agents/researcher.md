@@ -8,6 +8,7 @@ disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_tas
 tags: [research, investigation, web-search, analysis]
 alias_ko: 리서처
 category: do
+resume_tier: persistent
 ---
 
 <role>

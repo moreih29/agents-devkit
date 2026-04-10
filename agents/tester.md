@@ -8,6 +8,7 @@ disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_tas
 tags: [verification, testing, security, quality]
 alias_ko: 테스터
 category: check
+resume_tier: ephemeral
 ---
 
 <role>

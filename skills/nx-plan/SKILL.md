@@ -15,7 +15,7 @@ Facilitate structured multi-perspective analysis using subagents to decompose is
 - NEVER call `nx_plan_start` before research is complete (research_summary is required)
 - NEVER present multiple issues at once — one issue at a time only
 - NEVER ask groundless questions — always research code/knowledge/decisions first
-- NEVER use TeamCreate or SendMessage — subagent parallelism replaces team-based discussion
+- NEVER use TeamCreate. SendMessage is permitted ONLY for resuming completed subagents whose `resume_tier` is `persistent` or `bounded`, and ONLY within the constraints of the Resume Policy section below. SendMessage to a `name` (running teammate communication) remains forbidden in plan sessions.
 - MUST record all decisions with `[d]` tag so they are not scattered across turns
 - MUST call `nx_plan_decide` when recording `[d]`
 - MUST check for existing plan.json before starting a new session
@@ -159,6 +159,20 @@ For each issue:
 ```
 
 4. **Await user response** — receive free-form responses. Users may combine options, push back, or ask follow-up questions.
+
+## Resume Policy
+
+When `.nexus/state/runtime.json` shows `teams_enabled: false`, ALL resume paths are disabled — force fresh spawn. Otherwise:
+
+| resume_tier | Same-issue default | Cross-issue | Disqualifiers |
+|---|---|---|---|
+| persistent | resume by default | Lead opt-in only | counter-evidence / reversal / re-review issue → fresh |
+| bounded | conditional (same artifact only) | forbidden | loop 3x / feedback cycle (REVISION_REQUIRED) → fresh |
+| ephemeral | forbidden | forbidden | N/A (always fresh) |
+
+Before resuming a `bounded` agent: include a "re-read target files before any modification" instruction in the prompt. Bounded resume without re-read is BLOCKED.
+
+`resume_tier` is read from each agent's frontmatter (`agents/*.md`). If absent, treat as `ephemeral` (most conservative).
 
 ### Step 5: Record Decision
 

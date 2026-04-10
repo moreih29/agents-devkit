@@ -8,6 +8,7 @@ disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_tas
 tags: [design, ux, ui, interaction, experience]
 alias_ko: 디자이너
 category: how
+resume_tier: persistent
 ---
 
 <role>

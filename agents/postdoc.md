@@ -8,6 +8,7 @@ disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_tas
 tags: [research, synthesis, methodology]
 alias_ko: 포닥
 category: how
+resume_tier: persistent
 ---
 
 <role>

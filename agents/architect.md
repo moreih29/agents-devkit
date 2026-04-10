@@ -8,6 +8,7 @@ disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_tas
 tags: [architecture, design, review, technical]
 alias_ko: 아키텍트
 category: how
+resume_tier: persistent
 ---
 
 <role>

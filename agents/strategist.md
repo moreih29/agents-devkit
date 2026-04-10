@@ -8,6 +8,7 @@ disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_tas
 tags: [strategy, business, market, competitive, positioning]
 alias_ko: 전략가
 category: how
+resume_tier: persistent
 ---
 
 <role>

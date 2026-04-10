@@ -8,6 +8,7 @@ disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_tas
 tags: [review, verification, fact-checking, content, quality]
 alias_ko: 리뷰어
 category: check
+resume_tier: ephemeral
 ---
 
 <role>

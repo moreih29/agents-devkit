@@ -4988,6 +4988,103 @@
           "created_at": "2026-04-09T06:18:37.310Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-10T01:51:12.590Z",
+      "branch": "feat/resume-tier-phase1",
+      "plan": {
+        "id": 4,
+        "topic": "동일 세션 내 서브에이전트 영속성(resume) 활용 전략",
+        "issues": [
+          {
+            "id": 1,
+            "title": "HOW 서브에이전트의 plan 내 영속성 — 유효한 활용 패턴 식별",
+            "status": "decided",
+            "decision": "옵션 C (제한적 허용 + Lead opt-in) 선택. 세부: (1) 같은 이슈 내 Step 4 후속 질문 및 Step 4→Step 7 태스크 분해 재활성화는 기본 허용. (2) 이슈 간 HOW 재활용은 Lead 명시적 선언 시만 허용. (3) 반증/번복/재검토 성격 이슈는 anchoring 방지 위해 강제 fresh spawn. (4) CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS 플래그 미감지 시 자동 fresh spawn fallback + how_summary 주입. 근거: architect(기술)·postdoc(방법론) 독립 수렴, \"관점 독립성 ≠ 이슈 독립성\" 구분, 국소성으로 편향 오염 구조적 차단, how_summary fallback으로 graceful degradation. 사전 검증 2건(agent-tracker 재진입 동작, 대용량 cache hit 비율)은 이슈 3 구현 태스크로 편입."
+          },
+          {
+            "id": 2,
+            "title": "서브에이전트 resume_tier 스킴 설계 — 에이전트별 tier 할당 (category와 독립 축)",
+            "status": "decided",
+            "decision": "3-tier resume_tier 스킴 채택 (N-B 네이밍). category(HOW/DO/CHECK)와 독립된 별도 축으로 도입. \n\n**Tier 정의:**\n- **persistent**: 같은 이슈/컨텍스트 내 default-resume, 이슈 간 Lead 명시적 opt-in, 반증/번복/재검토 이슈 강제 fresh, experimental 플래그 미감지 시 자동 fresh fallback. (이슈 1 옵션 C 정책의 재표현)\n- **bounded**: 같은 artifact(target file/document) 연속 작업 시 conditional-resume. resume 시 대상 재Read 강제(stale memory 방지). 다른 artifact/loop prevention 발동(3회 실패)/feedback 사이클(REVISION_REQUIRED)에서는 강제 fresh.\n- **ephemeral**: Forced fresh, 예외 없음. Lead opt-in도 불허. inter-rater reliability/검증 독립성이 품질의 근본 지표이므로 reasoning surface 누적 자체가 구조적 해악.\n\n**에이전트 tier 할당:**\n- persistent: architect, designer, postdoc, strategist, researcher\n- bounded: engineer, writer\n- ephemeral: tester, reviewer\n\n**이론적 근거**: Postdoc의 Persistence Surface Theory — reasoning surface(에이전트 컨텍스트에만 존재) vs artifact surface(파일에 persist). persistent는 reasoning surface 지배, ephemeral은 reasoning 누적이 독립성 훼손, bounded는 artifact 범위가 resume 경계 정의. category(역할)와 resume_tier(영속성)는 독립 설계 결정.\n\n**구현 형태**: agents/*.md frontmatter에 `resume_tier: persistent|bounded|ephemeral` 필드 추가(7개 파일). gate.ts/SKILL.md는 tier 기반 선언적 규칙으로 정책 매칭. researcher의 category:do와 resume_tier:persistent 조합이 \"예외\"가 아닌 정상 매핑이 됨.\n\n**이슈 1 결정과의 관계**: 이슈 1 결정(옵션 C)은 본 결정에서 persistent tier의 정책 정의로 재해석됨. 결정 내용은 변경 없음, 표현 방식만 원리화."
+          },
+          {
+            "id": 3,
+            "title": "운영 및 트리거 정책 — 기본값, 세이프가드, SKILL 규칙 표현",
+            "status": "decided",
+            "decision": "옵션 A 채택 — architect 권고 Phase 1 (코드 0줄, 문서 12파일). \n\n**Phase 1 범위 (이번 [run] 세션 처리)**:\n1. agents/*.md 9개 frontmatter에 resume_tier 단일 필드 추가 (persistent: architect/designer/postdoc/strategist/researcher, bounded: engineer/writer, ephemeral: tester/reviewer)\n2. nx-plan SKILL.md line 18 조건부 해제 + Step 4 뒤 Resume Policy 섹션 신규 추가\n3. nx-run SKILL.md Step 2 Execute 섹션에 Resume Dispatch Rule 5단계 알고리즘 추가\n4. .nexus/memory/subagent-resume.md 증분 개정 (line 58-62 단계적 검증 시나리오 DEPRECATED 처리 + 2026-04-10 실측 업데이트 섹션 신규)\n5. 항목 10 조사 — Claude Code SubagentStop 훅 이벤트 스키마(modified_files 포함 여부) 확인 (Phase 2 진입 조건)\n\n**세부 운영 결정**:\n- frontmatter resume_tier 미지정 에이전트 기본값: ephemeral (가장 보수적)\n- experimental flag(CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS) 미감지 시: silent fresh spawn fallback (에러 throw 금지)\n- MCP 도구 확장(how_agent_ids, owner_agent_id, owner_reuse_policy)은 모두 optional → 100% 백워드 호환, Phase 2로 연기\n- gate.ts 변경 일체 Phase 2로 연기 (실측에서 append 동작 확인됨, 즉시 변경 불필요)\n\n**Phase 2 (별도 세션)**: gate.ts SubagentStart resume_count/last_resumed_at 갱신, runtime.json teams_enabled 감지, MCP 도구 확장, Task 인터페이스 확장. 진입 조건: task 5(훅 이벤트 스키마 조사) 결과 확인 후.\n\n**Phase 3 (별도, 선택적)**: Engineer same-file resume 효용 실측, 대용량 cache hit 비율 100k+, 프론트매터 자동 파싱, tier 강제 hook.\n\n**근거**: Phase 1은 코드 0줄로 80% 가치 확보. 본 plan 세션에서 두 차례 architect resume 성공이 핵심 전제(append 동작, multi-issue resume, 38k cache hit)를 이미 라이브 검증함. Phase 1만으로도 Lead가 의도적 resume 활용 가능. 회귀 리스크 통제를 위해 코드 변경은 Phase 2로 분리, 항목 10 조사 결과 반영 후 진입."
+          }
+        ],
+        "research_summary": "claude-nexus는 현재 이슈/태스크마다 서브에이전트를 새로 스폰하는 ephemeral 패턴을 사용하며, nx-plan SKILL.md는 'NEVER use TeamCreate or SendMessage'로 resume을 명시적 금지. 그러나 .nexus/memory/subagent-resume.md에 실측 검증된 바 SendMessage({to: agentId})로 종료된 서브에이전트를 같은 부모 세션 내에서 완전 컨텍스트 복원 + prompt cache 재활용(13.6k 토큰, 2.2초)으로 resume 가능. 인프라 측면: gate.ts의 SubagentStart/Stop 훅이 agent-tracker.json에 agent_type/agent_id/status를 자동 기록 중 → 영속성 지원 인프라는 이미 갖춰져 있음. 제약: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 플래그 필요, 세션 경계 초월 불가, 중첩 불가. 사용자 직관: plan/HOW는 이슈 간 맥락 축적 가치 높음, do/check는 독립성 강해 영속성 필요성 낮을 것. 따라서 이 플랜의 초점은 '가능성 여부'가 아니라 '가치 있는 활용 패턴 식별 + 운영 규칙 정의'.",
+        "created_at": "2026-04-10T00:54:16.310Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "agents/*.md 9개 frontmatter에 resume_tier 필드 추가",
+          "context": "resume_tier 스킴(persistent/bounded/ephemeral)을 에이전트 정의에 선언적으로 표현. category(역할 축)와 독립된 영속성 메타데이터.",
+          "approach": "9개 agents/*.md 파일의 YAML frontmatter에서 `category:` 라인 바로 아래에 `resume_tier:` 필드를 추가한다. 매핑: persistent → architect/designer/postdoc/strategist/researcher, bounded → engineer/writer, ephemeral → tester/reviewer. 각 파일별 정확한 디프 적용 후 frontmatter `---` 종료 위치 보존 확인.",
+          "acceptance": "9개 파일 모두 frontmatter에 resume_tier 필드 존재. 값이 결정된 매핑과 일치(persistent×5, bounded×2, ephemeral×2). 다른 frontmatter 필드(name, model, description, task, category, alias_ko 등) 손상 없음. esbuild 빌드 정상 통과(`bun run dev`).",
+          "risk": "YAML frontmatter 파싱 오류 시 에이전트 로딩 실패. 멀티 라인 frontmatter 마지막 `---` 위치 보존 필수. 9파일 일관성을 보장하기 위해 한 패턴으로 일괄 수정 권장(서로 다른 위치에 삽입 금지).",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-10T01:37:50.577Z"
+        },
+        {
+          "id": 2,
+          "title": "nx-plan SKILL.md SendMessage 금지 조건부 해제 + Resume Policy 섹션 추가",
+          "context": "nx-plan SKILL.md line 18의 \"NEVER use TeamCreate or SendMessage\" 전면 금지를 tier 기반 조건부 해제로 변경. Step 4 뒤에 Resume Policy 섹션 신규 추가하여 tier별 정책을 선언적으로 표현.",
+          "approach": "skills/nx-plan/SKILL.md line 18을 다음으로 교체: \"NEVER use TeamCreate. SendMessage is permitted ONLY for resuming completed subagents whose `resume_tier` is `persistent` or `bounded`, and ONLY within the constraints of the Resume Policy section below. SendMessage to a `name` (running teammate communication) remains forbidden in plan sessions.\" Step 4 (Analysis) 뒤에 Resume Policy 섹션 신규 추가 — runtime.json teams_enabled 조건부 분기, tier별 정책 표(persistent/bounded/ephemeral × same-issue/cross-issue/disqualifiers), bounded 재Read 강제 규칙.",
+          "acceptance": "SKILL.md 빌드 정상(`bun run dev` 통과). line 18 텍스트 교체 확인. Resume Policy 섹션이 Step 4 뒤에 위치하며 tier 정책 표 포함. 기존 Step 번호 체계와 다른 섹션 헤더 레벨 일관성 유지.",
+          "risk": "SKILL.md 마크다운 구조 문법 오류 시 빌드 실패. 기존 Step 번호와 새 섹션의 상대 위치가 사용자 읽는 흐름을 깨뜨릴 수 있음 — Step 4 뒤가 가장 자연스러운 위치(분석 직후 정책 표시).",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 3,
+          "owner": "engineer",
+          "created_at": "2026-04-10T01:38:02.470Z"
+        },
+        {
+          "id": 3,
+          "title": "nx-run SKILL.md에 Resume Dispatch Rule 섹션 추가",
+          "context": "nx-run의 Step 2 (Execute) 섹션에 tier 기반 디스패치 알고리즘 추가. Lead가 각 태스크에 대해 fresh spawn vs resume을 결정하는 5단계 규칙.",
+          "approach": "skills/nx-run/SKILL.md Step 2 (Execute) 섹션 내에 Resume Dispatch Rule 신규 섹션 추가. 5단계 알고리즘: (1) owner의 resume_tier 조회, (2) ephemeral → fresh spawn, (3) bounded → tasks.json 히스토리 확인 후 동일 owner+overlapping target_files 조건 시 resume 후보, (4) persistent → 같은 run 내 동일 에이전트 default resume, (5) SendMessage 전 runtime.json teams_enabled 검증 후 silent fresh spawn fallback.",
+          "acceptance": "SKILL.md 빌드 정상. Resume Dispatch Rule 섹션이 Step 2 Execute 내에 위치. 5단계가 명확히 번호화. 기존 owner 라우팅 규칙과의 관계 명시(예: ephemeral=항상 fresh spawn, 다른 tier는 디스패치 결정에 영향).",
+          "risk": "기존 nx-run의 owner 라우팅 규칙(파일 겹침 직렬화, lead 단독 처리 조건 등)과 새 dispatch rule이 모순될 가능성. 두 규칙의 교집합 영역(같은 파일 + bounded engineer)을 명확히 표현 필요.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 3,
+          "owner": "engineer",
+          "created_at": "2026-04-10T01:38:12.153Z"
+        },
+        {
+          "id": 4,
+          "title": ".nexus/memory/subagent-resume.md 증분 개정 — DEPRECATED 표시 + 2026-04-10 실측 업데이트",
+          "context": "기존 메모리 문서를 보존하되 (1) \"단계적 검증\" 시나리오를 ephemeral tier로 재분류된 사실 반영, (2) 본 plan 세션에서 새로 검증된 3가지 사실(multi-issue resume, 38k cache hit, gate.ts append 동작) 추가 섹션 작성.",
+          "approach": ".nexus/memory/subagent-resume.md의 line 58-62 \"실전 활용 시나리오\" 섹션을 부분 개정. line 61의 \"단계적 검증\" 항목에 [DEPRECATED] 표시와 2026-04-10 plan 세션에서 ephemeral tier로 재분류된 경위 추가 (tester resume 금지, engineer resume은 bounded 조건부). 문서 끝에 \"## 실측 업데이트 (2026-04-10)\" 신규 섹션 추가하여 3가지 검증 사실 기록: (1) multi-issue Lead opt-in resume 성공(2회 연속), (2) 38k 토큰 cache hit 확인(이전 13.6k 단일 케이스 초과), (3) gate.ts SubagentStart의 동일 agentId append 동작 실측 확인.",
+          "acceptance": "기존 섹션(작동 흐름, 기술적 특성, 제약) 손상 없음. line 61 항목에 DEPRECATED 표시 명확. 신규 실측 업데이트 섹션이 문서 끝에 추가. 갱신 후에도 메모리 구조 일관성 유지.",
+          "risk": "기존 메모리 내용을 무심코 삭제할 위험. 증분 개정 원칙 준수 — 덮어쓰기 금지. 새 섹션 추가는 기존 line 1-62를 보존하면서 append.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-10T01:38:24.407Z"
+        },
+        {
+          "id": 5,
+          "title": "Claude Code SubagentStop 훅 이벤트 스키마 조사 (Phase 2 진입 조건)",
+          "context": "Phase 2의 files_touched 자동 수집(항목 10) 구현 가능성 사전 조사. SubagentStop 훅 페이로드에 modified_files/touched_files 등 파일 변경 메타데이터가 포함되는지 확인. 결과에 따라 Phase 2 구현 복잡도 결정.",
+          "approach": "Claude Code 공식 문서(docs.anthropic.com/claude-code 또는 GitHub README/CHANGELOG)와 GitHub 소스 코드를 조사하여 SubagentStop 훅 이벤트의 정확한 페이로드 스키마 확인. 검색 키워드: \"SubagentStop hook payload\", \"subagent_stop event\", \"files_touched\", \"modified_files\". 공식 스키마에 파일 변경 정보가 없다면 대안 조사: PostToolUse(Edit/Write) 이벤트를 agent_id로 상관(correlate)하여 수동 집계 가능 여부. 결과를 200-400단어 보고서로 제출 — 결론(포함 여부) + 우회 방안(없을 시) + Phase 2 진입 권고.",
+          "acceptance": "조사 보고서 제출 완료. 명확한 결론: SubagentStop 페이로드에 파일 변경 메타데이터 (a) 존재 → 직접 사용 권고 / (b) 부재 → PostToolUse 상관 우회 방안 제시. Phase 2 진입 가능 여부 명시. 최소 1개의 1차 자료(공식 문서 또는 GitHub 소스) 인용.",
+          "risk": "공식 문서 부재 시 소스 코드 분석 의존, 시간 소요. Claude Code의 훅 스키마는 변경 가능 — 조사 시점 기준 결과는 미래에 invalidated될 수 있음(보고서에 조사 일자 명시 필수).",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 3,
+          "owner": "researcher",
+          "created_at": "2026-04-10T01:38:37.294Z"
+        }
+      ]
     }
   ]
 }

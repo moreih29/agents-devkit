@@ -58,5 +58,15 @@ SendMessage({to: "abc123...", message: "추가 질문"})
 ## 실전 활용 시나리오
 
 1. **긴 리서치 이어가기** — 리서처 서브에이전트가 1차 조사 → 결과 본 후 추가 질문을 같은 agentId로 이어감 (재탐색 비용 없음)
-2. **단계적 검증** — 엔지니어가 코드 작성 → 테스터가 검증 → 엔지니어 다시 깨워서 수정 요청 (각자 컨텍스트 유지)
+2. **[DEPRECATED]** ~~단계적 검증 — 엔지니어가 코드 작성 → 테스터가 검증 → 엔지니어 다시 깨워서 수정 요청 (각자 컨텍스트 유지)~~
+   → 2026-04-10 plan 세션에서 tester는 `ephemeral` tier로 재분류. 검증 anchoring 리스크 때문에 tester resume은 금지.
+   → engineer resume은 `bounded` tier의 same-artifact 조건에서만 허용 (loop prevention/feedback 사이클은 강제 fresh).
 3. **대화형 QA** — 무거운 컨텍스트 로드(대용량 파일 분석)를 한 번만 하고, 후속 질문은 resume으로 cache 재활용
+
+## 실측 업데이트 (2026-04-10)
+
+본 plan 세션에서 새로 검증된 사실:
+
+- **Multi-issue Lead opt-in resume 성공 (2회 연속)**: 같은 architect agentId를 이슈 1 분석 → 이슈 2 → 이슈 3에 걸쳐 resume했고, 매번 reasoning surface가 정확히 보존됐다. `persistent` tier 정책의 라이브 검증.
+- **38k 토큰 cache hit 확인**: 이전 13.6k 단일 케이스를 초과. `cache_read_input_tokens: 38216` 실측. resume 비용은 신규 `input_tokens: 1` + `cache_creation_input_tokens: 7104` 수준. 대용량 컨텍스트에서도 prompt cache 효과 유지.
+- **gate.ts SubagentStart의 동일 agentId append 동작 실측**: 같은 agentId가 종료(completed)→재개(running)→종료(completed) 사이클을 거치면 agent-tracker.json에 새 entry로 append된다. 덮어쓰지 않음. 향후 `resume_count`/`last_resumed_at` 통합 필드는 Phase 2에서.

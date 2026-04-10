@@ -9,6 +9,22 @@
 
 **Lead = 유일한 합성자**: 스코프 결정, 태스크 관리, 결정 기록은 Lead만 가능. 에이전트는 역할에 고정됨.
 
+## 영속성 축 (resume_tier)
+
+`category`(역할)와 독립된 영속성 축. 각 에이전트의 frontmatter `resume_tier` 필드로 명시.
+
+| Tier | 정책 | 에이전트 |
+|------|------|---------|
+| **persistent** | 같은 이슈/컨텍스트 내 default-resume, 이슈 간 Lead opt-in, 반증/번복/재검토 강제 fresh, experimental flag 미감지 시 fresh fallback | architect, designer, postdoc, strategist, researcher |
+| **bounded** | 같은 artifact(파일/문서) 연속 작업 시 conditional-resume, 대상 재Read 강제, loop prevention/feedback 사이클은 강제 fresh | engineer, writer |
+| **ephemeral** | Forced fresh, 예외 없음 (Lead opt-in도 불허) | tester, reviewer |
+
+**이론 근거**: Persistence Surface Theory — reasoning surface(에이전트 컨텍스트) vs artifact surface(파일 시스템). reasoning이 작업 본질이면 resume 가치 높음, artifact가 본질이면 Read로 복원 가능, 검증 작업은 independence가 품질 지표라 reasoning 누적이 해악. 자세한 내용은 `.nexus/memory/persistence-surface-theory.md`.
+
+**핵심**: researcher의 `category:do` + `resume_tier:persistent` 조합처럼 두 축이 독립되어 있어 예외 없는 매핑이 가능. 새 에이전트 추가 시 두 축을 독립적으로 결정.
+
+운영 정책 표/디스패치 알고리즘은 `skills/nx-plan/SKILL.md`(Resume Policy)와 `skills/nx-run/SKILL.md`(Resume Dispatch Rule) 참조.
+
 ## 스킬 라이프사이클
 
 태그 감지 → 스킬 로드 → 워크플로우 실행 → 종료 조건 충족 → 아카이브.

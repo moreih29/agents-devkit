@@ -8,6 +8,7 @@ disallowedTools: [mcp__plugin_claude-nexus_nx__nx_task_add]
 tags: [implementation, coding, debugging]
 alias_ko: 엔지니어
 category: do
+resume_tier: bounded
 ---
 
 <role>
