@@ -75,12 +75,13 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (12개)
+### Core (11개)
 
 | 도구 | 용도 |
 |------|------|
 | `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 플랜) |
 | `nx_task_list/add/update/close` | `.nexus/state/tasks.json` 기반 태스크 관리 + `.nexus/history.json` 아카이브 |
+| `nx_history_search` | 과거 plan/task 사이클 검색 (topic/decision 검색, 최근 N개) |
 | `nx_artifact_write` | 팀 산출물 저장 (`.nexus/state/artifacts/`) |
 | `nx_plan_start` | 플랜 세션 시작 (토픽 + 논점 + 리서치 요약 등록) |
 | `nx_plan_status` | 플랜 상태 조회 |
@@ -114,11 +115,12 @@ Gate 단일 모듈로 동작합니다.
 
 | 이벤트 | 역할 |
 |--------|------|
-| `SessionStart` | `.nexus/` 구조 초기화, agent-tracker 리셋 |
+| `SessionStart` | `.nexus/` 구조 초기화, agent-tracker 리셋, `runtime.json` 기록 (teams_enabled), `tool-log.jsonl` 초기화 |
 | `UserPromptSubmit` | 태그 감지 → 모드 활성화 + TASK_PIPELINE 주입 + additionalContext 안내 |
 | `PreToolUse` | Edit/Write: tasks.json 미완료 시 차단 |
-| `SubagentStart` | 에이전트 역할별 코어 지식 인덱스 자동 주입 (lazy-read) |
-| `SubagentStop` | 에이전트 완료 기록. 미완료 태스크 경고 |
+| `PostToolUse` | Edit/Write/NotebookEdit 호출 시 서브에이전트의 파일 수정을 `tool-log.jsonl`에 append (agent_id 있을 때만) |
+| `SubagentStart` | 에이전트 역할별 코어 지식 인덱스 자동 주입 (lazy-read). 기존 agent_id 재발 시 `resume_count`/`last_resumed_at` upsert |
+| `SubagentStop` | 에이전트 완료 기록 + `tool-log.jsonl` 집계 → `files_touched` 주입 |
 | `Stop` | pending 태스크 있으면 종료 차단. all completed면 nx_task_close 강제 |
 | `PostCompact` | 세션 상태 스냅샷 (모드, 플랜, 에이전트 현황) |
 
@@ -153,8 +155,29 @@ Gate 단일 모듈로 동작합니다.
 .nexus/state/
 ├── tasks.json          ← 태스크 목록 ([run] 사이클)
 ├── plan.json           ← 플랜 세션 ([plan] 사이클)
-├── agent-tracker.json  ← 서브에이전트 라이프사이클
+├── agent-tracker.json  ← 서브에이전트 라이프사이클 (resume_count, files_touched 포함)
+├── runtime.json        ← teams_enabled 플래그 + session_started_at + plugin_version
+├── tool-log.jsonl      ← 서브에이전트 Edit/Write/NotebookEdit 호출 로그 (append-only)
 └── artifacts/          ← 산출물
 ```
+
+</details>
+
+<details>
+<summary>에이전트 Resume (resume_tier)</summary>
+
+같은 부모 세션 내에서 종료된 서브에이전트를 `SendMessage`로 재개할 수 있습니다. 에이전트별 `resume_tier` frontmatter로 정책을 분류합니다.
+
+| Tier | 정책 | 에이전트 |
+|------|------|---------|
+| **persistent** | 같은 이슈 내 default-resume, 이슈 간 Lead 명시적 opt-in, 반증/재검토는 강제 fresh | architect, designer, postdoc, strategist, researcher |
+| **bounded** | 같은 artifact(파일) 연속 작업 시 conditional-resume, loop/feedback 사이클은 강제 fresh | engineer, writer |
+| **ephemeral** | 항상 fresh spawn (검증 독립성 보장) | tester, reviewer |
+
+**활성화 요구사항**: 환경 변수 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. 미감지 시 자동 fresh spawn fallback (에러 없음).
+
+**이론 근거**: 에이전트의 본질적 작업 층위를 두 surface로 구분합니다. Reasoning surface(에이전트 컨텍스트에만 존재)가 지배적인 HOW/Researcher는 `persistent`, Artifact surface(파일 시스템에 persist)에 걸친 Engineer/Writer는 `bounded`, 검증 독립성이 품질 지표인 Tester/Reviewer는 `ephemeral`. 자세한 내용은 `.nexus/memory/persistence-surface-theory.md`.
+
+**연계 추적**: `PostToolUse` 훅이 서브에이전트의 파일 수정을 `tool-log.jsonl`에 append → `SubagentStop`이 집계하여 `agent-tracker.json`의 `files_touched`에 주입 → Lead가 bounded tier 조건부 resume 판단에 활용.
 
 </details>
