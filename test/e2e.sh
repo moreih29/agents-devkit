@@ -332,6 +332,13 @@ check "nx_task_update" 'completed' "$result"
 result=$(mcp_call "nx_task_close" '{}')
 check "nx_task_close" 'closed' "$result"
 
+# nx_history_search — history 조회
+result=$(mcp_call "nx_history_search" '{}')
+check "nx_history_search (no query)" 'cycles' "$result"
+
+result=$(mcp_call "nx_history_search" '{"query":"nonexistent_topic_xyz","last_n":5}')
+check "nx_history_search (query filter)" 'total' "$result"
+
 # plan/task 임시 디렉토리 정리 및 원래 상태 복원
 rm -rf "$PLAN_TMP"
 export NEXUS_RUNTIME_ROOT="$PLAN_TMP_ORIG"

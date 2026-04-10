@@ -34,3 +34,18 @@ resume_tier Phase 1 사이클 (2026-04-10):
 ## 임시 회피 (Phase 1 적용)
 
 Lead가 직접 spot check + 빌드 재실행으로 검증. tester가 ephemeral tier라 resume 불가, 새 tester 스폰은 비효율 → Lead 직접 검증이 가장 합리적.
+
+## 근본 진단 수정 (2026-04-10)
+
+원래 "artifact 파일 부재"를 원인으로 진단했으나, 실제 근본 원인은 **auto-pairing 미스매치**:
+
+- nx-run SKILL의 "Task with acceptance → tester" 규칙이 researcher task도 tester에 라우팅
+- tester는 코드 검증 전문 — researcher의 텍스트 보고서는 검증 역할 밖
+- researcher 결과의 소비자는 Lead/HOW이지 tester/reviewer가 아님
+- 재참조 경로는 이미 충분: task notification(같은 세션) → research_summary(plan.json) → history.json(archive) → memory/(영구)
+
+**해결**: auto-pairing을 "engineer + acceptance → tester"로 좁힘. researcher에 대해 명시 안 함(Lead 재량). artifact 저장 강제 불필요.
+
+## History GC 정책
+
+history.json GC 기준: **500 cycles 또는 2MB 초과 시 검토**. 현재 68 cycles / 340KB로 당장 문제 없음. 구현은 미래.

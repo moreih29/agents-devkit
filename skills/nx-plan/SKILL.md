@@ -95,7 +95,7 @@ Determine planning depth and identify which HOW subagents to delegate analysis t
 
 Understand code, core knowledge, and prior decisions before forming a planning agenda.
 
-**Start by checking existing knowledge**: before spawning any subagent, use Glob/Read to scan `.nexus/memory/` and `.nexus/context/` for relevant memos and context files. If the needed information is already there, use it directly and skip or narrow the subagent spawn. Only spawn subagents to fill gaps not covered by existing knowledge.
+**Start by checking existing knowledge**: before spawning any subagent, use Glob/Read to scan `.nexus/memory/` and `.nexus/context/` for relevant memos and context files, and use `nx_history_search` to check for prior decisions on this topic. If the needed information is already there, use it directly and skip or narrow the subagent spawn. Only spawn subagents to fill gaps not covered by existing knowledge.
 
 **Approach selection:**
 
@@ -229,7 +229,7 @@ All issues decided → generate the plan document (tasks.json) immediately:
    | Sequential edits to same file | **lead** | Parallel subagents risk conflict |
 
    **Verification task auto-pairing** — create separate verification tasks:
-   - Task with `acceptance` field → pair a **tester** task (verify acceptance criteria)
+   - Task with `owner: "engineer"` + `acceptance` field → pair a **tester** task (verify acceptance criteria)
    - Task with `owner: "writer"` → pair a **reviewer** task (verify deliverable)
    - Paired verification tasks are linked via `deps` to the original task
 4. **Write tasks.json** via `nx_task_add`:

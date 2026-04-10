@@ -5271,6 +5271,60 @@
           "created_at": "2026-04-10T03:07:42.773Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-10T03:27:42.644Z",
+      "branch": "main",
+      "plan": {
+        "id": 4,
+        "topic": "resume_tier Phase 2 Cycle C — e2e tier scenario + Phase 2 종결",
+        "issues": [
+          {
+            "id": 1,
+            "title": "test/e2e.sh Resume Tier 검증 섹션 추가 — runtime.json, tool-log.jsonl, resume_count, files_touched",
+            "status": "decided",
+            "decision": "test/e2e.sh에 '=== Resume Tier ===' 신규 섹션 추가. 기존 e2e.sh 패턴(check 헬퍼 + 임시 디렉토리 + gate.cjs JSON event 전달) 일관 유지. 8개 검증 항목:\n\n(a) SessionStart → .nexus/state/runtime.json 생성 + teams_enabled 필드 존재\n(b) SessionStart → .nexus/state/tool-log.jsonl 빈 파일 초기화\n(c) PostToolUse(Edit + agent_id) → tool-log.jsonl에 라인 1개 append (agent_id/tool/file 필드 포함)\n(d) PostToolUse(agent_id 없음) → tool-log.jsonl 라인 미증가 (Lead skip)\n(e) PostToolUse(tool_name=Read) → tool-log.jsonl 라인 미증가 (whitelist 외)\n(f) SubagentStart(새 agent_id) → agent-tracker.json에 새 entry 추가\n(g) SubagentStart(동일 agent_id 재호출) → 새 entry 미추가, 기존 entry의 resume_count 증가\n(h) SubagentStop → agent-tracker entry에 files_touched 배열 주입 (tool-log 집계 결과)\n\n**기각 대안**:\n- SKILL.md 추가 보강: Phase 1이 이미 정확히 작성했고 Cycle A 구현과 내용 일치. 추가 변경은 노이즈.\n- gate.ts 단위 테스트 추가: e2e가 integration 레벨에서 커버. 단위 테스트는 중복 복잡도.\n- 새 Bash 테스트 러너 도입: 기존 e2e.sh가 이미 작동. 일관성 깨짐.\n- JSON schema validation: bash grep으로 충분. 과잉."
+          },
+          {
+            "id": 2,
+            "title": "Phase 2 전체 종결 검증 — e2e.sh 실행 + 빌드 + 회귀 없음 확인",
+            "status": "decided",
+            "decision": "tester가 Cycle C의 완료를 전체 관점에서 검증:\n\n(1) bash test/e2e.sh 실행 → \"All tests passed!\" 출력 + FAIL 0\n(2) 기존 e2e.sh 섹션(MCP 도구, 훅, Plan, Default, Edit/Write Gating, Run Tag, Rule Tag, 추가 훅 테스트, 추가 MCP 도구, Statusline, Code Intelligence) 모두 PASS 유지 — **회귀 0**\n(3) 신규 Resume Tier 섹션의 8개 항목 모두 PASS\n(4) bun run dev 빌드 정상 (Build complete 메시지)\n(5) Phase 2 전체 종결 판정: Cycle A/B/C 누적으로 resume_tier 스킴이 end-to-end 작동하는지 최종 확인\n(6) 다음 단계 보고 (commit, main 머지, Phase 2 공식 종결)\n\n**기각 대안**:\n- 수동 e2e 실행: 자동화된 테스트 재활용이 정석. 일관성.\n- 별도 regression suite 도입: 기존 e2e.sh가 이미 전체 커버. 중복.\n- in-vivo 세션 간 테스트: 본 세션 내에서 현실적 범위 외."
+          }
+        ],
+        "research_summary": "Phase 2 Cycle C — 최종 사이클. Cycle A(ae1b53b) gate.ts 인프라(runtime.json, tool-log.jsonl, resume_count, files_touched) + Cycle B(9e14f2f) MCP 시그니처(how_agent_ids, owner_agent_id, owner_reuse_policy) 완료. SKILL.md 현재 상태 실측: nx-plan SKILL.md line 163-175 Resume Policy 섹션 존재(teams_enabled/runtime.json/bounded re-read/ephemeral 미지정 기본값 모두 커버), nx-run SKILL.md line 63-71 Resume Dispatch Rule 5단계 존재(runtime.json fallback 포함). Phase 1에서 이미 정확히 작성됐고 Cycle A 구현과 일치 → SKILL.md 수정 불필요. test/e2e.sh 구조: 321 lines, MCP 도구 + hook + Code Intelligence 섹션, 임시 디렉토리(NEXUS_RUNTIME_ROOT=$E2E_TMP) 패턴, gate.cjs에 JSON event 전달(`echo '{...}' | node scripts/gate.cjs`), check 헬퍼로 PASS/FAIL 판정. Resume Tier 검증 섹션 부재 — 신규 추가 필요. 검증 대상 8개: SessionStart runtime.json 생성, tool-log.jsonl 초기화, PostToolUse(Edit+agent_id) 라인 append, PostToolUse(no agent_id) skip, PostToolUse(Read) skip, SubagentStart(신규) 새 entry, SubagentStart(재발) resume_count++, SubagentStop files_touched 주입.",
+        "created_at": "2026-04-10T03:21:24.261Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "test/e2e.sh에 Resume Tier 검증 섹션 추가",
+          "context": "Cycle A에서 구현된 gate.ts 인프라(runtime.json, tool-log.jsonl, resume_count, files_touched)의 end-to-end 검증. 기존 e2e.sh 패턴을 그대로 따르며 '=== Resume Tier ===' 신규 섹션으로 8개 항목 검증.",
+          "approach": "test/e2e.sh의 \"=== 추가 훅 테스트 ===\" 섹션 뒤 또는 \"=== Statusline ===\" 전에 신규 '=== Resume Tier ===' 섹션 삽입. 기존 패턴 유지:\n- `rm -f` / `echo '...' > file` / `node scripts/gate.cjs` / `check` 헬퍼\n- 임시 디렉토리 $E2E_STATE 사용\n\n구체 검증 스크립트:\n\n```bash\necho \"\"\necho \"=== Resume Tier ===\"\n\n# (a) SessionStart → runtime.json 생성\nrm -f \"$E2E_STATE/runtime.json\" \"$E2E_STATE/tool-log.jsonl\"\nresult=$(echo '{\"hook_event_name\":\"SessionStart\"}' | node scripts/gate.cjs 2>/dev/null)\ncheck \"SessionStart (runtime.json exists)\" \"runtime.json\" \"$(ls \"$E2E_STATE/\" 2>/dev/null)\"\ncheck \"SessionStart (runtime.json has teams_enabled)\" \"teams_enabled\" \"$(cat \"$E2E_STATE/runtime.json\" 2>/dev/null || echo '')\"\n\n# (b) SessionStart → tool-log.jsonl 초기화\ncheck \"SessionStart (tool-log.jsonl exists)\" \"tool-log.jsonl\" \"$(ls \"$E2E_STATE/\" 2>/dev/null)\"\n\n# (c) PostToolUse(Edit + agent_id) → tool-log append\n: > \"$E2E_STATE/tool-log.jsonl\"\necho '{\"hook_event_name\":\"PostToolUse\",\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"/tmp/foo.ts\"},\"agent_id\":\"agent-test-1\"}' | node scripts/gate.cjs 2>/dev/null\ncheck \"PostToolUse (Edit + agent_id logs line)\" \"agent-test-1\" \"$(cat \"$E2E_STATE/tool-log.jsonl\" 2>/dev/null)\"\ncheck \"PostToolUse (file path logged)\" \"/tmp/foo.ts\" \"$(cat \"$E2E_STATE/tool-log.jsonl\" 2>/dev/null)\"\n\n# (d) PostToolUse(no agent_id) → skip\n: > \"$E2E_STATE/tool-log.jsonl\"\necho '{\"hook_event_name\":\"PostToolUse\",\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"/tmp/bar.ts\"}}' | node scripts/gate.cjs 2>/dev/null\nline_count=$(wc -l < \"$E2E_STATE/tool-log.jsonl\" 2>/dev/null | tr -d ' ')\ncheck \"PostToolUse (no agent_id skipped)\" \"0\" \"$line_count\"\n\n# (e) PostToolUse(tool_name=Read) → skip\n: > \"$E2E_STATE/tool-log.jsonl\"\necho '{\"hook_event_name\":\"PostToolUse\",\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"/tmp/baz.ts\"},\"agent_id\":\"agent-test-2\"}' | node scripts/gate.cjs 2>/dev/null\nline_count=$(wc -l < \"$E2E_STATE/tool-log.jsonl\" 2>/dev/null | tr -d ' ')\ncheck \"PostToolUse (Read tool skipped)\" \"0\" \"$line_count\"\n\n# (f) SubagentStart (new) → new entry\necho '[]' > \"$E2E_STATE/agent-tracker.json\"\necho '{\"hook_event_name\":\"SubagentStart\",\"agent_id\":\"agent-abc\",\"agent_type\":\"claude-nexus:engineer\"}' | node scripts/gate.cjs 2>/dev/null\ncheck \"SubagentStart (new entry)\" \"agent-abc\" \"$(cat \"$E2E_STATE/agent-tracker.json\" 2>/dev/null)\"\n\n# (g) SubagentStart (duplicate) → resume_count++\necho '{\"hook_event_name\":\"SubagentStart\",\"agent_id\":\"agent-abc\",\"agent_type\":\"claude-nexus:engineer\"}' | node scripts/gate.cjs 2>/dev/null\ncheck \"SubagentStart (resume_count increment)\" \"resume_count\" \"$(cat \"$E2E_STATE/agent-tracker.json\" 2>/dev/null)\"\n\n# (h) SubagentStop → files_touched injection\necho '{\"ts\":\"2026-04-10T00:00:00.000Z\",\"agent_id\":\"agent-abc\",\"tool\":\"Edit\",\"file\":\"/tmp/x.ts\"}' > \"$E2E_STATE/tool-log.jsonl\"\necho '{\"hook_event_name\":\"SubagentStop\",\"agent_id\":\"agent-abc\"}' | node scripts/gate.cjs 2>/dev/null\ncheck \"SubagentStop (files_touched injection)\" \"files_touched\" \"$(cat \"$E2E_STATE/agent-tracker.json\" 2>/dev/null)\"\ncheck \"SubagentStop (tool-log file in array)\" \"/tmp/x.ts\" \"$(cat \"$E2E_STATE/agent-tracker.json\" 2>/dev/null)\"\n\n# cleanup\nrm -f \"$E2E_STATE/runtime.json\" \"$E2E_STATE/tool-log.jsonl\" \"$E2E_STATE/agent-tracker.json\"\n```\n\n주의: gate.cjs가 SessionStart/PostToolUse/SubagentStart/SubagentStop 모두 stderr silent(exit 0)하는 경우 결과 파일로만 검증. 임시 디렉토리는 NEXUS_RUNTIME_ROOT=$E2E_TMP로 redirect되어 있어 $E2E_STATE는 $E2E_TMP/state.",
+          "acceptance": "test/e2e.sh에 '=== Resume Tier ===' 신규 섹션 존재. 8개 check 호출(a~h) 모두 포함. 기존 섹션 및 테스트 모두 보존. bash -n test/e2e.sh 구문 정상. 새 섹션이 bash test/e2e.sh 실행 시 통과(이는 Task 2 tester가 검증). E2E_STATE 경로는 $E2E_TMP/state를 재활용(이미 존재).",
+          "risk": "gate.cjs가 JSON input 없는 event를 silent fail할 수 있음 — 각 check는 결과 파일 존재/내용으로 판정해야 안정. agent-tracker.json/runtime.json은 gate의 ensureNexusStructure가 생성하는 위치에 의존 — NEXUS_RUNTIME_ROOT/state 경로 일치 확인. PostToolUse 라인 수 검증은 wc -l로 하되 공백/개행 처리 주의.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-10T03:22:17.835Z"
+        },
+        {
+          "id": 2,
+          "title": "Phase 2 전체 종결 검증 — e2e.sh 실행 + 빌드 + 회귀 확인",
+          "context": "Cycle C의 단일 task(e2e.sh Resume Tier 추가) 완료 후 Phase 2 전체 종결 검증. Phase 1/Cycle A/B/C 누적 변경이 회귀 없이 작동하는지 최종 확인.",
+          "approach": "tester 스폰 후: (1) `bash test/e2e.sh` 실행 → 모든 기존 테스트 + 신규 Resume Tier 8개 항목 PASS 확인. \"All tests passed!\" 메시지 확인. FAIL 0건. (2) `bun run dev` 빌드 재실행 → Build complete 메시지 + 경고 없음. (3) 회귀 검증: 기존 e2e 섹션(MCP 도구, 훅, Plan, Default, Edit/Write Gating, Run Tag, Rule Tag, 추가 훅 테스트, 추가 MCP 도구, Statusline, Code Intelligence)이 모두 PASS 유지. (4) Phase 2 전체 종결 판정: Cycle A(gate.ts) + Cycle B(MCP 시그니처) + Cycle C(e2e test)가 통합되어 resume_tier 스킴이 end-to-end 작동하는지 최종 확인. (5) 다음 단계 권고: commit, main 머지, Phase 2 공식 종결 선언.",
+          "acceptance": "bash test/e2e.sh 실행 결과 \"All tests passed!\" 출력 + FAIL=0. 기존 테스트(Phase 2 이전부터 존재) 모두 PASS 유지 — 회귀 없음. 신규 Resume Tier 섹션 8개 항목 모두 PASS. bun run dev 빌드 정상. 최종 보고서 형식: [A] e2e.sh 결과 PASS/FAIL 카운트 + 기존/신규 구분, [B] 빌드 결과, [C] 회귀 여부, [D] Phase 2 종결 판정, [E] 다음 단계 권고.",
+          "risk": "신규 섹션이 기존 테스트 환경에 영향 줄 가능성 — $E2E_STATE에 파일을 남기면 이후 테스트에 오염. engineer의 cleanup 로직 확인 필수. gate.cjs의 SessionStart/PostToolUse 응답이 예상과 다르면 일부 항목 FAIL 가능 — 회복: engineer task reopen.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 2,
+          "owner": "tester",
+          "created_at": "2026-04-10T03:22:30.355Z"
+        }
+      ]
     }
   ]
 }

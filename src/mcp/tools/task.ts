@@ -240,4 +240,39 @@ export function registerTaskTools(server: McpServer): void {
       });
     }
   );
+
+  server.tool(
+    'nx_history_search',
+    'Search past plan/task cycles in history.json',
+    {
+      query: z.string().optional().describe('Search term to match against topic, decisions, research_summary'),
+      last_n: z.number().optional().describe('Return only the last N cycles (default: 10)'),
+    },
+    async ({ query, last_n }) => {
+      const historyPath = join(NEXUS_ROOT, 'history.json');
+      if (!existsSync(historyPath)) return textResult({ cycles: [], total: 0 });
+      const raw = await readFile(historyPath, 'utf-8');
+      const history = JSON.parse(raw) as { cycles: any[] };
+      let cycles = history.cycles || [];
+
+      if (query) {
+        const q = query.toLowerCase();
+        cycles = cycles.filter((c: any) => JSON.stringify(c).toLowerCase().includes(q));
+      }
+
+      const total = cycles.length;
+      const limit = last_n || 10;
+      const results = cycles.slice(-limit).map((c: any) => ({
+        completed_at: c.completed_at,
+        branch: c.branch,
+        topic: c.plan?.topic,
+        decisions: c.plan?.issues
+          ?.filter((i: any) => i.status === 'decided')
+          .map((i: any) => ({ title: i.title, decision: i.decision })),
+        task_count: c.tasks?.length,
+      }));
+
+      return textResult({ total, showing: results.length, cycles: results });
+    }
+  );
 }
