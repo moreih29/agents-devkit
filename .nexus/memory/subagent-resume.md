@@ -69,4 +69,4 @@ SendMessage({to: "abc123...", message: "추가 질문"})
 
 - **Multi-issue Lead opt-in resume 성공 (2회 연속)**: 같은 architect agentId를 이슈 1 분석 → 이슈 2 → 이슈 3에 걸쳐 resume했고, 매번 reasoning surface가 정확히 보존됐다. `persistent` tier 정책의 라이브 검증.
 - **38k 토큰 cache hit 확인**: 이전 13.6k 단일 케이스를 초과. `cache_read_input_tokens: 38216` 실측. resume 비용은 신규 `input_tokens: 1` + `cache_creation_input_tokens: 7104` 수준. 대용량 컨텍스트에서도 prompt cache 효과 유지.
-- **gate.ts SubagentStart의 동일 agentId append 동작 실측**: 같은 agentId가 종료(completed)→재개(running)→종료(completed) 사이클을 거치면 agent-tracker.json에 새 entry로 append된다. 덮어쓰지 않음. 향후 `resume_count`/`last_resumed_at` 통합 필드는 Phase 2에서.
+- **gate.ts SubagentStart의 동일 agentId append 동작 실측**: 같은 agentId가 종료(completed)→재개(running)→종료(completed) 사이클을 거치면 agent-tracker.json에 새 entry로 append된다. 덮어쓰지 않음. `resume_count`/`last_resumed_at` 통합 필드는 Phase 2 Cycle A(ae1b53b)에서 구현 완료. `files_touched` 주입도 동일 사이클에서 구현.
