@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.25.0 (2026-04-10)
+
+### Features
+- nx-run SKILL Step 4 — integrate git commit into cycle complete
+- add nx_history_search tool + fix auto-pairing scope
+- resume_tier Phase 2 Cycle C — e2e tier scenario (Phase 2 complete)
+- resume_tier Phase 2 Cycle B — MCP signature extension
+- resume_tier Phase 2 Cycle A — gate.ts infrastructure
+- introduce resume_tier scheme for subagent persistence (Phase 1)
+
 ## 0.24.1 (2026-04-09)
 
 ### Refactoring
