@@ -95,9 +95,12 @@ For each task, Lead chooses between fresh spawn and resume based on the `owner`'
 
 ### Step 4: Complete
 
-- **nx-sync**: invoke `Skill({ skill: "claude-nexus:nx-sync" })` if code changes were made in this cycle. Best effort — failure does not block cycle completion.
-- **nx_task_close**: call to archive plan+tasks to history.json.
-- **Report**: summarize to user — changed files, key decisions applied, and suggested next steps (e.g., commit, PR, further testing).
+Execute in order:
+
+1. **nx-sync**: invoke `Skill({ skill: "claude-nexus:nx-sync" })` if code changes were made in this cycle. Best effort — failure does not block cycle completion.
+2. **nx_task_close**: call to archive plan+tasks to history.json. This updates `.nexus/history.json`.
+3. **git commit**: stage and commit source changes, build artifacts (`bridge/`, `scripts/`), `.nexus/history.json`, and any modified `.nexus/memory/` or `.nexus/context/`. Use explicit `git add` with paths (not `git add -A`) and a HEREDOC commit message with `Co-Authored-By`. This ensures the cycle's history archive lands in the same commit as the code changes, giving a 1:1 cycle-commit mapping.
+4. **Report**: summarize to user — changed files, key decisions applied, and suggested next steps. Merge/push is the user's decision and outside this skill's scope.
 
 ---
 
@@ -108,7 +111,7 @@ For each task, Lead chooses between fresh spawn and resume based on the `owner`'
 | 1. Intake | Lead | Clarify intent, confirm direction, Branch Guard, check tasks.json / invoke nx-plan if absent |
 | 2. Execute | Do subagents | Spawn per-task by owner, delegation criteria, parallel where safe |
 | 3. Verify | Lead + Check subagent | Build check, quality verification |
-| 4. Complete | Lead | nx-sync, nx_task_close, report |
+| 4. Complete | Lead | nx-sync, nx_task_close, git commit, report |
 
 ---
 

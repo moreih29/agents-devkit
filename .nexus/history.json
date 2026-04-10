@@ -5325,6 +5325,99 @@
           "created_at": "2026-04-10T03:22:30.355Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-10T04:43:23.035Z",
+      "branch": "main",
+      "plan": {
+        "id": 4,
+        "topic": "산출물 지속성 갭 해결 — artifact 강제 + history 관리",
+        "issues": [
+          {
+            "id": 1,
+            "title": "Researcher/Writer artifact 실제 강제 — 규칙은 존재하나 지켜지지 않는 갭 해결",
+            "status": "decided",
+            "decision": "auto-pairing 규칙 범위 축소로 해결. nx-run SKILL의 \"Task with acceptance → tester\" 규칙을 \"Task with owner: engineer + acceptance → tester\"로 좁힘. writer → reviewer 기존 유지. researcher에 대해 아무것도 명시하지 않음 — Lead 재량으로 동적 판단 (내부 조사면 Lead 직접 평가, 블로그/논문이면 writer 산출물에 reviewer가 자연 연결, 코드 조사면 engineer 산출물에 tester가 자연 연결). \n\n**기각 대안**:\n- researcher.md 어조 무조건화 + artifact 강제: researcher 결과의 소비자는 Lead/HOW이지 tester/reviewer가 아님. artifact(.nexus/state/artifacts/)는 git 미추적이라 research_summary + history 경로와 중복. 재참조 경로(같은 세션: task notification, 같은 plan: research_summary, 다음 세션: history.json, 영구: memory/)가 이미 충분.\n- tester.md \"파일 부재 FAIL\" 추가: tester는 researcher task를 검증 안 하므로 불필요.\n- gate enforcement: 과잉. 문제의 근본이 \"규칙 미준수\"가 아니라 \"auto-pairing 미스매치\"였으므로 enforcement 자체가 잘못된 방향.\n- researcher → reviewer 고정 페어: researcher는 상황에 따라 동적(내부 조사, 블로그, 논문 등). 하드코딩은 유연성 제거.\n\n**근본 진단 수정**: Cycle 65의 tester-artifact-gap은 \"artifact 부재\"가 아니라 \"auto-pairing이 researcher task를 tester에 잘못 라우팅한 것\"이 근본 원인. Lead가 task notification으로 직접 평가한 것이 이미 올바른 흐름이었음. auto-pairing 범위를 engineer로 좁히면 자동 해결.\n\n**변경 단일**: skills/nx-run/SKILL.md auto-pairing 규칙 1줄."
+          },
+          {
+            "id": 2,
+            "title": "History.json 조회 메커니즘 + GC/아카이브 정책",
+            "status": "decided",
+            "decision": "History.json 조회 MCP 도구 구현 + nx-plan research에 history 참조 지시 추가. GC는 정책만 문서화.\n\n**구현 (비용 ~25줄, 즉시)**:\n1. nx_history_search MCP 도구 추가 — query(topic/decision 검색어, optional) + last_n(최근 N 사이클, 기본 10) 파라미터. 기존 nx_task_list와 동일 패턴. cycles 배열 순회 + JSON.stringify().toLowerCase().includes() 검색 + 결과 요약(completed_at, branch, topic, decisions[{title, decision}], task_count). task.ts에 추가하거나 별도 history.ts.\n\n2. nx-plan SKILL Step 2 (Research)에 한 줄 추가: \"check history.json for prior decisions on this topic (use nx_history_search)\". 기존 \"check .nexus/memory/ and .nexus/context/\" 옆에.\n\n3. GC 정책 문서화: .nexus/memory/에 \"history GC 기준: 500 cycles 또는 2MB 초과 시 검토\" 기록. 구현은 미래.\n\n**근거**:\n- history를 보라는 명시가 현재 어디에도 없음 → write-only 로그 상태. 도구 + 지시가 있어야 Lead가 자연스럽게 과거 결정 참조.\n- 구현 비용 ~25줄 TypeScript — YAGNI 논리가 성립하지 않는 수준. 기존 MCP 패턴과 100% 동일.\n- 도구가 있으면 nx-plan research에 history 참조를 포함시킬 수 있고, Lead가 중복 논의를 피할 수 있음.\n- history가 \"write-only 로그\"에서 \"참조 가능한 의사결정 이력\"으로 승격.\n\n**기각 대안**:\n- 현상 유지 (YAGNI): 구현 비용이 ~25줄로 극히 낮아 \"나중에\" 미루는 것보다 지금 만드는 게 합리적. Lead가 Read + jq로 할 수 있지만 현실적으로 안 하게 됨.\n- full-text search / 복잡한 검색 엔진: 과잉. JSON.stringify + includes로 충분 (68 cycles / 340KB).\n- GC 즉시 구현: 68 cycles / 340KB는 당장 문제 없음. 500 cycles 시점에 재검토.\n- history 기반 bounded tier resume 판단: 세션 간 resume이 기술적 불가(subagent-resume.md 제약)이므로 현실적으로 불필요. nx-run SKILL의 \"bounded tier: check tasks.json history\" 문구는 같은 세션 내 agent-tracker.json files_touched로 이미 해결됨 (Cycle A).\n\n**변경 파일 예상**: task.ts (또는 신규 history.ts) ~25줄 + nx-plan SKILL.md 1줄 + e2e.sh 1-2 check + memory 1줄 (GC 정책)."
+          }
+        ],
+        "research_summary": "본 세션에서 발견된 두 개의 '산출물 지속성' 갭. \n\n**주제 1: Researcher/Writer artifact 관리** — nx_artifact_write MCP 도구 이미 존재(`.nexus/state/artifacts/`, 현재 5개 저장), `agents/writer.md` line 88에 \"Always save output using nx_artifact_write\" 명시, `agents/researcher.md` line 120에도 규칙 명시. 그럼에도 Cycle A task 1 sanity check에서 researcher가 task notification으로만 반환 → Cycle 65에서 tester 검증 실패 → Lead spot check로 우회. `.nexus/memory/tester-artifact-gap.md`에 기록됨. 원인 추정: (a) researcher.md는 \"When writing findings reports or other deliverables to a file\"라는 **조건부 언어**(writer.md는 무조건), (b) task acceptance 필드에 artifact 경로 명시 컨벤션 부재, (c) `nx-run SKILL.md` tester 검증 섹션에 artifact 경로 확인 절차 미명시, (d) gate enforcement 부재 — 규칙을 어겨도 hook이 차단 안 함.\n\n**주제 2: History.json 관리/활용** — 현재 68 cycles, 340KB, 5329 lines 누적. nx_task_close가 매 사이클 append. 읽기는 오직 plan id 생성 목적(plan.ts line 57-67, task.ts line 164-203). 검색/조회 MCP 도구 부재 → Lead가 직접 Read/Bash jq 필요. `skills/nx-run/SKILL.md` line 69 \"bounded tier: check tasks.json history\" 참조 있지만 실제 메커니즘 없음. GC/아카이브 정책 부재 — 무한 누적. `.nexus/memory/`에 history 활용 메모 없음.\n\n**두 주제 공통 프레임**: 산출물 지속성(artifact persistence). 주제 1은 **현재 사이클 내** 접근성(tester ↔ researcher/writer), 주제 2는 **사이클 경계 너머** 접근성(현재 ↔ 과거 사이클). 해결 시 시너지: artifact 강제가 정착되면 history에 포함되는 artifact 메타데이터가 풍부해져 주제 2의 활용 가치 증가.",
+        "created_at": "2026-04-10T04:02:13.836Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nx_history_search 도구 구현 + SKILL.md auto-pairing/history 참조 수정 + memory GC 정책 + e2e 검증",
+          "context": "이슈 1 (auto-pairing 범위 축소) + 이슈 2 (history 조회 도구 + 참조 지시 + GC 정책) 통합 구현. 5가지 변경을 한 engineer가 처리 — 모두 다른 파일이고 각각 작은 변경.",
+          "approach": "5가지 변경:\n\n(1) **nx_history_search MCP 도구** (~25줄) — src/mcp/tools/task.ts 하단 또는 신규 history.ts에 추가. 파라미터: query?(string, topic/decision 검색어), last_n?(number, 최근 N 사이클 기본 10). 구현: history.json readFile → JSON.parse → query가 있으면 JSON.stringify().toLowerCase().includes()로 필터 → 결과 요약(completed_at, branch, topic, decisions[{title,decision}], task_count). server.ts에 import 등록.\n\n(2) **nx-run SKILL.md auto-pairing 수정** — Step 3 Verify 섹션의 \"Verification task auto-pairing\" 규칙에서 \"Task with `acceptance` field → pair a **tester** task\"를 \"Task with `owner: \\\"engineer\\\"` + `acceptance` → pair a **tester** task\"로 범위 좁힘. writer → reviewer는 기존 유지. researcher는 명시 안 함(Lead 재량).\n\n(3) **nx-plan SKILL.md Research 섹션에 history 참조 추가** — Step 2 Research의 \"Start by checking existing knowledge\" 지시에 \"and check `nx_history_search` for prior decisions on this topic\" 한 줄 추가.\n\n(4) **memory GC 정책 기록** — .nexus/memory/tester-artifact-gap.md 파일을 **근본 진단 수정 반영으로 갱신**: 원래 \"artifact 부재\"가 원인이라고 기록했지만 실제는 \"auto-pairing 미스매치\"가 원인. 갱신 + GC 정책은 별도 메모 또는 기존 메모 내 한 줄(\"history GC: 500 cycles 또는 2MB 초과 시 검토\").\n\n(5) **test/e2e.sh에 nx_history_search 검증** — 추가 MCP 도구 테스트 섹션에 nx_history_search 호출 + 결과 확인 1-2 check 추가.\n\n순서: (1) 도구 구현 → (5) e2e 추가 → (2)(3)(4) 문서 수정 → bun run dev 빌드 검증.",
+          "acceptance": "nx_history_search MCP 도구가 등록되어 mcp_call로 호출 가능. query 파라미터로 topic 검색 작동. last_n 파라미터로 최근 N 사이클 제한 작동. nx-run SKILL의 auto-pairing이 \"engineer + acceptance → tester\"로 좁혀짐 (기존 \"acceptance → tester\" 대비). nx-plan SKILL Research에 history 참조 지시 존재. tester-artifact-gap.md가 근본 진단 수정 반영. e2e.sh에 nx_history_search 검증 check 존재. bun run dev 빌드 정상. 기존 e2e 테스트 회귀 0.",
+          "risk": "nx_history_search가 history.json 전체를 읽으므로 대용량(500+ cycles)에서 느려질 수 있음 — 당장은 68 cycles라 무시 가능, last_n 파라미터로 완화. server.ts에 도구 등록 누락 시 MCP에 노출 안 됨. auto-pairing 변경이 기존 nx-run SKILL의 다른 규칙과 충돌할 가능성 — Step 3 전체 문맥 확인 필요.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-10T04:37:12.954Z"
+        },
+        {
+          "id": 2,
+          "title": "통합 검증 — 빌드 + e2e + auto-pairing 변경 + history 도구 작동 확인",
+          "context": "engineer의 5가지 변경 완료 후 통합 검증. 빌드 + 기존 e2e 회귀 + 신규 nx_history_search 검증 + auto-pairing 규칙 문맥 확인.",
+          "approach": "tester 스폰 후: (1) bun run dev 빌드 정상 확인, (2) bash test/e2e.sh 실행 → 기존 + 신규 모두 PASS + FAIL 0 확인, (3) nx-run SKILL.md Step 3 auto-pairing 규칙 inspection — \"engineer + acceptance → tester\"로 좁혀졌는지, writer→reviewer 기존 유지, researcher 미명시 확인, (4) nx-plan SKILL.md Step 2 Research에 history 참조 지시 존재 확인, (5) nx_history_search MCP 도구가 server.ts에 등록되어 e2e에서 호출 가능한지 코드 확인, (6) tester-artifact-gap.md 근본 진단 수정 반영 확인.",
+          "acceptance": "bun run dev 빌드 정상. bash test/e2e.sh \"All tests passed!\" + FAIL=0. 기존 테스트 회귀 0. nx_history_search e2e check PASS. auto-pairing 규칙이 \"engineer + acceptance → tester\"로 정확히 좁혀짐. nx-plan SKILL에 history 참조 지시 존재. tester-artifact-gap.md 갱신됨.",
+          "risk": "auto-pairing 변경이 Step 3의 다른 규칙(tester spawn conditions 목록)과 충돌 가능 — tester spawn conditions는 별도 조건 목록이라 auto-pairing과 독립적인지 확인 필요. nx_history_search가 server.ts에 미등록이면 e2e FAIL.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 2,
+          "owner": "tester",
+          "created_at": "2026-04-10T04:37:23.842Z"
+        }
+      ]
+    },
+    {
+      "completed_at": "2026-04-10T05:28:30.122Z",
+      "branch": "feat/nx-run-step4-commit",
+      "plan": {
+        "id": 4,
+        "topic": "task_close-commit 순서 정리 + history commit hash 연결",
+        "issues": [
+          {
+            "id": 1,
+            "title": "nx-run Step 4에 commit 절차 통합 — close-commit 순서 + history.json 포함 보장",
+            "status": "decided",
+            "decision": "nx-run Step 4 절차 수정: 1) nx-sync (code changes 있을 때, context/ 갱신) → 2) nx_task_close (history 갱신) → 3) git commit (소스 + 빌드 + .nexus/history.json + 변경된 memory/, context/) → 4) Report. merge/push는 Report 후 사용자 결정 영역 (SKILL 외부).\n\n**근거**: \n- close 순서 변경이 안전 — .nexus/.gitignore가 whitelist 방식이라 state/ 파일(plan.json/tasks.json 등)은 git 미추적 → close가 삭제해도 git 무영향\n- history.json이 commit에 같이 포함 → cycle-commit 1:1 매핑 확보\n- nx-sync를 commit 전에 두어 context/ 갱신이 같은 commit에 포함\n- merge는 사용자 판단 영역 (feature 유지/main 머지/PR 등 선택 가능)이라 SKILL에서 강제하면 과잉\n\n**기각 대안**:\n- 별도 commit 2개 (소스→close→history commit): commit log 노이즈, \"chore: archive cycle N\" 반복\n- 현상 유지 (한 사이클 늦게): 마지막 사이클 누락 가능, cycle-commit 매핑 불명확\n- merge/push 자동화: 사용자 자율성 침해, 다양한 워크플로우(feature 유지/main 머지/PR) 강제 불가"
+          },
+          {
+            "id": 2,
+            "title": "history.json에 commit hash 연결 여부 — 가치 vs chicken-egg 해결",
+            "status": "decided",
+            "decision": "history.json에 commit hash 추가 안 함 — 현재 구조(branch 필드) + commit 메시지 컨벤션으로 충분. 이슈 1의 close-commit 순서 정리로 cycle = commit이 구조적으로 보장되므로 별도 hash 저장 불필요. git log --grep=\"Cycle A\" 등으로 즉시 검색 가능.\n\n**기각 대안**:\n- Post-commit git hook 자동 주입: git hook은 로컬 환경 설정이라 팀원/CI/다른 머신에서 작동 보장 안 됨. claude-nexus가 git hook을 자동 설치하는 것도 invasive. 구현 복잡도 > 가치.\n- Next-cycle 시작 시 이전 cycle에 hash 주입 (nx_plan_start에서 git log -1 --format=%H): \"직전 commit이 해당 cycle\"이라는 가정에 의존 — 사이클 사이에 다른 commit 있으면 틀림. 추가 rewrite 로직 필요.\n- hash 필드만 추가 (수동 입력): chicken-egg 해결 안 됨.\n\n**결론**: 이미 기록 중인 branch + commit 메시지 자체의 cycle 정보(예: \"Phase 2 Cycle A\")가 검색성을 충분히 제공. 본 세션 commits도 모두 메시지에 cycle 명시됨."
+          }
+        ],
+        "research_summary": "현재 흐름: engineer 작업 → commit(소스+빌드) → merge → task_close(history 갱신) → history.json이 M 상태로 남음 → 다음 사이클 commit에 포함되거나 누락. git status 라이브 실례: .nexus/history.json이 cycle 69 close 후 아직 미commit.\n\n.nexus/.gitignore 분석: whitelist 방식으로 state/는 미추적 (plan.json/tasks.json/agent-tracker.json/runtime.json/tool-log.jsonl 모두 git 밖). history.json + memory/ + context/ + rules/ + config.json만 tracked. 즉 task_close가 plan/tasks 삭제해도 git에 영향 없음 → close 순서 변경이 안전.\n\nnx-run Step 4 현재 절차: nx-sync → nx_task_close → report. commit/merge가 Step 4에 없음. 사이클 외부 ad-hoc. nx_task_close의 history cycle 구조: { completed_at, branch, plan, tasks }. commit_hash 필드 없음. branch는 getCurrentBranch()로 기록 중.\n\nhistory.json: 본 프로젝트에서 7개 commit에 걸쳐 tracked. 현재 69 cycles / ~350KB. 매 사이클마다 \"이전 사이클 close 결과\"가 다음 commit에 포함되는 \"한 사이클 늦게\" 패턴이 반복됨.",
+        "created_at": "2026-04-10T05:00:27.533Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nx-run SKILL.md Step 4 절차 수정 — close → commit 순서 통합",
+          "context": "nx-run SKILL.md의 Step 4 (Complete) 섹션에 git commit 절차를 통합. 현재 close → report 구조를 close → commit → report로 변경. nx-sync는 commit 전 유지. merge/push는 SKILL 외부(사용자 결정).",
+          "approach": "1. skills/nx-run/SKILL.md의 Step 4 (Complete) 섹션 Read하여 정확한 기존 텍스트 확인\n2. Edit으로 다음과 같이 수정:\n   - 기존: nx-sync → nx_task_close → Report\n   - 신규: nx-sync → nx_task_close → git commit → Report\n3. commit 절차 구체화:\n   - 대상 파일: 소스 + 빌드 산출물(bridge/, scripts/) + .nexus/history.json + 변경된 .nexus/memory/ + .nexus/context/ + CLAUDE.md(자동 갱신)\n   - 명시적 git add (파일명 또는 디렉토리 단위, `git add -A` 금지)\n   - HEREDOC commit 메시지 + Co-Authored-By\n4. merge/push는 \"user's decision — SKILL 외부\"로 명시\n5. bun run dev로 빌드 → template 갱신 확인 (nexus-section 등)",
+          "acceptance": "nx-run SKILL.md Step 4에 commit 절차가 명시적으로 포함됨. 순서: nx-sync → nx_task_close → git commit → Report. commit 대상 파일 목록 가이드 포함 (.nexus/history.json 명시). merge/push가 SKILL 외부(사용자 결정)로 명시. bun run dev 빌드 정상 통과. 기존 Step 1/2/3 구조 보존.",
+          "risk": "기존 Step 4 내용(nx-sync, nx_task_close, Report) 삭제 시 회귀. Edit의 old_string을 정확히 매칭해야 함. SKILL.md 변경이 본 세션 Lead 동작에는 즉시 영향 없음 (이미 진행 중인 세션은 loaded SKILL 사용) — 다음 세션부터 효과 발생.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-10T05:25:06.104Z"
+        }
+      ]
     }
   ]
 }
