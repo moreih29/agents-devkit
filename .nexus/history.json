@@ -5203,6 +5203,74 @@
           "created_at": "2026-04-10T02:15:55.073Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-10T03:16:36.115Z",
+      "branch": "main",
+      "plan": {
+        "id": 4,
+        "topic": "resume_tier Phase 2 Cycle B — MCP 시그니처 확장",
+        "issues": [
+          {
+            "id": 1,
+            "title": "MCP 시그니처 확장 — plan.ts(how_agent_ids) + task.ts(owner_agent_id, owner_reuse_policy)",
+            "status": "decided",
+            "decision": "Phase 2 plan 확정 설계 그대로 구현: (1) plan.ts PlanIssue 인터페이스에 how_agent_ids?: Record<string, string> 필드 추가 + nx_plan_decide 파라미터에 z.record(z.string(), z.string()).optional() 추가 + 저장 로직(issue.how_agent_ids = how_agent_ids) 추가. (2) task.ts Task 인터페이스에 owner_agent_id?: string + owner_reuse_policy?: 'fresh' | 'resume_if_same_artifact' | 'resume' 필드 추가 + nx_task_add 파라미터에 두 필드 추가(z.string().optional() + z.enum([...]).optional()) + newTask 생성 시 주입. 모든 새 필드 optional → 100% backward compat.\n\n**기각 대안**:\n- boolean resume_allowed: bounded tier의 'same artifact 조건' 중간 상태 표현 불가, 미래 tier 확장성 제한\n- 새 MCP 도구 신설(nx_plan_set_agent_ids 등): 기존 도구 확장이 훨씬 경제적, 호출자 변경 없음\n- 필드 필수화: 기존 호출자 모두 깨짐, Phase 1의 '호환 파괴 없음' 원칙 위반\n- 더 정교한 JSON schema(z.record value에 enum 등): YAGNI, 현재 용례에 과잉"
+          },
+          {
+            "id": 2,
+            "title": "Cycle B 통합 검증 — 빌드 + MCP 도구 스키마 검증",
+            "status": "decided",
+            "decision": "Cycle A와 동일 검증 패턴 채택: (1) bun run dev 빌드 정상 통과, (2) plan.ts 코드 inspection — PlanIssue 인터페이스 확장/nx_plan_decide 스키마 확장/저장 로직, (3) task.ts 코드 inspection — Task 인터페이스 확장/nx_task_add 스키마 확장/newTask 주입, (4) z.record + optional 패턴 일관성 확인, (5) 기존 호출 호환성 — 새 파라미터 미전달 시 에러 없어야 함(optional), (6) TypeScript 타입 체크(esbuild가 수행). tester가 Read/Grep/Bash로 수행, 발견된 issue는 해당 task reopen하여 수정.\n\n**기각 대안**:\n- 실제 MCP 도구 호출 e2e 테스트: MCP server는 세션 시작 시 로드되어 본 세션에서는 기존 스키마로 실행 중. 새 스키마는 다음 세션 로드 후 사용 가능. 세션 재시작 없이 e2e 불가\n- test/e2e.sh에 MCP 시그니처 테스트 추가: Cycle C 범위(SKILL 연결 + e2e 확장). Cycle B는 시그니처 추가만\n- 수동 JSON 호출 테스트: 시그니처 확장은 MCP server 재로드 필수, 본 사이클 범위 밖"
+          }
+        ],
+        "research_summary": "Cycle B = MCP 인터페이스 레이어. Cycle A(ae1b53b)가 gate.ts 인프라(runtime.json, tool-log.jsonl, resume_count/last_resumed_at, files_touched)를 이미 제공함. Phase 2 plan(cycle 66 history)에서 확정된 필드: (1) PlanIssue + nx_plan_decide → how_agent_ids?: Record<string, string> (에이전트 이름 → agentId 매핑, resume용), (2) Task + nx_task_add → owner_agent_id?: string + owner_reuse_policy?: 'fresh' | 'resume_if_same_artifact' | 'resume'. 모든 새 필드 optional → 100% backward compat. z.record(z.string(), z.string()) 패턴 유지(plan.ts line 211 how_summary 선례). 현재 코드 상태 실측: plan.ts:10-17 PlanIssue에 how_agents/how_summary 있음(how_agent_ids 없음), plan.ts:204-252 nx_plan_decide에 how_agents/how_summary 파라미터 있음. task.ts:14-26 Task에 owner 있음(두 새 필드 없음), task.ts:75-123 nx_task_add에 owner 있음. 단순 필드 추가 작업이며 Phase 2 plan에서 설계 결정 완료됨. Cycle B 완료 후 Cycle C(SKILL.md 연결 + e2e.sh)로 이어짐.",
+        "created_at": "2026-04-10T03:06:16.306Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "plan.ts MCP 시그니처 확장 — how_agent_ids 필드",
+          "context": "src/mcp/tools/plan.ts의 PlanIssue 인터페이스와 nx_plan_decide MCP 도구에 how_agent_ids 필드 추가. 이 필드는 에이전트 이름을 agentId로 매핑하여 Lead가 persistent tier의 이슈 간 resume을 표현할 수 있게 한다. 기존 how_agents/how_summary와 병렬 관계.",
+          "approach": "src/mcp/tools/plan.ts 3곳 수정:\n\n(1) line 10-17 PlanIssue 인터페이스:\n```typescript\nexport interface PlanIssue {\n  id: number;\n  title: string;\n  status: 'pending' | 'decided';\n  decision?: string;\n  how_agents?: string[];\n  how_summary?: Record<string, string>;\n  how_agent_ids?: Record<string, string>;  // 추가 — 에이전트 이름 → agentId 매핑\n}\n```\n\n(2) line 207-212 nx_plan_decide 스키마 파라미터:\n```typescript\nhow_summary: z.record(z.string(), z.string()).optional().describe(...),\nhow_agent_ids: z.record(z.string(), z.string()).optional()\n  .describe('에이전트 이름 → agentId 매핑 (resume용). 예: { \"architect\": \"ac01819f1cd295cb8\" }'),\n```\n\n(3) line 213-228 decide 핸들러 함수:\n```typescript\nasync ({ issue_id, summary, how_agents, how_summary, how_agent_ids }) => {\n  // ...\n  if (how_agent_ids !== undefined) issue.how_agent_ids = how_agent_ids;\n  await writePlan(data);\n```\n\n기존 how_summary 저장 로직(line 227)과 동일한 패턴 사용.",
+          "acceptance": "PlanIssue 인터페이스에 how_agent_ids?: Record<string, string> 필드 존재. nx_plan_decide 스키마에 how_agent_ids 파라미터(z.record(z.string(), z.string()).optional()) 존재. 핸들러에서 how_agent_ids 미전달 시 저장 안 함(기존 호출 호환), 전달 시 issue.how_agent_ids에 저장. bun run dev 빌드 정상. 기존 how_agents/how_summary 동작 영향 없음.",
+          "risk": "z.record의 two-arg 형식 z.record(keyType, valueType)이 zod 버전에 따라 다를 수 있음 — 기존 line 211의 how_summary가 사용 중인 패턴과 동일하게 작성하면 안전. TypeScript 타입 추론이 전파되는지 esbuild 컴파일 시 확인.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-10T03:07:14.640Z"
+        },
+        {
+          "id": 2,
+          "title": "task.ts MCP 시그니처 확장 — owner_agent_id, owner_reuse_policy 필드",
+          "context": "src/mcp/tools/task.ts의 Task 인터페이스와 nx_task_add MCP 도구에 owner_agent_id와 owner_reuse_policy 필드 추가. Lead가 특정 agentId로 resume을 지시하거나 정책(fresh/resume_if_same_artifact/resume)을 명시할 수 있게 한다. bounded tier의 'same artifact 조건' 중간 상태는 3-value enum으로 표현.",
+          "approach": "src/mcp/tools/task.ts 3곳 수정:\n\n(1) line 14-26 Task 인터페이스:\n```typescript\ninterface Task {\n  id: number;\n  title: string;\n  context: string;\n  approach?: string;\n  acceptance?: string;\n  risk?: string;\n  status: 'pending' | 'in_progress' | 'completed';\n  deps: number[];\n  plan_issue?: number;\n  owner?: string;\n  owner_agent_id?: string;                                                       // 추가\n  owner_reuse_policy?: 'fresh' | 'resume_if_same_artifact' | 'resume';           // 추가\n  created_at?: string;\n}\n```\n\n(2) line 78-89 nx_task_add 스키마 파라미터:\n```typescript\nowner: z.string().optional().describe(...),\nowner_agent_id: z.string().optional()\n  .describe('특정 agentId로 resume할 때 지정. 미설정 시 fresh spawn.'),\nowner_reuse_policy: z.enum(['fresh', 'resume_if_same_artifact', 'resume']).optional()\n  .describe('resume 판단 정책. fresh=강제 새 스폰, resume_if_same_artifact=이전 owner가 같은 artifact(target file) 만졌을 때만 resume, resume=무조건 resume 시도. bounded tier는 resume_if_same_artifact 권장.'),\n```\n\n(3) line 90-116 핸들러 함수:\n```typescript\nasync ({ title, context, deps, approach, acceptance, risk, plan_issue, goal, decisions, owner, owner_agent_id, owner_reuse_policy }) => {\n  // ...\n  const newTask: Task = {\n    id: maxId + 1,\n    title,\n    context,\n    approach,\n    acceptance,\n    risk,\n    status: 'pending',\n    deps: deps ?? [],\n    plan_issue,\n    owner,\n    owner_agent_id,           // 추가\n    owner_reuse_policy,       // 추가\n    created_at: new Date().toISOString(),\n  };\n```",
+          "acceptance": "Task 인터페이스에 owner_agent_id?: string와 owner_reuse_policy?: 'fresh' | 'resume_if_same_artifact' | 'resume' 필드 존재. nx_task_add 스키마에 두 파라미터 존재(둘 다 optional). newTask 생성 시 두 필드 주입. 미전달 시 undefined로 기록되어 기존 호출자 호환. bun run dev 빌드 정상. z.enum 타입 추론 정상(TypeScript 에러 없음).",
+          "risk": "z.enum과 TypeScript literal union 타입 간 추론이 자동으로 맞춰지는지 컴파일 시 확인 필요. zod의 enum 값 배열 순서가 런타임 검증과 일치해야 함(현재: fresh, resume_if_same_artifact, resume). Task 인터페이스의 literal union과 z.enum 배열이 수동으로 동기화됨 — 향후 값 추가 시 두 곳 모두 갱신 필요.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-10T03:07:29.822Z"
+        },
+        {
+          "id": 3,
+          "title": "Cycle B 통합 검증 — 빌드 + MCP 도구 스키마",
+          "context": "Cycle B의 2개 task(plan.ts 확장, task.ts 확장) 완료 후 통합 검증. Cycle A와 동일한 검증 패턴: 빌드 + 코드 inspection + 호환성 확인. 실시간 MCP 도구 e2e는 세션 재시작이 필요해 본 사이클 범위 밖.",
+          "approach": "tester 스폰 후: (1) bun run dev 재실행 → Build complete 확인, (2) plan.ts inspection: PlanIssue 인터페이스에 how_agent_ids 필드 존재, nx_plan_decide 스키마에 파라미터 존재, 핸들러가 how_agent_ids 저장 로직 포함(기존 how_summary 저장 패턴과 동일), (3) task.ts inspection: Task 인터페이스에 owner_agent_id/owner_reuse_policy 필드 존재, nx_task_add 스키마에 두 파라미터 존재, newTask 생성에 두 필드 주입, (4) 백워드 호환성 확인: 두 MCP 도구에 새 파라미터 미전달 시 undefined/생략되어 저장되는지 핸들러 로직 검토(기존 호출자 에러 없어야 함), (5) TypeScript 타입 일관성: Task.owner_reuse_policy의 literal union과 z.enum 배열이 동일한 값 3개('fresh', 'resume_if_same_artifact', 'resume')로 동기화됐는지.",
+          "acceptance": "검증 보고서 (PASS/FAIL 체크리스트): [A] 빌드 PASS, [B] plan.ts 3개 변경 PASS(인터페이스/스키마/핸들러), [C] task.ts 3개 변경 PASS(인터페이스/스키마/newTask 주입), [D] 백워드 호환 PASS(optional 처리 검증), [E] enum ↔ literal union 동기화 PASS. FAIL 항목이 있으면 정확한 라인과 근거 제시. Cycle C 진입 가능 여부 명시.",
+          "risk": "MCP server는 세션 시작 시 로드되어 본 세션에서는 기존 스키마로 실행 중. 실측으로 확인 가능한 것은 코드 inspection + 빌드까지. 실제 MCP 도구 호출은 다음 세션 로드 후 가능(Cycle C e2e 또는 사용자 직접 실행). in-vivo 검증은 best-effort.",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "plan_issue": 2,
+          "owner": "tester",
+          "created_at": "2026-04-10T03:07:42.773Z"
+        }
+      ]
     }
   ]
 }
