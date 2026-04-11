@@ -5687,6 +5687,44 @@
           "created_at": "2026-04-11T09:34:30.767Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-11T11:54:07.243Z",
+      "branch": "main",
+      "plan": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "publish-npm.yml workflow 추가",
+          "context": "nexus-core의 .github/workflows/publish-npm.yml을 claude-nexus에 맞게 적응하여 신규 작성. OIDC Trusted Publishing (npm publish --provenance --access public). Node 24 + registry-url 없음. Tag push(v*.*.*) + workflow_dispatch trigger. 검증 단계는 claude-nexus 맞춤: bun run build:types + bash test/e2e.sh (validate 대신).\n\n**신규 파일**: /Users/kih/workspaces/areas/claude-nexus/.github/workflows/publish-npm.yml\n\nAcceptance: Yaml syntax 유효, tag trigger 패턴 정확, permissions id-token:write, registry-url 절대 포함 안됨, build:types + e2e.sh 검증 단계 포함.",
+          "status": "completed",
+          "deps": [],
+          "owner": "lead",
+          "created_at": "2026-04-11T11:46:25.125Z"
+        },
+        {
+          "id": 2,
+          "title": "release.mjs — npm publish 섹션 축소 (CI 위임)",
+          "context": "release.mjs의 섹션 7 (npm publish)을 CI hand-off로 교체. 섹션 8 (GitHub Release) 유지. 섹션 9 (dev-sync) 유지.\n\n**수정 대상**: /Users/kih/workspaces/areas/claude-nexus/release.mjs\n- Line 162-175 (npm publish 섹션) → hand-off 메시지로 교체: git tag push 후 publish-npm.yml이 자동 트리거됨 안내, gh run watch 명령어 출력\n\nAcceptance: release.mjs에서 직접 npm publish 호출 제거됨, dry-run 모드 정상 작동, CI hand-off 메시지 명확.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "owner": "lead",
+          "created_at": "2026-04-11T11:46:29.924Z"
+        },
+        {
+          "id": 3,
+          "title": "deploy skill — CI watch 단계 추가",
+          "context": "/.claude/skills/deploy/SKILL.md의 Phase 2에 2-4 CI 완료 대기 단계 추가. Phase 3 실패 핸들링에 CI 실패 케이스 추가.\n\n**수정 대상**: /Users/kih/workspaces/areas/claude-nexus/.claude/skills/deploy/SKILL.md\n\n내용:\n- Phase 2-4: tag push 후 gh run watch로 workflow 완료 확인\n- Phase 3: CI 실패 시 `gh run view <id> --log`로 원인 분석\n\nAcceptance: deploy skill이 새 flow(로컬 release.mjs → tag push → CI watch) 반영, 기존 Phase 1 drift 체크는 유지.",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "owner": "lead",
+          "created_at": "2026-04-11T11:46:33.891Z"
+        }
+      ]
     }
   ]
 }
