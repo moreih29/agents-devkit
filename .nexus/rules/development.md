@@ -11,8 +11,8 @@
 - 기존 테스트 삭제 금지 — 수정만 허용
 
 ## Documentation
-- 스킬(SKILL.md), 에이전트 스펙(agents/*.md)은 영어로 작성
-- templates/nexus-section.md 직접 수정 금지 — generate-template.mjs + src/data/tags.json이 원본
+- `agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 `@moreih29/nexus-core` build-time 생성물 — 직접 수정 금지, 수정은 upstream `agents/*/body.md`, `skills/*/body.md`, `vocabulary/tags.yml`에서 (세부: `.nexus/context/architecture.md`)
+- `templates/nexus-section.md`와 CLAUDE.md의 `<!-- NEXUS:START -->`~`<!-- NEXUS:END -->` 블록은 `generate-template.mjs`가 자동 생성 — 직접 수정 금지
 - README는 한국어(README.md) + 영어(README.en.md) 동시 유지
 
 ## Release

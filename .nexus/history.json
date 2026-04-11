@@ -5725,6 +5725,72 @@
           "created_at": "2026-04-11T11:46:33.891Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-11T12:48:15.495Z",
+      "branch": "docs/nexus-core-consumer-philosophy",
+      "plan": {
+        "id": 4,
+        "topic": "CLAUDE.md에 nexus-core consumer 철학 주입 — Lead가 생성물과 상류 source를 구분하도록",
+        "issues": [
+          {
+            "id": 1,
+            "title": "철학의 내용 범위 — 무엇을 CLAUDE.md에 직접 담고 무엇을 context/memory 포인터로 위임할 것인가",
+            "status": "decided",
+            "decision": "Option 1 선택 — Essentials에 별도 bullet 1개만 추가. 문구: \"소스 원천: `agents/`, `skills/`, `src/data/tags.json`은 `@moreih29/nexus-core` build-time 생성물 — 직접 편집 금지, 수정은 upstream에서\". 원칙: CLAUDE.md는 모든 세션 prefix로 auto-load되므로 \"흐름 제어 최소 신호\"만 담고, 세부(drift detection, 3층위 모델, 이월 작업)는 NEXUS 섹션의 기존 \".nexus/memory/ and .nexus/context/ 확인\" 지시에 의해 동적으로 Lead가 도달. 반려: (a) B안 중간 9줄 — 세부 정보가 흐름 제어 영역이 아니므로 CLAUDE.md 낭비, (b) C안 15줄 깊음 — SSOT 위반 및 prefix 비용 과다, (c) Option 2 빌드 bullet 확장 — 명령어 명확성 희석 우려.",
+            "how_agents": [
+              "architect"
+            ],
+            "how_summary": {
+              "architect": "2차원 trade-off(깊이 × 위임) 9개 조합 중 '중간 × 균형'(9줄) 추천. 3개 stable invariant + 2개 포인터. SSOT 원칙상 live 문서(refactor-carryover)는 inline 금지, 포인터로 위임해야 drift 안전. 사용자 지적으로 '흐름 제어' 원칙이 추가되어 최종적으로 Architect 추천의 bullet 1만 채택(나머지 3 bullet은 동적 획득 가능으로 판정)."
+            },
+            "how_agent_ids": {
+              "architect": "ae464589d4dfd4725"
+            }
+          },
+          {
+            "id": 2,
+            "title": "PROJECT 섹션 내 배치와 포맷 — Essentials와의 관계, 길이, 스타일",
+            "status": "decided",
+            "decision": "B안 선택 — 소스 원천 bullet을 Essentials 맨 아래(플러그인 구조 bullet 직후)에 배치. 근거: 플러그인 구조 bullet이 이미 \"src/ → esbuild → bridge/mcp-server.cjs + scripts/\"로 빌드 산출물의 공간 지도를 그리고 있으므로, generated 파일 정보를 인접 배치해 \"구조 이해\" 영역으로 묶음. 런타임/빌드/테스트는 \"실행 가능성\" 영역과 분리. 반려: A(빌드 직후 - test bullet을 뒤로 밀어 build→test 흐름 단절), C(맨 위 - Essentials 본래 핵심보다 앞서 위계 이상)."
+          },
+          {
+            "id": 3,
+            "title": "development.md rule 갱신 — generated file 편집 금지 명시화와 upstream workflow 표기",
+            "status": "decided",
+            "decision": "C안 선택 — .nexus/rules/development.md Documentation 섹션을 2 bullet 구조로 재정리. (1) agents/*.md, skills/*/SKILL.md, src/data/tags.json은 @moreih29/nexus-core build-time 생성물 → 수정은 upstream body.md/vocabulary/tags.yml에서 (.nexus/context/architecture.md 포인터), (2) templates/nexus-section.md와 CLAUDE.md NEXUS 블록은 generate-template.mjs 자동 생성. 기존 stale 룰 2개 정리: \"스킬/에이전트 영어 작성\"은 upstream 관심사이므로 제거, \"templates 직접 수정 금지 — src/data/tags.json이 원본\" 문구도 수정(tags.json도 generated). \"README 한영 동시 유지\"는 유지. 원천 차이(nexus-core vs generate-template.mjs)를 2개 bullet으로 분리해 Lead가 \"어느 쪽을 수정할지\" 즉시 구분. 반려: A(1개 통합 bullet - 원천 차이 모호), B(최소 변경 - stale 문구 잔존)."
+          }
+        ],
+        "research_summary": "## 발견 1: nexus-core consumer 아키텍처가 이미 확립돼 있음\n- `@moreih29/nexus-core ^0.1.2` devDependency (package.json)\n- `generate-from-nexus-core.mjs` + `generate-from-nexus-core.lib.mjs`가 build-time에 nexus-core manifest를 읽어 `agents/*.md`(9), `skills/*/SKILL.md`(5), `src/data/tags.json`을 regenerate\n- sha256 body_hash 무결성 검증, tag drift detection 포함\n- `generate-template.mjs`는 downstream — agents+skills+tags.json frontmatter에서 CLAUDE.md의 `<!-- NEXUS:START -->`~`<!-- NEXUS:END -->` 블록을 auto-gen\n\n## 발견 2: CLAUDE.md 구조\n- `<!-- PROJECT:START -->`~`<!-- PROJECT:END -->` — 수동 편집 영역 (현재는 Essentials 4줄만)\n- `<!-- NEXUS:START -->`~`<!-- NEXUS:END -->` — generate-template.mjs가 자동 재생성\n- 철학을 주입할 수 있는 공간은 PROJECT 섹션 뿐\n\n## 발견 3: 철학이 context에는 있으나 Lead가 자동으로 인지하지 못함\n- `.nexus/context/architecture.md:22-30` (Build Pipeline), `orchestration.md:40-48` (Source of Truth) 섹션에 nexus-core consumer 명시\n- 그러나 CLAUDE.md에는 반영 안 됨 → Lead가 이 context 파일을 능동적으로 Read해야만 인지\n- SubagentStart hook의 lazy-read index는 subagent용이고 Lead 자체에는 적용 안 됨\n\n## 발견 4: rule 문서 공백\n- `.nexus/rules/development.md`는 \"templates/nexus-section.md 직접 수정 금지\"만 명시\n- agents/, skills/, src/data/tags.json이 generated라는 언급 없음\n- Lead가 이 파일들을 직접 편집하면 build 시 덮어써짐 → 경고 없음\n\n## 발견 5: 이월 작업 트래킹 패턴이 이미 존재\n- `.nexus/memory/refactor-carryover.md`가 CA-1~CA-6로 nexus-core 전환 후 이월 작업 추적\n- upstream 이슈 제기 → 로컬 workaround → 향후 nexus-core 수정 → regenerate 워크플로우가 이미 수립됨\n- 이 패턴이 \"nexus-core 기반 변동\"의 표준 절차\n\n## 발견 6: 사용자 원인 제기와의 연결\n- 이번 대화에서 제기된 \"resume 사용법이 플러그인 배포 surface에 없음\" 문제는, `skills/nx-run/SKILL.md`를 직접 편집해도 build 시 덮어써지므로 해결 불가\n- 올바른 경로: nexus-core upstream에서 body.md 수정 → regenerate → commit\n- 이 경로를 Lead가 인지하려면 CLAUDE.md에 \"nexus-core가 source\"라는 철학이 먼저 있어야 함\n- 사용자가 \"먼저 철학을 주입해야 할 것 같다\"고 한 맥락\n\n## 발견 7: .nexus/memory/nexus-ecosystem-primer.md가 3층위 멘탈 모델 확정\n- Authoring(nexus-core) / Execution(claude-nexus + opencode-nexus sibling) / Supervision(nexus-code)\n- \"3층위 프레임은 내부 아키텍처 문서 전용, 외부 README 노출 금지\" 제약 (§7)\n- CLAUDE.md는 내부 문서 → 3층위 용어 사용 가능",
+        "created_at": "2026-04-11T12:30:30.250Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "CLAUDE.md Essentials에 '소스 원천' bullet 추가",
+          "context": "Issue #1 결정: Essentials에 '소스 원천' bullet 1개만 추가(흐름 제어 최소 신호). Issue #2 결정: 플러그인 구조 bullet 직후(맨 아래) 배치. 편집 대상은 CLAUDE.md의 `<!-- PROJECT:START -->`~`<!-- PROJECT:END -->` 블록 안쪽 Essentials 섹션. NEXUS 블록은 generate-template.mjs가 auto-gen이므로 건드리지 않음.</context>\n<parameter name=\"approach\">Edit tool로 CLAUDE.md의 '- 플러그인 구조: src/ → esbuild → bridge/mcp-server.cjs + scripts/{gate,statusline}.cjs' 라인을 찾아 그 직후에 새 라인 추가: '- 소스 원천: `agents/`, `skills/`, `src/data/tags.json`은 `@moreih29/nexus-core` build-time 생성물 — 직접 편집 금지, 수정은 upstream에서'. 편집 범위가 PROJECT 블록 안쪽임을 확인.",
+          "acceptance": "CLAUDE.md Essentials 섹션이 5 bullet로 증가. 새 bullet이 기존 '플러그인 구조' bullet 직후(맨 아래)에 위치. 문구가 결정된 원안과 backtick 포함 완전 일치. `<!-- NEXUS:START -->` 이후 블록 내용은 변경되지 않음.",
+          "risk": "generate-template.mjs는 NEXUS 블록만 갱신하므로 PROJECT 블록 편집은 build 영향 없음. 리스크 없음.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-11T12:45:03.567Z"
+        },
+        {
+          "id": 2,
+          "title": ".nexus/rules/development.md Documentation 섹션 C안으로 재작성",
+          "context": "기존 Documentation 섹션 3 bullet 중 2개가 stale: (a) '스킬/에이전트 영어 작성'은 upstream nexus-core 관심사이므로 claude-nexus rule로 불필요, (b) 'templates 직접 수정 금지 — src/data/tags.json이 원본'의 후반부가 틀림(tags.json도 generated). Issue #3 C안으로 2 bullet(generated) + 1 bullet(README) 구조로 재정리.",
+          "approach": "Edit tool로 development.md의 '## Documentation' 섹션 전체 3 bullet를 C안 3 bullet로 교체. 새 내용: (1) `agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 `@moreih29/nexus-core` build-time 생성물 — 직접 수정 금지, 수정은 upstream `agents/*/body.md`, `skills/*/body.md`, `vocabulary/tags.yml`에서 (세부: `.nexus/context/architecture.md`), (2) `templates/nexus-section.md`와 CLAUDE.md의 `<!-- NEXUS:START -->`~`<!-- NEXUS:END -->` 블록은 `generate-template.mjs`가 자동 생성 — 직접 수정 금지, (3) README 한영 동시 유지 (기존 유지). 다른 섹션(Code, Test, Release)은 건드리지 않음.",
+          "acceptance": "## Documentation 섹션이 정확히 3 bullet. '영어 작성' bullet 완전 제거. 첫 bullet에 nexus-core 경로 3개(body.md 2개 + vocabulary/tags.yml) + `.nexus/context/architecture.md` 포인터 포함. 두 번째 bullet에 templates/nexus-section.md + CLAUDE.md NEXUS 블록 + generate-template.mjs 3요소 포함. 세 번째 bullet은 기존 README 룰 그대로. Code/Test/Release 섹션 무변경.",
+          "risk": "development.md는 `.nexus/rules/`에 있는 Lead 능동 Read 대상이고 generated 아님 — 직접 편집 안전. 리스크 없음.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 3,
+          "owner": "lead",
+          "created_at": "2026-04-11T12:45:12.363Z"
+        }
+      ]
     }
   ]
 }
