@@ -1,0 +1,26 @@
+{
+  "nexus_core_version": "0.1.2",
+  "agents": [
+    {
+      "id": "engineer",
+      "name": "engineer",
+      "description": "Sample engineer agent for unit testing.",
+      "task": "Code implementation, edits, debugging",
+      "alias_ko": "엔지니어",
+      "category": "do",
+      "capabilities": ["no_task_create"],
+      "resume_tier": "bounded",
+      "model_tier": "standard",
+      "body_hash": "sha256:6477e846408820de08f6c9520ed44b0ba32112451d088c08d41b7e45238f4eef"
+    }
+  ],
+  "skills": [
+    {
+      "id": "nx-plan",
+      "name": "nx-plan",
+      "description": "Sample plan skill for unit testing.",
+      "triggers": ["plan"],
+      "body_hash": "sha256:b530bd152faaf934a2ca0af930a0b1f5141c5adff1d9e871b04cfa38f3a3ac4d"
+    }
+  ]
+}

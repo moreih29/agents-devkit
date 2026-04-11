@@ -128,7 +128,9 @@ function handleStop(event: Record<string, unknown>): void {
   });
 }
 
-// --- PreToolUse 이벤트 처리: Agent 직접 호출 차단 + Edit/Write 태스크 강제 ---
+// --- PreToolUse 이벤트 처리: Edit/Write 태스크 파이프라인 차단 ---
+// NOTE: per-agent capability 차단은 agents/*.md frontmatter의 disallowedTools
+// 필드를 Claude Code 런타임이 처리. gate.ts PreToolUse는 workflow 상태만 담당.
 
 /** 예외 경로: Nexus 내부 파일 및 setup/sync 대상 파일은 tasks.json 없이도 수정 허용 */
 function isNexusInternalPath(filePath: string): boolean {
@@ -181,6 +183,9 @@ interface KeywordMatch {
   primitive: 'plan' | 'run';
   skill: string;
 }
+
+/** All tag ids with inline handlers in handleUserPromptSubmit. Cross-checked against nexus-core vocabulary/tags.yml at build time. */
+export const HANDLED_TAG_IDS = ['plan', 'run', 'sync', 'd', 'm', 'm-gc', 'rule'] as const;
 
 const EXPLICIT_TAGS: Record<string, KeywordMatch> = {
   plan: { primitive: 'plan', skill: 'claude-nexus:nx-plan' },

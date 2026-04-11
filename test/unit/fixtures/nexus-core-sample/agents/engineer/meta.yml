@@ -1,0 +1,10 @@
+id: engineer
+name: engineer
+description: Sample engineer agent for unit testing.
+task: Code implementation, edits, debugging
+alias_ko: 엔지니어
+category: do
+capabilities:
+  - no_task_create
+resume_tier: bounded
+model_tier: standard

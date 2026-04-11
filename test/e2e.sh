@@ -370,6 +370,69 @@ rm -f "$CI_RESULT"
 # Cleanup — 임시 디렉토리 제거
 rm -rf "$E2E_TMP"
 
+echo ""
+echo "=== Generated artifacts ==="
+
+# 9 agents frontmatter present
+for agent in architect designer engineer postdoc researcher reviewer strategist tester writer; do
+  f="agents/$agent.md"
+  if [ -f "$f" ] && head -1 "$f" | grep -q '^---$'; then
+    green "agent/$agent.md frontmatter present"
+    PASS=$((PASS + 1))
+  else
+    red "agent/$agent.md missing or malformed"
+    FAIL=$((FAIL + 1))
+  fi
+done
+
+# 5 skills frontmatter present
+for skill in nx-init nx-plan nx-run nx-setup nx-sync; do
+  f="skills/$skill/SKILL.md"
+  if [ -f "$f" ] && head -1 "$f" | grep -q '^---$'; then
+    green "skill/$skill frontmatter present"
+    PASS=$((PASS + 1))
+  else
+    red "skill/$skill missing or malformed"
+    FAIL=$((FAIL + 1))
+  fi
+done
+
+# tags.json has 7 entries
+TAGS_COUNT=$(node -e "try { console.log(JSON.parse(require('fs').readFileSync('src/data/tags.json','utf8')).length) } catch(e) { console.log('0') }")
+if [ "$TAGS_COUNT" = "7" ]; then
+  green "tags.json has 7 entries"
+  PASS=$((PASS + 1))
+else
+  red "tags.json entry count=$TAGS_COUNT (expected 7)"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+echo "=== Frontmatter parse ==="
+
+if node -e "
+const {parse} = require('yaml');
+const fs = require('fs');
+const agents = ['architect','designer','engineer','postdoc','researcher','reviewer','strategist','tester','writer'];
+let ok = 0;
+for (const a of agents) {
+  try {
+    const raw = fs.readFileSync(\`agents/\${a}.md\`,'utf8');
+    const match = raw.match(/^---\n([\s\S]*?)\n---/);
+    if (!match) continue;
+    const fm = parse(match[1]);
+    if (fm && fm.name && fm.description) ok++;
+  } catch (e) {}
+}
+process.exit(ok === 9 ? 0 : 1);
+" 2>/dev/null; then
+  green "Frontmatter parse: 9/9 agents have name+description"
+  PASS=$((PASS + 1))
+else
+  red "Frontmatter parse: some agents missing required fields"
+  FAIL=$((FAIL + 1))
+fi
+
 # --- 결과 ---
 echo ""
 echo "=== 결과: $PASS passed, $FAIL failed ==="

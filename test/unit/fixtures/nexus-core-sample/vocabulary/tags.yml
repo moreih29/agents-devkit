@@ -1,0 +1,12 @@
+tags:
+  - id: plan
+    trigger: "[plan]"
+    type: skill
+    skill: nx-plan
+    description: "Activates plan skill for structured analysis"
+    variants: ["auto"]
+  - id: m-gc
+    trigger: "[m:gc]"
+    type: inline_action
+    handler: memory_gc
+    description: "Garbage collect memory"

@@ -1,4 +1,28 @@
 "use strict";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/hooks/gate.ts
+var gate_exports = {};
+__export(gate_exports, {
+  HANDLED_TAG_IDS: () => HANDLED_TAG_IDS
+});
+module.exports = __toCommonJS(gate_exports);
 
 // src/shared/hook-io.ts
 function readStdin() {
@@ -243,6 +267,7 @@ function handlePreToolUse(event) {
   }
   pass();
 }
+var HANDLED_TAG_IDS = ["plan", "run", "sync", "d", "m", "m-gc", "rule"];
 var EXPLICIT_TAGS = {
   plan: { primitive: "plan", skill: "claude-nexus:nx-plan" },
   "plan:auto": { primitive: "plan", skill: "claude-nexus:nx-plan" },
@@ -728,5 +753,9 @@ async function main() {
 }
 main().catch(() => {
   respond({ continue: true });
+});
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  HANDLED_TAG_IDS
 });
 //# sourceMappingURL=gate.cjs.map

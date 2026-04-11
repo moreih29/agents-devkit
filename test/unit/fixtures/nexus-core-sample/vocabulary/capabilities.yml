@@ -1,0 +1,18 @@
+capabilities:
+  - id: no_file_edit
+    description: "Agent cannot create or modify files"
+    harness_mapping:
+      claude_code:
+        - Edit
+        - Write
+        - NotebookEdit
+  - id: no_task_create
+    description: "Agent cannot create new tasks"
+    harness_mapping:
+      claude_code:
+        - mcp__plugin_claude-nexus_nx__nx_task_add
+  - id: no_task_update
+    description: "Agent cannot update existing tasks"
+    harness_mapping:
+      claude_code:
+        - mcp__plugin_claude-nexus_nx__nx_task_update

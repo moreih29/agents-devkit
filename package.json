@@ -21,7 +21,8 @@
     "build:types": "tsc --noEmit",
     "check": "tsc --noEmit && npm run build",
     "clean": "rm -rf dist bridge/mcp-server.cjs scripts/*.cjs",
-    "dev": "node esbuild.config.mjs && node dev-sync.mjs"
+    "dev": "node esbuild.config.mjs && node dev-sync.mjs",
+    "test": "bun test"
   },
   "files": [
     "agents",
@@ -37,7 +38,9 @@
   "devDependencies": {
     "@types/node": "^25.5.0",
     "esbuild": "^0.25.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "@moreih29/nexus-core": "^0.1.2",
+    "yaml": "^2"
   },
   "dependencies": {
     "@ast-grep/napi": "^0.42.0",
