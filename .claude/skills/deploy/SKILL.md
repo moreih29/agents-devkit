@@ -73,13 +73,25 @@ node release.mjs [patch|minor|major]
 
 인자 없으면 자동 결정 사용. 승인 게이트 없이 바로 실행.
 
+release.mjs가 수행하는 최종 단계: version bump → build → e2e → git commit → git tag → `git push origin main` + `git push origin v{newVersion}`. **npm publish는 직접 호출하지 않는다** — tag push가 GitHub Actions workflow를 트리거한다.
+
+### 2-4. CI 완료 대기 (OIDC publish)
+
+tag push 직후 `.github/workflows/publish-npm.yml`이 자동 트리거되어 OIDC Trusted Publishing으로 npm에 publish한다. `gh run watch`로 완료 확인:
+
+```bash
+gh run watch $(gh run list --workflow=publish-npm.yml --limit 1 --json databaseId --jq ".[0].databaseId") --exit-status
+```
+
+예상 소요: 30초-1분. 성공 시 `npm publish --provenance --access public` 단계가 green으로 종료된다. 실패 시 Phase 3 매트릭스의 "CI workflow 실패" 행 참조.
+
 ## Phase 3: 실패 핸들링 + Post-release
 
 | 상황 | 대응 |
 |------|------|
 | E2E 실패 | 실패 내용 분석, 사용자에게 보고, 배포 중단 |
 | 워킹 트리 dirty | Phase 1 커밋 누락 확인 → 커밋 후 재시도 |
-| npm 2FA 필요 | `! npm publish` 실행 안내 |
+| CI workflow 실패 | `gh run view <run_id> --log`로 원인 분석. 주요 케이스: (a) Version mismatch — tag와 package.json version 불일치 (release.mjs 재실행 필요), (b) Type check / E2E 실패 — 수정 후 patch bump, (c) OIDC Trusted Publisher misconfig — npmjs.com 설정 확인, (d) registry-url 실수 추가 — setup-node 스텝에서 제거 |
 | gh 없음 | CHANGELOG에서 해당 버전 섹션 추출 → 릴리스 타이틀 + 본문 생성하여 사용자가 복사 가능하도록 출력 |
 
 ## 완료 보고

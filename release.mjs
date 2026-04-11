@@ -159,20 +159,21 @@ run('git push origin main');
 run(`git push origin v${newVersion}`);
 console.log(`  ✅ v${newVersion} 태그 push 완료`);
 
-// --- 7. npm publish ---
+// --- 7. CI publish hand-off (OIDC Trusted Publishing via GitHub Actions) ---
+//
+// git tag v{newVersion} push가 .github/workflows/publish-npm.yml 워크플로우를
+// 자동 트리거한다. 로컬에서 npm publish를 직접 실행하지 않는다.
+// - 인증: OIDC (NPM_TOKEN, .npmrc, 2FA OTP 전부 불필요)
+// - Provenance: npm publish --provenance --access public
+// - 재현성: CI가 frozen lockfile + Node 24로 재빌드 검증
+//
+// Trusted Publisher 설정 (이미 등록됨):
+//   owner=moreih29, repo=claude-nexus, workflow=publish-npm.yml
 
-console.log('\n📤 npm publish...');
-try {
-  run('npm publish');
-  console.log('  ✅ npm 발행 완료');
-} catch (e) {
-  const output = e.stderr || e.stdout || '';
-  if (output.includes('Two-factor')) {
-    console.log('  ⚠️  2FA 필요 — 수동으로 실행: npm publish --otp=<code>');
-  } else {
-    console.log(`  ⚠️  npm publish 실패: ${output.slice(0, 200)}`);
-  }
-}
+console.log('\n📤 CI publish hand-off...');
+console.log(`  tag v${newVersion} pushed → .github/workflows/publish-npm.yml triggered`);
+console.log('  Watch:');
+console.log('    gh run watch $(gh run list --workflow=publish-npm.yml --limit 1 --json databaseId --jq ".[0].databaseId") --exit-status');
 
 // --- 8. GitHub Release ---
 
