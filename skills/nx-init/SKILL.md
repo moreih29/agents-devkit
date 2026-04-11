@@ -3,14 +3,15 @@ name: nx-init
 description: "Project onboarding — scan, mission, essentials, context generation"
 trigger_display: "/claude-nexus:nx-init"
 purpose: "Full project onboarding: scan codebase, establish project mission and essentials, generate context knowledge"
-triggers: ["/claude-nexus:nx-init"]
+disable-model-invocation: true
 ---
 
-<role>
-Scans the project and builds Nexus knowledge in the flat .nexus/ structure. On first run, performs a 5-step full onboarding sequence.
-</role>
+## Role
 
-<constraints>
+Scans the project and builds Nexus knowledge in the flat .nexus/ structure. On first run, performs a 5-step full onboarding sequence.
+
+## Constraints
+
 - NEVER modify source code. Slimming down CLAUDE.md beyond the project section is not this skill's responsibility.
 - NEVER infer or guess information that cannot be confirmed from code — do not write it to context/.
 - NEVER store secrets (API keys, credentials, etc.) in knowledge files.
@@ -18,9 +19,9 @@ Scans the project and builds Nexus knowledge in the flat .nexus/ structure. On f
 - Project section in CLAUDE.md MUST go through user confirmation before writing.
 - NEVER reference or create identity/, codebase/, reference/, or core/ paths.
 - Essentials section MUST NOT exceed 10 lines. If more items are needed, move lower-priority ones to .nexus/context/.
-</constraints>
 
-<guidelines>
+## Guidelines
+
 ## Trigger
 
 - `/claude-nexus:nx-init` — full onboarding (or resume)
@@ -204,4 +205,3 @@ Output a summary of the onboarding results.
 - [run] — execute from a plan
 - /claude-nexus:nx-init --reset — re-run onboarding (existing knowledge will be backed up)
 ```
-</guidelines>

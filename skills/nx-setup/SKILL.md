@@ -6,18 +6,19 @@ purpose: "Configure Nexus interactively"
 disable-model-invocation: true
 ---
 
-<role>
-Interactive project setup wizard — configure Nexus for a new project with minimal token cost. Every step is a concrete choice via `AskUserQuestion`, with no open-ended exploration.
-</role>
+## Role
 
-<constraints>
+Interactive project setup wizard — configure Nexus for a new project with minimal token cost. Every step is a concrete choice via `AskUserQuestion`, with no open-ended exploration.
+
+## Constraints
+
 - NEVER accept free-text input — every step must use `AskUserQuestion` with explicit options.
 - NEVER skip the "Skip" option — all steps are optional.
 - NEVER modify files outside the selected scope without explicit user confirmation.
 - NEVER overwrite an existing `statusLine` field in settings.json without explicit user confirmation.
-</constraints>
 
-<guidelines>
+## Guidelines
+
 ## Trigger
 - Direct invocation: `/claude-nexus:nx-setup`
 
@@ -201,4 +202,3 @@ Output a setup completion message:
 
 Setup operates via sequential AskUserQuestion calls with no state file.
 Configuration results are written to the scope-appropriate settings file at each step.
-</guidelines>

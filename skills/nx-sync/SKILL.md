@@ -1,24 +1,24 @@
 ---
 name: nx-sync
-description: "Context knowledge synchronization — scans project state and updates .nexus/context/ design documents"
+description: Context knowledge synchronization — scans project state and updates .nexus/context/ design documents
 trigger_display: "[sync]"
 purpose: "Synchronize .nexus/context/ design documents with current project state"
-triggers: ["[sync]"]
 ---
 
-<role>
-Scans the current project state and synchronizes .nexus/context/ design documents. Uses git diff to identify code changes, then updates abstract design documents (principles, philosophy, development stack, architectural decisions) that cannot be inferred from code alone.
-</role>
+## Role
 
-<constraints>
+Scans the current project state and synchronizes .nexus/context/ design documents. Uses git diff to identify code changes, then updates abstract design documents (principles, philosophy, development stack, architectural decisions) that cannot be inferred from code alone.
+
+## Constraints
+
 - NEVER delete existing context files — only update or add
 - NEVER modify source code — this skill updates documentation only
 - NEVER guess information that cannot be confirmed from sources — mark as "needs verification" instead
 - MUST preserve existing content structure — update sections, don't rewrite entire files unnecessarily
 - NEVER use deprecated MCP knowledge tools — use Read and Write native tools only
-</constraints>
 
-<guidelines>
+## Guidelines
+
 ## Trigger
 
 - `[sync]` — synchronize .nexus/context/ with current project state
@@ -86,4 +86,3 @@ Context documents capture abstract knowledge that cannot be read directly from s
 - Project conventions and standards
 
 These documents are updated when code changes reflect a shift in principles, a new architectural decision is made, or the development stack evolves. They are not updated for routine code additions that do not change the underlying design.
-</guidelines>

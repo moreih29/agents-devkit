@@ -1,16 +1,16 @@
 ---
 name: nx-plan
-description: Structured multi-perspective analysis to decompose issues, align on decisions, and produce an enriched plan before execution. Plan only — does not execute.
+description: "Structured multi-perspective analysis to decompose issues, align on decisions, and produce an enriched plan before execution. Plan only — does not execute."
 trigger_display: "[plan]"
 purpose: "Structured planning — subagent-based analysis, deliberate decisions, produce execution plan"
-triggers: ["[plan]", "[plan:auto]"]
 ---
 
-<role>
-Facilitate structured multi-perspective analysis using subagents to decompose issues, deliberate on options, and align on decisions. Lead acts as synthesizer AND active participant — orchestrates subagent research/analysis AND contributes its own position. Does not execute — planning only. Transition to execution is the user's decision.
-</role>
+## Role
 
-<constraints>
+Facilitate structured multi-perspective analysis using subagents to decompose issues, deliberate on options, and align on decisions. Lead acts as synthesizer AND active participant — orchestrates subagent research/analysis AND contributes its own position. Does not execute — planning only. Transition to execution is the user's decision.
+
+## Constraints
+
 - NEVER execute — this skill is planning only; transition to execution is the user's decision
 - NEVER call `nx_plan_start` before research is complete (research_summary is required)
 - NEVER present multiple issues at once — one issue at a time only
@@ -30,9 +30,8 @@ Facilitate structured multi-perspective analysis using subagents to decompose is
 | Pick | | **(Recommended)** |
 ```
 
-</constraints>
+## Guidelines
 
-<guidelines>
 ## Trigger
 
 - Explicit tag: `[plan]` — continue existing session if plan.json exists, otherwise start new

@@ -3,14 +3,14 @@ name: nx-run
 description: Execution — user-directed agent composition.
 trigger_display: "[run]"
 purpose: "Execution — user-directed agent composition"
-triggers: ["[run]"]
 ---
 
-<role>
-Execution norm that Lead follows when the user invokes the [run] tag. Composes subagents dynamically based on user direction and drives the full execution pipeline from intake to completion.
-</role>
+## Role
 
-<constraints>
+Execution norm that Lead follows when the user invokes the [run] tag. Composes subagents dynamically based on user direction and drives the full execution pipeline from intake to completion.
+
+## Constraints
+
 - NEVER modify files via Bash (sed, echo >, cat <<EOF, tee, etc.) — always use Edit/Write tools (Gate enforced)
 - NEVER terminate while pending tasks remain (Gate Stop nonstop)
 - NEVER spawn a new branch without checking for main/master first
@@ -18,9 +18,9 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes s
 - MUST spawn subagents per-task based on owner field — Do not handle multi-task work as Lead solo when task count ≥ 2 or target files ≥ 2
 - MUST NOT spawn parallel Engineers if their target files overlap — serialize instead
 - MUST call nx_task_close before completing the cycle — archive plan+tasks to history.json
-</constraints>
 
-<guidelines>
+## Guidelines
+
 ## Flow
 
 ### Step 1: Intake (Lead)

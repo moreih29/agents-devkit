@@ -45,10 +45,10 @@ Before starting work, check `.nexus/memory/` and `.nexus/context/` for project-s
 
 | Tag | Purpose |
 |-----|---------|
-| [plan] | 계획 — 리서치, 다관점 분석, 결정, 계획서 생성 |
-| [d] | 결정 기록 (plan 세션 내 nx_plan_decide 호출) |
-| [run] | 실행 — 계획서 기반 서브에이전트 병렬 실행 |
-| [rule] | 규칙 저장 — [rule:태그] 형식 지원 |
-| [m] | 메모 저장 — 교훈, 참조를 .nexus/memory/에 압축 저장 |
-| [m:gc] | 메모 정리 — .nexus/memory/ 파일 병합/삭제 |
-| [sync] | 컨텍스트 동기화 — .nexus/context/ 설계 문서 업데이트 |
+| [plan] | Activates nx-plan skill for structured multi-perspective analysis and decision recording |
+| [run] | Activates nx-run skill for task execution with subagent composition |
+| [sync] | Activates nx-sync skill for .nexus/context/ knowledge synchronization |
+| [d] | Records a decision during an active plan session |
+| [m] | Stores a lesson or reference to .nexus/memory/ |
+| [m:gc] | Garbage-collects .nexus/memory/ by merging or removing stale entries |
+| [rule] | Stores a project rule to .nexus/rules/. [rule:*] supports tag parameter. |
