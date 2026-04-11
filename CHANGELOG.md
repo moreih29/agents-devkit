@@ -2,9 +2,17 @@
 
 ## 0.25.1 (2026-04-11)
 
+### Changed
+- **nx-init** is now manual-only (`disable-model-invocation: true`). Invoke explicitly with `/claude-nexus:nx-init`. Previously Claude could auto-trigger it on ambiguous "project setup" prompts. This aligns with nexus-core canonical metadata (`manual_only: true`).
+
 ### Refactoring
 - regenerate skills + tags.json from nexus-core
 - regenerate agents from nexus-core (activate generator)
+- add generate-from-nexus-core infrastructure: claude-nexus is now a build-time read-only consumer of `@moreih29/nexus-core ^0.1.2`. Agent/skill definitions + `src/data/tags.json` are regenerated from the upstream canonical source on every build, with sha256 body_hash verification and tag drift detection against `gate.ts HANDLED_TAG_IDS`.
+
+### Infrastructure
+- migrate npm publish to GitHub Actions OIDC Trusted Publishing. Release flow: `node release.mjs` → local version bump + build + tag push → `.github/workflows/publish-npm.yml` (Node 24, no tokens, SLSA v1 provenance via `npm publish --provenance --access public`).
+- context docs (`.nexus/context/architecture.md`, `.nexus/context/orchestration.md`) updated to reflect the new build pipeline, release pipeline, and Nexus 3-layer ecosystem position.
 
 ## 0.25.0 (2026-04-10)
 
