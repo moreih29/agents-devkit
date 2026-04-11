@@ -18,3 +18,39 @@ Claude Code와 3개 진입점으로 통합:
 **비차단 가이던스 (Non-blocking Guidance)**: gate.ts는 additionalContext로 "넛지"를 전달. 하드 에러가 아닌 스마트 기본값 제공. 사용자는 무시할 수 있음.
 
 **빌드 파이프라인**: src/ → esbuild 단일 번들 → bridge/mcp-server.cjs + scripts/{gate,statusline}.cjs. 템플릿(nexus-section.md)은 generate-template.mjs가 agents/, skills/, tags.json 메타데이터에서 자동 생성.
+
+esbuild 번들 직후 `generate-from-nexus-core.mjs`가 실행됨 (esbuild.config.mjs ~41번째 줄):
+
+- **Input**: `node_modules/@moreih29/nexus-core/` (devDependency, build-time only)
+- **Output**: `agents/*.md` (9개) + `skills/*/SKILL.md` (5개) + `src/data/tags.json` (regenerate)
+- **검증 단계**:
+  - `manifest.nexus_core_version` vs package.json 의존성 버전 cross-check
+  - 각 body.md sha256 vs `manifest.agents[].body_hash` (불일치 시 fail-fast)
+  - gate.ts `HANDLED_TAG_IDS` export 상수 ↔ nexus-core `vocabulary/tags.yml` tag id set drift detection (`verifyTagDrift()`)
+- `generate-template.mjs`는 generate-from-nexus-core.mjs의 **다운스트림** — agents + skills + tags.json 메타에서 CLAUDE.md의 Nexus 섹션을 렌더링
+
+## Release Pipeline
+
+- **로컬 `release.mjs`**: pre-flight → semver 결정 (conventional commit 기반) → version bump (package.json + plugin.json + marketplace.json + VERSION) → CHANGELOG 자동 생성 → build → e2e → git commit (소스 + 빌드 산출물 bridge/, scripts/) → git tag + push main + push tag
+- 로컬에서 npm publish를 직접 호출하지 않음
+- Tag push가 `.github/workflows/publish-npm.yml` GitHub Actions 워크플로우를 자동 트리거
+- **CI 단계**: Bun 1.3 + Node 24 (registry-url 없음, npm 11+ 필수) → bun install --frozen-lockfile → bun run build:types → version match check (git tag vs package.json) → bash test/e2e.sh → npm pack --dry-run → `npm publish --provenance --access public`
+- **인증**: OIDC Trusted Publishing only — npm tokens 없음, NODE_AUTH_TOKEN 없음, 2FA OTP 없음
+- **결과**: SLSA v1 provenance attestation이 npm 패키지에 첨부됨
+
+## Nexus Ecosystem Position
+
+> **내부 아키텍처 문서 전용.** 외부 README/마케팅에 이 프레임 사용 금지 — `.nexus/memory/nexus-ecosystem-primer.md` §7 참조.
+
+3층위 모델:
+
+- **Authoring layer**: `@moreih29/nexus-core` — prompt body, neutral metadata, vocabulary. claude-nexus는 build-time read-only consumer.
+- **Execution layer**:
+  - **claude-nexus** (this project) — Claude Code 하네스 대상
+  - **opencode-nexus** — OpenCode 하네스 대상 (sibling, 동등한 consumer, 수직 관계 아님)
+- **Supervision layer**: `nexus-code` — 외부 host-of-hosts (Pro/Max 구독제 호환 ProcessSupervisor 패턴). 이 프로젝트에서는 interact 없음.
+
+관련 제약:
+- Agent SDK 경로 배제 (`.nexus/memory/agent-sdk-constraint.md` 참조)
+- ACP 통합 경로 현재 Claude Code 쪽 구독제 호환 불가
+- nexus-code가 이 세션을 외부 감독할 때 AgentHost 인터페이스를 통함 — claude-nexus는 해당 로직 자체 구현 안 함

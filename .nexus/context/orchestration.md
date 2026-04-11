@@ -37,6 +37,16 @@
 
 **필수 스킬 호출 (Mandatory Skill Invocation)**: gate.ts가 plan/run 실행 전에 스킬 로드를 강제. 구조화된 심의를 우회하는 "비구조적 실행" 방지.
 
+## Source of Truth
+
+`agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 **build-time generated** from `@moreih29/nexus-core ^0.1.2`.
+
+- 직접 편집 금지 — 수정이 필요하면 upstream nexus-core에서 작업
+- Build 시점에 `generate-from-nexus-core.mjs`가 nexus-core manifest.json을 읽어 regenerate
+- Body content integrity는 sha256 body_hash로 검증
+- harness-local 필드(`model`, `maxTurns`, `disallowedTools`)는 `generate-from-nexus-core.lib.mjs`의 하드코딩 상수(MODEL_TIER_TO_CLAUDE, MAX_TURNS_MAP) 또는 capabilities 유도로 합성
+- **예외**: `.claude/skills/deploy/SKILL.md`는 project-local (nexus-core 밖, claude-nexus 자체 release 자동화)
+
 ## 태스크 파이프라인
 
 `plan → tasks.json 생성 → run → 에이전트 실행 → task_update → task_close → history.json 아카이브`
@@ -44,6 +54,7 @@
 - PreToolUse에서 Edit/Write 차단 (tasks.json 있을 때, 태스크 미완료 시)
 - Stop에서 종료 차단 (pending 태스크 존재 시)
 - 의존성 기반 병렬/직렬 디스패치
+- **Tag drift detection**: gate.ts `HANDLED_TAG_IDS` 상수와 nexus-core `vocabulary/tags.yml` tag id set이 build 시점에 cross-check됨. 불일치 시 build 실패. (`verifyTagDrift()` in `generate-from-nexus-core.lib.mjs`)
 
 ## 지식 관리 철학
 
