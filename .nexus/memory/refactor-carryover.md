@@ -103,7 +103,7 @@ nexus-core `skills/*/meta.yml`에 optional 필드 추가:
 
 ---
 
-## [ ] CA-5 — nx-init 동작 변화 CHANGELOG 기재
+## [x] CA-5 — nx-init 동작 변화 CHANGELOG 기재 (2026-04-11, v0.25.1 release)
 
 **심각도**: user-facing
 **트리거**: VERSION 0.25.1 bump PR 작성 시점
