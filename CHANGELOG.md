@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.25.1 (2026-04-11)
+
+### Refactoring
+- regenerate skills + tags.json from nexus-core
+- regenerate agents from nexus-core (activate generator)
+
 ## 0.25.0 (2026-04-10)
 
 ### Features
