@@ -279,7 +279,21 @@ export function transformSkill(meta, body, pluginName, manifestEntry, label = ''
   }
 
   const frontmatter = emitFrontmatter(fm, SKILL_FIELD_ORDER);
-  const bodyPart = body.startsWith('\n') ? body : '\n' + body;
+
+  // Inject harness-local docs referenced by harness_docs_refs
+  let enrichedBody = body;
+  const refs = manifestEntry?.harness_docs_refs;
+  if (Array.isArray(refs) && refs.length > 0) {
+    for (const ref of refs) {
+      const contentPath = join(CLAUDE_NEXUS_ROOT, 'harness-content', `${ref}.md`);
+      if (existsSync(contentPath)) {
+        const content = readFileSync(contentPath, 'utf8').trim();
+        enrichedBody += '\n\n---\n\n' + content + '\n';
+      }
+    }
+  }
+
+  const bodyPart = enrichedBody.startsWith('\n') ? enrichedBody : '\n' + enrichedBody;
   return frontmatter + bodyPart;
 }
 

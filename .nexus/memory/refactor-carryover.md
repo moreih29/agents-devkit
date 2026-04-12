@@ -124,14 +124,9 @@ exit 0
 
 **심각도**: enhancement
 **트리거**: nexus-core maintainer 응답 (issue #4)
-**해결**: nexus-core v0.2.0에서 `harness_docs_refs` 필드가 skill manifest에 추가됨 (nx-plan, nx-run 모두 `["resume_invocation"]`). Issue #4 CLOSED. 마커 삽입(HARNESS:*) 대신 메타데이터 참조 방식을 채택 — consumer가 `harness_docs_refs`를 읽어 로컬 콘텐츠를 주입하는 구현은 별도 cycle로 진행.
+**해결**: nexus-core v0.2.0에서 `harness_docs_refs` 필드가 skill manifest에 추가됨 (nx-plan, nx-run 모두 `["resume_invocation"]`). Issue #4 CLOSED. Consumer 구현 완료: `harness-content/resume_invocation.md` 배치, `transformSkill()`에서 `harness_docs_refs` 기반 body 주입, e2e 검증 추가.
 
 **Upstream link**: https://github.com/moreih29/nexus-core/issues/4
-
-**잔여 consumer 구현 (별도 cycle)**:
-1. `harness-content/resume_invocation.md` 파일 배치 (subagent resume syntax 본문)
-2. `transformSkill()`에서 `harness_docs_refs` 읽어 body 끝에 harness-content 주입
-3. e2e 테스트 추가
 
 ---
 

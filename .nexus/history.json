@@ -6034,6 +6034,75 @@
           "created_at": "2026-04-12T08:54:32.307Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-12T09:14:24.710Z",
+      "branch": "feat/harness-docs-injection",
+      "plan": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "harness-content/resume_invocation.md 생성",
+          "context": "CA-7 잔여: nexus-core v0.2.0이 nx-plan/nx-run에 harness_docs_refs: [\"resume_invocation\"]을 추가함. claude-nexus가 이 키에 매칭되는 로컬 콘텐츠를 skill body에 주입해야 함. 본문 내용은 .nexus/memory/subagent-resume.md의 핵심 정보를 5줄로 압축.",
+          "approach": "harness-content/ 디렉토리 생성, resume_invocation.md 작성: SendMessage agentId 호출법 + name vs agentId 차이 + 상태 저장 위치 + EXPERIMENTAL flag + 컨텍스트 복원 설명",
+          "acceptance": "harness-content/resume_invocation.md 존재, 5줄 이내 핵심 resume syntax",
+          "status": "completed",
+          "deps": [],
+          "owner": "lead",
+          "created_at": "2026-04-12T09:09:58.252Z"
+        },
+        {
+          "id": 2,
+          "title": "transformSkill()에 harness_docs_refs 주입 로직 추가",
+          "context": "generate-from-nexus-core.lib.mjs의 transformSkill()이 manifestEntry.harness_docs_refs를 읽어 매칭되는 harness-content/{ref}.md 파일을 body 끝에 append해야 함. verifyBodyHash는 원본 body만 검증 — 주입은 그 이후에 발생. Target: generate-from-nexus-core.lib.mjs",
+          "approach": "transformSkill() 내부에서 manifestEntry.harness_docs_refs 순회, 각 ref에 대해 harness-content/{ref}.md 존재 확인 후 body 끝에 separator(---) + 내용 append. existsSync/readFileSync 이미 import 존재.",
+          "acceptance": "bun run build 시 nx-plan/nx-run SKILL.md body 끝에 resume invocation 섹션 존재",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "owner": "engineer",
+          "created_at": "2026-04-12T09:10:04.530Z"
+        },
+        {
+          "id": 3,
+          "title": "e2e 테스트: harness_docs_refs 주입 검증",
+          "context": "생성된 skills/nx-run/SKILL.md와 skills/nx-plan/SKILL.md에 resume invocation 본문이 주입됐는지 e2e.sh에서 검증. Target: test/e2e.sh",
+          "approach": "Generated artifacts 섹션에 SendMessage 문자열 grep 테스트 추가",
+          "acceptance": "e2e.sh에 harness_docs_refs 검증 테스트 존재, 통과",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "owner": "engineer",
+          "created_at": "2026-04-12T09:10:08.297Z"
+        },
+        {
+          "id": 4,
+          "title": "nexus-core upgrade protocol을 development.md에 추가",
+          "context": "CONSUMING.md가 consumer repo에 upgrade protocol 설정을 권장. nexus-core 버전 변경 시 자동으로 CONSUMING.md를 따르도록 .nexus/rules/development.md에 규칙 추가. Target: .nexus/rules/development.md",
+          "approach": "development.md의 Release 섹션 근처에 Upstream 섹션 추가: nexus-core 버전 변경 감지 시 manifest 읽기 → CONSUMING.md WebFetch → Upgrade Protocol 따르기",
+          "acceptance": "development.md에 upgrade protocol 규칙 존재",
+          "status": "completed",
+          "deps": [],
+          "owner": "lead",
+          "created_at": "2026-04-12T09:10:12.555Z"
+        },
+        {
+          "id": 5,
+          "title": "build + test + CA-7 carryover 완료 처리",
+          "context": "전체 빌드 및 테스트 검증 후 refactor-carryover.md CA-7 잔여 항목 완료 처리",
+          "approach": "bun run build → bun run build:types → bash test/e2e.sh → carryover 갱신",
+          "acceptance": "전체 통과, CA-7 잔여 항목 제거 또는 완료 표기",
+          "status": "completed",
+          "deps": [
+            3,
+            4
+          ],
+          "owner": "lead",
+          "created_at": "2026-04-12T09:10:15.968Z"
+        }
+      ]
     }
   ]
 }

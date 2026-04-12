@@ -15,5 +15,12 @@
 - `templates/nexus-section.md`와 CLAUDE.md의 `<!-- NEXUS:START -->`~`<!-- NEXUS:END -->` 블록은 `generate-template.mjs`가 자동 생성 — 직접 수정 금지
 - README는 한국어(README.md) + 영어(README.en.md) 동시 유지
 
+## Upstream (@moreih29/nexus-core)
+- `package.json`의 `@moreih29/nexus-core` 버전 변경 감지 시:
+  1. `node_modules/@moreih29/nexus-core/manifest.json` 읽기
+  2. WebFetch `https://github.com/moreih29/nexus-core/blob/v{새버전}/CONSUMING.md` → Upgrade Protocol 따르기
+  3. CHANGELOG의 `<!-- nx-car:v{X.Y.Z}:start -->` 마커로 breaking changes 확인
+  4. MIGRATIONS/ 디렉토리에 마이그레이션 가이드 있으면 참조
+
 ## Release
 - 배포 전 /deploy 스킬로 pre-release 검증 필수

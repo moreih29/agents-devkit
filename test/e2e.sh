@@ -407,6 +407,25 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# harness_docs_refs injection
+NX_RUN_BODY=$(cat skills/nx-run/SKILL.md)
+if echo "$NX_RUN_BODY" | grep -q "SendMessage"; then
+  green "skill/nx-run harness_docs_refs injected"
+  PASS=$((PASS + 1))
+else
+  red "skill/nx-run harness_docs_refs injected — SendMessage not found"
+  FAIL=$((FAIL + 1))
+fi
+
+NX_PLAN_BODY=$(cat skills/nx-plan/SKILL.md)
+if echo "$NX_PLAN_BODY" | grep -q "SendMessage"; then
+  green "skill/nx-plan harness_docs_refs injected"
+  PASS=$((PASS + 1))
+else
+  red "skill/nx-plan harness_docs_refs injected — SendMessage not found"
+  FAIL=$((FAIL + 1))
+fi
+
 echo ""
 echo "=== Frontmatter parse ==="
 
