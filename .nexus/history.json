@@ -5791,6 +5791,90 @@
           "created_at": "2026-04-11T12:45:12.363Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-12T01:45:07.548Z",
+      "branch": "docs/harness-extension-upstream-proposal",
+      "plan": {
+        "id": 4,
+        "topic": "nexus-core에 harness extension point 도입 — resume invocation을 첫 유스케이스로",
+        "issues": [
+          {
+            "id": 1,
+            "title": "Extension point 설계 — HARNESS 마커 convention, 일반화 수준, 치환 실패 정책",
+            "status": "decided",
+            "decision": "A안(Architect 전체 제안 수용) 선택. 3개 서브결정 조합: (SD1) HARNESS:* 접두 convention + nexus-core `vocabulary/harness_keys.yml` 신규 파일에 resume_invocation 1개만 등록 — capability/tags.yml과 같은 neutral vocabulary 층위로 철학 정합. (SD2) unknown key는 throw(오타 fail-fast), unhandled key(allowlist 등록됐으나 consumer 미구현)는 warn + grep 가능 prefix `[HARNESS] unhandled marker \"xxx\" in ...` + pass-through — sibling 비동기 릴리스 window 지원. (SD3) 무결성 5대 안전장치: (1) self-closing single-line marker만 허용(regex `^<!-- HARNESS:([a-z_][a-z0-9_]*) -->$`), (2) add-only non-marker 라인 보존 assertion(원본 라인 삭제/변형 금지), (3) 주입 텍스트 상한 32line/2KB(harness_keys.yml에 per-key 지정), (4) 주입 텍스트 내 재귀 HARNESS 마커 금지, (5) 영향 범위 로깅 + injectHarnessMarkers 단위 테스트. 호출 시점은 verifyBodyHash 이후 transformSkill 내부. 반려: B(단순-오타 silent drift), C(엄격-선행 릴리스 window 부정으로 dogfood 마찰).",
+            "how_agents": [
+              "architect"
+            ],
+            "how_summary": {
+              "architect": "A1 전제 안에서 3개 sub-decision 독립 분석. SD1 B+C 점진 진입(harness_keys.yml 골격 파일) — capability abstraction과 동형 패턴으로 neutral vocabulary 정합. SD2 warn/throw 분할 — 오타와 미구현 구분, sibling 비동기 릴리즈 지원. SD3 5개 안전장치 — self-closing marker, add-only line set superset, 32line/2KB 상한, 재귀 금지, 로깅+unit test. 구체 스케치: vocabulary/harness_keys.yml yaml 스키마, skills/nx-run/body.md 마커 삽입 예, HARNESS_INJECTIONS 상수 + injectHarnessMarkers 함수 pseudo-code 제공. 호출 시점은 verifyBodyHash 이후 transformSkill 내부로 무결성 체인 유지."
+            },
+            "how_agent_ids": {
+              "architect": "a4f40d219bc6aaea5"
+            }
+          },
+          {
+            "id": 2,
+            "title": "적용 범위와 실행 순서 — 어느 skill에 마커 삽입, nexus-core PR ↔ claude-nexus 구현 순서, opencode-nexus 조율 경계",
+            "status": "decided",
+            "decision": "A안 + 실행 경로 재정의. 기본 결정: (SD1 마커 범위) nx-run/body.md의 Resume Dispatch Rule 섹션 + nx-plan/body.md의 Resume Policy 섹션 양쪽에 `<!-- HARNESS:resume_invocation -->` self-closing marker 삽입 권장. agents/*/body.md는 대상 아님. (SD2 실행 순서) 순차. (SD3 opencode) 이번 plan scope 외, opencode-nexus 쪽 구현은 사용자의 opencode 마이그레이션 일정에 위임. **실행 경로 재정의**: claude-nexus가 nexus-core에 직접 PR/코드 수정을 올리지 않음. 대신 **upstream nexus-core에 issue filing**으로 제안만 전달. nexus-core 측이 issue를 읽고 \"run/plan에 마커를 넣을지, 다른 skill도 필요한지, 실제 구현 디테일\"을 자율 판단. claude-nexus의 역할은 \"잘 정리된 설계 제안 문서 제출\". upstream 이슈 문서 내용에는 Issue #1(extension point 설계: HARNESS:* convention, vocabulary/harness_keys.yml, warn/throw 분할, 5개 안전장치)과 Issue #2(마커 범위, 실행 순서 근거) 결정을 모두 포함. Issue #3(Claude Code resume 콘텐츠 본문)는 claude-nexus consumer 책임이므로 별개로 결정하되, upstream 이슈에 \"consumer가 주입할 콘텐츠의 예시\"로 참고 첨부. nexus-core가 제안을 수용하고 배포한 이후의 claude-nexus 소비 구현(devDependency bump + transformSkill 수정 + harness-content 파일 실제 배선)은 별도 cycle로 분리. 반려: B(넓게 - opencode 동시 PR), C(좁게 - nx-run만 + opencode 언급 없음)."
+          },
+          {
+            "id": 3,
+            "title": "Claude Code resume 콘텐츠 본문 설계 — 포함 요소, 길이, 저장 구조와 네이밍",
+            "status": "decided",
+            "decision": "A안 선택 (5 요소 / 6 line / harness-content/*.md 파일 구조). (SD1 포함 요소 5개) (1) 호출 syntax `SendMessage({to: \"<agentId>\", message: \"...\"})`, (2) name vs agentId 결정적 차이 — name은 running 팀원 통신용이고 완료된 에이전트 resume에는 agentId 필수, (3) agentId 획득 경로 — plan.json `how_agent_ids` / tasks.json `owner_agent_id`, (4) 전제 조건 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`과 silent fresh fallback, (5) 재개 후 delta 메시지 관행. (SD2 길이) ~6 line (1 intro + 5 bullet), max_lines:32 / max_bytes:2048 상한 대비 여유. (SD3 저장 구조) claude-nexus 최상위 `harness-content/<key>.md` 파일 (예: `harness-content/resume-invocation.md`). 파일명이 key와 1:1 매칭. 파일 존재 자체가 \"consumer가 이 key 구현함\"의 allowlist 역할 — JS 인라인 상수 불필요. `injectHarnessMarkers`는 `readFileSync(join(__dirname, 'harness-content', `${key}.md`))` 시도, ENOENT → unhandled로 판정해 warn + pass-through. .gitignore 대상 아님(repo 포함). package.json `files` 대상 아님(build-time only, 배포되는 건 치환된 generated SKILL.md). 반려: B(더 최소, id 획득 경로 빠져 Lead 재질문 발생), C(더 상세, .nexus/memory/subagent-resume.md와 SSOT 중복). Issue #1/2 scope 재정의에 따라 이 본문은 (a) 실제 harness-content/ 파일 — nexus-core 반영 이후 배치, (b) upstream issue 문서의 \"consumer 주입 content 예시\" 첨부, 두 용도로 동시 활용."
+          }
+        ],
+        "research_summary": "## 이미 수집된 사실\n\n1. **nexus-core 역할**: harness-neutral prompt body + neutral metadata + vocabulary 담당. 집행 semantics는 consumer 책임 (ecosystem primer §1.1, §3.4).\n\n2. **generate-from-nexus-core.lib.mjs 현재 구조**: `transformSkill(meta, body, pluginName)`가 frontmatter 필드만 override(SKILL_PURPOSE_OVERRIDE 등), body는 pass-through. body_hash sha256 검증은 원본 body에 대해 수행 → consumer의 post-verify body 수정은 무결성 위반 아님.\n\n3. **현재 resume 지식 분포**:\n   - nexus-core skills/nx-plan `Resume Policy`(언제 resume)와 nx-run `Resume Dispatch Rule`(5단계 판단)은 둘 다 **harness-neutral**. \"SendMessage\" 단어는 나오지만 `to: agentId` syntax나 agentId 획득 경로 없음\n   - `.nexus/memory/subagent-resume.md`: 유일한 \"어떻게\" 지식 (Claude Code 실측 검증 노트). `name` vs `agentId` 구분, prompt cache 재활용, 비용 실측, 제약까지 포함. dev memo이고 배포 surface 아님\n\n4. **SKILL_PURPOSE_OVERRIDE 선례 (CA-2)**: nexus-core neutral + consumer harness-local override 패턴이 이미 존재. 새 패턴이 아니라 확장.\n\n5. **사용자 확인된 제약**:\n   - opencode-nexus가 nexus-core 기반 마이그레이션 진행 중, 곧 dogfood 예정 → sibling 관계 실질 활성\n   - 구조 우선 > 빠른 해결. dogfooding §5.1 완화 원칙 비적용(요구가 확실하므로)\n   - 방향 **A1 (HTML comment marker)** 합의: `<!-- HARNESS:resume_invocation -->` 형태. 근거는 capability abstraction과 동형(semantic 확장 지점 힌트), silent no-op 안전, rendering 투명\n\n6. **의견 교환에서 미결된 세부**:\n   - 마커 convention 일반화 수준 (단일 vs 접두 convention)\n   - 치환 실패 정책 (silent / warning / build fail)\n   - 마커 삽입 위치 (nx-run only vs nx-plan+nx-run 양쪽)\n   - 치환 콘텐츠 저장 구조 (별도 markdown 파일 vs 인라인 상수 / naming convention)\n   - Claude Code resume 본문 포함 요소 (SendMessage syntax, 예시, agentId 획득 경로 등)\n   - 실행 순서: nexus-core PR → 배포 → claude-nexus devDependency bump\n   - opencode-nexus 쪽 구현은 scope 외 분리 (사용자 마이그레이션 일정에 위임)\n\n7. **관련 진실**:\n   - `.nexus/rules/development.md`는 방금(cycle 73) \"agents/skills/tags.json은 nexus-core 생성물 → upstream 수정\" rule로 갱신됨. 이번 plan 결정은 이 rule의 첫 실제 적용 사례\n   - Plan #4는 cycle 73으로 archived. 현재 plan.json 없음",
+        "created_at": "2026-04-11T13:01:42.897Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nexus-core upstream issue 문서 초안 작성 — harness extension point 제안",
+          "context": "이번 plan 세션(#4, cycle 74 예정)의 실제 산출물은 nexus-core 코드 직접 수정이 아니라 **upstream issue filing용 제안 문서**. nexus-core 유지보수자(작성자 본인이지만 별도 컨텍스트로 검토)가 이 문서를 읽고 \"extension point 도입 여부\", \"어느 skill에 마커를 넣을지(run/plan 외에도 필요한지)\", \"구체 구현 디테일\"을 자율 판단. 따라서 이 문서는 (a) claude-nexus consumer가 **제안하는** 설계 논리와 (b) 채택 시 consumer가 주입할 **예시 콘텐츠**를 함께 담아야 함. 파일 위치: `.nexus/memory/upstream-issue-harness-extension.md` (기존 `.nexus/memory/upstream-issue-draft.md`는 존재하지 않음 — 새 파일). 톤: nexus-core에 대한 respectful request + 충분한 근거 + 최소 침입 보장.",
+          "approach": "Writer subagent 소환. 프롬프트에 다음을 전달:\n\n1. Plan #4 research_summary 전체 (nexus-core 철학, transformSkill 현재 구조, capability abstraction 선례, CA-2 workaround 패턴, opencode-nexus sibling 상황)\n\n2. 3 이슈 결정 요약 (Issue #1 extension point 설계, Issue #2 범위와 scope 재정의, Issue #3 resume content)\n\n3. 문서 구성 요구:\n   - ## Background — 현재 문제(resume 사용법이 skill body 어디에도 없고 .nexus/memory/ dev memo에만 존재) + 왜 neutral 원칙 안에서 해결해야 하는지\n   - ## Proposed Design — HARNESS:* marker convention, vocabulary/harness_keys.yml, warn/throw 분할, 5 안전장치. capability abstraction과의 동형 패턴 강조\n   - ## Scope of Change in nexus-core — 구체적 파일 변경 제안: vocabulary/harness_keys.yml 신설 예시 YAML, skills/nx-run/body.md와 skills/nx-plan/body.md에 single-line marker 삽입 예시, manifest.json body_hash 재계산 필요\n   - ## Consumer Side (claude-nexus) — 어떤 구현이 따라갈지 간략 설명 (injectHarnessMarkers 함수, harness-content/*.md 파일, transformSkill 호출 시점). 이건 \"nexus-core 측에서는 몰라도 되는 정보이지만 설계 의도 이해를 위해 참고 첨부\"\n   - ## Example Injection Content (Claude Code, for reference) — Issue #3 결정된 6 line resume_invocation 본문 첨부\n   - ## Questions for nexus-core maintainer — 열린 질문: (a) run/plan 외 다른 skill도 마커 필요한가? (b) vocabulary/harness_keys.yml 구조가 capabilities.yml/tags.yml convention과 정합한가? (c) max_lines/max_bytes 상한 값이 적절한가? (d) 재귀 금지 정책에 반대 의견 있는가?\n   - ## Compatibility Notes — HTML comment이므로 consumer가 무시해도 rendering 투명, opencode-nexus가 consumer 로직 미구현 상태여도 silent no-op\n\n4. 톤/format: 기존 `.nexus/memory/refactor-carryover.md`의 CA-1, CA-2 섹션과 유사한 structured issue spec 형식. 한국어/영어 혼용 가능하되 upstream 유지보수자가 읽을 거라 주요 결정 키워드(marker convention, warn/throw split 등)는 영어 보존.\n\nWriter는 `.nexus/memory/upstream-issue-harness-extension.md`를 `nx_artifact_write`로 생성하고 Lead에 완료 보고.",
+          "acceptance": "`.nexus/memory/upstream-issue-harness-extension.md` 파일 생성됨. 다음 9개 섹션 모두 존재: (1) Background with 문제 정의, (2) Proposed Design with HARNESS convention/allowlist/warn-throw/5 안전장치 명시, (3) Scope of Change in nexus-core with vocabulary/harness_keys.yml YAML 예시 + body.md 마커 삽입 위치, (4) Consumer Side 간략 설명, (5) Example Injection Content (resume_invocation 6 line), (6) Questions for nexus-core maintainer 최소 4개, (7) Compatibility Notes, (8) Capability abstraction과의 동형 철학 근거 언급, (9) 최소 침입/sibling 릴리스 window 지원 설명. 문체는 제안/요청 톤 (command 톤 아님).",
+          "risk": "Writer가 plan 결정을 잘못 해석할 위험 → 프롬프트에 research_summary + 3 이슈 decision을 모두 전달해 차단. 산출물 품질은 Task 2의 reviewer가 검증.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "writer",
+          "created_at": "2026-04-11T13:16:08.520Z"
+        },
+        {
+          "id": 2,
+          "title": "upstream issue 문서 검증 (fact-check + 결정 정확 반영 + grammar)",
+          "context": "Task 1에서 writer가 생성한 `.nexus/memory/upstream-issue-harness-extension.md`를 reviewer가 검증. writer→reviewer 자동 페어링. 이 문서는 nexus-core 유지보수자에게 제출될 공식 제안이므로 결정 사실 정확성이 중요.",
+          "approach": "Reviewer subagent 소환. 프롬프트에 다음 전달: (1) Task 1 산출 파일 경로 `.nexus/memory/upstream-issue-harness-extension.md`, (2) plan #4의 3 이슈 결정 요약 (원본 검증 대조용), (3) research_summary. 검증 항목: (a) 결정 사실 accuracy — Issue #1 5 안전장치가 모두 문서에 들어갔는지, warn/throw 분할이 오해 없이 설명됐는지, vocabulary/harness_keys.yml 스키마가 plan 결정과 일치하는지. (b) Scope 재정의 명시 — 이 문서가 nexus-core 코드 직접 수정이 아닌 제안임이 명확한지. (c) Example injection content가 Issue #3의 5 요소를 정확히 담았는지 (SendMessage syntax, name/agentId 구분, how_agent_ids 경로, experimental flag, delta 관행). (d) grammar/format — 한국어/영어 혼용이 일관성 있게, section 계층이 올바른지, 상위 nexus-core maintainer에 대한 톤이 적절한지(command 아닌 request). 이슈 발견 시 reviewer는 verdict와 구체 수정 제안을 Lead에 보고. Lead가 writer에 re-delegate 또는 lead 직접 수정 판단.",
+          "acceptance": "Reviewer가 PASS/FAIL verdict 보고. FAIL인 경우 구체 issue list + 권장 수정. PASS인 경우 문서는 upstream filing 준비 완료 상태로 간주.",
+          "risk": "reviewer가 writer의 해석 차이를 \"fail\"로 과판정할 위험 → 그 경우 Lead가 judgment call로 조율.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "reviewer",
+          "created_at": "2026-04-11T13:16:21.808Z"
+        },
+        {
+          "id": 3,
+          "title": "refactor-carryover.md에 harness extension point tracking 항목 추가",
+          "context": "이번 plan의 산출물은 upstream issue 제안 문서(Task 1, 2). 실제 filing은 사용자가 수동으로 수행하지만, claude-nexus 내부 tracking은 `.nexus/memory/refactor-carryover.md`에 이미 확립된 CA-N 패턴(CA-1/CA-2가 nexus-core issue tracking 선례)으로 추가 필요. 이렇게 해야 nexus-core가 응답한 후의 후속 cycle(devDependency bump + transformSkill 구현 + harness-content/resume-invocation.md 배치)이 체계적으로 이어짐.",
+          "approach": "Lead가 직접 처리. refactor-carryover.md를 Read한 뒤 CA-1~CA-6 패턴에 맞춰 새 항목(CA-7 예상) 추가. Edit tool 사용. 항목 내용: (1) 제목 \"harness extension point upstream proposal (HARNESS:* marker convention)\", (2) 심각도: enhancement / dormant, (3) 트리거: nexus-core maintainer 응답, (4) 현상: 현재 resume invocation syntax가 skill body에 부재, .nexus/memory/subagent-draft.md에만 존재, (5) claude-nexus workaround: 해당 없음 (upstream 응답 대기), (6) 해결 방향: plan #4 결정 요약 3줄 + `.nexus/memory/upstream-issue-harness-extension.md` 파일 경로 참조, (7) Upstream link: TBD — 사용자가 GitHub issue 만든 후 업데이트. 기존 CA 항목들의 포맷/구조 보존.",
+          "acceptance": "refactor-carryover.md에 새 CA 항목이 CA-6 뒤에 추가됨. 기존 CA-1~CA-6 내용 무변경. 새 항목에 plan #4 결정 요약 + upstream-issue-harness-extension.md 파일 경로 참조 + Upstream link TBD 필드 포함. 포맷이 기존 CA 항목들과 일관.",
+          "risk": "refactor-carryover.md는 live 문서 — 다른 CA 항목과 충돌 없음 확인 필요. Edit tool이 unique match 요구하므로 CA-6 마지막 라인 이후 append 방식으로 안전.",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "plan_issue": 2,
+          "owner": "lead",
+          "created_at": "2026-04-11T13:16:36.029Z"
+        }
+      ]
     }
   ]
 }
