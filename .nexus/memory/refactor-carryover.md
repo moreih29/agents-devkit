@@ -9,53 +9,23 @@
 
 ---
 
-## [ ] CA-1 — nexus-core tags.yml trigger/id 일관성 validation (nexus-core 이슈)
+## [x] CA-1 — nexus-core tags.yml trigger/id 일관성 validation (nexus-core 이슈)
 
 **심각도**: warning
 **트리거**: nexus-core upstream issue filing 후 nexus-core 측 응답
+**해결**: nexus-core v0.2.0에서 Gate 11 validation 추가됨 (CHANGELOG "Gate 11 validation for tags.yml consistency"). Upstream issue #2 CLOSED.
 
-**현상**:
-nexus-core `vocabulary/tags.yml`에서 tag entry의 `id`와 `trigger` 필드가 독립적으로 존재한다. 예를 들어:
-- `id: m-gc` (kebab form, schema validation용)
-- `trigger: "[m:gc]"` (colon form, 실제 display/invocation 형태)
-
-이 두 필드의 일관성을 validate.ts가 체크하지 않아, 작성자가 실수로 `trigger: "[m_gc]"` 같은 잘못된 값을 입력해도 통과된다.
-
-**claude-nexus workaround**:
-`generate-from-nexus-core.lib.mjs`의 `transformTags()`에서 `t.trigger`를 bracket-strip 하여 display form(`m:gc`)을 보존. `t.id`(`m-gc`)를 그대로 쓰면 gate.ts의 `[m:gc]` 정규식과 불일치해 런타임 에러.
-
-**해결 방향**:
-nexus-core `validate.ts`에 Gate 11 추가:
-- 각 tag entry에 대해 `trigger === "[" + id + "]"` assert, OR
-- 명시적 display variant 필드 도입
+**claude-nexus workaround 유지**: `transformTags()`의 bracket-strip은 그대로 둠 (무해하며 방어적).
 
 **Upstream link**: https://github.com/moreih29/nexus-core/issues/2
 
 ---
 
-## [ ] CA-2 — SKILL_PURPOSE_OVERRIDE upstream 메커니즘 (nexus-core 이슈)
+## [x] CA-2 — SKILL_PURPOSE_OVERRIDE upstream 메커니즘 (nexus-core 이슈)
 
 **심각도**: warning
 **트리거**: nexus-core upstream issue filing 후 nexus-core 측 응답
-
-**현상**:
-nexus-core `skills/*/meta.yml`은 `description` 한 필드만 제공. consumer(claude-nexus)가 CLAUDE.md 테이블 렌더링에 사용할 **짧고 punchy한 summary 문자열**은 별도로 유지해야 함. 현재 `generate-from-nexus-core.lib.mjs`에 `SKILL_PURPOSE_OVERRIDE` 5-entry 하드코딩 테이블로 처리.
-
-**claude-nexus workaround**:
-```js
-const SKILL_PURPOSE_OVERRIDE = {
-  'nx-init':  'Full project onboarding: scan codebase, establish project mission and essentials, generate context knowledge',
-  'nx-plan':  'Structured planning — subagent-based analysis, deliberate decisions, produce execution plan',
-  // ... 3 more entries
-};
-```
-
-upstream nexus-core가 skill meta를 변경하면 이 테이블이 stale해질 위험. 다만 현재 5 entries라 drift 가능성 낮음.
-
-**해결 방향**:
-nexus-core `skills/*/meta.yml`에 optional 필드 추가:
-- 제안 A: `harness_display.purpose` (harness-specific short label)
-- 제안 B: `description_short` (language-neutral summary)
+**해결**: nexus-core v0.2.0에서 manifest.json skill entries에 `summary` 필드 추가됨. claude-nexus `SKILL_PURPOSE_OVERRIDE` 상수 제거, `transformSkill()`이 `manifestEntry.summary`를 purpose로 사용하도록 전환 완료. Upstream issue #2 CLOSED.
 
 **Upstream link**: https://github.com/moreih29/nexus-core/issues/2
 
@@ -150,34 +120,18 @@ exit 0
 
 ---
 
-## [ ] CA-7 — harness extension point upstream proposal (HARNESS:* marker convention)
+## [x] CA-7 — harness extension point upstream proposal (HARNESS:* marker convention)
 
 **심각도**: enhancement
 **트리거**: nexus-core maintainer 응답 (issue #4)
-
-**현상**:
-Claude Code subagent resume invocation syntax(`SendMessage({to: agentId, ...})`)가 실제로 작동하지만 nexus-core skill body 어디에도 문서화되어 있지 않음. 유일한 지식은 claude-nexus dev memo `.nexus/memory/subagent-resume.md`(2026-04-09 검증, 2026-04-10 업데이트)에만 존재해 플러그인 사용자는 접근 불가. nx-run "Resume Dispatch Rule"과 nx-plan "Resume Policy" 섹션이 *언제* resume할지는 설명하나 *어떻게* 호출할지는 빠져 있어, Lead가 generated SKILL.md만 보고는 `to: name`(잘못)과 `to: agentId`(올바름)를 구분 못 함.
-
-**claude-nexus workaround**: 해당 없음 — upstream 응답 대기 중. claude-nexus가 generated `skills/*/SKILL.md`를 직접 편집하면 build 시 덮어쓰임(generated 파일 직접 편집 금지 룰).
-
-**해결 방향**:
-nexus-core에 `HARNESS:*` extension point 메커니즘 도입 제안. Plan #4(session 2)의 결정 요약:
-- `vocabulary/harness_keys.yml` 신설(neutral allowlist, capabilities.yml/tags.yml과 같은 vocabulary 층위) + body에 self-closing `<!-- HARNESS:resume_invocation -->` 마커
-- warn(unhandled) / throw(unknown) 분할 — sibling 비동기 릴리스 window 지원, 오타는 fail-fast
-- 5개 무결성 안전장치: self-closing single-line marker, add-only non-marker line preservation, max_lines/max_bytes 상한, 재귀 금지, 로깅+e2e unit test
-- consumer 측 구현은 `harness-content/<key>.md` 파일 구조(파일 존재 = implemented), transformSkill에서 `verifyBodyHash` 이후 호출
-
-제안 문서: `.nexus/memory/upstream-issue-harness-extension.md`(전체 9 섹션 + 6 open questions)
+**해결**: nexus-core v0.2.0에서 `harness_docs_refs` 필드가 skill manifest에 추가됨 (nx-plan, nx-run 모두 `["resume_invocation"]`). Issue #4 CLOSED. 마커 삽입(HARNESS:*) 대신 메타데이터 참조 방식을 채택 — consumer가 `harness_docs_refs`를 읽어 로컬 콘텐츠를 주입하는 구현은 별도 cycle로 진행.
 
 **Upstream link**: https://github.com/moreih29/nexus-core/issues/4
 
-**후속 작업 (nexus-core 수용 시, 별도 cycle)**:
-1. nexus-core가 `vocabulary/harness_keys.yml` + `skills/nx-run/body.md` + `skills/nx-plan/body.md` + `manifest.json` body_hash 갱신 → release (primer §5.1 기준 major bump 권장)
-2. claude-nexus `package.json` devDependency bump
-3. `generate-from-nexus-core.lib.mjs`에 `injectHarnessMarkers` 함수 추가 (vocabulary/harness_keys.yml 로딩 + 5 안전장치 enforcement)
-4. `harness-content/resume_invocation.md` 파일 배치 (Plan #4 Issue #3 결정된 5-line 본문)
-5. `bun run build` 후 regenerate된 `skills/nx-run/SKILL.md`와 `skills/nx-plan/SKILL.md`에 resume invocation 본문이 주입됐는지 확인
-6. `bash test/e2e.sh` + `injectHarnessMarkers` 단위 테스트 추가
+**잔여 consumer 구현 (별도 cycle)**:
+1. `harness-content/resume_invocation.md` 파일 배치 (subagent resume syntax 본문)
+2. `transformSkill()`에서 `harness_docs_refs` 읽어 body 끝에 harness-content 주입
+3. e2e 테스트 추가
 
 ---
 

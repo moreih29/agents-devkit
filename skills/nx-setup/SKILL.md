@@ -2,17 +2,17 @@
 name: nx-setup
 description: Interactive project setup wizard for Nexus configuration.
 trigger_display: "/claude-nexus:nx-setup"
-purpose: "Configure Nexus interactively"
+purpose: "Interactive Nexus configuration wizard"
 disable-model-invocation: true
 ---
 
 ## Role
 
-Interactive project setup wizard — configure Nexus for a new project with minimal token cost. Every step is a concrete choice via `AskUserQuestion`, with no open-ended exploration.
+Interactive project setup wizard — configure Nexus for a new project with minimal token cost. Every step is a concrete choice via `prompt_user`, with no open-ended exploration.
 
 ## Constraints
 
-- NEVER accept free-text input — every step must use `AskUserQuestion` with explicit options.
+- NEVER accept free-text input — every step must use `prompt_user` with explicit options.
 - NEVER skip the "Skip" option — all steps are optional.
 - NEVER modify files outside the selected scope without explicit user confirmation.
 - NEVER overwrite an existing `statusLine` field in settings.json without explicit user confirmation.
@@ -29,7 +29,7 @@ Interactive project setup wizard — configure Nexus for a new project with mini
 ### Step 1: Scope Selection
 
 ```
-AskUserQuestion({
+prompt_user({
   questions: [{
     question: "Where should the Nexus configuration be applied?",
     header: "Scope",
@@ -49,7 +49,7 @@ All file write paths for subsequent steps are determined by this selection:
 ### Step 2: Statusline
 
 ```
-AskUserQuestion({
+prompt_user({
   questions: [{
     question: "Enable the Nexus statusline? (model, branch, context usage, rate limits)",
     header: "Statusline",
@@ -105,7 +105,7 @@ Specifically, treat an existing statusline setting as detected if any of the fol
 If detected:
 
 ```
-AskUserQuestion({
+prompt_user({
   questions: [{
     question: "An existing statusline configuration was detected. Replace it with the Nexus statusline?",
     header: "Statusline",
@@ -137,7 +137,7 @@ Notify and skip:
 **Not installed:**
 
 ```
-AskUserQuestion({
+prompt_user({
   questions: [{
     question: "Install the context7 plugin? It enables agents to look up library docs in real time.",
     header: "Plugin",
@@ -166,7 +166,7 @@ Note: Once added to `enabledPlugins`, Claude Code automatically installs the plu
 ### Step 4: Knowledge Init
 
 ```
-AskUserQuestion({
+prompt_user({
   questions: [{
     question: "Auto-generate project core knowledge?",
     header: "Init",
@@ -193,12 +193,12 @@ Output a setup completion message:
 
 ## Key Principles
 
-1. **Every step uses AskUserQuestion** — no free-text input
+1. **Every step uses prompt_user** — no free-text input
 2. **Minimize tokens** — limit each step to concrete choices to prevent unnecessary exploration
 3. **Always provide a Skip option** — nothing is forced
 4. **Extensible structure** — includes recommended plugin step, expandable to additional categories in the future
 
 ## State Management
 
-Setup operates via sequential AskUserQuestion calls with no state file.
+Setup operates via sequential prompt_user calls with no state file.
 Configuration results are written to the scope-appropriate settings file at each step.

@@ -2,7 +2,7 @@
 name: nx-init
 description: "Project onboarding — scan, mission, essentials, context generation"
 trigger_display: "/claude-nexus:nx-init"
-purpose: "Full project onboarding: scan codebase, establish project mission and essentials, generate context knowledge"
+purpose: "Project onboarding — scan, mission, essentials, context generation"
 disable-model-invocation: true
 ---
 
@@ -15,7 +15,7 @@ Scans the project and builds Nexus knowledge in the flat .nexus/ structure. On f
 - NEVER modify source code. Slimming down CLAUDE.md beyond the project section is not this skill's responsibility.
 - NEVER infer or guess information that cannot be confirmed from code — do not write it to context/.
 - NEVER store secrets (API keys, credentials, etc.) in knowledge files.
-- NEVER overwrite existing files without `--reset`. On resume, preserve existing files.
+- NEVER overwrite existing files without `--reset`. On resume, preserve existing files intact.
 - Project section in CLAUDE.md MUST go through user confirmation before writing.
 - NEVER reference or create identity/, codebase/, reference/, or core/ paths.
 - Essentials section MUST NOT exceed 10 lines. If more items are needed, move lower-priority ones to .nexus/context/.
@@ -59,12 +59,9 @@ Show backup directory list, let user select backups to delete.
 ```
 IF --reset --cleanup flag:
   Show list of .nexus/bak.*/ directories
-  AskUserQuestion({
-    questions: [{
-      question: "Select a backup to delete (or cancel)",
-      options: [...backup list..., { label: "Cancel", description: "Exit without changes" }]
-    }]
-  })
+  Prompt user with options (using the harness's interactive prompt mechanism):
+    question: "Select a backup to delete (or cancel)"
+    options: [...backup list..., { label: "Cancel", description: "Exit without changes" }]
   Delete selected backup and exit
 
 ELSE IF --reset flag:
@@ -87,7 +84,7 @@ ELSE:
 
 Auto-detect code structure and tech stack. Create the flat `.nexus/` directory structure if it does not exist.
 
-Create directories (using Bash mkdir):
+Create directories (using shell command execution):
 - `.nexus/memory/`
 - `.nexus/context/`
 - `.nexus/state/`
@@ -173,7 +170,7 @@ On completion: "context knowledge N files generated"
 Check whether team custom rules are needed.
 
 ```
-AskUserQuestion({
+prompt_user({
   questions: [{
     question: "Do you want to set up development rules now?",
     options: [

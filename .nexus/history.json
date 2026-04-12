@@ -5875,6 +5875,108 @@
           "created_at": "2026-04-11T13:16:36.029Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-12T07:30:55.438Z",
+      "branch": "feat/nexus-core-v0.2.0-upgrade",
+      "plan": {
+        "id": 4,
+        "topic": "nexus-core v0.2.0 마이그레이션 — capability redesign + skill summary adoption",
+        "issues": [
+          {
+            "id": 1,
+            "title": "Breaking: indexCapabilities() harness_mapping 제거 대응 → 로컬 capability-map 생성",
+            "status": "decided",
+            "decision": "로컬 CAPABILITY_TOOL_MAP 상수를 lib.mjs에 생성. capability id → Claude Code tool name[] 매핑. indexCapabilities()를 manifest.vocabulary.capabilities 기반으로 재작성하되 tool resolution은 로컬 map에서. 별도 capability-map.yml 파일(rejected: 4개 매핑에 파일 분리는 과도, lib.mjs 상수가 적절). no_shell_exec 포함하여 forward-compat 확보."
+          },
+          {
+            "id": 2,
+            "title": "CA-2 해소: SKILL_PURPOSE_OVERRIDE → manifest summary 필드 전환",
+            "status": "decided",
+            "decision": "SKILL_PURPOSE_OVERRIDE 상수 제거. transformSkill()이 manifest entry의 summary 필드를 purpose로 사용. generate-from-nexus-core.mjs에서 skillEntry를 transformSkill에 전달하도록 시그니처 변경. summary 없는 skill은 description fallback (방어적)."
+          },
+          {
+            "id": 3,
+            "title": "생성물 재빌드 + 무결성 검증 + carryover 문서 갱신",
+            "status": "decided",
+            "decision": "dependency bump → bun install → bun run build (regenerate 포함) → bun run build:types → bash test/e2e.sh. 성공 시 refactor-carryover.md에서 CA-1(Gate 11 upstream 구현), CA-2(summary 전환 완료) 체크, CA-7 상태 업데이트 (이슈 #4 closed)."
+          }
+        ],
+        "research_summary": "CONSUMING.md Upgrade Protocol 확인, CHANGELOG v0.2.0 breaking changes 확인 (schema_contract 1.0→2.0, harness_mapping 제거, intent/blocks_semantic_classes/prose_guidance 신설, no_shell_exec 추가), MIGRATIONS/v0_1_to_v0_2.md 10-step checklist 확인, manifest.json 전체 스캔 (summary/harness_docs_refs 신규 필드, 전체 body_hash 변경), 현재 코드 분석 (lib.mjs indexCapabilities L83-92 harness_mapping 직접 참조, deriveDisallowedTools L126-145, SKILL_PURPOSE_OVERRIDE L36-42, transformSkill L273-293), 이슈 #2/#3/#4 전부 CLOSED 확인",
+        "created_at": "2026-04-12T07:24:48.707Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "dependency bump + install",
+          "context": "package.json devDependency @moreih29/nexus-core ^0.1.2 → ^0.2.0 변경 후 bun install",
+          "approach": "Edit package.json, bun install",
+          "acceptance": "node_modules/@moreih29/nexus-core/package.json version === 0.2.0",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-12T07:25:12.916Z"
+        },
+        {
+          "id": 2,
+          "title": "capability handling 재작성 — 로컬 CAPABILITY_TOOL_MAP + indexCapabilities 교체",
+          "context": "v0.2.0에서 harness_mapping 제거됨. indexCapabilities()가 harness_mapping.claude_code를 읽으므로 작동 불가. 로컬 capability→tool 매핑 상수 생성 후 함수 재작성 필요. Target: generate-from-nexus-core.lib.mjs",
+          "approach": "1) CAPABILITY_TOOL_MAP 상수 생성 (no_file_edit→[Edit,Write,NotebookEdit], no_task_create→[mcp__plugin_claude-nexus_nx__nx_task_add], no_task_update→[mcp__plugin_claude-nexus_nx__nx_task_update], no_shell_exec→[Bash]). 2) indexCapabilities() 재작성: manifest.vocabulary.capabilities 순회, 각 id가 CAPABILITY_TOOL_MAP에 있는지 검증. 3) deriveDisallowedTools() 에러 메시지 업데이트.",
+          "acceptance": "bun run build 성공, 생성된 agents/*.md의 disallowedTools가 이전과 동일",
+          "risk": "no_shell_exec는 현재 어떤 agent에도 할당되지 않음 — map에만 존재, 실제 사용은 없음",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-12T07:25:21.866Z"
+        },
+        {
+          "id": 3,
+          "title": "SKILL_PURPOSE_OVERRIDE 제거 + manifest summary 전환",
+          "context": "v0.2.0 manifest에 skill별 summary 필드 추가됨. 기존 SKILL_PURPOSE_OVERRIDE 하드코딩 5-entry 제거 가능. Target: generate-from-nexus-core.lib.mjs + generate-from-nexus-core.mjs",
+          "approach": "1) transformSkill() 시그니처에 manifest skill entry 전달 (summary 접근용). 2) SKILL_PURPOSE_OVERRIDE 상수 제거. 3) purpose = skillEntry.summary ?? collapseDescription(meta.description) fallback. 4) generate-from-nexus-core.mjs에서 skillEntry를 transformSkill에 전달.",
+          "acceptance": "bun run build 성공, 생성된 skills/*/SKILL.md의 purpose 필드가 manifest summary와 일치",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-12T07:25:26.688Z"
+        },
+        {
+          "id": 4,
+          "title": "build + type-check + e2e test",
+          "context": "코드 변경 후 전체 빌드 파이프라인 검증",
+          "approach": "bun run build → bun run build:types → bash test/e2e.sh",
+          "acceptance": "모든 명령 exit 0",
+          "status": "completed",
+          "deps": [
+            2,
+            3
+          ],
+          "plan_issue": 3,
+          "owner": "lead",
+          "created_at": "2026-04-12T07:25:29.276Z"
+        },
+        {
+          "id": 5,
+          "title": "생성물 검증 + carryover 문서 갱신",
+          "context": "생성된 agents/*.md, skills/*/SKILL.md 내용 확인. refactor-carryover.md에서 CA-1(Gate 11), CA-2(summary), CA-7(HARNESS) 상태 업데이트",
+          "approach": "샘플 agent/skill 파일 읽어 disallowedTools/purpose 확인. carryover.md 편집.",
+          "acceptance": "CA-1 [x] 처리, CA-2 [x] 처리, CA-7 상태 업데이트",
+          "status": "completed",
+          "deps": [
+            4
+          ],
+          "plan_issue": 3,
+          "owner": "lead",
+          "created_at": "2026-04-12T07:25:32.512Z"
+        }
+      ]
     }
   ]
 }

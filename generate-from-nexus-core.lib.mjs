@@ -32,13 +32,12 @@ export const SKILL_FIELD_ORDER = [
   'name', 'description', 'trigger_display', 'purpose', 'disable-model-invocation',
 ];
 
-/** claude-nexus local skill purpose strings (CA-2 workaround). Keyed by skill id. */
-export const SKILL_PURPOSE_OVERRIDE = {
-  'nx-init':  'Full project onboarding: scan codebase, establish project mission and essentials, generate context knowledge',
-  'nx-plan':  'Structured planning — subagent-based analysis, deliberate decisions, produce execution plan',
-  'nx-run':   'Execution — user-directed agent composition',
-  'nx-setup': 'Configure Nexus interactively',
-  'nx-sync':  'Synchronize .nexus/context/ design documents with current project state',
+/** Claude Code tool mapping per capability (harness-local, replaces nexus-core harness_mapping). */
+export const CAPABILITY_TOOL_MAP = {
+  no_file_edit:   ['Edit', 'Write', 'NotebookEdit'],
+  no_task_create: ['mcp__plugin_claude-nexus_nx__nx_task_add'],
+  no_task_update: ['mcp__plugin_claude-nexus_nx__nx_task_update'],
+  no_shell_exec:  ['Bash'],
 };
 
 // ==========================================================================
@@ -76,17 +75,14 @@ export function verifyManifestVersion(manifest) {
 }
 
 /**
- * Index capabilities: capability id → claude_code tool name array.
- * Reads vocabulary/capabilities.yml directly (not from manifest — manifest doesn't embed vocab).
+ * Index capabilities: capability id → tool name array.
+ * Returns entries from CAPABILITY_TOOL_MAP directly (harness-local mapping).
  * @returns {Map<string, string[]>}
  */
 export function indexCapabilities() {
-  const path = join(NEXUS_CORE_ROOT, 'vocabulary/capabilities.yml');
-  const doc = parseYaml(readFileSync(path, 'utf8'));
   const map = new Map();
-  for (const cap of doc.capabilities) {
-    const tools = cap.harness_mapping?.claude_code ?? [];
-    map.set(cap.id, tools);
+  for (const [id, tools] of Object.entries(CAPABILITY_TOOL_MAP)) {
+    map.set(id, tools);
   }
   return map;
 }
@@ -130,8 +126,8 @@ export function deriveDisallowedTools(capabilityIds, capsMap) {
     const tools = capsMap.get(capId);
     if (!tools) {
       throw new Error(
-        `Capability "${capId}" has no harness_mapping.claude_code in vocabulary/capabilities.yml. ` +
-        `Cannot safely derive disallowedTools.`
+        `Capability "${capId}" has no entry in CAPABILITY_TOOL_MAP. ` +
+        `Add the mapping to generate-from-nexus-core.lib.mjs.`
       );
     }
     for (const tool of tools) {
@@ -267,21 +263,16 @@ export function deriveSkillTriggerDisplay(meta, pluginName) {
  * @param {any} meta
  * @param {string} body - already verified
  * @param {string} pluginName
+ * @param {any} manifestEntry - manifest.json skill entry object (provides summary field)
  * @param {string} [label]
  * @returns {string}
  */
-export function transformSkill(meta, body, pluginName, label = '') {
+export function transformSkill(meta, body, pluginName, manifestEntry, label = '') {
   const fm = new Map();
   fm.set('name', meta.name);
   fm.set('description', collapseDescription(meta.description));
   fm.set('trigger_display', deriveSkillTriggerDisplay(meta, pluginName));
-  const purpose = SKILL_PURPOSE_OVERRIDE[meta.id];
-  if (!purpose) {
-    throw new Error(
-      `No SKILL_PURPOSE_OVERRIDE entry for skill "${meta.id}". ` +
-      `Add it to generate-from-nexus-core.lib.mjs.`
-    );
-  }
+  const purpose = manifestEntry?.summary ?? collapseDescription(meta.description);
   fm.set('purpose', purpose);
   if (meta.manual_only === true) {
     fm.set('disable-model-invocation', true);

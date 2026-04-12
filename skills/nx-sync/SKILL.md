@@ -2,7 +2,7 @@
 name: nx-sync
 description: Context knowledge synchronization — scans project state and updates .nexus/context/ design documents
 trigger_display: "[sync]"
-purpose: "Synchronize .nexus/context/ design documents with current project state"
+purpose: "Context knowledge synchronization"
 ---
 
 ## Role
