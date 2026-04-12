@@ -22,11 +22,15 @@ Claude Code와 3개 진입점으로 통합:
 esbuild 번들 직후 `generate-from-nexus-core.mjs`가 실행됨 (esbuild.config.mjs ~41번째 줄):
 
 - **Input**: `node_modules/@moreih29/nexus-core/` (devDependency, build-time only)
-- **Output**: `agents/*.md` (9개) + `skills/*/SKILL.md` (5개) + `src/data/tags.json` (regenerate)
+- **Output**: `agents/*.md` (9개) + `skills/*/SKILL.md` (nexus-core 4개, nx-setup은 consumer-owned) + `src/data/tags.json`
+- **harness-local 변환**:
+  - `CAPABILITY_TOOL_MAP` — nexus-core semantic capabilities → Claude Code tool names (harness_mapping 제거 대응)
+  - `harness_docs_refs` 주입 — manifest skill entry의 harness_docs_refs 키 → `harness-content/{ref}.md` 파일 body 끝에 append
 - **검증 단계**:
   - `manifest.nexus_core_version` vs package.json 의존성 버전 cross-check
   - 각 body.md sha256 vs `manifest.agents[].body_hash` (불일치 시 fail-fast)
   - gate.ts `HANDLED_TAG_IDS` export 상수 ↔ nexus-core `vocabulary/tags.yml` tag id set drift detection (`verifyTagDrift()`)
+- **Conformance**: `test/conformance.mjs`가 nexus-core `conformance/` fixtures (state-schemas, tool, scenario)를 동적 로딩하여 검증
 - `generate-template.mjs`는 generate-from-nexus-core.mjs의 **다운스트림** — agents + skills + tags.json 메타에서 CLAUDE.md의 Nexus 섹션을 렌더링
 
 ## Release Pipeline

@@ -39,12 +39,13 @@
 
 ## Source of Truth
 
-`agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 **build-time generated** from `@moreih29/nexus-core ^0.1.2`.
+`agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 **build-time generated** from `@moreih29/nexus-core ^0.3.0`.
 
 - 직접 편집 금지 — 수정이 필요하면 upstream nexus-core에서 작업
 - Build 시점에 `generate-from-nexus-core.mjs`가 nexus-core manifest.json을 읽어 regenerate
 - Body content integrity는 sha256 body_hash로 검증
 - harness-local 필드(`model`, `maxTurns`, `disallowedTools`)는 `generate-from-nexus-core.lib.mjs`의 하드코딩 상수(MODEL_TIER_TO_CLAUDE, MAX_TURNS_MAP) 또는 capabilities 유도로 합성
+- **예외**: `skills/nx-setup/SKILL.md`는 nexus-core v0.3.0부터 consumer-owned (harness-specific이라 upstream에서 제거됨)
 - **예외**: `.claude/skills/deploy/SKILL.md`는 project-local (nexus-core 밖, claude-nexus 자체 release 자동화)
 
 ## 태스크 파이프라인
