@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.0 (2026-04-12)
+
+### Features
+- upgrade nexus-core to v0.3.0 — nx-setup consumer transition + body neutralization
+- inject harness_docs_refs resume invocation into skill bodies + add upgrade protocol
+- upgrade nexus-core to v0.2.0 — local capability map + manifest summary adoption
+
+### Fixes
+- align state files with nexus-core conformance schemas + add conformance test runner
+
 ## 0.25.1 (2026-04-11)
 
 ### Changed
