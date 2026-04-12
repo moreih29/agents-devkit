@@ -5,7 +5,7 @@
  */
 
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, unlinkSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, unlinkSync, readdirSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
@@ -50,12 +50,11 @@ const SCHEMAS = {
   agentTracker: JSON.parse(readFileSync(join(CORE, 'conformance/state-schemas/agent-tracker.schema.json'), 'utf-8')),
 };
 
-const TOOL_FIXTURES = {
-  'plan-start': JSON.parse(readFileSync(join(CORE, 'conformance/tools/plan-start.json'), 'utf-8')),
-  'plan-decide': JSON.parse(readFileSync(join(CORE, 'conformance/tools/plan-decide.json'), 'utf-8')),
-  'task-add':   JSON.parse(readFileSync(join(CORE, 'conformance/tools/task-add.json'), 'utf-8')),
-  'task-close': JSON.parse(readFileSync(join(CORE, 'conformance/tools/task-close.json'), 'utf-8')),
-};
+// Load all tool fixtures dynamically from conformance/tools/
+const TOOL_FIXTURES = {};
+for (const f of readdirSync(join(CORE, 'conformance/tools')).filter(f => f.endsWith('.json'))) {
+  TOOL_FIXTURES[f.replace('.json', '')] = JSON.parse(readFileSync(join(CORE, 'conformance/tools', f), 'utf-8'));
+}
 
 const SCENARIOS = [
   JSON.parse(readFileSync(join(CORE, 'conformance/scenarios/full-plan-cycle.json'), 'utf-8')),

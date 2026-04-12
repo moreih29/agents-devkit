@@ -6103,6 +6103,49 @@
           "created_at": "2026-04-12T09:10:15.968Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-12T10:13:48.062Z",
+      "branch": "feat/nexus-core-v0.3.0-upgrade",
+      "plan": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "dependency bump + install + harness-content/instruction_file.md 생성",
+          "context": "nexus-core 0.3.0: nx-setup 제거, nx-init에 harness_docs_refs: [\"instruction_file\"] 추가, 3 skill + 1 agent body 변경. ^0.2.0 → ^0.3.0 bump 필요.",
+          "approach": "package.json 수정, bun install, harness-content/instruction_file.md 생성 (CLAUDE.md가 instruction file임을 명시, PROJECT markers 안내)",
+          "acceptance": "nexus-core 0.3.0 설치, instruction_file.md 존재",
+          "status": "completed",
+          "deps": [],
+          "owner": "lead",
+          "created_at": "2026-04-12T10:06:41.794Z"
+        },
+        {
+          "id": 2,
+          "title": "development.md 업데이트 — nx-setup 예외 + CONSUMING.md URL 기록",
+          "context": "nx-setup은 이제 consumer-owned → \"직접 수정 금지\" 규칙에서 예외. CONSUMING.md URL을 Upstream 섹션에 영구 기록.",
+          "approach": "Documentation 섹션에 nx-setup 예외 추가, Upstream 섹션에 CONSUMING.md URL 추가",
+          "acceptance": "development.md에 nx-setup 예외 명시, CONSUMING.md URL 존재",
+          "status": "completed",
+          "deps": [],
+          "owner": "lead",
+          "created_at": "2026-04-12T10:06:44.721Z"
+        },
+        {
+          "id": 3,
+          "title": "build + regenerate + 전체 test (conformance 포함)",
+          "context": "v0.3.0 설치 후 전체 파이프라인 검증. 새 conformance fixtures (task-update, task-list) 포함.",
+          "approach": "bun run build → bun run build:types → bash test/e2e.sh",
+          "acceptance": "전체 통과, nx-setup SKILL.md 보존 확인, 새 body들 정상 재생성",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "owner": "lead",
+          "created_at": "2026-04-12T10:06:48.426Z"
+        }
+      ]
     }
   ]
 }

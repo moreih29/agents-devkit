@@ -11,11 +11,13 @@
 - 기존 테스트 삭제 금지 — 수정만 허용
 
 ## Documentation
-- `agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 `@moreih29/nexus-core` build-time 생성물 — 직접 수정 금지, 수정은 upstream `agents/*/body.md`, `skills/*/body.md`, `vocabulary/tags.yml`에서 (세부: `.nexus/context/architecture.md`)
+- `agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 `@moreih29/nexus-core` build-time 생성물 — 직접 수정 금지, 수정은 upstream에서 (세부: `.nexus/context/architecture.md`)
+- **예외**: `skills/nx-setup/SKILL.md`는 nexus-core v0.3.0부터 consumer-owned — 직접 수정 가능
 - `templates/nexus-section.md`와 CLAUDE.md의 `<!-- NEXUS:START -->`~`<!-- NEXUS:END -->` 블록은 `generate-template.mjs`가 자동 생성 — 직접 수정 금지
 - README는 한국어(README.md) + 영어(README.en.md) 동시 유지
 
 ## Upstream (@moreih29/nexus-core)
+- **기준 문서**: https://github.com/moreih29/nexus-core/blob/main/CONSUMING.md — 항상 이 문서를 참조하여 업그레이드 진행
 - `package.json`의 `@moreih29/nexus-core` 버전 변경 감지 시:
   1. `node_modules/@moreih29/nexus-core/manifest.json` 읽기
   2. WebFetch `https://github.com/moreih29/nexus-core/blob/v{새버전}/CONSUMING.md` → Upgrade Protocol 따르기
