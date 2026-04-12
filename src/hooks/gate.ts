@@ -561,7 +561,7 @@ function handleSubagentStart(event: Record<string, unknown>): void {
     entry.status = 'running';
     delete entry.ended_at;
   } else {
-    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: new Date().toISOString(), status: 'running' });
+    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: new Date().toISOString(), resume_count: 0, status: 'running' });
   }
 
   ensureDir(STATE_ROOT);

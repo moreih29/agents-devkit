@@ -5977,6 +5977,63 @@
           "created_at": "2026-04-12T07:25:32.512Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-12T09:03:30.893Z",
+      "branch": "fix/conformance-alignment",
+      "plan": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "plan.ts history archive 필드명 meet → plan 수정",
+          "context": "plan.ts L58,68,80에서 history archive 시 `meet` 필드 사용 중. nexus-core history.schema.json은 `plan` 필드를 요구 (additionalProperties: false). task.ts의 task_close는 이미 `plan` 올바르게 사용. Target: src/mcp/tools/plan.ts",
+          "approach": "interface Cycle의 `meet` → `plan`으로 rename. L68 cycle.meet → cycle.plan, L80 meet: existingPlan → plan: existingPlan.",
+          "acceptance": "plan_start auto-archive 후 history.json에 `plan` 필드로 기록됨",
+          "status": "completed",
+          "deps": [],
+          "owner": "engineer",
+          "created_at": "2026-04-12T08:54:16.544Z"
+        },
+        {
+          "id": 2,
+          "title": "gate.ts agent-tracker 초기 엔트리에 resume_count: 0 추가",
+          "context": "gate.ts L564 handleSubagentStart()에서 신규 agent 엔트리 생성 시 resume_count 누락. nexus-core agent-tracker.schema.json은 resume_count를 required로 지정. Target: src/hooks/gate.ts",
+          "approach": "L564 tracker.push 객체에 resume_count: 0 추가.",
+          "acceptance": "신규 agent tracker 엔트리에 resume_count: 0 포함",
+          "status": "completed",
+          "deps": [],
+          "owner": "engineer",
+          "created_at": "2026-04-12T08:54:19.903Z"
+        },
+        {
+          "id": 3,
+          "title": "conformance test 스크립트 작성 — state-schema + tool fixture + scenario",
+          "context": "nexus-core v0.2.0이 conformance/ 디렉토리를 제공: state-schemas (5개 JSON Schema), tools (4개 fixture), scenarios (2개). 이를 활용하는 테스트 러너 필요. 기존 e2e.sh는 ad-hoc shell 기반. Target: test/conformance.mjs (신규)",
+          "approach": "test/conformance.mjs 생성: (1) MCP 서버에 JSON-RPC pipe하는 기존 e2e 패턴 재활용, (2) state-schema 검증 — tool 호출 후 생성된 state 파일을 JSON Schema(draft 2020-12) 기본 검증 (required, type, enum, additionalProperties), (3) tool fixture runner — precondition setup → action 실행 → postcondition JSONPath assertion, (4) scenario runner — multi-step fixture 순차 실행. e2e.sh 끝에 `node test/conformance.mjs` 호출 추가.",
+          "acceptance": "test/conformance.mjs 단독 실행 시 모든 state-schema 검증 pass, 4개 tool fixture pass, 2개 scenario pass",
+          "risk": "JSONPath assertion 엔진을 직접 구현해야 함 (의존성 추가 없이). 복잡한 패턴은 지원 범위 제한 가능.",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "owner": "engineer",
+          "created_at": "2026-04-12T08:54:29.963Z"
+        },
+        {
+          "id": 4,
+          "title": "build + type-check + e2e + conformance 전체 검증",
+          "context": "코드 수정 + 새 테스트 추가 후 전체 파이프라인 검증",
+          "approach": "bun run build → bun run build:types → bash test/e2e.sh (conformance 포함)",
+          "acceptance": "전체 통과",
+          "status": "completed",
+          "deps": [
+            3
+          ],
+          "owner": "lead",
+          "created_at": "2026-04-12T08:54:32.307Z"
+        }
+      ]
     }
   ]
 }

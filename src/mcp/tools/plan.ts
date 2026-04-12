@@ -55,7 +55,7 @@ export function registerPlanTools(server: McpServer): void {
     async ({ topic, issues, research_summary }) => {
       // history.json에서 마지막 plan id 추출
       const projectHistoryPath = join(NEXUS_ROOT, 'history.json');
-      interface Cycle { completed_at: string; branch: string; meet: PlanFile | null; tasks: never[]; }
+      interface Cycle { completed_at: string; branch: string; plan: PlanFile | null; tasks: never[]; }
       interface HistoryFile { cycles: Cycle[]; }
       let history: HistoryFile = { cycles: [] };
       if (existsSync(projectHistoryPath)) {
@@ -65,8 +65,9 @@ export function registerPlanTools(server: McpServer): void {
       // 마지막 plan id 계산
       let lastPlanId = 0;
       for (const cycle of history.cycles) {
-        if (cycle.meet && typeof cycle.meet.id === 'number') {
-          lastPlanId = Math.max(lastPlanId, cycle.meet.id);
+        const cyclePlan = (cycle as any).plan ?? (cycle as any).meet ?? (cycle as any).consult;
+        if (cyclePlan && typeof cyclePlan.id === 'number') {
+          lastPlanId = Math.max(lastPlanId, cyclePlan.id);
         }
       }
 
@@ -77,7 +78,7 @@ export function registerPlanTools(server: McpServer): void {
         history.cycles.push({
           completed_at: new Date().toISOString(),
           branch: getCurrentBranch(),
-          meet: existingPlan,
+          plan: existingPlan,
           tasks: [],
         });
         ensureDir(NEXUS_ROOT);

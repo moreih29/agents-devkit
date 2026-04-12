@@ -433,6 +433,19 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# --- Conformance (nexus-core) ---
+echo ""
+echo "=== Conformance (nexus-core) ==="
+node test/conformance.mjs
+CONF_EXIT=$?
+if [ $CONF_EXIT -eq 0 ]; then
+  green "Conformance tests passed"
+  PASS=$((PASS + 1))
+else
+  red "Conformance tests failed"
+  FAIL=$((FAIL + 1))
+fi
+
 # --- 결과 ---
 echo ""
 echo "=== 결과: $PASS passed, $FAIL failed ==="

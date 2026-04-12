@@ -21914,8 +21914,9 @@ function registerPlanTools(server2) {
       }
       let lastPlanId = 0;
       for (const cycle of history.cycles) {
-        if (cycle.meet && typeof cycle.meet.id === "number") {
-          lastPlanId = Math.max(lastPlanId, cycle.meet.id);
+        const cyclePlan = cycle.plan ?? cycle.meet ?? cycle.consult;
+        if (cyclePlan && typeof cyclePlan.id === "number") {
+          lastPlanId = Math.max(lastPlanId, cyclePlan.id);
         }
       }
       let previousArchived = false;
@@ -21924,7 +21925,7 @@ function registerPlanTools(server2) {
         history.cycles.push({
           completed_at: (/* @__PURE__ */ new Date()).toISOString(),
           branch: getCurrentBranch(),
-          meet: existingPlan,
+          plan: existingPlan,
           tasks: []
         });
         ensureDir(NEXUS_ROOT);
