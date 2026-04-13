@@ -57,11 +57,11 @@ Before starting work, check `.nexus/memory/` and `.nexus/context/` for project-s
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| nx-init | /claude-nexus:nx-init | Project onboarding — scan, mission, essentials, context generation |
+| nx-init | /claude-nexus:nx-init | Full project onboarding: scan codebase, establish project mission and essentials, generate context knowledge |
 | nx-plan | [plan] | Structured planning — subagent-based analysis, deliberate decisions, produce execution plan |
 | nx-run | [run] | Execution — user-directed agent composition |
-| nx-setup | /claude-nexus:nx-setup | Interactive Nexus configuration wizard |
-| nx-sync | [sync] | Context knowledge synchronization |
+| nx-setup | /claude-nexus:nx-setup | Configure Nexus interactively |
+| nx-sync | [sync] | Synchronize .nexus/context/ design documents with current project state |
 
 ### Tags
 
