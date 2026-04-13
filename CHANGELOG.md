@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.26.1 (2026-04-13)
+
+### Other
+- Merge branch 'chore/nexus-core-0.5.0-sync'
+- Merge branch 'chore/nexus-core-0.4.0-sync'
+
 ## 0.26.0 (2026-04-12)
 
 ### Features
