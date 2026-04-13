@@ -323,7 +323,7 @@ echo '# Architecture' > "$PLAN_TMP/context/architecture.md"
 result=$(mcp_call "nx_plan_start" '{"topic":"E2E Test","issues":["issue1"],"research_summary":"test"}')
 check "nx_plan_start" 'created' "$result"
 
-result=$(mcp_call "nx_plan_decide" '{"issue_id":1,"summary":"Test decision"}')
+result=$(mcp_call "nx_plan_decide" '{"issue_id":1,"decision":"Test decision"}')
 check "nx_plan_decide" 'decided' "$result"
 
 result=$(mcp_call "nx_task_add" '{"title":"Test task","context":"Testing","goal":"e2e"}')

@@ -478,7 +478,8 @@ function runStateSchemaValidation(stateDir) {
   const runtimeSample = {
     teams_enabled: true,
     session_started_at: new Date().toISOString(),
-    plugin_version: '0.25.1',
+    harness_id: 'claude-nexus',
+    harness_version: '0.25.1',
   };
   const rErr = validateAgainstSchema(runtimeSample, SCHEMAS.runtime);
   if (rErr) {
@@ -490,7 +491,8 @@ function runStateSchemaValidation(stateDir) {
   // agent-tracker.json — synthesize a valid array and validate schema
   const trackerSample = [
     {
-      agent_type: 'claude-nexus:engineer',
+      harness_id: 'claude-nexus',
+      agent_name: 'engineer',
       agent_id: 'abc123',
       started_at: new Date().toISOString(),
       resume_count: 0,

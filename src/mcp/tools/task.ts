@@ -174,16 +174,18 @@ export function registerTaskTools(server: McpServer): void {
 
       // Read or initialize project-level history.json
       interface Cycle {
+        schema_version: string;
         completed_at: string;
         branch: string;
         plan: PlanFile | null;
         tasks: Task[];
       }
       interface HistoryFile {
+        schema_version?: string;
         cycles: Cycle[];
       }
 
-      let history: HistoryFile = { cycles: [] };
+      let history: HistoryFile = { schema_version: '0.5', cycles: [] };
       if (existsSync(projectHistoryPath)) {
         const raw = await readFile(projectHistoryPath, 'utf-8');
         history = JSON.parse(raw) as HistoryFile;
@@ -191,6 +193,7 @@ export function registerTaskTools(server: McpServer): void {
 
       // Create new cycle and append
       const cycle: Cycle = {
+        schema_version: '0.5',
         completed_at: new Date().toISOString(),
         branch,
         plan,

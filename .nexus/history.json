@@ -6321,6 +6321,52 @@
           "created_at": "2026-04-13T12:42:34.754Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-13T14:10:31.422Z",
+      "branch": "chore/nexus-core-0.5.0-sync",
+      "plan": {
+        "id": 4,
+        "topic": "nexus-core v0.4.0 → v0.5.0 consumer sync",
+        "issues": [
+          {
+            "id": 1,
+            "title": "Apply 4 breaking changes from MIGRATIONS/v0_4_to_v0_5.md and upgrade dependency",
+            "status": "pending"
+          }
+        ],
+        "research_summary": "v0.5.0 brings 4 breaking changes per MIGRATIONS/v0_4_to_v0_5.md (verified via WebFetch from raw.githubusercontent.com/moreih29/nexus-core/v0.5.0/MIGRATIONS/v0_4_to_v0_5.md). (1) runtime.json writer must replace plugin_version with harness_id ('claude-nexus') + harness_version — current location: src/hooks/gate.ts:524-534 in handleSessionStart(). (2) agent-tracker.json writer must split agent_type into harness_id + agent_name — current location: src/hooks/gate.ts:546-568, line 564 pushes {agent_type, ...}. (3) plan_decide tool input parameter renamed summary → decision — locations: src/mcp/tools/plan.ts:209 (zod schema) + handler 205-256, plus call-site reference text in src/hooks/gate.ts:400. (4) history.json cycles[] now require schema_version: '0.5' per cycle — current task_close cycle creation at src/mcp/tools/task.ts:193-199. Optional: top-level history schema_version recommended. CI/CD: bunx nexus-validate-conformance bin entry now available but our test/conformance.mjs is a self-contained validator — separate concern. HARNESS_ID already set to 'claude-nexus' in src/shared/paths.ts:24. No design decisions needed — migration guide is prescriptive.",
+        "created_at": "2026-04-13T14:00:22.538Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Apply v0.5.0 breaking changes + dep bump",
+          "context": "Upgrade @moreih29/nexus-core from ^0.4.0 to ^0.5.0 and apply 4 breaking changes per MIGRATIONS guide. Migration guide URL: https://raw.githubusercontent.com/moreih29/nexus-core/v0.5.0/MIGRATIONS/v0_4_to_v0_5.md. HARNESS_ID='claude-nexus' is already defined at src/shared/paths.ts:24.",
+          "approach": "Sequential edits (same files touched by multiple changes):\n\n1. package.json: bump devDependency `@moreih29/nexus-core` from `^0.4.0` to `^0.5.0`. Run `bun install` to update bun.lock.\n\n2. src/hooks/gate.ts lines 524-534 (runtime.json writer in handleSessionStart): replace `plugin_version` field with `harness_id: HARNESS_ID` (import from shared/paths if not imported) and `harness_version: <current plugin version string>`. Keep other fields (teams_enabled, session_started_at) unchanged.\n\n3. src/hooks/gate.ts lines 546-568 (agent-tracker.json writer): change the pushed object from `{agent_type, agent_id, started_at, resume_count, status}` to `{harness_id: HARNESS_ID, agent_name, agent_id, started_at, resume_count, status}`. `agent_name` takes the value previously passed as `agentType` (the neutral agent id, e.g. 'architect'). Remove any `${HARNESS_ID}:${x}` concatenation. Update any reader that parsed agent_type by splitting on ':'.\n\n4. src/mcp/tools/plan.ts lines 209-256 (nx_plan_decide tool): rename zod schema key `summary` to `decision`, update the handler destructuring, and any internal usage. Update the prompt/description text references to `summary` → `decision`.\n\n5. src/hooks/gate.ts line 400 (additionalContext text): replace `nx_plan_decide(issue_id, summary)` with `nx_plan_decide(issue_id, decision)`.\n\n6. src/mcp/tools/task.ts lines 193-199 (task_close cycle creation): add `schema_version: '0.5'` field to the cycle object. Also add top-level `schema_version: '0.5'` to the history object when creating/updating (optional but recommended). Update the Cycle TypeScript type if present to include the field.\n\n7. Run `bun run dev` to rebuild bridge/mcp-server.cjs and scripts/gate.cjs. Run `node test/conformance.mjs` to verify fixtures still pass (self-contained validator — not the bin).\n\nReport any type errors, schema mismatches, or fixture failures.",
+          "acceptance": "- package.json shows `@moreih29/nexus-core`: `^0.5.0` and bun.lock updated\n- runtime.json no longer writes `plugin_version`; writes `harness_id` + `harness_version` instead\n- agent-tracker.json entries contain `harness_id` + `agent_name` (no `agent_type`)\n- nx_plan_decide zod schema uses `decision` (not `summary`) and handler reads from `decision`\n- gate.ts:400 additionalContext text uses `decision` parameter name\n- task_close writes `schema_version: '0.5'` on every new cycle\n- `bun run dev` completes without errors\n- `node test/conformance.mjs` exits successfully (or reports any pre-existing unrelated failures)\n- No references to `plugin_version`, `agent_type`, or `summary` (in plan_decide context) remain",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "owner_reuse_policy": "fresh",
+          "created_at": "2026-04-13T14:01:04.902Z"
+        },
+        {
+          "id": 2,
+          "title": "Build + conformance verify + commit",
+          "context": "After engineer applies breaking changes, Lead verifies build output and conformance before committing.",
+          "approach": "1. bun run dev (rebuild)\n2. bash test/e2e.sh (sanity)\n3. node test/conformance.mjs (fixture check)\n4. nx-sync (context knowledge update)\n5. nx_task_close (archive to history.json)\n6. git commit (package.json, bun.lock, src/**, bridge/**, scripts/**, .nexus/**)",
+          "acceptance": "- Build artifacts regenerated (bridge/mcp-server.cjs, scripts/*.cjs)\n- Conformance validator exits 0\n- history.json has new cycle with schema_version: '0.5'\n- Commit created with all touched files",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-13T14:01:09.614Z"
+        }
+      ]
     }
   ]
 }

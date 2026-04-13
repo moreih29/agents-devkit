@@ -442,7 +442,7 @@ Record decision only. For implementation, use [run].`;
     if ((0, import_fs4.existsSync)(planFile)) {
       respond({
         continue: true,
-        additionalContext: withNotices(`<nexus>Decision tag detected in plan mode. Use nx_plan_decide(issue_id, summary) to record.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, planReminder)
+        additionalContext: withNotices(`<nexus>Decision tag detected in plan mode. Use nx_plan_decide(issue_id, decision) to record.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, planReminder)
       });
     } else {
       respond({
@@ -550,7 +550,8 @@ function handleSessionStart(_event) {
     const runtimePayload = {
       teams_enabled: teamsEnabled,
       session_started_at: (/* @__PURE__ */ new Date()).toISOString(),
-      plugin_version: getCurrentVersion()
+      harness_id: HARNESS_ID,
+      harness_version: getCurrentVersion()
     };
     (0, import_fs4.writeFileSync)((0, import_path4.join)(STATE_ROOT, "runtime.json"), JSON.stringify(runtimePayload, null, 2));
   } catch (e) {
@@ -580,7 +581,7 @@ function handleSubagentStart(event) {
     entry.status = "running";
     delete entry.ended_at;
   } else {
-    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), resume_count: 0, status: "running" });
+    tracker.push({ harness_id: HARNESS_ID, agent_name: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), resume_count: 0, status: "running" });
   }
   ensureDir(STATE_ROOT);
   (0, import_fs4.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
