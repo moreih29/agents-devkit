@@ -1,6 +1,6 @@
 // Gate 훅: Stop (Task 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { STATE_ROOT, HARNESS_STATE_ROOT, MEMORY_ROOT, CONTEXT_ROOT, ensureDir, ensureNexusStructure } from '../shared/paths.js';
+import { STATE_ROOT, HARNESS_STATE_ROOT, HARNESS_ID, MEMORY_ROOT, CONTEXT_ROOT, ensureDir, ensureNexusStructure } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
 import { extractRole } from '../shared/matrix.js';
 import { getCurrentVersion } from '../shared/version.js';
@@ -397,7 +397,7 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
     if (existsSync(planFile)) {
       respond({
         continue: true,
-        additionalContext: withNotices(`<nexus>Decision tag detected in plan mode. Use nx_plan_decide(issue_id, summary) to record.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, planReminder),
+        additionalContext: withNotices(`<nexus>Decision tag detected in plan mode. Use nx_plan_decide(issue_id, decision) to record.${postDecisionRules}</nexus>`, tasksReminder, claudeMdNotice, planReminder),
       });
     } else {
       respond({
@@ -529,7 +529,8 @@ function handleSessionStart(_event: Record<string, unknown>): void {
     const runtimePayload = {
       teams_enabled: teamsEnabled,
       session_started_at: new Date().toISOString(),
-      plugin_version: getCurrentVersion(),
+      harness_id: HARNESS_ID,
+      harness_version: getCurrentVersion(),
     };
     writeFileSync(join(STATE_ROOT, 'runtime.json'), JSON.stringify(runtimePayload, null, 2));
   } catch (e) {
@@ -561,7 +562,7 @@ function handleSubagentStart(event: Record<string, unknown>): void {
     entry.status = 'running';
     delete entry.ended_at;
   } else {
-    tracker.push({ agent_type: agentType, agent_id: agentId, started_at: new Date().toISOString(), resume_count: 0, status: 'running' });
+    tracker.push({ harness_id: HARNESS_ID, agent_name: agentType, agent_id: agentId, started_at: new Date().toISOString(), resume_count: 0, status: 'running' });
   }
 
   ensureDir(STATE_ROOT);

@@ -22034,12 +22034,12 @@ function registerPlanTools(server2) {
     "\uC548\uAC74 \uACB0\uC815 \uAE30\uB85D \u2014 [d] \uD0DC\uADF8\uB85C \uD2B8\uB9AC\uAC70",
     {
       issue_id: external_exports.number().describe("\uACB0\uC815\uD560 \uC548\uAC74 ID"),
-      summary: external_exports.string().describe("\uACB0\uC815 \uC694\uC57D"),
+      decision: external_exports.string().describe("\uACB0\uC815 \uB0B4\uC6A9"),
       how_agents: external_exports.array(external_exports.string()).optional().describe('\uC774\uC288 \uBD84\uC11D\uC5D0 \uCC38\uC5EC\uD55C HOW \uC5D0\uC774\uC804\uD2B8 \uC774\uB984 \uBAA9\uB85D (\uC608: ["architect", "designer"])'),
       how_summary: external_exports.record(external_exports.string(), external_exports.string()).optional().describe('\uC5D0\uC774\uC804\uD2B8\uBCC4 \uD575\uC2EC \uC758\uACAC \uC694\uC57D (\uC608: { "architect": "...", "designer": "..." })'),
       how_agent_ids: external_exports.record(external_exports.string(), external_exports.string()).optional().describe('\uC5D0\uC774\uC804\uD2B8 \uC774\uB984 \u2192 agentId \uB9E4\uD551 (resume\uC6A9). \uC608: { "architect": "ac01819f1cd295cb8" }')
     },
-    async ({ issue_id, summary, how_agents, how_summary, how_agent_ids }) => {
+    async ({ issue_id, decision, how_agents, how_summary, how_agent_ids }) => {
       const data = await readPlan();
       if (!data) {
         return textResult({ error: "No active plan session" });
@@ -22049,7 +22049,7 @@ function registerPlanTools(server2) {
         return textResult({ error: `Issue ${issue_id} not found` });
       }
       issue2.status = "decided";
-      issue2.decision = summary;
+      issue2.decision = decision;
       if (how_agents !== void 0) issue2.how_agents = how_agents;
       if (how_summary !== void 0) issue2.how_summary = how_summary;
       if (how_agent_ids !== void 0) issue2.how_agent_ids = how_agent_ids;
@@ -22196,12 +22196,13 @@ function registerTaskTools(server2) {
       const tasksData = await readTasks();
       const tasks = tasksData?.tasks ?? [];
       const branch = getCurrentBranch();
-      let history = { cycles: [] };
+      let history = { schema_version: "0.5", cycles: [] };
       if ((0, import_fs8.existsSync)(projectHistoryPath)) {
         const raw = await (0, import_promises3.readFile)(projectHistoryPath, "utf-8");
         history = JSON.parse(raw);
       }
       const cycle = {
+        schema_version: "0.5",
         completed_at: (/* @__PURE__ */ new Date()).toISOString(),
         branch,
         plan,
