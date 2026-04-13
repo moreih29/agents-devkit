@@ -21020,6 +21020,8 @@ function findProjectRoot(startDir) {
 var PROJECT_ROOT = findProjectRoot();
 var NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
 var STATE_ROOT = (0, import_path2.join)(NEXUS_ROOT, "state");
+var HARNESS_ID = "claude-nexus";
+var HARNESS_STATE_ROOT = (0, import_path2.join)(STATE_ROOT, HARNESS_ID);
 var MEMORY_ROOT = (0, import_path2.join)(NEXUS_ROOT, "memory");
 var CONTEXT_ROOT = (0, import_path2.join)(NEXUS_ROOT, "context");
 function ensureDir(dir) {
@@ -21056,6 +21058,7 @@ function registerContextTool(server2) {
     {},
     async () => {
       let teamStatus = { activeMode: null };
+      let decisions = [];
       const tasksFile = (0, import_path3.join)(STATE_ROOT, "tasks.json");
       if ((0, import_fs3.existsSync)(tasksFile)) {
         try {
@@ -21063,20 +21066,12 @@ function registerContextTool(server2) {
           const tasks = Array.isArray(data.tasks) ? data.tasks : [];
           const total = tasks.length;
           const completed = tasks.filter((t) => t.status === "completed").length;
-          const pending = total - completed;
+          const pending = tasks.filter((t) => t.status === "pending").length;
           teamStatus = {
             activeMode: "team",
             goal: data.goal ?? "",
             tasksSummary: { total, completed, pending }
           };
-        } catch {
-        }
-      }
-      let decisions = [];
-      const decisionsFile = (0, import_path3.join)(STATE_ROOT, "decisions.json");
-      if ((0, import_fs3.existsSync)(decisionsFile)) {
-        try {
-          const data = JSON.parse(await (0, import_promises.readFile)(decisionsFile, "utf-8"));
           decisions = Array.isArray(data.decisions) ? data.decisions : [];
         } catch {
         }
@@ -22258,7 +22253,7 @@ function registerTaskTools(server2) {
     },
     async ({ query, last_n }) => {
       const historyPath = (0, import_path8.join)(NEXUS_ROOT, "history.json");
-      if (!(0, import_fs8.existsSync)(historyPath)) return textResult({ cycles: [], total: 0 });
+      if (!(0, import_fs8.existsSync)(historyPath)) return textResult({ cycles: [], total: 0, showing: 0 });
       const raw = await (0, import_promises3.readFile)(historyPath, "utf-8");
       const history = JSON.parse(raw);
       let cycles = history.cycles || [];
@@ -22292,7 +22287,7 @@ function registerArtifactTools(server2) {
       content: external_exports.string().describe("File content to write")
     },
     async ({ filename, content }) => {
-      const artifactsDir = (0, import_path9.join)(STATE_ROOT, "artifacts");
+      const artifactsDir = (0, import_path9.join)(HARNESS_STATE_ROOT, "artifacts");
       ensureDir(artifactsDir);
       const path = (0, import_path9.join)(artifactsDir, filename);
       await (0, import_promises4.writeFile)(path, content);

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { STATE_ROOT, ensureDir } from '../../shared/paths.js';
+import { HARNESS_STATE_ROOT, ensureDir } from '../../shared/paths.js';
 import { textResult } from '../../shared/mcp-utils.js';
 
 export function registerArtifactTools(server: McpServer): void {
@@ -14,7 +14,7 @@ export function registerArtifactTools(server: McpServer): void {
       content: z.string().describe('File content to write'),
     },
     async ({ filename, content }) => {
-      const artifactsDir = join(STATE_ROOT, 'artifacts');
+      const artifactsDir = join(HARNESS_STATE_ROOT, 'artifacts');
       ensureDir(artifactsDir);
       const path = join(artifactsDir, filename);
       await writeFile(path, content);

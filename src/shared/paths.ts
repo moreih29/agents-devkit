@@ -20,6 +20,12 @@ export const NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || join(PROJECT_ROOT, '
 /** .nexus/state/ — 런타임 상태 파일 */
 export const STATE_ROOT = join(NEXUS_ROOT, 'state');
 
+/** harness identifier (npm package name의 마지막 세그먼트) */
+export const HARNESS_ID = 'claude-nexus';
+
+/** .nexus/state/claude-nexus/ — harness-local 상태 파일 */
+export const HARNESS_STATE_ROOT = join(STATE_ROOT, HARNESS_ID);
+
 /** .nexus/memory/ — 에이전트 공유 메모리 */
 export const MEMORY_ROOT = join(NEXUS_ROOT, 'memory');
 
@@ -66,6 +72,7 @@ const GITIGNORE_CONTENT = `# Nexus: whitelist tracked files, ignore everything e
 export function ensureNexusStructure(): void {
   ensureDir(NEXUS_ROOT);
   ensureDir(STATE_ROOT);
+  ensureDir(HARNESS_STATE_ROOT);
   const gitignorePath = join(NEXUS_ROOT, '.gitignore');
   if (!existsSync(gitignorePath)) {
     writeFileSync(gitignorePath, GITIGNORE_CONTENT);

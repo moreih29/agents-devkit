@@ -53,6 +53,8 @@ function findProjectRoot(startDir) {
 var PROJECT_ROOT = findProjectRoot();
 var NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path.join)(PROJECT_ROOT, ".nexus");
 var STATE_ROOT = (0, import_path.join)(NEXUS_ROOT, "state");
+var HARNESS_ID = "claude-nexus";
+var HARNESS_STATE_ROOT = (0, import_path.join)(STATE_ROOT, HARNESS_ID);
 var MEMORY_ROOT = (0, import_path.join)(NEXUS_ROOT, "memory");
 var CONTEXT_ROOT = (0, import_path.join)(NEXUS_ROOT, "context");
 function ensureDir(dir) {
@@ -74,6 +76,7 @@ var GITIGNORE_CONTENT = `# Nexus: whitelist tracked files, ignore everything els
 function ensureNexusStructure() {
   ensureDir(NEXUS_ROOT);
   ensureDir(STATE_ROOT);
+  ensureDir(HARNESS_STATE_ROOT);
   const gitignorePath = (0, import_path.join)(NEXUS_ROOT, ".gitignore");
   if (!(0, import_fs.existsSync)(gitignorePath)) {
     (0, import_fs.writeFileSync)(gitignorePath, GITIGNORE_CONTENT);
@@ -535,7 +538,7 @@ function handlePostToolUse(event) {
       tool: event.tool_name,
       file: filePath
     }) + "\n";
-    (0, import_fs4.appendFileSync)((0, import_path4.join)(STATE_ROOT, "tool-log.jsonl"), line);
+    (0, import_fs4.appendFileSync)((0, import_path4.join)(HARNESS_STATE_ROOT, "tool-log.jsonl"), line);
   } catch (e) {
   }
 }
@@ -553,7 +556,7 @@ function handleSessionStart(_event) {
   } catch (e) {
   }
   try {
-    (0, import_fs4.writeFileSync)((0, import_path4.join)(STATE_ROOT, "tool-log.jsonl"), "");
+    (0, import_fs4.writeFileSync)((0, import_path4.join)(HARNESS_STATE_ROOT, "tool-log.jsonl"), "");
   } catch (e) {
   }
   pass();
@@ -606,7 +609,7 @@ function handleSubagentStop(event) {
         entry.stopped_at = (/* @__PURE__ */ new Date()).toISOString();
       }
       try {
-        const toolLogPath = (0, import_path4.join)(STATE_ROOT, "tool-log.jsonl");
+        const toolLogPath = (0, import_path4.join)(HARNESS_STATE_ROOT, "tool-log.jsonl");
         if ((0, import_fs4.existsSync)(toolLogPath)) {
           const lines = (0, import_fs4.readFileSync)(toolLogPath, "utf-8").split("\n").filter(Boolean);
           const filesSet = /* @__PURE__ */ new Set();

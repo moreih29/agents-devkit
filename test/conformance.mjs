@@ -65,14 +65,17 @@ const SCENARIOS = [
 // Tool name mapping
 // ─────────────────────────────────────────────────────────────────────────────
 const TOOL_MAP = {
-  plan_start:   'nx_plan_start',
-  plan_decide:  'nx_plan_decide',
-  plan_status:  'nx_plan_status',
-  plan_update:  'nx_plan_update',
-  task_add:     'nx_task_add',
-  task_update:  'nx_task_update',
-  task_list:    'nx_task_list',
-  task_close:   'nx_task_close',
+  plan_start:     'nx_plan_start',
+  plan_decide:    'nx_plan_decide',
+  plan_status:    'nx_plan_status',
+  plan_update:    'nx_plan_update',
+  task_add:       'nx_task_add',
+  task_update:    'nx_task_update',
+  task_list:      'nx_task_list',
+  task_close:     'nx_task_close',
+  artifact_write: 'nx_artifact_write',
+  history_search: 'nx_history_search',
+  context:        'nx_context',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -90,12 +93,18 @@ function mcpCall(toolName, params, stateDir) {
     params: { name: mcpTool, arguments: params }
   });
 
-  const input = `${init}\n${initialized}\n${call}`;
-  // Escape single quotes in input for shell safety
-  const escaped = input.replace(/'/g, "'\\''");
+  // Trailing newline required: StdioServerTransport reads line-by-line and
+  // only processes the last message when the line is complete (terminated by \n).
+  const input = `${init}\n${initialized}\n${call}\n`;
+
+  // Write to a temp file and redirect — avoids shell escaping issues with
+  // content strings that contain literal \n sequences (which `echo` would
+  // misinterpret as real newlines, breaking the JSON).
+  const inputFile = join(stateDir, '__mcp_input__.txt');
+  writeFileSync(inputFile, input);
 
   try {
-    const out = execSync(`echo '${escaped}' | node bridge/mcp-server.cjs`, {
+    const out = execSync(`node bridge/mcp-server.cjs < ${inputFile}`, {
       cwd: PROJECT_ROOT,
       env: { ...process.env, NEXUS_RUNTIME_ROOT: stateDir },
       encoding: 'utf-8',
@@ -286,6 +295,9 @@ function assertValue(actual, expected, label) {
       if (expected.minLength !== undefined && actual.length < expected.minLength) {
         return `${label}: string too short (${actual.length} < ${expected.minLength})`;
       }
+      if (expected.pattern !== undefined && !new RegExp(expected.pattern).test(actual)) {
+        return `${label}: does not match pattern ${expected.pattern}: ${actual}`;
+      }
       return null;
     }
     if (expected.type === 'iso8601') {
@@ -307,9 +319,19 @@ function assertValue(actual, expected, label) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Maps logical paths like ".nexus/state/plan.json" to actual temp dir paths.
 // NEXUS_RUNTIME_ROOT = stateDir (the temp dir); within it:
-//   .nexus/state/plan.json  → stateDir/state/plan.json
-//   .nexus/history.json     → stateDir/history.json
+//   .nexus/state/plan.json      → stateDir/state/plan.json
+//   .nexus/history.json         → stateDir/history.json
+//   .nexus/state/artifacts/...  → stateDir/state/claude-nexus/artifacts/... (harness-local)
+const HARNESS_REMAP = [
+  { from: '.nexus/state/artifacts/', to: 'state/claude-nexus/artifacts/' },
+];
 function resolveStatePath(stateDir, logicalPath) {
+  // Harness-local remap: fixture logical paths → actual namespaced paths
+  for (const { from, to } of HARNESS_REMAP) {
+    if (logicalPath.startsWith(from)) {
+      return join(stateDir, to + logicalPath.slice(from.length));
+    }
+  }
   // Strip leading ".nexus/"
   const rel = logicalPath.replace(/^\.nexus\//, '');
   return join(stateDir, rel);
@@ -349,6 +371,12 @@ function checkStateFiles(stateDir, stateFiles, testId) {
       fail(`${testId} [state ${logicalPath}]`, `file does not exist`);
       continue;
     }
+    const assertionEntries = Object.entries(assertions);
+    if (assertionEntries.length === 0) {
+      // Empty assertions object: file-exists check only
+      pass(`${testId} [state ${logicalPath}]`);
+      continue;
+    }
     let data;
     try {
       data = JSON.parse(readFileSync(absPath, 'utf-8'));
@@ -356,7 +384,7 @@ function checkStateFiles(stateDir, stateFiles, testId) {
       fail(`${testId} [state ${logicalPath}]`, `JSON parse error: ${e.message}`);
       continue;
     }
-    for (const [path, expected] of Object.entries(assertions)) {
+    for (const [path, expected] of assertionEntries) {
       const actual = jsonPath(data, path);
       const err = assertValue(actual, expected, `${logicalPath} ${path}`);
       if (err) {

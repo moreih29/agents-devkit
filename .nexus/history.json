@@ -6190,6 +6190,137 @@
           "created_at": "2026-04-13T02:14:31.161Z"
         }
       ]
+    },
+    {
+      "completed_at": "2026-04-13T12:42:52.047Z",
+      "branch": "chore/nexus-core-0.4.0-sync",
+      "plan": {
+        "id": 4,
+        "topic": "nexus-core 0.3.0 → 0.4.0 업그레이드 반영 (CONSUMING.md 기준)",
+        "issues": [
+          {
+            "id": 1,
+            "title": "pin 업데이트 + lockfile 갱신",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "harness-local state 파일 namespace 마이그레이션 (tool-log.jsonl, artifacts → .nexus/state/claude-nexus/)",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "consumer repo의 upgrade protocol 안내 (CLAUDE.md)",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "CI에 validate:conformance 게이트 추가 여부",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "빌드/E2E 검증",
+            "status": "pending"
+          }
+        ],
+        "research_summary": "nexus-core GitHub에서 CHANGELOG.md, CONSUMING.md, MIGRATIONS/v0_3_to_v0_4.md 조사 완료. 0.4.0 핵심 변경: (1) fixture.schema.json에서 covers 필드 required — 그러나 claude-nexus는 test/fixtures/ 하위에 JSON fixture가 없어 영향 없음, (2) harness-local state는 .nexus/state/{harness-id}/ 네임스페이스 강제 (예외: edit-tracker.json, reopen-tracker.json) — claude-nexus의 tool-log.jsonl(src/hooks/gate.ts:516)과 artifacts 디렉토리(src/mcp/tools/artifact.ts:17)가 대상, (3) CI에 validate:conformance 게이트 권장. 현재 .nexus/state/ 루트: agent-tracker.json, runtime.json은 common schema라 유지. STATE_ROOT 단일 상수는 src/shared/paths.ts:21에 정의됨.",
+        "created_at": "2026-04-13T12:11:21.164Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "package.json nexus-core pin 0.3.0 → 0.4.0 + bun install",
+          "context": "devDependencies의 @moreih29/nexus-core를 ^0.3.0에서 ^0.4.0으로 올리고 lockfile을 갱신한다. pre-v1 semver 정책상 consumers는 자동 설치되지 않으므로 explicit pin 업데이트가 필요함.",
+          "approach": "package.json:42에서 pin 업데이트 후 bun install --lockfile-only (또는 bun install)로 bun.lock 반영.",
+          "acceptance": "bun pm ls | grep nexus-core에서 0.4.0 확인, bun.lock 수정됨.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-13T12:11:29.354Z"
+        },
+        {
+          "id": 2,
+          "title": "harness-local state 파일 namespace 마이그레이션",
+          "context": "nexus-core 0.4.0의 §Harness-local State Extension 규칙: `.nexus/state/{harness-id}/` 네임스페이스 의무. claude-nexus에서 tool-log.jsonl(gate.ts)와 artifacts/(artifact.ts)이 root에 쓰여지고 있음 — 이동해야 함. agent-tracker.json, runtime.json은 common schema라 root 유지.",
+          "approach": "1) src/shared/paths.ts에 HARNESS_STATE_ROOT 상수 추가 (join(STATE_ROOT, 'claude-nexus')) + ensureNexusStructure에서 디렉토리 생성. 2) src/hooks/gate.ts (line 516, 539, 597) — tool-log.jsonl 경로를 HARNESS_STATE_ROOT 기준으로 변경. 3) src/mcp/tools/artifact.ts (line 17) — artifactsDir를 HARNESS_STATE_ROOT 기준으로 변경. 4) 기존 .nexus/state/tool-log.jsonl, .nexus/state/artifacts/ 정리 (빈 상태라 단순 삭제 또는 이동).",
+          "acceptance": "bun run dev 빌드 성공, bash test/e2e.sh 통과, .nexus/state/claude-nexus/ 디렉토리 생성 확인, .nexus/state/ 루트에 tool-log.jsonl / artifacts/ 없음.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-13T12:11:37.459Z"
+        },
+        {
+          "id": 3,
+          "title": "CLAUDE.md에 nexus-core upgrade protocol 섹션 추가",
+          "context": "CONSUMING.md §Consumer Setup (One-Time per Consumer Repo)에서 agent memory file에 upgrade protocol 안내 추가를 요구함. claude-nexus/CLAUDE.md에 해당 내용 없음. LLM agent가 향후 버전 업 감지 시 자동으로 프로토콜을 따를 수 있도록 함.",
+          "approach": "CLAUDE.md에 \"## @moreih29/nexus-core upgrade protocol\" 섹션 추가 — manifest.json 확인 + CONSUMING.md WebFetch + Upgrade Protocol 준수 3단계 안내.",
+          "acceptance": "CLAUDE.md에 섹션 존재, CONSUMING.md의 권장 포맷과 일치.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 3,
+          "owner": "lead",
+          "created_at": "2026-04-13T12:11:42.880Z"
+        },
+        {
+          "id": 4,
+          "title": "validate:conformance CI 게이트 추가 검토",
+          "context": "CONSUMING.md §Upgrade Protocol step 6과 MIGRATIONS/v0_3_to_v0_4.md §3은 `bun run validate:conformance`를 CI에 추가할 것을 요구. claude-nexus는 custom fixture가 없어 validator 호출의 실익이 제한적이지만, consumer 규약 준수 차원에서 script + workflow 단계 추가를 검토한다.",
+          "approach": "(1) node_modules/@moreih29/nexus-core/scripts/conformance-coverage.ts 존재 여부 확인. (2) package.json scripts에 \"validate:conformance\": \"bun node_modules/@moreih29/nexus-core/scripts/conformance-coverage.ts\" 추가. (3) .github/workflows/publish-npm.yml의 E2E 단계 앞 또는 뒤에 단계 추가. (4) 실제 실행 시 적합한 동작하는지 확인. 만약 외부 실행 지원 안 되면 skip 결정 기록.",
+          "acceptance": "script 실행 가능 여부 확인 및 결정 반영 (추가 또는 skip 사유 기록).",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 4,
+          "owner": "lead",
+          "created_at": "2026-04-13T12:11:49.870Z"
+        },
+        {
+          "id": 5,
+          "title": "빌드 + E2E 테스트 검증",
+          "context": "모든 코드/설정 변경 반영 후 bun run dev (빌드) + bash test/e2e.sh (end-to-end) 실행. gate 동작, MCP tool 동작 회귀 없는지 확인.",
+          "approach": "bun run dev → 성공 확인. bash test/e2e.sh → 성공 확인. 실패 시 원인 분석.",
+          "acceptance": "두 커맨드 모두 exit code 0.",
+          "status": "completed",
+          "deps": [
+            2,
+            4
+          ],
+          "plan_issue": 5,
+          "owner": "lead",
+          "created_at": "2026-04-13T12:11:53.204Z"
+        },
+        {
+          "id": 6,
+          "title": "conformance fixtures alignment — nx_artifact_write / nx_context / nx_history_search",
+          "context": "nexus-core 0.4.0이 새로 추가한 5개 tool fixtures (plan-update, plan-status, history-search, context, artifact-write) 중 artifact_write / context / history_search 3종이 claude-nexus MCP 도구의 return shape과 어긋나 17개 conformance 실패 발생. 세부 실패 패턴: (1) artifact_write 3 fixtures — `$.success`/`$.path` undefined + fixture가 `.nexus/state/artifacts/`를 기대하나 consumer는 `.nexus/state/claude-nexus/artifacts/`에 씀 (PATH_REMAPS 이미 추가했지만 동작 미흡), (2) context 5 assertions — `$.branch`/`$.activeMode`/`$.goal`/`$.tasksSummary.*`/`$.decisions.length` undefined, (3) history_search 1 assertion — `$.showing` undefined.",
+          "approach": "1) nexus-core의 conformance/tools/artifact-write.json, context.json, history-search.json을 WebFetch로 확인하여 정확한 기대 return shape 파악. 2) src/mcp/tools/artifact.ts, src/mcp/tools/context.ts, src/mcp/tools/history.ts (혹은 대응 구현)를 열어 textResult / return shape 정합성 확인. 3) test/conformance.mjs의 PATH_REMAPS가 artifact_write postcondition의 state_files 경로를 올바로 remap하는지 로직 검증 + 필요 시 수정. 4) 필요하면 각 tool의 return shape을 fixture 기대치에 맞춰 추가 필드 노출. 5) bash test/e2e.sh 재실행하여 17 failures → 0 확인.",
+          "acceptance": "bash test/e2e.sh의 Conformance 섹션에서 0 failed 또는 남은 실패에 대한 scope-out 근거 기록. artifact_write/context/history_search 관련 모든 assertion 통과.",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "plan_issue": 6,
+          "owner": "engineer",
+          "created_at": "2026-04-13T12:26:35.569Z"
+        },
+        {
+          "id": 7,
+          "title": ".nexus/context/ 동기화 (nexus-core 0.4.0 변경 반영)",
+          "context": "이번 cycle에서 nexus-core 0.3.0→0.4.0 업그레이드, harness-local state namespace 도입(`.nexus/state/claude-nexus/`), conformance test harness의 TOOL_MAP/PATH_REMAPS 확장이 있었음. architecture.md와 orchestration.md에 해당 변화 반영 필요.",
+          "approach": "(1) orchestration.md의 nexus-core pin 표기 ^0.3.0 → ^0.4.0, (2) orchestration.md §지식 관리 철학의 state 항목에 common-schema(root)와 harness-local(`state/claude-nexus/`) 분리 설명 추가, (3) architecture.md의 Conformance 설명에 TOOL_MAP/PATH_REMAPS 역할 추가.",
+          "acceptance": "세 항목 반영, 파일 기존 구조 유지.",
+          "status": "completed",
+          "deps": [],
+          "owner": "lead",
+          "created_at": "2026-04-13T12:42:34.754Z"
+        }
+      ]
     }
   ]
 }

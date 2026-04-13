@@ -39,7 +39,7 @@
 
 ## Source of Truth
 
-`agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 **build-time generated** from `@moreih29/nexus-core ^0.3.0`.
+`agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 **build-time generated** from `@moreih29/nexus-core ^0.4.0`.
 
 - 직접 편집 금지 — 수정이 필요하면 upstream nexus-core에서 작업
 - Build 시점에 `generate-from-nexus-core.mjs`가 nexus-core manifest.json을 읽어 regenerate
@@ -64,4 +64,6 @@
 - **memory/**: 프로젝트 고유 경험적 지식. [m] 태그로 축적.
 - **context/**: 추상적 설계 원칙. nx-init 생성 + [sync] 갱신.
 - **rules/**: 프로젝트 커스텀 규칙. [rule] 태그로 저장.
-- **state/**: 런타임 상태 (plan.json, tasks.json). 에페메랄.
+- **state/**: 런타임 상태. 에페메랄.
+  - root: nexus-core 공통 스키마 (`plan.json`, `tasks.json`, `history.json`, `runtime.json`, `agent-tracker.json`)
+  - `state/claude-nexus/`: harness-local 파일 네임스페이스 (`tool-log.jsonl`, `artifacts/`) — nexus-core 0.4.0 §Harness-local State Extension 규칙 준수
