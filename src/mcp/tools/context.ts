@@ -15,6 +15,7 @@ export function registerContextTool(server: McpServer): void {
     async () => {
       // 활성 모드 감지: tasks.json에서 읽기
       let teamStatus: { activeMode: 'team'; goal: string; tasksSummary: { total: number; completed: number; pending: number } } | { activeMode: null } = { activeMode: null };
+      let decisions: string[] = [];
       const tasksFile = join(STATE_ROOT, 'tasks.json');
       if (existsSync(tasksFile)) {
         try {
@@ -22,23 +23,12 @@ export function registerContextTool(server: McpServer): void {
           const tasks: Array<{ status?: string }> = Array.isArray(data.tasks) ? data.tasks : [];
           const total = tasks.length;
           const completed = tasks.filter((t) => t.status === 'completed').length;
-          const pending = total - completed;
+          const pending = tasks.filter((t) => t.status === 'pending').length;
           teamStatus = {
             activeMode: 'team',
             goal: data.goal ?? '',
             tasksSummary: { total, completed, pending },
           };
-        } catch {
-          // skip
-        }
-      }
-
-      // 결정 사항 읽기
-      let decisions: string[] = [];
-      const decisionsFile = join(STATE_ROOT, 'decisions.json');
-      if (existsSync(decisionsFile)) {
-        try {
-          const data = JSON.parse(await readFile(decisionsFile, 'utf-8'));
           decisions = Array.isArray(data.decisions) ? data.decisions : [];
         } catch {
           // skip

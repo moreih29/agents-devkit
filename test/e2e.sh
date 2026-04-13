@@ -16,6 +16,9 @@ export NEXUS_RUNTIME_ROOT="$E2E_TMP"
 # gate.cjs는 STATE_ROOT(.nexus/state/)에서 tasks.json을 읽음
 E2E_STATE="$E2E_TMP/state"
 mkdir -p "$E2E_STATE"
+# harness-local 파일(.nexus/state/claude-nexus/)
+E2E_HARNESS_STATE="$E2E_STATE/claude-nexus"
+mkdir -p "$E2E_HARNESS_STATE"
 # MCP 도구 테스트용 context 파일 생성
 mkdir -p "$E2E_TMP/context"
 echo '# Architecture' > "$E2E_TMP/context/architecture.md"
@@ -262,29 +265,29 @@ echo ""
 echo "=== Resume Tier ==="
 
 # (a) SessionStart → runtime.json 생성 + teams_enabled 필드
-rm -f "$E2E_STATE/runtime.json" "$E2E_STATE/tool-log.jsonl"
+rm -f "$E2E_STATE/runtime.json" "$E2E_HARNESS_STATE/tool-log.jsonl"
 echo '{"hook_event_name":"SessionStart"}' | node scripts/gate.cjs 2>/dev/null >/dev/null
 check "SessionStart (runtime.json created)" "teams_enabled" "$(cat "$E2E_STATE/runtime.json" 2>/dev/null || echo '')"
 
 # (b) SessionStart → tool-log.jsonl 초기화 (파일 존재)
-check "SessionStart (tool-log.jsonl initialized)" "tool-log.jsonl" "$(ls "$E2E_STATE/" 2>/dev/null)"
+check "SessionStart (tool-log.jsonl initialized)" "tool-log.jsonl" "$(ls "$E2E_HARNESS_STATE/" 2>/dev/null)"
 
 # (c) PostToolUse (Edit + agent_id) → tool-log append
-: > "$E2E_STATE/tool-log.jsonl"
+: > "$E2E_HARNESS_STATE/tool-log.jsonl"
 echo '{"hook_event_name":"PostToolUse","tool_name":"Edit","tool_input":{"file_path":"/tmp/foo.ts"},"agent_id":"agent-test-1"}' | node scripts/gate.cjs 2>/dev/null >/dev/null
-check "PostToolUse (Edit logs agent_id)" "agent-test-1" "$(cat "$E2E_STATE/tool-log.jsonl" 2>/dev/null || echo '')"
-check "PostToolUse (Edit logs file_path)" "/tmp/foo.ts" "$(cat "$E2E_STATE/tool-log.jsonl" 2>/dev/null || echo '')"
+check "PostToolUse (Edit logs agent_id)" "agent-test-1" "$(cat "$E2E_HARNESS_STATE/tool-log.jsonl" 2>/dev/null || echo '')"
+check "PostToolUse (Edit logs file_path)" "/tmp/foo.ts" "$(cat "$E2E_HARNESS_STATE/tool-log.jsonl" 2>/dev/null || echo '')"
 
 # (d) PostToolUse (no agent_id) → skip
-: > "$E2E_STATE/tool-log.jsonl"
+: > "$E2E_HARNESS_STATE/tool-log.jsonl"
 echo '{"hook_event_name":"PostToolUse","tool_name":"Edit","tool_input":{"file_path":"/tmp/bar.ts"}}' | node scripts/gate.cjs 2>/dev/null >/dev/null
-line_count=$(wc -l < "$E2E_STATE/tool-log.jsonl" 2>/dev/null | tr -d ' ')
+line_count=$(wc -l < "$E2E_HARNESS_STATE/tool-log.jsonl" 2>/dev/null | tr -d ' ')
 check "PostToolUse (no agent_id skipped)" "^0$" "$line_count"
 
 # (e) PostToolUse (Read tool) → skip
-: > "$E2E_STATE/tool-log.jsonl"
+: > "$E2E_HARNESS_STATE/tool-log.jsonl"
 echo '{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_path":"/tmp/baz.ts"},"agent_id":"agent-test-2"}' | node scripts/gate.cjs 2>/dev/null >/dev/null
-line_count=$(wc -l < "$E2E_STATE/tool-log.jsonl" 2>/dev/null | tr -d ' ')
+line_count=$(wc -l < "$E2E_HARNESS_STATE/tool-log.jsonl" 2>/dev/null | tr -d ' ')
 check "PostToolUse (Read tool skipped)" "^0$" "$line_count"
 
 # (f) SubagentStart (new agent_id) → new entry
@@ -297,13 +300,13 @@ echo '{"hook_event_name":"SubagentStart","agent_id":"agent-abc","agent_type":"cl
 check "SubagentStart (resume_count incremented)" "resume_count" "$(cat "$E2E_STATE/agent-tracker.json" 2>/dev/null || echo '')"
 
 # (h) SubagentStop → files_touched 주입
-echo '{"ts":"2026-04-10T00:00:00.000Z","agent_id":"agent-abc","tool":"Edit","file":"/tmp/x.ts"}' > "$E2E_STATE/tool-log.jsonl"
+echo '{"ts":"2026-04-10T00:00:00.000Z","agent_id":"agent-abc","tool":"Edit","file":"/tmp/x.ts"}' > "$E2E_HARNESS_STATE/tool-log.jsonl"
 echo '{"hook_event_name":"SubagentStop","agent_id":"agent-abc"}' | node scripts/gate.cjs 2>/dev/null >/dev/null
 check "SubagentStop (files_touched injected)" "files_touched" "$(cat "$E2E_STATE/agent-tracker.json" 2>/dev/null || echo '')"
 check "SubagentStop (tool-log file present)" "/tmp/x.ts" "$(cat "$E2E_STATE/agent-tracker.json" 2>/dev/null || echo '')"
 
 # Resume Tier cleanup
-rm -f "$E2E_STATE/runtime.json" "$E2E_STATE/tool-log.jsonl"
+rm -f "$E2E_STATE/runtime.json" "$E2E_HARNESS_STATE/tool-log.jsonl"
 echo '[]' > "$E2E_STATE/agent-tracker.json"
 
 # --- 추가 MCP 도구 테스트 (plan/task 흐름) ---

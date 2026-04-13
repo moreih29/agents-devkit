@@ -250,7 +250,7 @@ export function registerTaskTools(server: McpServer): void {
     },
     async ({ query, last_n }) => {
       const historyPath = join(NEXUS_ROOT, 'history.json');
-      if (!existsSync(historyPath)) return textResult({ cycles: [], total: 0 });
+      if (!existsSync(historyPath)) return textResult({ cycles: [], total: 0, showing: 0 });
       const raw = await readFile(historyPath, 'utf-8');
       const history = JSON.parse(raw) as { cycles: any[] };
       let cycles = history.cycles || [];

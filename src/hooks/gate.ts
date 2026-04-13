@@ -1,6 +1,6 @@
 // Gate 훅: Stop (Task 차단) + UserPromptSubmit (키워드 감지)
 import { readStdin, respond, pass } from '../shared/hook-io.js';
-import { STATE_ROOT, MEMORY_ROOT, CONTEXT_ROOT, ensureDir, ensureNexusStructure } from '../shared/paths.js';
+import { STATE_ROOT, HARNESS_STATE_ROOT, MEMORY_ROOT, CONTEXT_ROOT, ensureDir, ensureNexusStructure } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
 import { extractRole } from '../shared/matrix.js';
 import { getCurrentVersion } from '../shared/version.js';
@@ -513,7 +513,7 @@ function handlePostToolUse(event: any): void {
       tool: event.tool_name,
       file: filePath,
     }) + '\n';
-    appendFileSync(join(STATE_ROOT, 'tool-log.jsonl'), line);
+    appendFileSync(join(HARNESS_STATE_ROOT, 'tool-log.jsonl'), line);
   } catch (e) {
     // silent fail
   }
@@ -536,7 +536,7 @@ function handleSessionStart(_event: Record<string, unknown>): void {
     // silent fail
   }
   try {
-    writeFileSync(join(STATE_ROOT, 'tool-log.jsonl'), '');
+    writeFileSync(join(HARNESS_STATE_ROOT, 'tool-log.jsonl'), '');
   } catch (e) {
     // silent fail
   }
@@ -594,7 +594,7 @@ function handleSubagentStop(event: Record<string, unknown>): void {
         entry.stopped_at = new Date().toISOString();
       }
       try {
-        const toolLogPath = join(STATE_ROOT, 'tool-log.jsonl');
+        const toolLogPath = join(HARNESS_STATE_ROOT, 'tool-log.jsonl');
         if (existsSync(toolLogPath)) {
           const lines = readFileSync(toolLogPath, 'utf-8').split('\n').filter(Boolean);
           const filesSet = new Set<string>();

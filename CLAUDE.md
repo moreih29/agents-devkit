@@ -9,6 +9,14 @@ Claude Code용 에이전트 오케스트레이션 플러그인. Nexus 자체를 
 - 테스트: `bash test/e2e.sh`
 - 플러그인 구조: src/ → esbuild → bridge/mcp-server.cjs + scripts/{gate,statusline}.cjs
 - 소스 원천: `agents/`, `skills/`, `src/data/tags.json`은 `@moreih29/nexus-core` build-time 생성물 — 직접 편집 금지, 수정은 upstream에서
+
+### @moreih29/nexus-core upgrade protocol
+
+When `@moreih29/nexus-core` version in `package.json` changes:
+
+1. Read `node_modules/@moreih29/nexus-core/manifest.json`
+2. WebFetch `https://github.com/moreih29/nexus-core/blob/v{new_version}/CONSUMING.md`
+3. Follow the Upgrade Protocol documented there
 <!-- PROJECT:END -->
 
 <!-- NEXUS:START -->

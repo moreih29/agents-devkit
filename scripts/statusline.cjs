@@ -33,6 +33,8 @@ function findProjectRoot(startDir) {
 var PROJECT_ROOT = findProjectRoot();
 var NEXUS_ROOT = process.env.NEXUS_RUNTIME_ROOT || (0, import_path2.join)(PROJECT_ROOT, ".nexus");
 var STATE_ROOT = (0, import_path2.join)(NEXUS_ROOT, "state");
+var HARNESS_ID = "claude-nexus";
+var HARNESS_STATE_ROOT = (0, import_path2.join)(STATE_ROOT, HARNESS_ID);
 var MEMORY_ROOT = (0, import_path2.join)(NEXUS_ROOT, "memory");
 var CONTEXT_ROOT = (0, import_path2.join)(NEXUS_ROOT, "context");
 

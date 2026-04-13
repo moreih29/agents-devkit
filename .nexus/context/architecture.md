@@ -30,7 +30,7 @@ esbuild 번들 직후 `generate-from-nexus-core.mjs`가 실행됨 (esbuild.confi
   - `manifest.nexus_core_version` vs package.json 의존성 버전 cross-check
   - 각 body.md sha256 vs `manifest.agents[].body_hash` (불일치 시 fail-fast)
   - gate.ts `HANDLED_TAG_IDS` export 상수 ↔ nexus-core `vocabulary/tags.yml` tag id set drift detection (`verifyTagDrift()`)
-- **Conformance**: `test/conformance.mjs`가 nexus-core `conformance/` fixtures (state-schemas, tool, scenario)를 동적 로딩하여 검증
+- **Conformance**: `test/conformance.mjs`가 nexus-core `conformance/` fixtures (state-schemas, tool, scenario)를 동적 로딩하여 검증. TOOL_MAP은 neutral fixture 도구명(`artifact_write`, `history_search` 등) → MCP prefix(`nx_artifact_write`, `nx_history_search`) 매핑. PATH_REMAPS는 fixture의 common-schema 경로(`.nexus/state/artifacts/`)를 consumer의 harness-local 경로(`state/claude-nexus/artifacts/`)로 리매핑.
 - `generate-template.mjs`는 generate-from-nexus-core.mjs의 **다운스트림** — agents + skills + tags.json 메타에서 CLAUDE.md의 Nexus 섹션을 렌더링
 
 ## Release Pipeline
