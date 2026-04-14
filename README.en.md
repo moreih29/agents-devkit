@@ -168,9 +168,10 @@ Runtime state is stored under `.nexus/state/` and is excluded from git.
 .nexus/state/
 ├── tasks.json          ← Task list ([run] cycle)
 ├── plan.json           ← Planning session ([plan] cycle)
-├── agent-tracker.json  ← Subagent lifecycle tracking (resume_count, files_touched)
-├── tool-log.jsonl      ← Subagent Edit/Write/NotebookEdit call log (append-only)
-└── artifacts/          ← Artifacts
+└── claude-nexus/       ← harness-local namespace
+    ├── agent-tracker.json  ← Subagent lifecycle tracking (resume_count, files_touched)
+    ├── tool-log.jsonl      ← Subagent Edit/Write/NotebookEdit call log (append-only)
+    └── artifacts/          ← Artifacts
 ```
 
 </details>

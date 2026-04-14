@@ -531,7 +531,7 @@ function handlePostToolUse(event) {
 }
 function handleSessionStart(_event) {
   ensureNexusStructure();
-  (0, import_fs3.writeFileSync)((0, import_path3.join)(STATE_ROOT, "agent-tracker.json"), "[]");
+  (0, import_fs3.writeFileSync)((0, import_path3.join)(HARNESS_STATE_ROOT, "agent-tracker.json"), "[]");
   try {
     (0, import_fs3.writeFileSync)((0, import_path3.join)(HARNESS_STATE_ROOT, "tool-log.jsonl"), "");
   } catch (e) {
@@ -541,7 +541,7 @@ function handleSessionStart(_event) {
 function handleSubagentStart(event) {
   const agentType = String(event.agent_type ?? "");
   const agentId = String(event.agent_id ?? "");
-  const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
+  const trackerPath = (0, import_path3.join)(HARNESS_STATE_ROOT, "agent-tracker.json");
   let tracker = [];
   if ((0, import_fs3.existsSync)(trackerPath)) {
     try {
@@ -558,7 +558,7 @@ function handleSubagentStart(event) {
   } else {
     tracker.push({ harness_id: HARNESS_ID, agent_name: agentType, agent_id: agentId, started_at: (/* @__PURE__ */ new Date()).toISOString(), resume_count: 0, status: "running" });
   }
-  ensureDir(STATE_ROOT);
+  ensureDir(HARNESS_STATE_ROOT);
   (0, import_fs3.writeFileSync)(trackerPath, JSON.stringify(tracker, null, 2));
   const role = extractRole(agentType);
   if (role !== null) {
@@ -574,7 +574,7 @@ function handleSubagentStop(event) {
   const agentId = String(event.agent_id ?? "");
   const agentType = String(event.agent_type ?? "");
   const lastMsg = String(event.last_assistant_message ?? event.last_message ?? "");
-  const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
+  const trackerPath = (0, import_path3.join)(HARNESS_STATE_ROOT, "agent-tracker.json");
   if ((0, import_fs3.existsSync)(trackerPath)) {
     try {
       const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));
@@ -678,7 +678,7 @@ function handlePostCompact(_event) {
     }
   } catch {
   }
-  const trackerPath = (0, import_path3.join)(STATE_ROOT, "agent-tracker.json");
+  const trackerPath = (0, import_path3.join)(HARNESS_STATE_ROOT, "agent-tracker.json");
   if ((0, import_fs3.existsSync)(trackerPath)) {
     try {
       const tracker = JSON.parse((0, import_fs3.readFileSync)(trackerPath, "utf-8"));

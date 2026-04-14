@@ -65,5 +65,5 @@
 - **context/**: 추상적 설계 원칙. nx-init 생성 + [sync] 갱신.
 - **rules/**: 프로젝트 커스텀 규칙. [rule] 태그로 저장.
 - **state/**: 런타임 상태. 에페메랄.
-  - root: nexus-core 공통 스키마 (`plan.json`, `tasks.json`, `history.json`, `agent-tracker.json`)
-  - `state/claude-nexus/`: harness-local 파일 네임스페이스 (`tool-log.jsonl`, `artifacts/`) — nexus-core 0.6.0 §Harness-local State Extension 규칙 준수. agent-tracker.json 엔트리는 harness_id + agent_name 분리 필드로 기록. history.json cycles[]는 schema_version: "0.5" 포함.
+  - root: nexus-core 공통 스키마 (`plan.json`, `tasks.json`, `history.json`)
+  - `state/claude-nexus/`: harness-local 파일 네임스페이스 (`agent-tracker.json`, `tool-log.jsonl`, `artifacts/`) — nexus-core 0.7.0 §Shared filename convention 규칙 준수. agent-tracker.json 엔트리는 harness_id + agent_name 분리 필드로 기록. history.json cycles[]는 schema_version: "0.5" 포함.

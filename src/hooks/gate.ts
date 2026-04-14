@@ -522,7 +522,7 @@ function handlePostToolUse(event: any): void {
 
 function handleSessionStart(_event: Record<string, unknown>): void {
   ensureNexusStructure();
-  writeFileSync(join(STATE_ROOT, 'agent-tracker.json'), '[]');
+  writeFileSync(join(HARNESS_STATE_ROOT, 'agent-tracker.json'), '[]');
   try {
     writeFileSync(join(HARNESS_STATE_ROOT, 'tool-log.jsonl'), '');
   } catch (e) {
@@ -535,7 +535,7 @@ function handleSubagentStart(event: Record<string, unknown>): void {
   const agentType = String(event.agent_type ?? '');
   const agentId = String(event.agent_id ?? '');
 
-  const trackerPath = join(STATE_ROOT, 'agent-tracker.json');
+  const trackerPath = join(HARNESS_STATE_ROOT, 'agent-tracker.json');
   let tracker: Record<string, unknown>[] = [];
   if (existsSync(trackerPath)) {
     try { tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')); } catch {}
@@ -551,7 +551,7 @@ function handleSubagentStart(event: Record<string, unknown>): void {
     tracker.push({ harness_id: HARNESS_ID, agent_name: agentType, agent_id: agentId, started_at: new Date().toISOString(), resume_count: 0, status: 'running' });
   }
 
-  ensureDir(STATE_ROOT);
+  ensureDir(HARNESS_STATE_ROOT);
   writeFileSync(trackerPath, JSON.stringify(tracker, null, 2));
 
   const role = extractRole(agentType);
@@ -570,7 +570,7 @@ function handleSubagentStop(event: Record<string, unknown>): void {
   const agentType = String(event.agent_type ?? '');
   const lastMsg = String(event.last_assistant_message ?? event.last_message ?? '');
 
-  const trackerPath = join(STATE_ROOT, 'agent-tracker.json');
+  const trackerPath = join(HARNESS_STATE_ROOT, 'agent-tracker.json');
   if (existsSync(trackerPath)) {
     try {
       const tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')) as Record<string, unknown>[];
@@ -684,7 +684,7 @@ function handlePostCompact(_event: Record<string, unknown>): void {
   } catch {}
 
   // Agents
-  const trackerPath = join(STATE_ROOT, 'agent-tracker.json');
+  const trackerPath = join(HARNESS_STATE_ROOT, 'agent-tracker.json');
   if (existsSync(trackerPath)) {
     try {
       const tracker = JSON.parse(readFileSync(trackerPath, 'utf-8')) as Array<{ agent_type?: string; status?: string }>;
