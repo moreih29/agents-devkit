@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.26.2 (2026-04-14)
+
+### Other
+- Merge branch 'chore/nexus-core-consuming-sync'
+- Merge branch 'chore/nexus-core-0.6.0-sync'
+
 ## 0.26.1 (2026-04-13)
 
 ### Other
