@@ -46,7 +46,6 @@ const SCHEMAS = {
   plan:         JSON.parse(readFileSync(join(CORE, 'conformance/state-schemas/plan.schema.json'), 'utf-8')),
   tasks:        JSON.parse(readFileSync(join(CORE, 'conformance/state-schemas/tasks.schema.json'), 'utf-8')),
   history:      JSON.parse(readFileSync(join(CORE, 'conformance/state-schemas/history.schema.json'), 'utf-8')),
-  runtime:      JSON.parse(readFileSync(join(CORE, 'conformance/state-schemas/runtime.schema.json'), 'utf-8')),
   agentTracker: JSON.parse(readFileSync(join(CORE, 'conformance/state-schemas/agent-tracker.schema.json'), 'utf-8')),
 };
 
@@ -472,20 +471,6 @@ function runStateSchemaValidation(stateDir) {
     }
   } else {
     fail('schema/history.json', 'history.json not created');
-  }
-
-  // runtime.json — synthesize a valid object and validate schema
-  const runtimeSample = {
-    teams_enabled: true,
-    session_started_at: new Date().toISOString(),
-    harness_id: 'claude-nexus',
-    harness_version: '0.25.1',
-  };
-  const rErr = validateAgainstSchema(runtimeSample, SCHEMAS.runtime);
-  if (rErr) {
-    fail('schema/runtime.json (sample)', rErr);
-  } else {
-    pass('schema/runtime.json (sample) validates');
   }
 
   // agent-tracker.json — synthesize a valid array and validate schema

@@ -6367,6 +6367,160 @@
           "created_at": "2026-04-13T14:01:09.614Z"
         }
       ]
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-14T03:20:30.419Z",
+      "branch": "chore/nexus-core-0.6.0-sync",
+      "plan": {
+        "id": 5,
+        "topic": "nexus-core v0.5.0 → v0.6.0 sync (runtime.json 제거)",
+        "issues": [
+          {
+            "id": 1,
+            "title": "runtime.json 제거 방식 결정: 단순 삭제 vs harness-local session-config.extension.json 대체",
+            "status": "decided",
+            "decision": "**단순 제거 (대체 파일 도입하지 않음)**. claude-nexus src/ 전체에서 runtime.json 읽는 코드가 0건 — 우리가 이슈 #14로 직접 증명. MIGRATIONS가 명시한 \"no data migration needed, write-only with no surviving read-site\"에 그대로 부합. 기각: harness-local session-config.extension.json 도입 — 현재 소비처가 없어 도입 시 또 다시 write-only 데드 데이터가 될 뿐. 필요 시 추후 별도 사이클에서 consumer 구현과 함께 도입."
+          },
+          {
+            "id": 2,
+            "title": "하네스 버전 bump 및 release 포함 범위",
+            "status": "decided",
+            "decision": "**이번 사이클은 sync만, 버전 bump/release는 별도**. 최근 이력 `0cbc035 Merge chore/nexus-core-0.4.0-sync` + `a0c392e release: v0.26.1`처럼 sync와 release가 분리된 관례 유지. sync 브랜치의 변경을 검증 후 main merge → 별도 release PR에서 VERSION/package.json#version bump. 기각: 동일 사이클에 bump 포함 — review 범위 혼재 + release 타이밍을 sync 완료에 강제 결합."
+          },
+          {
+            "id": 3,
+            "title": "GitHub issue moreih29/nexus-core#14 종결 시점",
+            "status": "decided",
+            "decision": "**이번 sync 사이클 완료 + main merge 이후 close**. 이슈 #14는 이 릴리즈의 직접 트리거이며 v0.6.0이 이미 릴리즈되어 실질적으로 resolved 상태. 본 sync merge로 consumer측 구현까지 적용되는 시점이 close의 자연스러운 앵커. commit 해시를 코멘트로 남기고 close. 기각: 지금 즉시 close — sync 구현 전 close는 \"문제는 지적됐지만 해결 상태 미증명\"이 됨. 기각: 무기한 별도 처리 — 릴리즈-sync-close 연결 문맥이 분산됨."
+          }
+        ],
+        "research_summary": "v0.6.0은 단일 breaking change로 `runtime.json` 공통 스키마 완전 제거. claude-nexus 이슈 #14(본 레포에서 직전 사이클에 등록)와 opencode-nexus 이슈 #15 모두 \"write-only no-op\"이라고 확인되어 채택됨. MIGRATIONS/v0_5_to_v0_6.md 요구사항: (1) session-start 훅 runtime.json 쓰기 제거 (agent-tracker.json 초기화 유지), (2) session-end 훅 runtime.json 삭제 제거 (claude-nexus는 session-end 훅 없음 — 해당 없음), (3) conformance test runner에서 `lifecycle/session-start.json`/`session-end.json` 참조 제거, (4) `event.type` enum에서 `session_start`/`session_end` 제거 (claude-nexus runner는 하드코딩된 enum 없음 — 확인 필요), (5) `bunx nexus-validate-conformance` 통과. 영향 파일: `package.json`(dep bump), `src/hooks/gate.ts:524-545`(handleSessionStart), `test/conformance.mjs:49, 477-488`(runtime 스키마 로드/검증), `test/e2e.sh:262-265, 304`(runtime.json 검증 섹션), `README.md:118, 159`, `README.en.md:131, 172`, `.nexus/context/orchestration.md:68-69`, `.nexus/memory/cycle-split-pattern.md:32`. \"no data migration needed\" — write-only라 대체 파일 필요 없음. 하네스 버전 bump/release는 이전 sync(0.4→0.5) 패턴상 별도 커밋으로 분리돼 왔음.",
+        "created_at": "2026-04-14T03:09:53.651Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "package.json dep bump + node_modules 갱신",
+          "context": "@moreih29/nexus-core 의존성을 ^0.5.0 → ^0.6.0으로 올리고 bun install로 node_modules 갱신. 이후 conformance 스키마가 새 버전 기준이 되어야 하므로 가장 먼저 실행.",
+          "approach": "Edit로 package.json의 devDependencies 버전 변경 → `bun install` 실행 → installed 버전 확인(node_modules/@moreih29/nexus-core/manifest.json이 0.6.0인지).",
+          "acceptance": "package.json에 ^0.6.0 반영, node_modules의 nexus-core가 0.6.0, bun.lock 업데이트됨.",
+          "risk": "bun install 실패 시 lock 파일 상태 불일치 가능.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-14T03:10:52.716Z"
+        },
+        {
+          "id": 2,
+          "title": "src/hooks/gate.ts handleSessionStart에서 runtime.json 쓰기 제거",
+          "context": "gate.ts:524-545 handleSessionStart의 runtime.json 쓰기 블록(teamsEnabled/runtimePayload/writeFileSync 줄) 제거. agent-tracker.json 초기화(line 526)와 tool-log.jsonl 초기화는 유지. HARNESS_ID, getCurrentVersion import가 이 블록에서만 쓰였다면 같이 정리.",
+          "approach": "Edit로 runtime.json try-catch 블록 삭제. 남은 import 사용처 확인: HARNESS_ID, getCurrentVersion이 다른 곳에서 쓰이는지 Grep 후 미사용이면 import 정리.",
+          "acceptance": "handleSessionStart에 runtime.json 관련 코드 0건. agent-tracker.json/tool-log.jsonl 초기화 로직 보존. bun run dev 빌드 통과.",
+          "risk": "HARNESS_ID/getCurrentVersion이 다른 경로에서 간접 참조될 수 있음 — 정리 전 Grep 확인 필수.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-14T03:11:00.244Z"
+        },
+        {
+          "id": 3,
+          "title": "test/conformance.mjs runtime 스키마 로드/검증 블록 제거",
+          "context": "conformance.mjs:49 `runtime: JSON.parse(...'runtime.schema.json')` 엔트리 제거, 477-488 `// runtime.json — synthesize a valid object and validate schema` 검증 블록 제거. v0.6.0에선 runtime.schema.json 자체가 삭제되어 있어 load 시 파일 부재 오류 발생.",
+          "approach": "Read로 해당 구간 확인 → Edit로 SCHEMAS 객체의 runtime 키 삭제 + 검증 블록 삭제. `session_start`/`session_end` 하드코딩 event.type enum이 있는지 Grep으로 확인 후 있으면 제거.",
+          "acceptance": "bun run test/conformance.mjs 또는 e2e 내부 conformance 섹션 통과. runtime 참조 0건.",
+          "risk": "다른 conformance 섹션이 runtime 변수에 의존하면 연쇄 수정 필요.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-14T03:11:06.371Z"
+        },
+        {
+          "id": 4,
+          "title": "test/e2e.sh runtime.json 검증 섹션 제거",
+          "context": "e2e.sh:262-265의 `(a) SessionStart → runtime.json 생성 + teams_enabled 필드` 검증 + 304번의 중복 cleanup 라인 제거. v0.6.0 기준에선 runtime.json이 생성되지 않으므로 assertion 실패.",
+          "approach": "Read로 해당 구간 확인 → Edit로 runtime.json 관련 rm + check 라인 제거. tool-log.jsonl 검증은 유지.",
+          "acceptance": "bash test/e2e.sh 통과. e2e.sh에 runtime.json 문자열 0건(grep 확인).",
+          "risk": "$E2E_STATE 변수 참조가 정리되며 뒤따르는 섹션의 의존이 깨질 수 있음.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-14T03:11:12.243Z"
+        },
+        {
+          "id": 5,
+          "title": "문서/컨텍스트/메모리 runtime.json 언급 정리",
+          "context": "4개 파일의 runtime.json 언급을 현재 사실에 맞게 수정: (1) README.md:118,159 (2) README.en.md:131,172 (3) .nexus/context/orchestration.md:68-69 (4) .nexus/memory/cycle-split-pattern.md:32. SessionStart 훅 설명에서 runtime.json 기록 항목 제거, state 디렉토리 트리에서 runtime.json 라인 제거, common schema 나열에서 runtime.json 제외.",
+          "approach": "각 파일 Read → Edit로 runtime.json 관련 문구만 정확히 제거하되 주변 문맥(SessionStart 훅 동작, state 트리 구조) 자연스럽게 이어지도록. 번역된 README 쌍은 동일 구조 유지.",
+          "acceptance": "4개 파일에서 runtime.json 문자열 0건. 주변 문맥 훼손 없음. markdown 렌더링 깨짐 없음.",
+          "risk": "README 두 버전의 일관성 유지가 어려움 — 병행 편집 필요.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "writer",
+          "created_at": "2026-04-14T03:11:19.415Z"
+        },
+        {
+          "id": 6,
+          "title": "빌드 + e2e 검증",
+          "context": "모든 코드/문서 수정 후 `bun run dev`(빌드) + `bash test/e2e.sh`(통합 테스트)를 실행해 회귀 확인. 빌드가 scripts/gate.cjs, bridge/mcp-server.cjs를 재생성해야 실제 실행 경로에 반영됨.",
+          "approach": "Bash로 두 명령 순차 실행. 기존에 존재하던 `yaml` 패키지 미설치 에러(Frontmatter parse + dev-sync.mjs)는 이번 sync와 무관 — 결과만 기록, sync로 인한 신규 실패가 있는지 분별.",
+          "acceptance": "빌드 완료 + e2e에서 sync로 새로 깨진 테스트 0건. Conformance 섹션 모두 통과.",
+          "risk": "yaml 미설치 관련 사전 실패가 sync 이슈와 혼동될 수 있음.",
+          "status": "completed",
+          "deps": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-14T03:11:27.268Z"
+        },
+        {
+          "id": 7,
+          "title": "Tester acceptance 검증",
+          "context": "각 engineer/writer task의 acceptance criteria를 종합 검증: (a) handleSessionStart 실행 후 .nexus/state/runtime.json 미생성 (b) agent-tracker.json은 여전히 [] 초기화됨 (c) test/conformance.mjs 재실행 결과 PASS (d) test/e2e.sh 전 구간 통과(기존 Frontmatter yaml 이슈 제외) (e) 4개 문서 파일에 runtime.json 문자열 0건.",
+          "approach": "실제 SessionStart hook을 수동 invoke(`echo '{\"hook_event_name\":\"SessionStart\"}' | node scripts/gate.cjs`) 후 .nexus/state/ 상태 확인. 각 파일 grep으로 runtime.json 잔존 여부 검증.",
+          "acceptance": "위 5개 criteria 모두 PASS. 실패 시 해당 task reopen.",
+          "risk": "기존 세션의 stale .nexus/state/runtime.json 잔존 가능성 — 검증 전 정리 필요.",
+          "status": "completed",
+          "deps": [
+            6
+          ],
+          "plan_issue": 1,
+          "owner": "tester",
+          "created_at": "2026-04-14T03:11:33.819Z"
+        },
+        {
+          "id": 8,
+          "title": "Reviewer 문서 deliverable 검토",
+          "context": "Writer가 수정한 4개 문서(README.md, README.en.md, .nexus/context/orchestration.md, .nexus/memory/cycle-split-pattern.md)의 정확성/문맥 일관성/형식 검토. 영문 README가 한글 README와 1:1 대응되는지, markdown 렌더링이 깨지지 않는지.",
+          "approach": "각 파일 Read + 변경 diff 검토. runtime.json 제거 후 주변 문장 자연스러움, 번역 쌍 일관성, 링크/코드 블록 무결성 확인.",
+          "acceptance": "사실 관계 정확(runtime.json은 v0.6.0에서 공통 스키마로부터 제거됐으므로 더 이상 언급 없음), 번역 쌍 일관, 형식 깨짐 없음.",
+          "risk": "일부 문서의 주변 문맥이 runtime.json 언급을 전제로 구성돼 있다면 단순 삭제로는 문장이 어색해질 수 있음.",
+          "status": "completed",
+          "deps": [
+            5
+          ],
+          "plan_issue": 1,
+          "owner": "reviewer",
+          "created_at": "2026-04-14T03:11:40.078Z"
+        }
+      ]
     }
   ]
 }

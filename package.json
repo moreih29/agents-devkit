@@ -39,7 +39,7 @@
     "@types/node": "^25.5.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.8.0",
-    "@moreih29/nexus-core": "^0.5.0",
+    "@moreih29/nexus-core": "^0.6.0",
     "yaml": "^2"
   },
   "dependencies": {

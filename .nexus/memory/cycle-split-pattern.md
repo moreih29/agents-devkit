@@ -29,7 +29,7 @@
 ### Phase 2 Cycle A (gate.ts 인프라, cycle 66)
 - 4파일 변경 (gate.ts +76 lines + 빌드산출물 + CLAUDE.md)
 - gate.ts 단일 파일 수정이라 **한 engineer에 4 sub-task 묶음** (토큰 효율 + 일관성)
-- 가치: runtime.json + tool-log.jsonl + resume_count/files_touched 추적 자동화
+- 가치: tool-log.jsonl + resume_count/files_touched 추적 자동화
 - 단일 commit `ae1b53b`, tester 5/5 PASS
 
 ## 반사례 (지양)

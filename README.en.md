@@ -128,7 +128,7 @@ Nexus registers a single Gate module as a Claude Code hook.
 
 | Event | Role |
 |-------|------|
-| `SessionStart` | Initialize `.nexus/` structure, reset agent-tracker, write `runtime.json` (teams_enabled), init `tool-log.jsonl` |
+| `SessionStart` | Initialize `.nexus/` structure, reset agent-tracker, init `tool-log.jsonl` |
 | `UserPromptSubmit` | Tag detection → mode activation + TASK_PIPELINE injection + additionalContext guidance |
 | `PreToolUse` | Edit/Write: blocks when incomplete tasks exist |
 | `PostToolUse` | On Edit/Write/NotebookEdit, append subagent file edits to `tool-log.jsonl` (only when agent_id present) |
@@ -169,7 +169,6 @@ Runtime state is stored under `.nexus/state/` and is excluded from git.
 ├── tasks.json          ← Task list ([run] cycle)
 ├── plan.json           ← Planning session ([plan] cycle)
 ├── agent-tracker.json  ← Subagent lifecycle tracking (resume_count, files_touched)
-├── runtime.json        ← teams_enabled flag + session_started_at + plugin_version
 ├── tool-log.jsonl      ← Subagent Edit/Write/NotebookEdit call log (append-only)
 └── artifacts/          ← Artifacts
 ```

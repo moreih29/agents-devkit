@@ -224,11 +224,6 @@ result=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[rule:dev,test] �
 check "Gate/UserPromptSubmit ([rule:tags] tag)" 'Rule mode' "$result"
 check "Rule tag (explicit tags)" 'dev, test' "$result"
 
-# (Edit tracker tests removed — trackers deleted per D9 decision)
-
-# 정리
-rm -f "$TRACKER_STATE/edit-tracker.json" "$TRACKER_STATE/tasks.json"
-
 # --- 추가 훅 테스트 ---
 echo ""
 echo "=== 추가 훅 테스트 ==="
@@ -264,12 +259,9 @@ check "Gate/PreCompact (pass)" '"continue":true' "$result"
 echo ""
 echo "=== Resume Tier ==="
 
-# (a) SessionStart → runtime.json 생성 + teams_enabled 필드
-rm -f "$E2E_STATE/runtime.json" "$E2E_HARNESS_STATE/tool-log.jsonl"
+# (a) SessionStart → tool-log.jsonl 초기화 (파일 존재)
+rm -f "$E2E_HARNESS_STATE/tool-log.jsonl"
 echo '{"hook_event_name":"SessionStart"}' | node scripts/gate.cjs 2>/dev/null >/dev/null
-check "SessionStart (runtime.json created)" "teams_enabled" "$(cat "$E2E_STATE/runtime.json" 2>/dev/null || echo '')"
-
-# (b) SessionStart → tool-log.jsonl 초기화 (파일 존재)
 check "SessionStart (tool-log.jsonl initialized)" "tool-log.jsonl" "$(ls "$E2E_HARNESS_STATE/" 2>/dev/null)"
 
 # (c) PostToolUse (Edit + agent_id) → tool-log append
@@ -306,7 +298,7 @@ check "SubagentStop (files_touched injected)" "files_touched" "$(cat "$E2E_STATE
 check "SubagentStop (tool-log file present)" "/tmp/x.ts" "$(cat "$E2E_STATE/agent-tracker.json" 2>/dev/null || echo '')"
 
 # Resume Tier cleanup
-rm -f "$E2E_STATE/runtime.json" "$E2E_HARNESS_STATE/tool-log.jsonl"
+rm -f "$E2E_HARNESS_STATE/tool-log.jsonl"
 echo '[]' > "$E2E_STATE/agent-tracker.json"
 
 # --- 추가 MCP 도구 테스트 (plan/task 흐름) ---

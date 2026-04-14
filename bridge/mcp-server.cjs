@@ -22191,7 +22191,6 @@ function registerTaskTools(server2) {
       const root = STATE_ROOT;
       const projectHistoryPath = (0, import_path8.join)(NEXUS_ROOT, "history.json");
       const planJsonPath = (0, import_path8.join)(root, "plan.json");
-      const reopenTrackerPath = (0, import_path8.join)(root, "reopen-tracker.json");
       const plan = await readPlan();
       const tasksData = await readTasks();
       const tasks = tasksData?.tasks ?? [];
@@ -22211,24 +22210,14 @@ function registerTaskTools(server2) {
       history.cycles.push(cycle);
       ensureDir(NEXUS_ROOT);
       await (0, import_promises3.writeFile)(projectHistoryPath, JSON.stringify(history, null, 2));
-      const editTrackerPath = (0, import_path8.join)(root, "edit-tracker.json");
-      let hadLoopDetection = false;
-      if ((0, import_fs8.existsSync)(editTrackerPath)) {
-        try {
-          const trackerData = JSON.parse(await (0, import_promises3.readFile)(editTrackerPath, "utf-8"));
-          hadLoopDetection = Object.values(trackerData).some((count) => count >= 3);
-        } catch {
-        }
-      }
       const decisionCount = plan?.issues.filter((i) => i.status === "decided").length ?? 0;
       const memoryHint = {
         taskCount: tasks.length,
         decisionCount,
-        hadLoopDetection,
         cycleTopics: [plan?.topic, tasksData?.goal].filter(Boolean)
       };
       const deleted = [];
-      for (const p of [planJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath]) {
+      for (const p of [planJsonPath, tasksPath()]) {
         if ((0, import_fs8.existsSync)(p)) {
           (0, import_fs8.unlinkSync)(p);
           deleted.push(p.split("/").pop());
