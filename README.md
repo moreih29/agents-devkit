@@ -155,9 +155,10 @@ Gate 단일 모듈로 동작합니다.
 .nexus/state/
 ├── tasks.json          ← 태스크 목록 ([run] 사이클)
 ├── plan.json           ← 플랜 세션 ([plan] 사이클)
-├── agent-tracker.json  ← 서브에이전트 라이프사이클 (resume_count, files_touched 포함)
-├── tool-log.jsonl      ← 서브에이전트 Edit/Write/NotebookEdit 호출 로그 (append-only)
-└── artifacts/          ← 산출물
+└── claude-nexus/       ← harness-local 네임스페이스
+    ├── agent-tracker.json  ← 서브에이전트 라이프사이클 (resume_count, files_touched 포함)
+    ├── tool-log.jsonl      ← 서브에이전트 Edit/Write/NotebookEdit 호출 로그 (append-only)
+    └── artifacts/          ← 산출물
 ```
 
 </details>

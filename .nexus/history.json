@@ -6521,6 +6521,13 @@
           "created_at": "2026-04-14T03:11:40.078Z"
         }
       ]
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-14T08:27:57.963Z",
+      "branch": "chore/nexus-core-consuming-sync",
+      "plan": null,
+      "tasks": []
     }
   ]
 }
