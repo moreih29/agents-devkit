@@ -163,7 +163,6 @@ export function registerTaskTools(server: McpServer): void {
       const root = STATE_ROOT;
       const projectHistoryPath = join(NEXUS_ROOT, 'history.json');
       const planJsonPath = join(root, 'plan.json');
-      const reopenTrackerPath = join(root, 'reopen-tracker.json');
 
       // Read current state (only what exists)
       const plan: PlanFile | null = await readPlan();
@@ -205,27 +204,15 @@ export function registerTaskTools(server: McpServer): void {
       ensureDir(NEXUS_ROOT);
       await writeFile(projectHistoryPath, JSON.stringify(history, null, 2));
 
-      // memoryHint 계산
-      const editTrackerPath = join(root, 'edit-tracker.json');
-      let hadLoopDetection = false;
-      if (existsSync(editTrackerPath)) {
-        try {
-          const trackerData = JSON.parse(await readFile(editTrackerPath, 'utf-8')) as Record<string, number>;
-          hadLoopDetection = Object.values(trackerData).some((count) => count >= 3);
-        } catch {}
-      }
-
       const decisionCount = plan?.issues.filter(i => i.status === 'decided').length ?? 0;
       const memoryHint = {
         taskCount: tasks.length,
         decisionCount,
-        hadLoopDetection,
         cycleTopics: [plan?.topic, tasksData?.goal].filter(Boolean) as string[],
       };
 
-      // Delete source files (reopen-tracker 포함)
       const deleted: string[] = [];
-      for (const p of [planJsonPath, tasksPath(), editTrackerPath, reopenTrackerPath]) {
+      for (const p of [planJsonPath, tasksPath()]) {
         if (existsSync(p)) {
           unlinkSync(p);
           deleted.push(p.split('/').pop()!);

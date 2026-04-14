@@ -3,7 +3,6 @@ import { readStdin, respond, pass } from '../shared/hook-io.js';
 import { STATE_ROOT, HARNESS_STATE_ROOT, HARNESS_ID, MEMORY_ROOT, CONTEXT_ROOT, ensureDir, ensureNexusStructure } from '../shared/paths.js';
 import { readTasksSummary } from '../shared/tasks.js';
 import { extractRole } from '../shared/matrix.js';
-import { getCurrentVersion } from '../shared/version.js';
 import { existsSync, readFileSync, writeFileSync, appendFileSync, readdirSync } from 'fs';
 import { join, basename } from 'path';
 import { homedir } from 'os';
@@ -525,18 +524,6 @@ function handleSessionStart(_event: Record<string, unknown>): void {
   ensureNexusStructure();
   writeFileSync(join(STATE_ROOT, 'agent-tracker.json'), '[]');
   try {
-    const teamsEnabled = process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === '1';
-    const runtimePayload = {
-      teams_enabled: teamsEnabled,
-      session_started_at: new Date().toISOString(),
-      harness_id: HARNESS_ID,
-      harness_version: getCurrentVersion(),
-    };
-    writeFileSync(join(STATE_ROOT, 'runtime.json'), JSON.stringify(runtimePayload, null, 2));
-  } catch (e) {
-    // silent fail
-  }
-  try {
     writeFileSync(join(HARNESS_STATE_ROOT, 'tool-log.jsonl'), '');
   } catch (e) {
     // silent fail
@@ -560,7 +547,6 @@ function handleSubagentStart(event: Record<string, unknown>): void {
     entry.resume_count = ((entry.resume_count as number) || 0) + 1;
     entry.last_resumed_at = new Date().toISOString();
     entry.status = 'running';
-    delete entry.ended_at;
   } else {
     tracker.push({ harness_id: HARNESS_ID, agent_name: agentType, agent_id: agentId, started_at: new Date().toISOString(), resume_count: 0, status: 'running' });
   }

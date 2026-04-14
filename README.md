@@ -115,7 +115,7 @@ Gate 단일 모듈로 동작합니다.
 
 | 이벤트 | 역할 |
 |--------|------|
-| `SessionStart` | `.nexus/` 구조 초기화, agent-tracker 리셋, `runtime.json` 기록 (teams_enabled), `tool-log.jsonl` 초기화 |
+| `SessionStart` | `.nexus/` 구조 초기화, agent-tracker 리셋, `tool-log.jsonl` 초기화 |
 | `UserPromptSubmit` | 태그 감지 → 모드 활성화 + TASK_PIPELINE 주입 + additionalContext 안내 |
 | `PreToolUse` | Edit/Write: tasks.json 미완료 시 차단 |
 | `PostToolUse` | Edit/Write/NotebookEdit 호출 시 서브에이전트의 파일 수정을 `tool-log.jsonl`에 append (agent_id 있을 때만) |
@@ -156,7 +156,6 @@ Gate 단일 모듈로 동작합니다.
 ├── tasks.json          ← 태스크 목록 ([run] 사이클)
 ├── plan.json           ← 플랜 세션 ([plan] 사이클)
 ├── agent-tracker.json  ← 서브에이전트 라이프사이클 (resume_count, files_touched 포함)
-├── runtime.json        ← teams_enabled 플래그 + session_started_at + plugin_version
 ├── tool-log.jsonl      ← 서브에이전트 Edit/Write/NotebookEdit 호출 로그 (append-only)
 └── artifacts/          ← 산출물
 ```
