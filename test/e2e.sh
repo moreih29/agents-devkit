@@ -447,6 +447,25 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# --- Hook Registration ---
+echo ""
+echo "=== Hook Registration ==="
+
+# gate.ts switch case 목록
+gate_events=$(grep -oE "case '[A-Z][a-zA-Z]+'" src/hooks/gate.ts | sed "s/case '//;s/'//" | sort -u)
+# hooks.json 등록 이벤트 목록
+hooks_events=$(jq -r '.hooks | keys[]' hooks/hooks.json | sort -u)
+
+# (a) hooks.json이 gate.ts의 모든 이벤트를 커버하는지 (gate - hooks = 빈 집합)
+missing_in_hooks=$(comm -23 <(echo "$gate_events") <(echo "$hooks_events"))
+missing_count=$(echo "$missing_in_hooks" | tr -d '[:space:]' | wc -c | tr -d ' ')
+check "hooks.json covers all gate.ts switch cases" "^0$" "$missing_count"
+
+# (b) hooks.json에 gate.ts에 없는 dead entry가 없는지 (hooks - gate = 빈 집합)
+dead_in_hooks=$(comm -13 <(echo "$gate_events") <(echo "$hooks_events"))
+dead_count=$(echo "$dead_in_hooks" | tr -d '[:space:]' | wc -c | tr -d ' ')
+check "hooks.json has no dead entries vs gate.ts" "^0$" "$dead_count"
+
 # --- Conformance (nexus-core) ---
 echo ""
 echo "=== Conformance (nexus-core) ==="
