@@ -24,6 +24,8 @@ invocation_map:
     # (Explore, Plan, general-purpose, statusline-setup) are used bare.
     # Aliases map body.md neutral casing to Claude Code's canonical built-in names
     # (e.g. nexus-core body writes `target_role=explore` but Claude Code expects `Explore`).
+    # Only map aliases we actually need — do NOT blanket-alias skill names like `plan`
+    # (which refers to the claude-nexus `nx-plan` skill, not the built-in `Plan` agent).
     tool: Agent
     role_namespace: "claude-nexus:"
     builtin_roles:
@@ -33,7 +35,6 @@ invocation_map:
       - statusline-setup
     builtin_role_aliases:
       explore: Explore
-      plan: Plan
 
   task_register:
     # state=pending → create a new task.
