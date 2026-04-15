@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -50,7 +50,7 @@ jobs:
         # Node 24 LTS ships with npm 11+, required for Trusted Publishing.
         # DO NOT add registry-url here — would inject NODE_AUTH_TOKEN env
         # which takes precedence over OIDC and routes publish through token auth.
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
 
