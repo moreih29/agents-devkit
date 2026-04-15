@@ -22,6 +22,8 @@ invocation_map:
     # Agent tool. target_role resolves to subagent_type.
     # Plugin-owned agents get the claude-nexus: prefix; Claude Code built-ins
     # (Explore, Plan, general-purpose, statusline-setup) are used bare.
+    # Aliases map body.md neutral casing to Claude Code's canonical built-in names
+    # (e.g. nexus-core body writes `target_role=explore` but Claude Code expects `Explore`).
     tool: Agent
     role_namespace: "claude-nexus:"
     builtin_roles:
@@ -29,6 +31,9 @@ invocation_map:
       - Plan
       - general-purpose
       - statusline-setup
+    builtin_role_aliases:
+      explore: Explore
+      plan: Plan
 
   task_register:
     # state=pending → create a new task.

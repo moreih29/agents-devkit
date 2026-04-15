@@ -100,7 +100,7 @@ Understand code, core knowledge, and prior decisions before forming a planning a
 
 | Scenario | Approach |
 |----------|----------|
-| Codebase orientation | `Agent({ subagent_type: "claude-nexus:explore", prompt: "<file/code search task>" })` for codebase exploration |
+| Codebase orientation | `Agent({ subagent_type: "Explore", prompt: "<file/code search task>" })` for codebase exploration |
 | External research needed | `Agent({ subagent_type: "claude-nexus:researcher", prompt: "<research question>" })` for web search |
 | Both codebase and external | Spawn Explore + Researcher in parallel |
 

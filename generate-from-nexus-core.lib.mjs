@@ -453,8 +453,9 @@ export function expandPrimitive(primitive, params, invocationMap) {
       const { target_role, prompt, name } = params;
       if (!target_role) throw new Error(`subagent_spawn: missing required 'target_role'`);
       if (prompt === undefined) throw new Error(`subagent_spawn: missing required 'prompt'`);
-      const isBuiltin = Array.isArray(cfg.builtin_roles) && cfg.builtin_roles.includes(target_role);
-      const subagentType = isBuiltin ? target_role : `${cfg.role_namespace}${target_role}`;
+      const aliasedRole = cfg.builtin_role_aliases?.[target_role] ?? target_role;
+      const isBuiltin = Array.isArray(cfg.builtin_roles) && cfg.builtin_roles.includes(aliasedRole);
+      const subagentType = isBuiltin ? aliasedRole : `${cfg.role_namespace}${target_role}`;
       const parts = [`subagent_type: "${subagentType}"`];
       if (name) parts.push(`name: "${name}"`);
       const promptStr = typeof prompt === 'string' ? prompt : String(prompt);
