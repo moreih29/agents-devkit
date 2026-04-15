@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.26.4 (2026-04-15)
+
+### Fixes
+- PostToolUse 훅 등록 — tool-log.jsonl 실전 미기록 버그 수정
+
+### Other
+- Merge branch 'fix/posttooluse-hook-registration'
+- Merge branch 'chore/nexus-core-0.9.0-sync'
+
 ## 0.26.3 (2026-04-15)
 
 ### Fixes
