@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.26.3 (2026-04-15)
+
+### Fixes
+- plan alias 제거 — nx-plan 스킬과 built-in Plan 에이전트 구분
+- built-in subagent_type 대소문자 alias 매핑 추가
+
+### Other
+- Merge branch 'chore/nexus-core-0.8.0-sync'
+
 ## 0.26.2 (2026-04-14)
 
 ### Other
