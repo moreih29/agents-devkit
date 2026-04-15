@@ -6528,6 +6528,13 @@
       "branch": "chore/nexus-core-consuming-sync",
       "plan": null,
       "tasks": []
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-15T00:58:38.977Z",
+      "branch": "chore/nexus-core-0.8.0-sync",
+      "plan": null,
+      "tasks": []
     }
   ]
 }

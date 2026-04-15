@@ -1,0 +1,45 @@
+# invocation-map.yml
+# Maps @moreih29/nexus-core v0.8.0 Spec γ macro primitives to Claude Code
+# (claude-nexus harness) concrete tool invocations.
+#
+# Consumed by generate-from-nexus-core.lib.mjs during build to expand
+# {{primitive_id key=val}} tokens in body.md into Claude Code tool calls.
+#
+# Schema mirrors vocabulary/invocations.yml in nexus-core — one entry per
+# primitive id — plus Claude-specific metadata (tool name, namespace, built-in
+# role allow-list). Concrete expansion logic lives in the lib.mjs expander;
+# this file is the single source of truth for *which* tool answers each primitive.
+
+invocation_map:
+
+  skill_activation:
+    # Skill tool. Skill ids live in the claude-nexus plugin namespace.
+    # mode (optional) becomes the args string.
+    tool: Skill
+    skill_namespace: "claude-nexus:"
+
+  subagent_spawn:
+    # Agent tool. target_role resolves to subagent_type.
+    # Plugin-owned agents get the claude-nexus: prefix; Claude Code built-ins
+    # (Explore, Plan, general-purpose, statusline-setup) are used bare.
+    tool: Agent
+    role_namespace: "claude-nexus:"
+    builtin_roles:
+      - Explore
+      - Plan
+      - general-purpose
+      - statusline-setup
+
+  task_register:
+    # state=pending → create a new task.
+    # state=in_progress|completed → update an existing task's status.
+    # taskId at update time must be tracked by the caller — the expander emits
+    # the tool name and status; the runtime binds the id.
+    tools:
+      pending: TaskCreate
+      in_progress: TaskUpdate
+      completed: TaskUpdate
+
+  user_question:
+    # AskUserQuestion tool. options is a JSON array of {label, description}.
+    tool: AskUserQuestion

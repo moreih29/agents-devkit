@@ -21,6 +21,8 @@ import {
   transformTags,
   loadPluginName,
   writeGenerated,
+  loadInvocationMap,
+  loadInvocationsEnum,
 } from './generate-from-nexus-core.lib.mjs';
 
 async function main() {
@@ -33,6 +35,8 @@ async function main() {
 
   const capsMap = indexCapabilities();
   const pluginName = loadPluginName();
+  const invocationMap = loadInvocationMap();
+  const invocationsEnum = loadInvocationsEnum();
 
   let agentCount = 0;
   for (const agentEntry of manifest.agents) {
@@ -41,7 +45,7 @@ async function main() {
     const meta = parseYaml(readFileSync(metaPath, 'utf8'));
     const body = readFileSync(bodyPath, 'utf8');
     verifyBodyHash(body, agentEntry.body_hash, `agents/${agentEntry.id}/body.md`);
-    const out = transformAgent(meta, body, capsMap, `agents/${agentEntry.id}`);
+    const out = transformAgent(meta, body, capsMap, `agents/${agentEntry.id}`, invocationMap, invocationsEnum);
     writeGenerated(join(CLAUDE_NEXUS_ROOT, 'agents', `${agentEntry.id}.md`), out);
     agentCount++;
   }
@@ -53,7 +57,7 @@ async function main() {
     const meta = parseYaml(readFileSync(metaPath, 'utf8'));
     const body = readFileSync(bodyPath, 'utf8');
     verifyBodyHash(body, skillEntry.body_hash, `skills/${skillEntry.id}/body.md`);
-    const out = transformSkill(meta, body, pluginName, skillEntry, `skills/${skillEntry.id}`);
+    const out = transformSkill(meta, body, pluginName, skillEntry, `skills/${skillEntry.id}`, invocationMap, invocationsEnum);
     writeGenerated(join(CLAUDE_NEXUS_ROOT, 'skills', skillEntry.id, 'SKILL.md'), out);
     skillCount++;
   }

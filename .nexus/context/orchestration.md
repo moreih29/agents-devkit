@@ -39,12 +39,13 @@
 
 ## Source of Truth
 
-`agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 **build-time generated** from `@moreih29/nexus-core ^0.6.0`.
+`agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 **build-time generated** from `@moreih29/nexus-core ^0.8.0`.
 
 - 직접 편집 금지 — 수정이 필요하면 upstream nexus-core에서 작업
 - Build 시점에 `generate-from-nexus-core.mjs`가 nexus-core manifest.json을 읽어 regenerate
 - Body content integrity는 sha256 body_hash로 검증
 - harness-local 필드(`model`, `maxTurns`, `disallowedTools`)는 `generate-from-nexus-core.lib.mjs`의 하드코딩 상수(MODEL_TIER_TO_CLAUDE, MAX_TURNS_MAP) 또는 capabilities 유도로 합성
+- **Spec γ 매크로 확장 (v0.8.0)**: body.md의 `{{primitive_id key=val ...}}` 토큰은 build 시점에 `invocation-map.yml` 규칙으로 Claude Code tool 호출 문법(`Skill(...)`, `Agent(...)`, `TaskCreate(...)`, `TaskUpdate(...)`, `AskUserQuestion(...)`)으로 확장됨. 4 primitive: `skill_activation`, `subagent_spawn`, `task_register`, `user_question`. heredoc (`prompt=>>IDENT` ... `<<IDENT`) 지원. unknown primitive는 build 실패.
 - **예외**: `skills/nx-setup/SKILL.md`는 nexus-core v0.3.0부터 consumer-owned (harness-specific이라 upstream에서 제거됨)
 - **예외**: `.claude/skills/deploy/SKILL.md`는 project-local (nexus-core 밖, claude-nexus 자체 release 자동화)
 
@@ -66,4 +67,4 @@
 - **rules/**: 프로젝트 커스텀 규칙. [rule] 태그로 저장.
 - **state/**: 런타임 상태. 에페메랄.
   - root: nexus-core 공통 스키마 (`plan.json`, `tasks.json`, `history.json`)
-  - `state/claude-nexus/`: harness-local 파일 네임스페이스 (`agent-tracker.json`, `tool-log.jsonl`, `artifacts/`) — nexus-core 0.7.0 §Shared filename convention 규칙 준수. agent-tracker.json 엔트리는 harness_id + agent_name 분리 필드로 기록. history.json cycles[]는 schema_version: "0.5" 포함.
+  - `state/claude-nexus/`: harness-local 파일 네임스페이스 (`agent-tracker.json`, `tool-log.jsonl`, `artifacts/`) — nexus-core 0.8.0 §Shared filename convention 규칙 준수. agent-tracker.json 엔트리는 harness_id + agent_name 분리 필드로 기록. history.json cycles[]는 schema_version: "0.5" 포함.
