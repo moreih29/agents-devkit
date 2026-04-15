@@ -38,9 +38,9 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes s
 
 Register tasks for visual progress tracking (Ctrl+T):
 
-- **≤ 10 tasks**: `TaskCreate` per task
-- **> 10 tasks**: group by `plan_issue`, `TaskCreate` per group
-- Use `TaskUpdate` to reflect progress (`in_progress` / `completed`) as execution proceeds
+- **≤ 10 tasks**: `TaskCreate({ subject: "<per-task label>" })` per task
+- **> 10 tasks**: group by `plan_issue`, `TaskCreate({ subject: "<group label>" })` per group
+- Update the registered entry via `TaskUpdate({ taskId: <id>, status: "in_progress" })` / `TaskUpdate({ taskId: <id>, status: "completed" })` as execution proceeds
 - **Skip only if**: non-TTY environment (VSCode, headless)
 - **Known issue**: TUI may freeze during auto-compact (#27919) — task data on disk remains correct
 

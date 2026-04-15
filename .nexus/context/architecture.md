@@ -26,6 +26,7 @@ esbuild 번들 직후 `generate-from-nexus-core.mjs`가 실행됨 (esbuild.confi
 - **harness-local 변환**:
   - `CAPABILITY_TOOL_MAP` — nexus-core semantic capabilities → Claude Code tool names (harness_mapping 제거 대응)
   - `harness_docs_refs` 주입 — manifest skill entry의 harness_docs_refs 키 → `harness-content/{ref}.md` 파일 body 끝에 append
+  - **Spec γ 매크로 확장 (v0.8.0)** — `invocation-map.yml` 규칙 기반으로 body.md의 `{{primitive_id ...}}` 토큰을 Claude Code tool 호출 문법으로 확장. 4 primitive × concrete syntax 매핑: `skill_activation` → `Skill(...)`, `subagent_spawn` → `Agent(...)` (built-in role은 `claude-nexus:` prefix 없음), `task_register` → `TaskCreate`/`TaskUpdate`, `user_question` → `AskUserQuestion`. heredoc (`prompt=>>IDENT` ~ `<<IDENT`) multi-line value 지원. primitive enum은 nexus-core `vocabulary/invocations.yml`에서 로드 — unknown primitive는 build 실패.
 - **검증 단계**:
   - `manifest.nexus_core_version` vs package.json 의존성 버전 cross-check
   - 각 body.md sha256 vs `manifest.agents[].body_hash` (불일치 시 fail-fast)

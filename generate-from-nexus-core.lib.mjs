@@ -209,9 +209,11 @@ function collapseDescription(s) {
  * @param {string} body - raw body.md content (already sha256-verified by caller)
  * @param {Map<string, string[]>} capsMap
  * @param {string} [label]
+ * @param {any} [invocationMap] - invocation-map.yml for Spec γ macro expansion (optional)
+ * @param {Set<string>} [invocationsEnum] - allowed primitive ids (optional)
  * @returns {string}
  */
-export function transformAgent(meta, body, capsMap, label = '') {
+export function transformAgent(meta, body, capsMap, label = '', invocationMap = null, invocationsEnum = null) {
   const fm = new Map();
   fm.set('name', meta.name);
   fm.set('description', collapseDescription(meta.description));
@@ -235,8 +237,8 @@ export function transformAgent(meta, body, capsMap, label = '') {
   fm.set('resume_tier', meta.resume_tier);
 
   const frontmatter = emitFrontmatter(fm, FIELD_ORDER);
-  // ensure body starts with blank line after frontmatter (--- + \n + \n + body)
-  const bodyPart = body.startsWith('\n') ? body : '\n' + body;
+  const expandedBody = expandMacros(body, invocationMap, invocationsEnum);
+  const bodyPart = expandedBody.startsWith('\n') ? expandedBody : '\n' + expandedBody;
   return frontmatter + bodyPart;
 }
 
@@ -265,9 +267,11 @@ export function deriveSkillTriggerDisplay(meta, pluginName) {
  * @param {string} pluginName
  * @param {any} manifestEntry - manifest.json skill entry object (provides summary field)
  * @param {string} [label]
+ * @param {any} [invocationMap] - invocation-map.yml for Spec γ macro expansion (optional)
+ * @param {Set<string>} [invocationsEnum] - allowed primitive ids (optional)
  * @returns {string}
  */
-export function transformSkill(meta, body, pluginName, manifestEntry, label = '') {
+export function transformSkill(meta, body, pluginName, manifestEntry, label = '', invocationMap = null, invocationsEnum = null) {
   const fm = new Map();
   fm.set('name', meta.name);
   fm.set('description', collapseDescription(meta.description));
@@ -280,8 +284,8 @@ export function transformSkill(meta, body, pluginName, manifestEntry, label = ''
 
   const frontmatter = emitFrontmatter(fm, SKILL_FIELD_ORDER);
 
-  // Inject harness-local docs referenced by harness_docs_refs
-  let enrichedBody = body;
+  const expandedBody = expandMacros(body, invocationMap, invocationsEnum);
+  let enrichedBody = expandedBody;
   const refs = manifestEntry?.harness_docs_refs;
   if (Array.isArray(refs) && refs.length > 0) {
     for (const ref of refs) {
@@ -330,6 +334,242 @@ export function loadPluginName() {
 export function loadTagsVocab() {
   const path = join(NEXUS_CORE_ROOT, 'vocabulary/tags.yml');
   return parseYaml(readFileSync(path, 'utf8'));
+}
+
+// ==========================================================================
+// Macro expander — nexus-core v0.8.0 Spec γ primitives
+// ==========================================================================
+
+/** @returns {any} parsed invocation-map.yml */
+export function loadInvocationMap() {
+  const path = join(CLAUDE_NEXUS_ROOT, 'invocation-map.yml');
+  return parseYaml(readFileSync(path, 'utf8'));
+}
+
+/** @returns {Set<string>} primitive ids declared in nexus-core vocabulary/invocations.yml */
+export function loadInvocationsEnum() {
+  const path = join(NEXUS_CORE_ROOT, 'vocabulary/invocations.yml');
+  const doc = parseYaml(readFileSync(path, 'utf8'));
+  return new Set(doc.invocations.map(i => i.id));
+}
+
+/**
+ * Parse macro params string into a record.
+ * Value forms:
+ *   bareword        → string
+ *   "quoted string" → string (escape `\"` supported)
+ *   [a, b]          → inline array string (kept as-is including brackets)
+ *   {k: v}          → inline object string (kept as-is including braces)
+ *   >>IDENT         → { heredoc: IDENT } sentinel
+ * @param {string} raw
+ * @returns {Record<string, any>}
+ */
+export function parseMacroParams(raw) {
+  const s = raw.trim();
+  const params = {};
+  let i = 0;
+  while (i < s.length) {
+    while (i < s.length && /\s/.test(s[i])) i++;
+    if (i >= s.length) break;
+
+    const keyStart = i;
+    while (i < s.length && /[\w]/.test(s[i])) i++;
+    const key = s.slice(keyStart, i);
+    if (!key) throw new Error(`parseMacroParams: expected key at offset ${i} in "${raw}"`);
+    if (s[i] !== '=') throw new Error(`parseMacroParams: expected '=' after key "${key}" at offset ${i}`);
+    i++;
+
+    let val;
+    if (s[i] === '"') {
+      let v = '';
+      i++;
+      while (i < s.length && s[i] !== '"') {
+        if (s[i] === '\\' && i + 1 < s.length) { v += s[i + 1]; i += 2; }
+        else { v += s[i]; i++; }
+      }
+      if (s[i] !== '"') throw new Error(`parseMacroParams: unterminated quoted string for "${key}"`);
+      i++;
+      val = v;
+    } else if (s[i] === '[' || s[i] === '{') {
+      const open = s[i];
+      const close = open === '[' ? ']' : '}';
+      let depth = 1;
+      const start = i;
+      i++;
+      while (i < s.length && depth > 0) {
+        if (s[i] === '"') {
+          i++;
+          while (i < s.length && s[i] !== '"') {
+            if (s[i] === '\\' && i + 1 < s.length) i += 2;
+            else i++;
+          }
+          i++;
+          continue;
+        }
+        if (s[i] === open) depth++;
+        else if (s[i] === close) depth--;
+        i++;
+      }
+      if (depth !== 0) throw new Error(`parseMacroParams: unbalanced ${open}${close} for "${key}"`);
+      val = s.slice(start, i);
+    } else if (s[i] === '>' && s[i + 1] === '>') {
+      i += 2;
+      const start = i;
+      while (i < s.length && /\w/.test(s[i])) i++;
+      val = { heredoc: s.slice(start, i) };
+    } else {
+      const start = i;
+      while (i < s.length && !/\s/.test(s[i])) i++;
+      val = s.slice(start, i);
+    }
+
+    params[key] = val;
+  }
+  return params;
+}
+
+/**
+ * Expand one primitive macro to its Claude Code tool invocation string.
+ * Returns bare text (no wrapping backticks) — the caller's surrounding markdown is preserved.
+ * @param {string} primitive
+ * @param {Record<string, any>} params
+ * @param {any} invocationMap
+ * @returns {string}
+ */
+export function expandPrimitive(primitive, params, invocationMap) {
+  const cfg = invocationMap?.invocation_map?.[primitive];
+  if (!cfg) {
+    throw new Error(`expandPrimitive: primitive "${primitive}" has no entry in invocation-map.yml`);
+  }
+  switch (primitive) {
+    case 'skill_activation': {
+      const { skill, mode } = params;
+      if (!skill) throw new Error(`skill_activation: missing required 'skill'`);
+      const parts = [`skill: "${cfg.skill_namespace}${skill}"`];
+      if (mode) parts.push(`args: "${mode}"`);
+      return `${cfg.tool}({ ${parts.join(', ')} })`;
+    }
+    case 'subagent_spawn': {
+      const { target_role, prompt, name } = params;
+      if (!target_role) throw new Error(`subagent_spawn: missing required 'target_role'`);
+      if (prompt === undefined) throw new Error(`subagent_spawn: missing required 'prompt'`);
+      const aliasedRole = cfg.builtin_role_aliases?.[target_role] ?? target_role;
+      const isBuiltin = Array.isArray(cfg.builtin_roles) && cfg.builtin_roles.includes(aliasedRole);
+      const subagentType = isBuiltin ? aliasedRole : `${cfg.role_namespace}${target_role}`;
+      const parts = [`subagent_type: "${subagentType}"`];
+      if (name) parts.push(`name: "${name}"`);
+      const promptStr = typeof prompt === 'string' ? prompt : String(prompt);
+      const isMultiline = promptStr.includes('\n');
+      parts.push(isMultiline ? `prompt: \`\n${promptStr}\n\`` : `prompt: "${promptStr.replace(/"/g, '\\"')}"`);
+      return `${cfg.tool}({ ${parts.join(', ')} })`;
+    }
+    case 'task_register': {
+      const { label, state } = params;
+      if (!label) throw new Error(`task_register: missing required 'label'`);
+      if (!state) throw new Error(`task_register: missing required 'state'`);
+      const tool = cfg.tools?.[state];
+      if (!tool) throw new Error(`task_register: unsupported state "${state}"`);
+      if (state === 'pending') {
+        return `${tool}({ subject: "${label}" })`;
+      }
+      return `${tool}({ taskId: <id>, status: "${state}" })`;
+    }
+    case 'user_question': {
+      const { question, options } = params;
+      if (!question) throw new Error(`user_question: missing required 'question'`);
+      if (!options) throw new Error(`user_question: missing required 'options'`);
+      return `${cfg.tool}({ question: "${question}", options: ${options} })`;
+    }
+    default:
+      throw new Error(`expandPrimitive: no handler for primitive "${primitive}"`);
+  }
+}
+
+// Lazy match — inner `{...}` / `[...]` are permitted as long as `}}` only appears at the terminator.
+const MACRO_RE = /\{\{(\w+)\s+(.*?)\}\}/g;
+const MACRO_RE_SINGLE = /\{\{(\w+)\s+(.*?)\}\}/;
+
+/**
+ * Expand Spec γ macro tokens ({{primitive key=val ...}}) in a body string.
+ * Heredoc references (`key=>>IDENT` paired with `<<IDENT` on a later line) are resolved
+ * before expansion; the heredoc block is consumed and removed from the output.
+ * Unknown primitives throw — no silent pass.
+ *
+ * @param {string} body
+ * @param {any} invocationMap
+ * @param {Set<string>} invocationsEnum
+ * @returns {string}
+ */
+export function expandMacros(body, invocationMap, invocationsEnum) {
+  if (!invocationMap || !invocationsEnum) return body;
+  const lines = body.split('\n');
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!MACRO_RE_SINGLE.test(line)) {
+      out.push(line);
+      i++;
+      continue;
+    }
+
+    // Detect heredoc reference in the first macro on this line
+    let heredocIdent = null;
+    const firstMatch = line.match(MACRO_RE_SINGLE);
+    if (firstMatch) {
+      const p = parseMacroParams(firstMatch[2]);
+      for (const v of Object.values(p)) {
+        if (v && typeof v === 'object' && typeof v.heredoc === 'string') {
+          heredocIdent = v.heredoc;
+          break;
+        }
+      }
+    }
+
+    if (heredocIdent) {
+      const heredocLines = [];
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() !== `<<${heredocIdent}`) {
+        heredocLines.push(lines[j]);
+        j++;
+      }
+      if (j >= lines.length) {
+        throw new Error(`expandMacros: heredoc closure <<${heredocIdent} not found for macro at line ${i + 1}`);
+      }
+      const heredocContent = heredocLines.join('\n').trim();
+      const expanded = line.replace(MACRO_RE_SINGLE, (_match, primitive, raw) => {
+        if (!invocationsEnum.has(primitive)) {
+          throw new Error(`expandMacros: unknown primitive "${primitive}" at line ${i + 1}`);
+        }
+        const params = parseMacroParams(raw);
+        for (const [k, v] of Object.entries(params)) {
+          if (v && typeof v === 'object' && typeof v.heredoc === 'string') {
+            params[k] = heredocContent;
+          }
+        }
+        return expandPrimitive(primitive, params, invocationMap);
+      });
+      out.push(expanded);
+      i = j + 1;
+      continue;
+    }
+
+    const expanded = line.replace(MACRO_RE, (_match, primitive, raw) => {
+      if (!invocationsEnum.has(primitive)) {
+        throw new Error(`expandMacros: unknown primitive "${primitive}" at line ${i + 1}`);
+      }
+      const params = parseMacroParams(raw);
+      for (const v of Object.values(params)) {
+        if (v && typeof v === 'object' && typeof v.heredoc === 'string') {
+          throw new Error(`expandMacros: heredoc reference >>${v.heredoc} without closure on line ${i + 1}`);
+        }
+      }
+      return expandPrimitive(primitive, params, invocationMap);
+    });
+    out.push(expanded);
+    i++;
+  }
+  return out.join('\n');
 }
 
 // ==========================================================================

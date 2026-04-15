@@ -51,8 +51,7 @@ Only update files where a concrete change is detected. If no staleness is found,
 Spawn Writer agent to update affected context documents:
 
 ```
-Agent({ subagent_type: "claude-nexus:writer", name: "writer-sync-context",
-  prompt: "Update .nexus/context/ documents based on the following changes. Read current files with the harness's file-reading primitive, then write updates with the harness's file-creation primitive. Changes: {change_manifest}" })
+Agent({ subagent_type: "claude-nexus:writer", name: "writer-sync-context", prompt: "Update .nexus/context/ documents based on the following changes. Read current files with the harness's file-reading primitive, then write updates with the harness's file-creation primitive. Changes: {change_manifest}" })
 ```
 
 The Writer agent:
