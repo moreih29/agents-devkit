@@ -6608,6 +6608,161 @@
           "created_at": "2026-04-16T03:38:29.728Z"
         }
       ]
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-16T07:10:25.655Z",
+      "branch": "chore/nexus-core-upstream-proposals-plan7",
+      "plan": {
+        "id": 7,
+        "topic": "claude-nexus orchestration 가이드 공백 정리 — tasks 분해 / run 병렬 / memory",
+        "issues": [
+          {
+            "id": 1,
+            "title": "tasks 분해 수준 가이드 — task granularity, 파일당 task 수, 총 task 수 상한",
+            "status": "decided",
+            "decision": "B' (수치 고정 + 세분화된 예외 카탈로그) 채택.\n\n**Primary metric**: artifact-coherence (single artifact의 single coherent change).\n\n**Hard rule 수치**:\n- 1 task ≈ 1 artifact cluster: ≤3 파일, ≤150 lines 수정\n- CHECK task 수 ≤ DO task 수 × 1/2\n- Parallel DO/CHECK decomposition 임계: 독립 artifact ≥3\n- HOW는 domain-agent mapping row가 다를 때만 분할, 같은 row 내 sub-concern은 단일 session\n\n**Auto-pairing 조건부**: runtime behavior 변경을 acceptance에 포함한 engineer/writer task에만 tester/reviewer pair 자동 생성. Pure refactor/type-only/docs-adjacent은 pair 제외.\n\n**예외 카탈로그** (수치 초과 허용 조건 — 카탈로그 외 \"근거 있으면\" 허용 금지):\n1. `docs_only`: 변경 파일이 모두 .md/frontmatter-only\n   - `coherent` sub-case (공통 스킴/결정을 여러 파일이 반영): 1 writer 묶음, reviewer 1 pair. 파일/줄수 상한 면제.\n   - `independent` sub-case (각 파일 독자 주제, 예: 블로그 포스트): N writer 병렬(artifact-coherence 정합), 각 writer에 reviewer pair. 파일수 상한 면제, 각 task는 여전히 1 artifact.\n   - 구분 기준: plan_issue가 1개면 coherent 후보, 파일들이 1:1로 N plan_issues에 매핑되거나 내용 교차 참조 없으면 independent.\n   - tester pair 기본 스킵 (runtime behavior 없음).\n2. `same_file_bundle`: 같은 파일에 복수 sub-task → 한 owner에 structured prompt로 묶어 1 task로 카운트 (파일 충돌 방지, cycle-split-pattern.md의 gate.ts 사례).\n3. `generated_artifacts`: build 산출물 (bridge/, scripts/) → task 수 및 파일 카운트에 불포함.\n\n**세분화 원칙**: 예외 카탈로그 항목은 필요시 sub-case로 분리한다. 단일 카탈로그가 정반대 처리가 필요한 시나리오를 묶지 않도록 한다.\n\n**기각**:\n- A (원칙만): 정량 기준 부재로 세션 간 편차 누적. Phase 1/2 실증 데이터 미활용.\n- B (수치만 hard-set): 외부 근거가 weak한 수치를 예외 없이 박음. Phase 1 같은 의도적 예외가 rule 위반.\n- C (Hybrid, \"근거 있으면 초과 허용\"): LLM이 사후 합리화로 escape하여 실질적으로 A와 동일해짐. 세션 간 비결정성 (같은 사이클을 다른 Lead가 열어도 tasks.json 달라짐). 사용자 지적으로 기각.\n\n**적용 대상**: skills/nx-plan/SKILL.md Step 7에 문구 추가. 예외 카탈로그는 nx-plan skill 문서에 인라인 기재 (별도 .nexus/rules/ 파일화는 tasks.json 생성 단계에서 재평가).\n\n**재평가 트리거**: 6-8주 실사용 후 수치(≤3파일/≤150줄/≥3 parallel/ratio 1:2)의 과적합 여부 점검 (postdoc 권고).",
+            "how_agents": [
+              "architect",
+              "postdoc"
+            ],
+            "how_summary": {
+              "architect": "정량 수치 제안: 1 task ≈ 1 artifact cluster (≤3 파일, ≤150 lines), CHECK ≤ DO × 1/2, parallel 임계 ≥3 artifacts, HOW는 domain row 다를 때만 분할. Hybrid(수치+escape) 권장했으나 사용자 지적으로 B'(예외 카탈로그)로 수정.",
+              "postdoc": "외부 evidence weak-inconclusive. Primary metric으로 'artifact-coherence' (single artifact, single coherent change) 축 권고. 수치는 dogfooding 6-8주 검증 후 재평가 권장. Context rot은 irrelevant token 비율에 민감 → artifact 축이 token 축보다 robust."
+            },
+            "how_agent_ids": {
+              "architect": "ac756b33617d106a8",
+              "postdoc": "a8b60ce478938b9aa"
+            }
+          },
+          {
+            "id": 2,
+            "title": "run 실행 병렬 처리 가이드 — 동시 spawn 상한, 그룹 분할 알고리즘, TUI 포화 대응",
+            "status": "decided",
+            "decision": "B (Pair-wise streaming + cap=5 hard) 채택.\n\n**Cap**: in-flight subagent 수 ≤ 5 (hard). 예외 카탈로그 매칭 없이는 5 초과 금지. \"soft 5 / hard 8\" 이중 수치는 escape hatch 남용 위험으로 기각(이슈 #1 C 옵션과 같은 구조적 문제).\n\n**Dispatch 기본 = Pair-wise streaming**:\n- 1:1 auto-pair(engineer→tester, writer→reviewer)의 경우 DO 완료 즉시 CHECK 스폰.\n- 각 시점 in-flight은 cap=5 내에서 동적으로 변동 (완료 시 다음 pair 시작).\n- Feedback latency 최소화 — 이전 DO drain 방식에서 전체 DO 완료까지 CHECK가 대기하는 구조 문제(조기 실패 감지 기회 상실, 후속 DO가 같은 실수 반복 리스크) 해소.\n\n**Drain wave (예외 적용)**:\n- N:1 통합 검증 케이스(여러 DO 결과를 하나의 CHECK가 합산 검증)에만 DO wave drain → CHECK 시작 방식 적용.\n- 대부분의 1:1 pair는 pair-wise streaming이 기본.\n\n**Owner-homogeneous wave**:\n- Dep chain 없는 독립 DO task 여러 개를 병렬 배치할 때만 적용되는 soft preference.\n- 강제 아님. Lead 합성 부담 균일화 + escalation HOW 매핑 일관성 이점.\n- 대부분 케이스는 pair-wise streaming이 우선 적용돼 homogeneous 영향 범위는 작음.\n\n**Escalation serialization**:\n- SubagentStop → HOW 진단(engineer 실패 → architect 등)은 wave와 직교, 항상 serial. 동일 artifact에 대한 parallel rework 방지.\n\n**Dedup 2-layer**:\n- plan Step 7(1차): 같은 파일 건드리는 tasks를 동일 owner로 통합 (이슈 #1 결정 `same_file_bundle` 예외로 이미 커버).\n- run Step 2(2차): wave spawn 직전 target-file 집합 교차 검사. 충돌 → 다음 wave로 분리.\n- plan만 또는 run만으로는 nx-plan:auto 모드의 HOW 병렬 분해 edge case에서 overlap 누락 위험. 2-layer 필수.\n\n**TUI grouping 직교 2축**:\n- `active >5 → TaskCreate per wave_id`: cap=5 hard 하에서 거의 unreachable이지만 안전벨트.\n- `total >10 → TaskCreate per plan_issue`: 기존 Step 1.5 규칙 유지.\n- 두 축은 목적이 다름 (operational visibility vs semantic grouping).\n\n**재평가 트리거**:\n- `tool-log.jsonl` / `agent-tracker.json`에 wave size, 완료 시점 기록.\n- 3-5 사이클 후 Lead 합성 품질/latency/TUI 동작 리뷰.\n- 상향은 근거 있을 때만(이번 결정은 하향만 허용). 공식 권고 상한(5)을 기본선으로 유지.\n\n**적용 대상**: skills/nx-run/SKILL.md Step 2에 문구 추가, Step 1.5 확장. TaskCreate `wave_id` 필드는 추후 tasks.json 생성 단계에서 구체화.\n\n**기각**:\n- A (Drain + cap=5/8): feedback latency 큼, 조기 실패 감지 기회 상실.\n- C (Pair-wise + cap=8): 속도는 유리하나 공식 권고(3-5) 밖, Lead 합성 7-8 경계, TUI freeze(#27919) 리스크. 사용자 판단 — 속도보다 안정성/보수성 우선.\n- D (settings-driven): 수치 안정화 전 유연성보다 결정성 우선.\n\n**공식 기준과의 정합**: 공식 문서(code.claude.com/docs/en/agent-teams) \"3-5 teammates\" 권고 상한. 이슈 #1 `parallel≥3` 하한과 결합해 `3 ≤ wave ≤ 5` 자연 영역.",
+            "how_agents": [
+              "architect",
+              "researcher"
+            ],
+            "how_summary": {
+              "architect": "원안: cap=5 (hard ceiling 8), wave-based, owner-homogeneous, DO drain → CHECK. Lead synthesis 5-7 경계, wave_id 필드 활용, plan+run 2-layer dedup. 사용자 지적으로 drain → pair-wise streaming으로 수정, hard ceiling 8 제거, homogeneous는 dep-free DO wave로 범위 축소.",
+              "researcher": "공식 문서: teammates \"3-5 권장\" (code.claude.com/docs/en/agent-teams). 이슈 #15487: 24 agents에서 시스템 붕괴 실증. TUI freeze #27919 auto-compact 중 확인. Token 7배 (plan mode). Hard limit 공식 명시 null, 실승 붕괴점 저 훨씬 위."
+            },
+            "how_agent_ids": {
+              "architect": "a08eef831fdc0152b",
+              "researcher": "a3140aa5b7fe71a60"
+            }
+          },
+          {
+            "id": 3,
+            "title": "memory 운영 가이드 — 저장 내용 기준, 네이밍·크기, 병합 판단, decay/gc 정책",
+            "status": "decided",
+            "decision": "3가지 sub-decision 통합 채택.\n\n## 3.1 Memory 정책 (architect B안 확정)\n\n**네이밍**: `{prefix}-{topic-2to4-words}.md`, kebab-case. 4 prefix 고정:\n- `empirical-` (실증 검증, hook payload 실측 등)\n- `external-` (upstream 제약, SDK 공식 인용)\n- `pattern-` (운영 패턴, 사이클 분할)\n- `primer-` (요약/개괄, 최대 1개 허용)\n\n**크기 상한**: 일반 80줄, primer 200줄. 초과 시 분할 강제.\n\n**병합 기준**: 동일 prefix + topic keyword 2개 이상 매칭 시 기존 파일 병합 default.\n\n**자동 gc 트리거**: 파일 수 >15 OR 총 크기 >60KB OR 마지막 gc로부터 20 cycles.\n\n## 3.2 Access tracking (신규)\n\n**추적 대상**: Read 도구만 (사용자 명시: 실제로 파일을 읽었는지가 memory 유효성의 지표).\n- Edit/Write는 제외 — 쓰기는 이미 [m] 태그 경로로 기록됨.\n- Grep/Glob 노출은 제외 — 의도적 접근이 아님.\n- NotebookEdit 등 쓰기성 도구는 제외.\n\n**저장 위치**: harness-local namespace (예: `.nexus/state/{harness}/memory-access.jsonl`).\n\n**저장 필드**: `{path, last_accessed_ts, access_count, last_agent}`.\n\n**망각 정책** (P4 기본 + P1 교집합):\n- P4: `[m:gc]` 수동 실행 시 access 로그를 참조해 미접근 파일 목록을 \"삭제할까요?\" 제시.\n- P1: 180일 + 6 cycles 내 참조 없음 + access 0 교집합 충족 시 자동 삭제 (git history로 복원 가능하므로 archive 폴더 불필요).\n- Resume된 agent의 재활용은 Read 호출을 안 할 수 있으나, resume 자체가 memory 활용의 확장이므로 별도 가중치 없이 access=0으로 판정 (보수적).\n\n## 3.3 Delivery: nexus-core upstream proposal (신규, 사용자 명시)\n\n**원칙**: claude-nexus 로컬 작업(gate.ts 메시지 수정, memory 리네임, hook 구현 등) 이번 사이클에서 **생성하지 않는다**. 모든 결정은 nexus-core upstream에 공통 정책으로 제안하여, 두 하네스(claude-nexus, opencode-nexus)가 동일 규칙을 따르도록 한다.\n\n**Proposal 분리 (atomic review 가능하도록)**:\n- **Proposal A — \"Plan/Run quantitative guidelines\"**: 이슈 #1 + #2 통합. `skills/nx-plan/body.md` Step 7 문구(artifact-coherence primary metric + 수치 + 예외 카탈로그), `skills/nx-run/body.md` Step 1.5/2 문구(pair-wise streaming + cap=5 + drain/homogeneous/dedup/TUI grouping). 두 skill이 상호 의존(auto-pairing ↔ wave 규모)하므로 단일 proposal로 묶음.\n- **Proposal B — \"Memory operational policy + access tracking spec\"**: 이슈 #3.1 + 3.2 통합. vocabulary/memory categories + naming + size + merge + decay 수치 + access tracking canonical spec(Read 도구 관찰 규칙). harness 쪽 구현은 reference implementation 섹션에서 예시로 제공.\n\n**Reference implementation 섹션 포함**: 각 proposal에 \"Claude Code 하네스 쪽에서 이런 로컬 구현이 필요하다\"는 섹션을 포함하여 upstream이 공통 정책을 canonical 수립할 수 있도록 근거 제시. `.nexus/memory/upstream-issue-harness-extension.md`의 proposal 형식을 템플릿으로 재활용.\n\n**HARNESS:* extension point 활용**: Access tracking처럼 harness별 hook 시스템이 다른 부분은 `<!-- HARNESS:memory_access_tracking -->` 마커로 분리, consumer가 자기 하네스 문법으로 주입 (CA-7 pattern).\n\n**저장 위치**: draft 파일을 `.nexus/memory/external-upstream-plan-run-guidelines.md`, `.nexus/memory/external-upstream-memory-policy.md`로 저장(외부 upstream proposal이므로 `external-` prefix 적용, 3.1 결정과 정합).\n\n## 기각/대안 처리\n\n- 사용자 지적으로 \"claude-nexus 로컬 gate.ts 수정\" 경로 폐기.\n- 이슈 #1/#2 결정 근거 저장은 별도 `pattern-*.md` 생성이 아니라 upstream proposal draft 자체가 근거 기록 역할 수행. 이중 보관 회피.\n- Primer 마이그레이션(nexus-ecosystem-primer.md context 승격), 기존 10개 파일 prefix 리네임은 upstream 수립 후 별도 사이클에서 처리 — 이번 사이클 범위 밖.\n\n## 재평가 트리거\n\n- 수치(180일/6 cycles/15 files/60KB/80줄/200줄)는 3 cycles 후 재보정.\n- Access tracking false negative/positive 발생 시 Grep 매칭 등 추가 signal 검토.\n\n## 적용 대상\n\n이번 사이클의 tasks.json은 순수 writer + reviewer 사이클이 된다 — 이번 세션 결정을 검증하는 첫 실사용 케이스로 이슈 #1 예외 카탈로그 `docs_only.independent` 적용 자연스럽게 매칭.",
+            "how_agents": [
+              "architect",
+              "postdoc"
+            ],
+            "how_summary": {
+              "architect": "prefix 네이밍(4개) + 수치 상한(80줄/200줄) + 병합 기준 + 자동 gc 트리거 권장. primer 마이그레이션/10개 리네임 제안. 이슈 #1/#2 수치 근거를 pattern-*.md로 저장 권함 — 사용자 지시로 upstream proposal로 역할 수정.",
+              "postdoc": "외부 문헌 도구 부재로 synthesis 거부. researcher에 Task A-D 위임 권고(MemGPT, LangChain, Zettelkasten). Primary metric으로 \"재획득 비용\" 축만 제시. 사용자 입력(nexus-core upstream 점장 + Read 추적 중요성)이 evidence gap을 실용적으로 메움."
+            },
+            "how_agent_ids": {
+              "architect": "aedc7680313608772",
+              "postdoc": "a33056222e3aa85c8"
+            }
+          }
+        ],
+        "research_summary": "## 현재 상태\n\n### 이슈 1 — tasks 분해\n- nx-plan Step 7 (SKILL.md)에 있는 규칙:\n  - Owner 테이블 (lead/engineer/writer/researcher/architect/tester/reviewer)\n  - Verification auto-pairing (engineer+acceptance → tester, writer → reviewer)\n  - DO/CHECK decomposition principle: artifact-level scope, 여러 독립 artifact일 때 parallel로 분할, HOW는 single session\n- 부재: 정량 기준 (task 수 상한, 크기 상한, 사이클 크기 가이드)\n- 보조 지식: .nexus/memory/cycle-split-pattern.md — 사이클 단위 20파일/300줄, Phase당 2-4 사이클, 같은 파일 내 복수 sub-task는 한 engineer에 structured prompt로 묶기(파일 충돌 방지)\n- 실사례: Phase 1 (17파일 문서/frontmatter만), Phase 2 Cycle A (4파일, gate.ts 단일 — 한 engineer에 4 sub-task 묶음)\n\n### 이슈 2 — run 병렬 처리\n- nx-run Step 2 (SKILL.md)에 있는 규칙:\n  - \"independent tasks (no overlapping target files, no deps) can be spawned in parallel\"\n  - \"Tasks sharing target files must be serialized\"\n  - Resume Dispatch Rule: ephemeral→fresh, bounded→same-artifact conditional, persistent→default resume\n- 부재: 동시 spawn 수 상한, 병렬 그룹 분할 알고리즘(파일 충돌 DAG?), TUI(Ctrl+T) 포화 리스크 대응\n- 보조 지식: Step 1.5에 ≤10 tasks는 per-task, >10은 group by plan_issue로 TaskCreate 주는 가이드만 있음\n\n### 이슈 3 — memory\n- gate.ts L410-434: [m]은 \"Memory save mode — 압축·정제 후 {적절한_토픽}.md Write, 기존 파일 있으면 업데이트\" 메시지 주입. [m:gc]는 \"Glob으로 확인하고 병합/삭제\" 메시지.\n- context/orchestration.md: \"코드/웹에서 다시 얻을 수 없는 것만 저장\"이 유일한 원칙\n- 부재: 내용 카테고리 정의, 네이밍 컨벤션, 크기 상한, 병합 vs 신규 판단 기준, decay/rotation 정책, 자동 gc 트리거\n- 현재 10개 파일 성격 분류 (자연 발생):\n  1. 실증 검증: subagent-resume, persistence-surface-theory, hook-payload-notebookedit-gotcha\n  2. 외부 제약/upstream: agent-sdk-constraint, upstream-issue-harness-extension, nexus-core-validator-upstream-gap\n  3. 운영 패턴: cycle-split-pattern, refactor-carryover, tester-artifact-gap\n  4. Primer 요약: nexus-ecosystem-primer (매우 긺, session #1 결정 요약)\n\n## 관련 prior decisions\n- 2026-04-08 plan session (history cycle): \"plan SKILL.md 상세 리뷰\" — Step 7 HOW-assisted decomposition 추가, domain-agent mapping 명확화. task 분해 규칙은 있으나 granularity는 다루지 않음.\n\n## HOW subagent 계획\n- 이슈 1, 2, 3 모두 아키텍처 결정 + 방법론 판단 요소. architect + postdoc parallel spawn 권장. 이슈 2는 engineer 관점의 실행 현실(Claude Code 병렬 제약, TUI 동작)도 있어 필요 시 researcher 추가.",
+        "created_at": "2026-04-16T05:47:33.499Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Draft Proposal A — Plan/Run quantitative guidelines",
+          "context": "이슈 #1(tasks 분해) + 이슈 #2(run 병렬) 결정을 nexus-core upstream proposal로 통합 작성. claude-nexus 로컬 작업 금지 제약(이슈 #3.3). Plan session #7 산출. 대상 skill body: `skills/nx-plan/body.md` Step 7, `skills/nx-run/body.md` Step 1.5/2.",
+          "approach": "`.nexus/memory/upstream-issue-harness-extension.md`를 템플릿으로 재활용. 섹션 구조: §1 Summary, §2 Background (현 nx-plan Step 7 / nx-run Step 1.5·2의 가이드 공백 및 실증 경험 cycle-split-pattern/tester-artifact-gap 참조), §3 Proposed Design (이슈 #1 B' 규칙 + 이슈 #2 규칙 전체), §4 Scope of Change (core `skills/nx-plan/body.md` Step 7, `skills/nx-run/body.md` Step 1.5·2 수정 diff 형태, body_hash 재계산 요청), §5 Reference Implementation (Claude Code 하네스 쪽 로컬 구현 필요성 — gate.ts 메시지 업데이트, TaskCreate wave_id 라벨, tool-log.jsonl wave size 로깅. 직접 구현 X, 설명만), §6 Open Questions. HARNESS:* 마커가 필요하면 `<!-- HARNESS:run_parallel_dispatch -->` 형식으로 제안.",
+          "acceptance": "(1) `.nexus/memory/external-upstream-plan-run-guidelines.md` 파일 생성. (2) 이슈 #1 결정(artifact-coherence primary metric, 수치 hard, 예외 카탈로그 3종) 전체 반영. (3) 이슈 #2 결정(cap=5 hard, pair-wise streaming, drain 예외, homogeneous soft, dedup 2-layer, TUI 직교 2축, escalation serial) 전체 반영. (4) core의 nx-plan/nx-run body.md 수정안을 구체 diff로 제시. (5) §5에 Claude Code 하네스 로컬 구현 필요 사항 3가지(gate.ts 메시지, wave_id 라벨, wave size 로깅) 명시. (6) §6 Open Questions ≥5개. (7) plan session #7 trace 명시(파일 헤더 metadata). (8) 일반 memory 80줄 상한 초과 허용 근거(external-* prefix proposal 성격)를 파일 상단에 주석 명시.",
+          "risk": "upstream-issue-harness-extension.md(337줄) 대비 분량이 유사/더 클 수 있음 — external-* prefix는 proposal 성격상 상한 면제 예외 필요(이슈 #3.1 재평가 트리거에 반영). 이슈 #1, #2 두 스킬 수정이 상호 의존하므로 단일 proposal로 묶는 근거를 §2에 명확히 기술.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "writer",
+          "created_at": "2026-04-16T06:41:33.262Z"
+        },
+        {
+          "id": 2,
+          "title": "Draft Proposal B — Memory operational policy + access tracking spec",
+          "context": "이슈 #3(memory 정책 + access tracking) 결정을 nexus-core upstream proposal로 작성. vocabulary canonical 정의 + harness-neutral access tracking spec. Claude Code 하네스 local 구현(gate.ts PostToolUse Read 훅, harness-local memory-access.jsonl)은 reference implementation 섹션에만 기술. opencode-nexus 호환성 논증 필수.",
+          "approach": "upstream-issue-harness-extension.md 템플릿 기반. §1 Summary, §2 Background (현재 `.nexus/memory/` 10개 파일 자연분류, `[m]`/`[m:gc]` 태그 처리의 공백, \"코드/웹에서 얻을 수 없는 것만\" 원칙만 존재), §3 Proposed Design (3.1 카테고리+네이밍+크기+병합+decay 트리거 전부, 3.2 access tracking canonical rules), §4 Scope of Change (vocabulary/memory_policy.yml 신규 또는 기존 vocabulary 확장 — capabilities.yml/tags.yml 스타일 준수, 필요시 skill body에 reference 추가), §5 Access tracking canonical spec (관찰 도구=Read only, 필드 스키마 {path,last_accessed_ts,access_count,last_agent}, 망각 정책 P4+P1 교집합, harness-local namespace 규칙), §6 Reference Implementation (Claude Code: PostToolUse Read 훅 TypeScript 예시, [m:gc] 망각 승인 UX flow 스케치), §7 Open Questions.",
+          "acceptance": "(1) `.nexus/memory/external-upstream-memory-policy.md` 파일 생성. (2) 이슈 #3.1 결정(4 prefix, 80/200줄 상한, 병합 기준, 자동 gc 수치) 전체 반영. (3) 이슈 #3.2 결정(Read 도구만 관찰, 망각 P4+P1 교집합, harness-local namespace) 전체 반영. (4) `vocabulary/memory_policy.yml` 스키마 초안 포함(category 정의, naming 규칙, size 상한, decay 트리거, access tracking 필드). (5) §6에 Claude Code 하네스 reference implementation(PostToolUse Read 훅 예시 코드 + [m:gc] 승인 UX flow) 포함. (6) opencode-nexus 호환성 섹션 포함 — 두 하네스가 같은 policy를 각자 hook 시스템으로 어떻게 준수하는지 기술. (7) §7 Open Questions ≥5개. (8) plan session #7 trace 명시(파일 헤더 metadata).",
+          "risk": "memory_policy.yml이 기존 vocabulary 파일(capabilities.yml, tags.yml, harness_keys.yml) 스타일과 달라질 수 있음 — schema cross-check 필요, 제안 전 3개 파일 구조 참조 명시. Access tracking spec이 Claude Code-specific해질 위험 — §5 canonical과 §6 reference implementation 분리 원칙 준수. Primer 마이그레이션/10개 파일 리네임은 이 proposal 수락 후 별도 사이클에서 처리하는 것을 명시(scope 경계 명확화).",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 3,
+          "owner": "writer",
+          "created_at": "2026-04-16T06:41:47.578Z"
+        },
+        {
+          "id": 3,
+          "title": "Review Proposal A",
+          "context": "Task 1 산출물(`.nexus/memory/external-upstream-plan-run-guidelines.md`) 검증. 이슈 #1, #2 결정사항의 factual accuracy, skill body 수정 diff 일관성, HARNESS:* 마커 문법 정합성, body_hash 재계산 요청 완결성, §5 reference implementation 설명이 Claude Code 로컬 작업 필요성을 충분히 전달하는지 확인.",
+          "approach": "plan.json의 이슈 #1, #2 decision과 proposal §3 Proposed Design을 1:1 매칭. 기존 `upstream-issue-harness-extension.md` 스타일과 비교하여 section 구조 일관성 확인. 수치 정확성 체크리스트: cap=5 / ≤3 파일 / ≤150줄 / CHECK≤DO×0.5 / parallel≥3. 예외 카탈로그 3종(docs_only.coherent, docs_only.independent, same_file_bundle, generated_artifacts) 모두 언급되는지. Pair-wise streaming, drain 예외, homogeneous soft, dedup 2-layer, TUI 직교 2축, escalation serial 6개 규칙 모두 포함 여부. HARNESS 마커 추가 시 vocabulary/harness_keys.yml 확장 제안 포함 여부.",
+          "acceptance": "(1) Factual accuracy: 모든 수치가 plan.json과 일치, 불일치 발견 시 FAIL 목록화. (2) 언어 스타일 일관성: upstream-issue-harness-extension.md의 §1-§9 스타일과 비교 — 헤더 레벨, 표 형식, 한/영 혼용 패턴. (3) 누락 체크: 이슈 #1 규칙 3그룹(primary metric/수치/카탈로그) + 이슈 #2 규칙 6개 모두 포함. (4) §5 Reference Implementation 적정성: gate.ts 메시지, wave_id 라벨, wave size 로깅 3가지가 \"consumer 자율\"로 명확히 표기되는지. (5) §6 Open Questions 최소 5개 포함 여부. (6) PASS/FAIL 결론 + 수정 요구사항 목록(있다면). (7) body_hash 변경 요청이 §4에 명시되었는지.",
+          "risk": "Reviewer는 tester와 달리 factual + 구조 검증 위주 — ephemeral tier 유지, fresh 스폰 강제. 이전 plan session context 재사용 금지(independence 보장).",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "reviewer",
+          "created_at": "2026-04-16T06:42:21.658Z"
+        },
+        {
+          "id": 4,
+          "title": "Review Proposal B",
+          "context": "Task 2 산출물(`.nexus/memory/external-upstream-memory-policy.md`) 검증. memory policy + access tracking spec의 vocabulary 스키마 일관성, canonical vs consumer 레이어 분리 명확성, opencode-nexus 호환성 논증 충실도, Claude Code reference implementation 정확성 확인.",
+          "approach": "기존 nexus-core vocabulary 3개 파일(capabilities.yml, tags.yml, harness_keys.yml) 스타일과 제안된 memory_policy.yml 스키마 비교. 카테고리 4종(empirical/external/pattern/primer) + 크기 수치(80/200줄) + 병합 기준 + decay 트리거 수치(180일/6 cycles/15 files/60KB/20 cycles) 모두 §3에 포함되는지 check. Access tracking §5: 관찰 도구=Read only, 필드 스키마 4종, 망각 P4+P1 교집합 정책이 canonical로 명확 기술되는지. §6 reference implementation: PostToolUse Read 훅 TypeScript 예시 정확성(NotebookEdit 제외 명시 등), [m:gc] 승인 UX flow 완결성. opencode 호환성 섹션: 두 하네스의 hook 시스템 차이 + 동일 policy 준수 가능성 논증.",
+          "acceptance": "(1) 이슈 #3.1, #3.2 결정사항 누락 없음 — 체크리스트 기반 검증. (2) vocabulary/memory_policy.yml 스키마가 기존 3개 vocabulary 파일 스타일과 호환. (3) Canonical(§3, §5)과 reference implementation(§6)의 분리 명확 — consumer-specific 내용이 canonical 섹션에 섞이지 않음. (4) opencode 호환성 논증 포함 여부. (5) §7 Open Questions 최소 5개 포함 여부. (6) Primer 마이그레이션/기존 10파일 리네임이 별도 사이클로 연기됨을 명시(scope 경계). (7) PASS/FAIL 결론 + 수정 요구사항 목록. (8) Read 도구 관찰 규칙에서 NotebookEdit 등 쓰기성 도구 제외가 명시되는지.",
+          "risk": "memory policy가 harness-neutral 정의를 추구하지만 access tracking file path(`.nexus/state/{harness}/memory-access.jsonl`) 같은 구현 세부가 §5 canonical에 섞일 위험. Reviewer가 명확히 §5/§6 경계 지적 필요.",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "plan_issue": 3,
+          "owner": "reviewer",
+          "created_at": "2026-04-16T06:42:36.020Z"
+        },
+        {
+          "id": 5,
+          "title": "Submit Proposal A as nexus-core GitHub issue",
+          "context": "Task 1의 draft(`.nexus/memory/external-upstream-plan-run-guidelines.md`)와 Task 3 review 결과를 바탕으로 nexus-core 레포(moreih29/nexus-core)에 GitHub 이슈 제기. 이슈 #1/#2 결정을 upstream에 공식 제안.",
+          "approach": "Review PASS 확인 후 진행. (1) Draft §N \"GitHub Issue Title Candidates\" 섹션에서 후보 제시하고 사용자 승인받기. (2) `gh issue create --repo moreih29/nexus-core --title \"...\" --body \"$(cat .nexus/memory/external-upstream-plan-run-guidelines.md)\"` 실행. 기존 upstream-issue-harness-extension.md의 이슈 #4(CA-7) 제출 흐름 재현. (3) 이슈 URL을 draft 파일 상단 metadata 섹션에 `**Upstream link**: https://github.com/moreih29/nexus-core/issues/N` 추가(refactor-carryover.md CA-1/CA-2 패턴). (4) 이슈 본문에 plan session #7 trace 주석 포함(어떤 plan cycle 산출물인지 감사 가능).",
+          "acceptance": "(1) GitHub 이슈 moreih29/nexus-core에 생성되고 URL 반환. (2) 이슈 title이 draft §N 후보 중 사용자 승인된 값. (3) 이슈 body가 draft 파일 내용과 동일(최종 review 반영 후). (4) Draft 파일 상단에 `**Upstream link**: ...` 메타데이터 추가. (5) 사용자 승인 없이 `gh issue create` 실행하지 않음(blast radius 관리).",
+          "risk": "External action(GitHub publish) — 한 번 제출하면 공개되어 delete해도 URL 흔적 남음. 사용자 승인 필수. `gh` 인증 미설정 시 실패 — pre-check로 `gh auth status` 확인. Draft가 80줄 일반 상한을 초과할 가능성 — proposal 성격상 external-* prefix 크기 예외를 Task 1/2에서 미리 반영.",
+          "status": "completed",
+          "deps": [
+            3
+          ],
+          "plan_issue": 1,
+          "owner": "lead",
+          "created_at": "2026-04-16T06:46:30.183Z"
+        },
+        {
+          "id": 6,
+          "title": "Submit Proposal B as nexus-core GitHub issue",
+          "context": "Task 2의 draft(`.nexus/memory/external-upstream-memory-policy.md`)와 Task 4 review 결과를 바탕으로 nexus-core 레포(moreih29/nexus-core)에 GitHub 이슈 제기. 이슈 #3.1/#3.2 결정을 upstream에 공식 제안.",
+          "approach": "Task 5와 동일 flow. (1) Draft §N Title Candidates 중 사용자 승인받기. (2) `gh issue create --repo moreih29/nexus-core --title \"...\" --body \"$(cat .nexus/memory/external-upstream-memory-policy.md)\"`. (3) 이슈 URL을 draft 상단 metadata에 추가. (4) plan session #7 trace 주석 포함. 두 proposal이 같은 plan session에서 나온 sibling 관계를 각각의 이슈 body에 cross-reference(예: \"Related: nexus-core#{proposal_A_issue_number}\"). 순서 중요: Proposal A 먼저 제출된 경우 Proposal B body에 cross-ref 추가 가능.",
+          "acceptance": "(1) GitHub 이슈 생성 + URL 반환. (2) 사용자 승인된 title. (3) Body가 최종 draft와 일치. (4) Draft 파일 상단 Upstream link 메타데이터 추가. (5) 사용자 승인 없이 실행 금지. (6) Task 5가 먼저 완료된 경우 B의 이슈 body에 A의 이슈 번호를 cross-reference로 포함.",
+          "risk": "Task 5와 동일 + cross-reference 순서 의존성. 만약 A/B를 역순으로 제출하면 B의 cross-ref 누락. 해결: Task 5 완료 후 B 시작이 deps=[4] 외에 Task 5 완료까지 기다리지 않으므로, 순서 비보장 — cross-ref는 optional로 처리하거나 Task 5 완료도 deps에 추가.",
+          "status": "completed",
+          "deps": [
+            4
+          ],
+          "plan_issue": 3,
+          "owner": "lead",
+          "created_at": "2026-04-16T06:46:40.191Z"
+        }
+      ]
     }
   ]
 }
