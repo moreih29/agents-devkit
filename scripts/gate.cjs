@@ -512,7 +512,39 @@ Record decision only. For implementation, use [run].`;
     pass();
   }
 }
+function handleMemoryAccessTracking(event) {
+  try {
+    if (event.tool_name !== "Read") return;
+    const filePath = event.tool_input?.file_path;
+    if (!filePath || !filePath.startsWith(MEMORY_ROOT)) return;
+    const logPath = (0, import_path3.join)(HARNESS_STATE_ROOT, "memory-access.jsonl");
+    const records = /* @__PURE__ */ new Map();
+    if ((0, import_fs3.existsSync)(logPath)) {
+      const content = (0, import_fs3.readFileSync)(logPath, "utf-8");
+      for (const line of content.split("\n")) {
+        if (!line) continue;
+        try {
+          const rec = JSON.parse(line);
+          records.set(rec.path, rec);
+        } catch {
+        }
+      }
+    }
+    const existing = records.get(filePath);
+    records.set(filePath, {
+      path: filePath,
+      last_accessed_ts: (/* @__PURE__ */ new Date()).toISOString(),
+      access_count: (existing?.access_count ?? 0) + 1,
+      last_agent: event.agent_id ?? "lead"
+    });
+    ensureDir(HARNESS_STATE_ROOT);
+    const output = Array.from(records.values()).map((r) => JSON.stringify(r)).join("\n") + "\n";
+    (0, import_fs3.writeFileSync)(logPath, output);
+  } catch (e) {
+  }
+}
 function handlePostToolUse(event) {
+  handleMemoryAccessTracking(event);
   try {
     const agentId = event.agent_id;
     if (!agentId) return;

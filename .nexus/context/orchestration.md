@@ -39,7 +39,7 @@
 
 ## Source of Truth
 
-`agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 **build-time generated** from `@moreih29/nexus-core ^0.8.0`.
+`agents/*.md`, `skills/*/SKILL.md`, `src/data/tags.json`은 **build-time generated** from `@moreih29/nexus-core ^0.10.0`.
 
 - 직접 편집 금지 — 수정이 필요하면 upstream nexus-core에서 작업
 - Build 시점에 `generate-from-nexus-core.mjs`가 nexus-core manifest.json을 읽어 regenerate
@@ -58,6 +58,25 @@
 - 의존성 기반 병렬/직렬 디스패치
 - **Tag drift detection**: gate.ts `HANDLED_TAG_IDS` 상수와 nexus-core `vocabulary/tags.yml` tag id set이 build 시점에 cross-check됨. 불일치 시 build 실패. (`verifyTagDrift()` in `generate-from-nexus-core.lib.mjs`)
 
+## Verification auto-pairing
+
+**v0.10.0 canonical** (nexus-core `skills/nx-plan` Step 7): CHECK pair는 조건부로만 생성.
+
+- `engineer` + acceptance에 **runtime behavior** 기준 → **tester** pair
+- `writer` + acceptance에 **verifiable deliverable** 기준 → **reviewer** pair
+- 제외: `researcher`, 순수 refactor, type-only, docs-adjacent(`.md`/frontmatter). 근거: `tester-artifact-gap.md` — 무조건 pairing이 researcher 산출물을 tester로 오라우팅하던 incident 수정.
+
+**Task-exception catalog** (`vocabulary/task-exceptions.yml`) 4종:
+
+- `docs_only.coherent` — 여러 `.md` 파일이 하나의 coherent 변경을 공유 → 1 writer + 1 reviewer pair, 파일/라인 임계값 waive
+- `docs_only.independent` — 각 `.md` 파일이 독립 주제 → 파일당 1 writer + 1 reviewer pair
+- `same_file_bundle` — 같은 파일 대상 sub-task는 단일 owner로 merge (파일 충돌 방지)
+- `generated_artifacts` — 빌드 산출물(claude-nexus 예: `bridge/`, `scripts/`)은 task count/file count에서 제외. 경로는 하네스 빌드 구성이 정의.
+
+**Dedup Layer 1** (canonical): plan Step 7 task 생성 단계에서 draft task list의 `target_files` 겹침을 스캔하여 `same_file_bundle`로 merge — 정적 머지. Layer 2(wave-time intersection)는 consumer-local.
+
+**Consumer-local 재량** (canonical 아님): in-flight cap 수치, pair-wise streaming 알고리즘, Dedup Layer 2(wave-time), `wave_id` TUI grouping, escalation wave pause/resume, `tool-log.jsonl` recalibration. 프로젝트 cadence에 맞춰 자체 설정.
+
 ## 지식 관리 철학
 
 "코드/웹에서 다시 얻을 수 없는 것만 저장한다."
@@ -67,4 +86,13 @@
 - **rules/**: 프로젝트 커스텀 규칙. [rule] 태그로 저장.
 - **state/**: 런타임 상태. 에페메랄.
   - root: nexus-core 공통 스키마 (`plan.json`, `tasks.json`, `history.json`)
-  - `state/claude-nexus/`: harness-local 파일 네임스페이스 (`agent-tracker.json`, `tool-log.jsonl`, `artifacts/`) — nexus-core 0.8.0 §Shared filename convention 규칙 준수. agent-tracker.json 엔트리는 harness_id + agent_name 분리 필드로 기록. history.json cycles[]는 schema_version: "0.5" 포함.
+  - `state/claude-nexus/`: harness-local 파일 네임스페이스 (`agent-tracker.json`, `tool-log.jsonl`, `memory-access.jsonl`, `artifacts/`) — nexus-core §Shared filename convention 규칙 준수. agent-tracker.json 엔트리는 harness_id + agent_name 분리 필드로 기록. history.json cycles[]는 schema_version: "0.5" 포함.
+
+**Memory policy v0.10.0 canonical** (`vocabulary/memory_policy.yml`):
+
+- 3 카테고리: `empirical`(관찰·측정) / `external`(상류 제약·인용) / `pattern`(운영 레시피). `primer-` 범주는 context/ 역할과 중복이라 canonical 제외.
+- Naming structural contract: lowercase kebab-case `.md`. prefix enumeration은 권고 수준(강제 regex 아님).
+- Forgetting: manual gate (`[m:gc]` 호출 시 확인 후 삭제) 기본. P1 자동삭제의 3-signal intersection 구조는 canonical, 구체 수치(일수·사이클·access)는 consumer-local 재량.
+- Merge-before-create: 같은 prefix + 토픽 키워드 겹침 시 신규 파일 대신 병합.
+
+**Memory-access observation** (`memory-access.jsonl`): PostToolUse hook이 `.nexus/memory/` Read 이벤트를 catch하여 `.nexus/state/claude-nexus/memory-access.jsonl`에 4-field(`path`/`last_accessed_ts`/`access_count`/`last_agent`) upsert. 실제 read 여부가 memory 유효성 신호 — P4 manual gate의 proposed deletion list 근거.

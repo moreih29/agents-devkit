@@ -495,9 +495,57 @@ function handleUserPromptSubmit(event: Record<string, unknown>): void {
   }
 }
 
-// --- PostToolUse 이벤트 처리: tool-log.jsonl append ---
+// --- Memory access observation (nexus-core v0.10.0 canonical) ---
+// .nexus/memory/ Read 이벤트를 관찰해 memory-access.jsonl에 upsert by path.
+// Schema: conformance/state-schemas/memory-access.schema.json (4 required fields).
+// Lead 경로도 포함 — memory 유효성은 실제 read 여부가 기준 (agent_id ?? 'lead').
+
+interface MemoryAccessRecord {
+  path: string;
+  last_accessed_ts: string;
+  access_count: number;
+  last_agent: string;
+}
+
+function handleMemoryAccessTracking(event: any): void {
+  try {
+    if (event.tool_name !== 'Read') return;
+    const filePath: string | undefined = event.tool_input?.file_path;
+    if (!filePath || !filePath.startsWith(MEMORY_ROOT)) return;
+
+    const logPath = join(HARNESS_STATE_ROOT, 'memory-access.jsonl');
+    const records = new Map<string, MemoryAccessRecord>();
+    if (existsSync(logPath)) {
+      const content = readFileSync(logPath, 'utf-8');
+      for (const line of content.split('\n')) {
+        if (!line) continue;
+        try {
+          const rec = JSON.parse(line) as MemoryAccessRecord;
+          records.set(rec.path, rec);
+        } catch {}
+      }
+    }
+
+    const existing = records.get(filePath);
+    records.set(filePath, {
+      path: filePath,
+      last_accessed_ts: new Date().toISOString(),
+      access_count: (existing?.access_count ?? 0) + 1,
+      last_agent: event.agent_id ?? 'lead',
+    });
+
+    ensureDir(HARNESS_STATE_ROOT);
+    const output = Array.from(records.values()).map(r => JSON.stringify(r)).join('\n') + '\n';
+    writeFileSync(logPath, output);
+  } catch (e) {
+    // silent fail
+  }
+}
+
+// --- PostToolUse 이벤트 처리: tool-log.jsonl append + memory-access tracking ---
 
 function handlePostToolUse(event: any): void {
+  handleMemoryAccessTracking(event);
   try {
     const agentId = event.agent_id;
     if (!agentId) return; // Lead direct edit, skip
