@@ -14,7 +14,6 @@ import {
   MAX_TURNS_MAP,
   FIELD_ORDER,
   SKILL_FIELD_ORDER,
-  SKILL_PURPOSE_OVERRIDE,
   verifyBodyHash,
   deriveDisallowedTools,
   emitYamlValue,
@@ -71,12 +70,6 @@ describe('constants', () => {
   test('SKILL_FIELD_ORDER has 5 fields, no triggers', () => {
     expect(SKILL_FIELD_ORDER).toHaveLength(5);
     expect(SKILL_FIELD_ORDER).not.toContain('triggers');
-  });
-
-  test('SKILL_PURPOSE_OVERRIDE has 5 skill entries', () => {
-    expect(Object.keys(SKILL_PURPOSE_OVERRIDE).sort()).toEqual(
-      ['nx-init', 'nx-plan', 'nx-run', 'nx-setup', 'nx-sync']
-    );
   });
 });
 
@@ -212,9 +205,9 @@ describe('transformSkill', () => {
   const body = loadFixtureText('skills/nx-plan/body.md');
 
   test('emits nx-plan skill with bracketed trigger_display', () => {
-    const out = transformSkill(meta, body, 'claude-nexus', 'skills/nx-plan');
+    const out = transformSkill(meta, body, 'claude-nexus', { summary: 'Structured planning' }, 'skills/nx-plan');
     expect(out).toContain('trigger_display: "[plan]"');
-    expect(out).toContain('purpose: "Structured planning');
+    expect(out).toContain('purpose: "Structured planning"');
     expect(out).not.toContain('disable-model-invocation');
   });
 
@@ -225,9 +218,16 @@ describe('transformSkill', () => {
     expect(out).toContain('trigger_display: "/claude-nexus:nx-init"');
   });
 
-  test('throws on missing SKILL_PURPOSE_OVERRIDE', () => {
-    const fakeMeta = { id: 'nx-unknown', name: 'nx-unknown', description: 'x', triggers: ['unknown'] };
-    expect(() => transformSkill(fakeMeta, 'body', 'claude-nexus')).toThrow(/SKILL_PURPOSE_OVERRIDE/);
+  test('uses manifestEntry.summary as purpose', () => {
+    const fakeMeta = { id: 'nx-unknown', name: 'nx-unknown', description: 'fallback desc', triggers: ['unknown'] };
+    const out = transformSkill(fakeMeta, '## Role\n\nfoo\n', 'claude-nexus', { summary: 'Custom purpose' });
+    expect(out).toContain('purpose: "Custom purpose"');
+  });
+
+  test('falls back to description when manifestEntry is absent', () => {
+    const fakeMeta = { id: 'nx-unknown', name: 'nx-unknown', description: 'fallback desc', triggers: ['unknown'] };
+    const out = transformSkill(fakeMeta, '## Role\n\nfoo\n', 'claude-nexus');
+    expect(out).toContain('purpose: "fallback desc"');
   });
 });
 
