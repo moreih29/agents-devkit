@@ -189,7 +189,7 @@ Completed subagents can be resumed within the same parent session via `SendMessa
 
 **Activation requirement**: environment variable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. When absent, automatically falls back to fresh spawn (no errors).
 
-**Rationale**: Agents are classified by their dominant work surface. Reasoning surface (exists only in agent context) → `persistent` (HOW + Researcher). Mixed with artifact surface (persisted to filesystem) → `bounded` (Engineer, Writer). Verification independence as quality metric → `ephemeral` (Tester, Reviewer). See `.nexus/memory/persistence-surface-theory.md` for details.
+**Rationale**: Agents are classified by their dominant work surface. Reasoning surface (exists only in agent context) → `persistent` (HOW + Researcher). Mixed with artifact surface (persisted to filesystem) → `bounded` (Engineer, Writer). Verification independence as quality metric → `ephemeral` (Tester, Reviewer). See `.nexus/memory/pattern-persistence-surface-theory.md` for details.
 
 **Tracking**: `PostToolUse` hook appends subagent file edits to `tool-log.jsonl` → `SubagentStop` aggregates them into `files_touched` on `agent-tracker.json` → Lead uses this for bounded-tier conditional resume decisions.
 

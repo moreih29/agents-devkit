@@ -176,7 +176,7 @@ Gate 단일 모듈로 동작합니다.
 
 **활성화 요구사항**: 환경 변수 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. 미감지 시 자동 fresh spawn fallback (에러 없음).
 
-**이론 근거**: 에이전트의 본질적 작업 층위를 두 surface로 구분합니다. Reasoning surface(에이전트 컨텍스트에만 존재)가 지배적인 HOW/Researcher는 `persistent`, Artifact surface(파일 시스템에 persist)에 걸친 Engineer/Writer는 `bounded`, 검증 독립성이 품질 지표인 Tester/Reviewer는 `ephemeral`. 자세한 내용은 `.nexus/memory/persistence-surface-theory.md`.
+**이론 근거**: 에이전트의 본질적 작업 층위를 두 surface로 구분합니다. Reasoning surface(에이전트 컨텍스트에만 존재)가 지배적인 HOW/Researcher는 `persistent`, Artifact surface(파일 시스템에 persist)에 걸친 Engineer/Writer는 `bounded`, 검증 독립성이 품질 지표인 Tester/Reviewer는 `ephemeral`. 자세한 내용은 `.nexus/memory/pattern-persistence-surface-theory.md`.
 
 **연계 추적**: `PostToolUse` 훅이 서브에이전트의 파일 수정을 `tool-log.jsonl`에 append → `SubagentStop`이 집계하여 `agent-tracker.json`의 `files_touched`에 주입 → Lead가 bounded tier 조건부 resume 판단에 활용.
 

@@ -19,7 +19,7 @@
 | **bounded** | 같은 artifact(파일/문서) 연속 작업 시 conditional-resume, 대상 재Read 강제, loop prevention/feedback 사이클은 강제 fresh | engineer, writer |
 | **ephemeral** | Forced fresh, 예외 없음 (Lead opt-in도 불허) | tester, reviewer |
 
-**이론 근거**: Persistence Surface Theory — reasoning surface(에이전트 컨텍스트) vs artifact surface(파일 시스템). reasoning이 작업 본질이면 resume 가치 높음, artifact가 본질이면 Read로 복원 가능, 검증 작업은 independence가 품질 지표라 reasoning 누적이 해악. 자세한 내용은 `.nexus/memory/persistence-surface-theory.md`.
+**이론 근거**: Persistence Surface Theory — reasoning surface(에이전트 컨텍스트) vs artifact surface(파일 시스템). reasoning이 작업 본질이면 resume 가치 높음, artifact가 본질이면 Read로 복원 가능, 검증 작업은 independence가 품질 지표라 reasoning 누적이 해악. 자세한 내용은 `.nexus/memory/pattern-persistence-surface-theory.md`.
 
 **핵심**: researcher의 `category:do` + `resume_tier:persistent` 조합처럼 두 축이 독립되어 있어 예외 없는 매핑이 가능. 새 에이전트 추가 시 두 축을 독립적으로 결정.
 
@@ -64,7 +64,7 @@
 
 - `engineer` + acceptance에 **runtime behavior** 기준 → **tester** pair
 - `writer` + acceptance에 **verifiable deliverable** 기준 → **reviewer** pair
-- 제외: `researcher`, 순수 refactor, type-only, docs-adjacent(`.md`/frontmatter). 근거: `tester-artifact-gap.md` — 무조건 pairing이 researcher 산출물을 tester로 오라우팅하던 incident 수정.
+- 제외: `researcher`, 순수 refactor, type-only, docs-adjacent(`.md`/frontmatter). 근거: `pattern-tester-artifact-gap.md` — 무조건 pairing이 researcher 산출물을 tester로 오라우팅하던 incident 수정.
 
 **Task-exception catalog** (`vocabulary/task-exceptions.yml`) 4종:
 

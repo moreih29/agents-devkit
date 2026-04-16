@@ -1,4 +1,4 @@
-# 00-ECOSYSTEM_PRIMER.md — Nexus 생태계 공통 헌법
+# Nexus 생태계 공통 헌법 (ecosystem)
 
 > **이 문서의 유효 범위**: 4개 프로젝트(nexus-core, claude-nexus, opencode-nexus, nexus-code) 전체에 동일 내용으로 배포되는 canonical primer다. 각 프로젝트의 LLM은 이 문서를 먼저 읽은 뒤 해당 프로젝트의 브리핑 세트(01-BRIEFING.md ~ 05-REFERENCES.md)로 넘어간다.
 >

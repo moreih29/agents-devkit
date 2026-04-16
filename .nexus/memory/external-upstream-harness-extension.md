@@ -23,7 +23,7 @@ nexus-core is asked to: (a) evaluate whether the design is acceptable, (b) add `
 
 ### §2.1 The resume invocation gap
 
-Claude Code subagent resume is feasible. It has been empirically verified (`.nexus/memory/subagent-resume.md`, 2026-04-09, updated 2026-04-10): a completed subagent can be revived via `SendMessage({to: agentId, ...})`, with full prior transcript intact. The critical detail — that `to` must be the UUID `agentId` returned by `Agent()`, not the agent `name`, and that `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` must be set — is documented only in that private dev memo.
+Claude Code subagent resume is feasible. It has been empirically verified (`.nexus/memory/empirical-subagent-resume.md`, 2026-04-09, updated 2026-04-10): a completed subagent can be revived via `SendMessage({to: agentId, ...})`, with full prior transcript intact. The critical detail — that `to` must be the UUID `agentId` returned by `Agent()`, not the agent `name`, and that `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` must be set — is documented only in that private dev memo.
 
 The nx-run and nx-plan skill bodies describe orchestration workflows but say nothing about how Lead should re-invoke a completed subagent. An operator reading the skill body mid-session has no guidance.
 
