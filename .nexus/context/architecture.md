@@ -45,7 +45,7 @@ esbuild 번들 직후 `generate-from-nexus-core.mjs`가 실행됨 (esbuild.confi
 
 ## Nexus Ecosystem Position
 
-> **내부 아키텍처 문서 전용.** 외부 README/마케팅에 이 프레임 사용 금지 — `.nexus/memory/nexus-ecosystem-primer.md` §7 참조.
+> **내부 아키텍처 문서 전용.** 외부 README/마케팅에 이 프레임 사용 금지 — `.nexus/context/ecosystem.md` §7 참조.
 
 3층위 모델:
 
@@ -56,6 +56,6 @@ esbuild 번들 직후 `generate-from-nexus-core.mjs`가 실행됨 (esbuild.confi
 - **Supervision layer**: `nexus-code` — 외부 host-of-hosts (Pro/Max 구독제 호환 ProcessSupervisor 패턴). 이 프로젝트에서는 interact 없음.
 
 관련 제약:
-- Agent SDK 경로 배제 (`.nexus/memory/agent-sdk-constraint.md` 참조)
+- Agent SDK 경로 배제 (`.nexus/memory/external-agent-sdk-constraint.md` 참조)
 - ACP 통합 경로 현재 Claude Code 쪽 구독제 호환 불가
 - nexus-code가 이 세션을 외부 감독할 때 AgentHost 인터페이스를 통함 — claude-nexus는 해당 로직 자체 구현 안 함

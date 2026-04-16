@@ -6763,6 +6763,193 @@
           "created_at": "2026-04-16T06:46:40.191Z"
         }
       ]
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-16T11:05:10.286Z",
+      "branch": "chore/nexus-core-v0.10.0-upgrade",
+      "plan": {
+        "id": 8,
+        "topic": "nexus-core v0.9.0 → v0.10.0 upgrade (CONSUMING protocol)",
+        "issues": [
+          {
+            "id": 1,
+            "title": "#1 package.json @moreih29/nexus-core ^0.10.0 bump + bun install + bun run dev 재빌드 (body_hash 수용)",
+            "status": "decided",
+            "decision": "package.json의 @moreih29/nexus-core를 ^0.10.0으로 변경 → bun install → bun run dev(esbuild + generate-from-nexus-core + generate-template). verifyBodyHash는 재생성으로 자동 수용됨. verifyTagDrift는 HANDLED_TAG_IDS와 nexus-core tags.yml 일치 시 pass. 대안 기각: (a) 버전 고정 유지 — CONSUMING upgrade protocol 위반. (b) 0.10.1 대기 — 릴리스 없음. (c) upstream fork — 과도."
+          },
+          {
+            "id": 2,
+            "title": "#2 빌드 로직 drift 해소 — generate-from-nexus-core.lib.mjs에 신규 vocabulary 2종(task-exceptions, memory_policy) + invocations 5th entry(memory_read_observation) + tags.prose_guidance 필드 수용 + HANDLED_TAG_IDS 동기화 검증",
+            "status": "decided",
+            "decision": "generate-from-nexus-core.lib.mjs 점검 3가지: (a) loadTagsVocab/transformTags가 `prose_guidance` 필드를 drop 없이 처리하는지(현재 tag/purpose만 emit하므로 prose_guidance가 tag.purpose 확장과 충돌 안 하는지 검증 후 필요시 대응), (b) invocations.yml의 5th entry(memory_read_observation)가 expandPrimitive 매크로 whitelist에 영향 없는지 확인 — invocation-map.yml 업데이트 여부는 실제 body.md에서 해당 primitive를 사용하는지 grep으로 확인 후 결정, (c) verifyTagDrift가 v0.10.0 tags.yml과 HANDLED_TAG_IDS 일치 pass하는지. task-exceptions/memory_policy 2종 vocabulary는 runtime 참조 불필요(skill body에 반영됨) → src/data/ emit 생략(YAGNI). 대안 기각: 모든 vocabulary를 src/data/에 pre-emit — 불필요 복잡도."
+          },
+          {
+            "id": 3,
+            "title": "#3 Memory-access observation hook 구현 결정 — PostToolUse에 .nexus/memory/ Read 이벤트 catch, .nexus/state/claude-nexus/memory-access.jsonl 4-field 기록 여부",
+            "status": "decided",
+            "decision": "Memory-access observation hook 구현. 이유: (a) v0.10.0에서 memory-access.schema.json이 Shared filename convention 등록(agent-tracker.json 선례)으로 claude-nexus는 canonical consumer 역할 수행 의무, (b) PostToolUse hook 이미 존재하여 증설 비용 낮음(gate.ts handlePostToolUse에 1 함수 추가), (c) external-upstream-memory-policy.md §6.1에 이미 reference TS 패턴 있음. 범위: PostToolUse에서 tool_name='Read' + tool_input.file_path가 .nexus/memory/ 하위일 때 .nexus/state/claude-nexus/memory-access.jsonl에 4-field(path/last_accessed_ts/access_count/last_agent) upsert. 거부 항목은 미구현: P1 자동삭제, git commit 포맷, gc 자동 트리거는 canonical 거부 영역. P4 [m:gc] handler prompt 주입은 별도 cycle(현 cycle 범위 밖). 대안 기각: 미구현 — canonical schema 무시로 ecosystem divergence."
+          },
+          {
+            "id": 4,
+            "title": "#4 .nexus/context/orchestration.md 업데이트 — conditional auto-pairing + task-exception catalog + memory policy canonical 반영",
+            "status": "decided",
+            "decision": ".nexus/context/orchestration.md를 업데이트하여 3 canonical 원칙 추가: (a) Conditional auto-pairing 규칙 — engineer+runtime-behavior→tester, writer+verifiable deliverable→reviewer, researcher/순수 refactor/type-only/docs-adjacent 제외 (2026-04-16 nexus-core v0.10.0 canonical), (b) task-exception catalog 4종(docs_only.coherent / docs_only.independent / same_file_bundle / generated_artifacts) 참조, (c) memory_policy canonical 3 카테고리(empirical/external/pattern) + manual gate forgetting. 거부된 수치 항목은 consumer-local 재량임을 명기. 대안 기각: orchestration.md 수정 없이 skill body 재빌드에만 의존 — context/는 claude-nexus local 운영 지침 layer로 skill body와 별개로 유지되어야 일관성 보장."
+          },
+          {
+            "id": 5,
+            "title": "#5 claude-nexus 자체 버전 bump(0.27.0) + CHANGELOG 항목",
+            "status": "decided",
+            "decision": "claude-nexus 버전 0.26.4 → 0.27.0 (minor). 근거: (a) v0.10.0 canonical 수용은 dependency bump이나 memory-access hook 신규 추가는 behavioral 확장 → patch 이상, (b) plugin 소비자 관점에서 API/behavior 변화 없음 → major 아님, (c) v0.9.0 수용 시 0.26.x 유지한 선례와 달리 hook 신규 기능이 있으므로 minor. VERSION + package.json version bump, CHANGELOG.md에 v0.27.0 섹션 추가. 대안 기각: (a) patch(0.26.5) — hook 신규 기능 있음, (b) major(1.0.0) — pre-v1 관행 + breaking surface 없음."
+          },
+          {
+            "id": 6,
+            "title": "#6 Conformance/E2E 테스트 pass 검증 — test/conformance.mjs + test/e2e.sh",
+            "status": "decided",
+            "decision": "순차 검증: bun run build:types (타입 체크) → bun test (unit test) → bash test/e2e.sh (E2E). 각 단계 실패 시 원인별 대응: 타입 실패 → src/ 수정, conformance 실패 → test/conformance.mjs fixture 매핑 점검, e2e 실패 → 빌드 산출물/gate.cjs 수정. memory-access hook 신규 동작은 별도 수동 smoke test(gate.cjs 실행 + 테스트 Read 이벤트 → jsonl 기록 확인)로 검증. 대안 기각: 빌드 성공만으로 conformance 확신 — CONSUMING §\"Conformance Obligation\"이 테스트 pass를 release block으로 규정."
+          }
+        ],
+        "research_summary": "v0.10.0은 claude-nexus Plan #7의 업스트림 제안 #19/#20 부분 수용(2026-04-16). Canonical로 승격된 항목: (a) skills/nx-plan body.md Step 7 conditional auto-pairing 재작성(body_hash 변경) — engineer+runtime-behavior→tester, writer+verifiable deliverable→reviewer만 pair, researcher/refactor/type-only/docs-adjacent 제외; (b) vocabulary/task-exceptions.yml 4 entries(docs_only.coherent/independent, same_file_bundle, generated_artifacts); (c) vocabulary/memory_policy.yml 5 sections(categories 3종: empirical/external/pattern[primer 제외] + naming 구조 contract + access_tracking + forgetting manual gate + merge); (d) conformance/state-schemas/memory-access.schema.json(4 required fields: path/last_accessed_ts/access_count/last_agent) Shared filename convention 등록; (e) invocations.yml에 memory_read_observation primitive 추가(4→5 entries); (f) tags.yml [m]/[m:gc]에 prose_guidance 필드 추가. 거부된 항목(cap=5, streaming 알고리즘, Layer 2 wave-time, wave_id TUI, primer 범주, 구체 수치 180/6/60KB/15/20cycles, P1 enforcement, git commit 포맷, resume 미증분 규칙)은 consumer-local dispatcher 재량. 현재 claude-nexus 상태: src/hooks/gate.ts가 SessionStart/SubagentStart/SubagentStop/PreToolUse/PostToolUse(이미 tool-log.jsonl 기록 중)/Stop/UserPromptSubmit/PreCompact/PostCompact 모두 처리 단일 진입점; src/mcp/tools/task.ts, plan.ts에 owner_agent_id/owner_reuse_policy/how_agent_ids 필드 이미 존재; generate-from-nexus-core.lib.mjs가 CAPABILITY_TOOL_MAP/FIELD_ORDER/매크로 expander/verifyBodyHash/verifyTagDrift(HANDLED_TAG_IDS↔tags.yml) 처리; src/data/tags.json만 현재 빌드 산출; CLAUDE.md는 NEXUS:START/END 마커로 자동 동기화(templates/nexus-section.md↔ gate.ts handleClaudeMdSync). 이전 cycle: v0.3.0→v0.4.0 업그레이드 2026-04-13에 7 task로 처리됨.",
+        "created_at": "2026-04-16T10:50:37.172Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "T1: package.json nexus-core ^0.10.0 bump + 초기 재빌드",
+          "context": "nexus-core v0.9.0 → v0.10.0 upgrade protocol 진입점. package.json devDependency 교체 + bun install + bun run dev 실행. 빌드 산출물(bridge/mcp-server.cjs, scripts/gate.cjs, scripts/statusline.cjs, agents/*.md, skills/*/body.md/SKILL.md, src/data/tags.json, templates/nexus-section.md, CLAUDE.md 동기화) 갱신. 이 task에서 drift가 발견되면 T2에서 해소. [exception: same_file_bundle — package.json + lock + 빌드 산출물 다수는 빌드 명령 1회로 코히런트 변경]",
+          "approach": "1) package.json에서 @moreih29/nexus-core를 \"^0.9.0\" → \"^0.10.0\"으로 수정. 2) bun install 실행(bun.lock 갱신). 3) bun run dev 실행(esbuild + generate-from-nexus-core + generate-template). 4) 빌드 성공/실패 로그 관찰 — verifyBodyHash나 verifyTagDrift 실패 시 세부 내용을 기록. 5) 실패 시 실패 내용을 T2 context에 전달(소스 수정 없이 reporting만).",
+          "acceptance": "- package.json `@moreih29/nexus-core`가 `^0.10.0`으로 갱신되어 있음\n- bun install 후 node_modules/@moreih29/nexus-core/package.json version이 0.10.0\n- bun run dev가 error exit code 0으로 종료 (혹은 실패 내용이 정확히 T2로 전달됨)\n- bridge/mcp-server.cjs, scripts/gate.cjs, scripts/statusline.cjs 재생성 확인",
+          "risk": "verifyBodyHash 실패 시 원인이 skill body.md에 있는지(정상 — v0.10.0이 body 변경) 빌드 로직에 있는지 구분 필요. verifyTagDrift 실패 시 HANDLED_TAG_IDS 갱신 필요. bun.lock 충돌 가능성은 낮음(dev dep만 변경).",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-16T10:52:53.302Z"
+        },
+        {
+          "id": 2,
+          "title": "T2: generate-from-nexus-core.lib.mjs drift 점검 및 수정",
+          "context": "v0.10.0은 3가지 drift 포인트 유발 가능: (a) tags.yml의 [m]/[m:gc] entry에 prose_guidance 필드 추가 → loadTagsVocab → transformTags가 필드를 drop 없이 처리하는지, (b) invocations.yml 5 entries 중 신규 memory_read_observation primitive가 expandPrimitive 매크로 whitelist/validator에 영향을 미치는지, (c) HANDLED_TAG_IDS(gate.ts line 187)가 v0.10.0 tags.yml entries와 일치 유지되는지(verifyTagDrift). T1 결과 빌드가 실패했다면 실패 원인에 따라 세부 수정 포인트 식별.",
+          "approach": "1) T1의 빌드 로그 확인: pass였다면 (b)(c)는 통과로 간주, (a)는 transformTags 관찰 필요. 2) generate-from-nexus-core.lib.mjs의 transformTags와 loadTagsVocab 코드 읽고 prose_guidance가 src/data/tags.json에 emit돼야 하는지 판단 — 현재 runtime은 tag+purpose만 사용(gate.ts 태그 감지)하므로 emit 불필요. 3) verifyTagDrift 실패 시 HANDLED_TAG_IDS 갱신 — v0.10.0 tags.yml에 신규 tag id 추가 없으면 변경 불필요. 4) invocations.yml grep — memory_read_observation primitive가 claude-nexus skill body.md에서 사용되는지 확인: 사용 안 되면 invocation-map.yml 유지. 5) 필요 시에만 수정 commit.",
+          "acceptance": "- bun run dev가 clean pass\n- src/data/tags.json이 v0.10.0 tags.yml의 모든 entry(7개 태그 수) 반영\n- HANDLED_TAG_IDS와 tags.yml id 목록 일치\n- 만약 invocation-map.yml 변경 필요 시 memory_read_observation이 추가됨\n- 변경 최소화: YAGNI 원칙 준수(쓰이지 않는 vocabulary를 src/data/에 emit하지 않음)",
+          "risk": "prose_guidance 필드가 schema에서 optional이지만 loadTagsVocab가 strict 검증이면 실패 가능. 그럴 경우 vocabulary.schema.json 확장 여부를 판단. 실제 코드를 보기 전까지 정확한 수정 범위 미정.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 2,
+          "owner": "engineer",
+          "created_at": "2026-04-16T10:53:08.608Z"
+        },
+        {
+          "id": 3,
+          "title": "T3: Memory-access observation hook 구현",
+          "context": "v0.10.0 canonical state schema(memory-access.schema.json, 4 required: path/last_accessed_ts/access_count/last_agent)를 Shared filename convention으로 claude-nexus가 기록해야 함. src/hooks/gate.ts의 handlePostToolUse(lines 498-519, 이미 tool-log.jsonl 기록 중)에 Read 이벤트 필터 + upsert 로직 추가. external-upstream-memory-policy.md §6.1의 참조 구현 패턴 재사용(agent_id 없는 Lead 경우 'lead'로 fallback). Runtime behavior 변경 → tester pair 필수(T4).",
+          "approach": "1) src/hooks/gate.ts의 handlePostToolUse 함수에 handleMemoryAccessTracking(event) 추가. 2) 조건: event.tool_name==='Read' + event.tool_input?.file_path 존재 + path.startsWith(projectRoot + '/.nexus/memory/'). 3) 기록 경로: `.nexus/state/claude-nexus/memory-access.jsonl`. 4) JSONL 형식이지만 upsert by path이므로 전체 재작성 패턴(loadAccessLog → Map<path, record> → saveAccessLog 재직렬화). 5) last_agent는 event.agent_id ?? 'lead'. 6) access_count는 existing ?? 0 + 1. 7) last_accessed_ts는 new Date().toISOString(). 8) 파일이 없으면 생성. state dir 없으면 mkdir -p. 9) bun run dev로 scripts/gate.cjs 재빌드. 10) rule:neutral-tool-side-effect에 저촉되지 않도록 nexus-core MCP tool이 아닌 harness hook에서 기록(harness-local 영역이므로 OK).",
+          "acceptance": "- src/hooks/gate.ts에 handleMemoryAccessTracking 함수 존재\n- handlePostToolUse가 이 함수를 호출\n- bun run dev 성공 → scripts/gate.cjs에 코드 포함\n- 수동 테스트: .nexus/memory/ 내 임의 파일을 Read 후 .nexus/state/claude-nexus/memory-access.jsonl에 4-field record 생성\n- 같은 파일을 두 번째 Read 시 access_count=2로 upsert (신규 line 추가 아님)\n- .nexus/memory/ 외부 경로 Read는 jsonl에 기록되지 않음\n- Edit/Write/Glob/Grep 이벤트는 기록되지 않음",
+          "risk": "agent_id가 PostToolUse payload에 실제로 있는지(hook-payload-notebookedit-gotcha.md에 따르면 subagent context에서만 있음). Lead 경로 fallback 누락 시 기록 구멍. JSONL 전체 재작성은 대용량 시 성능 우려지만 memory 파일 수(≤수십) 고려 시 무시 가능. 경로 normalize: projectRoot 기준 절대경로 보장.",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "plan_issue": 3,
+          "owner": "engineer",
+          "created_at": "2026-04-16T10:53:26.506Z"
+        },
+        {
+          "id": 4,
+          "title": "T4: T3 tester 검증 — memory-access hook runtime behavior",
+          "context": "T3가 구현한 memory-access observation hook의 runtime behavior 검증. Conditional auto-pairing 규칙 적용(engineer + runtime-behavior acceptance → tester).",
+          "approach": "1) T3 acceptance criteria 각 항목을 PASS/FAIL로 판정. 2) 빌드된 scripts/gate.cjs에 handleMemoryAccessTracking 문자열 존재 여부 grep. 3) 수동 smoke test: .nexus/memory/ 파일 Read 이벤트 mock → jsonl 출력 검증. 4) Glob/Grep으로 memory 스캔은 기록 안 되는지 확인. 5) Edit/Write 이벤트는 tool-log.jsonl에만 남고 memory-access.jsonl에는 남지 않는지 교차 확인.",
+          "acceptance": "- T3의 모든 acceptance 항목 PASS\n- 경계 조건(.nexus/memory/ 외부, 비-Read 이벤트) FAIL 케이스가 기록되지 않음 확인\n- FAIL 발견 시 원인을 T3에 피드백 (1 cycle rework 허용)",
+          "risk": "smoke test 환경 구성 난이도(Claude Code hook 재생 방법). bun test에서 mock payload로 handler 단위 호출하는 방식으로 대체 가능.",
+          "status": "completed",
+          "deps": [
+            3
+          ],
+          "plan_issue": 3,
+          "owner": "tester",
+          "created_at": "2026-04-16T10:53:35.007Z"
+        },
+        {
+          "id": 5,
+          "title": "T5: .nexus/context/orchestration.md canonical 원칙 반영",
+          "context": "v0.10.0 canonical 3 원칙을 claude-nexus 지역 운영 지침에 반영. 거부된 수치 항목은 consumer-local 재량임을 명기해 ecosystem boundaries.md §Canonical specifics의 증거 기준과 일관성 유지. docs_only.coherent 예외(단일 coherent 변경) 적용 — writer+reviewer pair.",
+          "approach": "1) .nexus/context/orchestration.md 현재 구조 파악. 2) \"Verification auto-pairing\" 관련 섹션 식별 또는 신설. 3) 다음 3 블록 추가/수정: (a) Conditional auto-pairing 규칙 — engineer+runtime-behavior→tester, writer+verifiable deliverable→reviewer, researcher/refactor/type-only/docs-adjacent 제외. 근거: nexus-core v0.10.0 canonical(tester-artifact-gap.md). (b) Task-exception catalog 4종 참조 — docs_only.coherent / docs_only.independent / same_file_bundle / generated_artifacts. (c) Memory policy canonical — 3 카테고리(empirical/external/pattern, primer 제외), naming structural contract(lowercase kebab-case), manual gate forgetting. 거부 항목(cap=5, streaming, Layer 2 wave-time, wave_id, 구체 수치 60KB/15/20/180/6) 은 consumer-local 재량임을 명시. 4) 문서 길이 80-line 권장을 넘지 않도록 간결화(external-* 예외 아님).",
+          "acceptance": "- .nexus/context/orchestration.md에 3 canonical 원칙이 명시적 섹션 혹은 bullet으로 반영\n- 각 원칙 옆에 \"nexus-core v0.10.0 canonical\" 참조 마크\n- 거부 항목이 consumer-local 재량임을 분명히 기재\n- 전체 추가 라인 수 합리적(기존 스타일 유지)\n- Markdown 포맷 오류 없음",
+          "risk": "context/orchestration.md의 기존 섹션 구조와 충돌할 수 있음 — 기존 서술 철학을 우선 보존. canonical 참조와 local 재량 경계를 흐리면 다음 업그레이드에서 혼선.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 4,
+          "owner": "writer",
+          "created_at": "2026-04-16T10:53:50.530Z"
+        },
+        {
+          "id": 6,
+          "title": "T6: T5 reviewer 검증 — orchestration.md canonical 반영 정확성",
+          "context": "T5의 writer 산출물 검증. Conditional auto-pairing 규칙(writer+verifiable deliverable→reviewer).",
+          "approach": "1) T5 acceptance 각 항목 pass 판정. 2) canonical 3 원칙이 원문과 의미 drift 없는지 대조 — MIGRATIONS/v0_9_to_v0_10.md §Consumer Action Checklist와 cross-check. 3) 거부 항목을 canonical로 잘못 분류하지 않았는지 확인. 4) 문법/Markdown 렌더링 체크.",
+          "acceptance": "- canonical vs consumer-local 경계가 명확\n- 원본 migration guide와 의미 일치\n- Markdown 렌더링 깨짐 없음\n- 불일치 발견 시 T5에 피드백",
+          "risk": "canonical/local 경계 해석 주관성 — 제안자 memory(external-upstream-*.md) 참조로 결정 근거 추적 가능.",
+          "status": "completed",
+          "deps": [
+            5
+          ],
+          "plan_issue": 4,
+          "owner": "reviewer",
+          "created_at": "2026-04-16T10:53:56.728Z"
+        },
+        {
+          "id": 7,
+          "title": "T7: 자체 버전 0.27.0 bump + CHANGELOG v0.27.0 섹션",
+          "context": "claude-nexus 0.26.4 → 0.27.0 (minor: memory-access hook 신규 기능). VERSION 파일 + package.json version 필드 + CHANGELOG.md 헤더 추가. docs_only.coherent 예외(단일 주제 — v0.27.0 릴리스 메타) 적용.",
+          "approach": "1) VERSION 파일을 \"0.27.0\"으로 수정. 2) package.json의 \"version\": \"0.26.4\" → \"0.27.0\". 3) CHANGELOG.md 최상단에 \"## [0.27.0] - YYYY-MM-DD — nexus-core v0.10.0 수용 + memory-access observation hook\" 섹션 신설. 섹션 내용: (a) ### Changed — @moreih29/nexus-core ^0.9.0 → ^0.10.0(body_hash 재생성, skill/agent 재빌드); (b) ### Added — memory-access observation hook(PostToolUse에서 .nexus/memory/ Read catch, .nexus/state/claude-nexus/memory-access.jsonl 4-field 기록); (c) ### Docs — .nexus/context/orchestration.md에 conditional auto-pairing + task-exception catalog + memory policy canonical 원칙 반영. (d) Related: nexus-core v0.10.0 CHANGELOG, MIGRATIONS/v0_9_to_v0_10.md 링크.",
+          "acceptance": "- VERSION == \"0.27.0\"\n- package.json version == \"0.27.0\"\n- CHANGELOG.md 최상단에 [0.27.0] 섹션 존재 (날짜 today)\n- 섹션에 Changed/Added/Docs 3 하위 섹션 포함\n- 이전 [0.26.4] 섹션 보존\n- 기존 CHANGELOG 스타일(marker, 문체) 준수",
+          "risk": "날짜 형식 일관성(YYYY-MM-DD). release.mjs가 VERSION/package.json 버전을 sync하는 로직이 있다면 수동 수정과 충돌 가능.",
+          "status": "completed",
+          "deps": [
+            3,
+            5
+          ],
+          "plan_issue": 5,
+          "owner": "writer",
+          "created_at": "2026-04-16T10:54:07.434Z"
+        },
+        {
+          "id": 8,
+          "title": "T8: T7 reviewer 검증 — 버전 bump + CHANGELOG 정확성",
+          "context": "T7의 writer 산출물 검증. Conditional auto-pairing 규칙(writer+verifiable deliverable→reviewer).",
+          "approach": "1) VERSION/package.json/CHANGELOG 3군데 버전 일치. 2) CHANGELOG에 v0.10.0 canonical 수용 + memory-access hook + orchestration.md 개정 세 trope 모두 언급 확인. 3) 기존 스타일(v0.26.4/v0.26.3 섹션 형식) 준수. 4) 오탈자.",
+          "acceptance": "- 3군데 버전 문자열 일치\n- 3 하위 섹션 포함\n- 스타일 일관\n- 오탈자 없음",
+          "risk": "매우 낮음",
+          "status": "completed",
+          "deps": [
+            7
+          ],
+          "plan_issue": 5,
+          "owner": "reviewer",
+          "created_at": "2026-04-16T10:54:12.112Z"
+        },
+        {
+          "id": 9,
+          "title": "T9: Conformance + E2E 최종 검증",
+          "context": "CONSUMING.md §\"Conformance Obligation\" + §\"Schema Field Coverage Obligation\"이 consumer release의 pass 요구. bun run build:types → bun test → bash test/e2e.sh 순차 실행. 빌드 로직 drift 또는 memory-access hook 통합 이슈가 여기서 발견될 수 있음.",
+          "approach": "1) bun run build:types — 타입 체크. 2) bun test — conformance 포함 unit 테스트. 3) bash test/e2e.sh — E2E 시나리오. 4) 각 단계 실패 시 원인 분류: 타입 → src/ 수정 필요(재호출 T2-T3), conformance fixture 매핑 실패 → test/conformance.mjs 재검토, E2E 실패 → 빌드 산출물(bridge/mcp-server.cjs, scripts/gate.cjs) 확인. 5) pass 시 PASS 보고. 6) memory-access hook smoke test(T4에서 단위 검증 완료된 부분)가 e2e에도 영향 없음 확인.",
+          "acceptance": "- bun run build:types exit 0\n- bun test exit 0 (conformance 포함)\n- bash test/e2e.sh exit 0\n- 실패 시 원인과 재작업 지점을 Lead에 리포트",
+          "risk": "e2e.sh가 플러그인 캐시를 실제로 touch하는 경우 환경 sensitive. dev-sync.mjs 이후 ~/.claude/plugins/cache/* 갱신 필요 가능성.",
+          "status": "completed",
+          "deps": [
+            2,
+            3,
+            7
+          ],
+          "plan_issue": 6,
+          "owner": "tester",
+          "created_at": "2026-04-16T10:54:22.494Z"
+        }
+      ]
     }
   ]
 }

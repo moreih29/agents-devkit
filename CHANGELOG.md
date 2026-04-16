@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.27.0 (2026-04-16)
+
+### Features
+- memory-access observation hook — PostToolUse에서 `.nexus/memory/` Read 이벤트를 catch하여 `.nexus/state/claude-nexus/memory-access.jsonl`에 4-field(`path`/`last_accessed_ts`/`access_count`/`last_agent`) upsert. nexus-core v0.10.0 `conformance/state-schemas/memory-access.schema.json` 준수. P4 `[m:gc]` manual gate의 proposed deletion list 근거로 활용 가능.
+
+### Changed
+- upgrade `@moreih29/nexus-core` to ^0.10.0 — `skills/nx-plan` Step 7 conditional auto-pairing 재작성(researcher/refactor/type-only/docs-adjacent 제외), `vocabulary/task-exceptions.yml`(4 entries: `docs_only.coherent`/`docs_only.independent`/`same_file_bundle`/`generated_artifacts`), `vocabulary/memory_policy.yml`(5 sections), `vocabulary/invocations.yml`에 `memory_read_observation` primitive 추가, `[m]`/`[m:gc]` tags에 `prose_guidance` 필드 추가. body_hash 재생성 → skills/agents 재빌드.
+
+### Docs
+- `.nexus/context/orchestration.md` — conditional auto-pairing + task-exception catalog + Dedup Layer 1 canonical + memory policy 3 카테고리(empirical/external/pattern, primer 제외)·naming contract·manual gate forgetting·merge-before-create + memory-access observation 반영. 거부 항목(cap 수치, streaming, Layer 2 wave-time, wave_id, P1 수치 enforcement)은 consumer-local 재량임을 명기. upstream MIGRATIONS/v0_9_to_v0_10.md 근거.
+
 ## 0.26.4 (2026-04-15)
 
 ### Fixes

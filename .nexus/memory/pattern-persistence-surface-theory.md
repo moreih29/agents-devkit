@@ -32,6 +32,6 @@ resume_tier 3-tier 스킴(persistent/bounded/ephemeral)의 이론 근거. agents
 
 ## 관련 기록
 
-- `.nexus/memory/subagent-resume.md` — 기술 메커니즘 검증 (SendMessage agentId, prompt cache)
+- `.nexus/memory/empirical-subagent-resume.md` — 기술 메커니즘 검증 (SendMessage agentId, prompt cache)
 - `skills/nx-plan/SKILL.md` Resume Policy 섹션 — 정책 표
 - `skills/nx-run/SKILL.md` Resume Dispatch Rule — 디스패치 알고리즘
