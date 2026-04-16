@@ -6535,6 +6535,79 @@
       "branch": "chore/nexus-core-0.8.0-sync",
       "plan": null,
       "tasks": []
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-16T03:42:25.356Z",
+      "branch": "fix/nexus-core-test-sync",
+      "plan": {
+        "id": 6,
+        "topic": "nexus-core 충돌 불일치 해결",
+        "issues": [
+          {
+            "id": 1,
+            "title": "테스트 파일의 SKILL_PURPOSE_OVERRIDE 잔존 처리 방식",
+            "status": "decided",
+            "decision": "B안 채택: SKILL_PURPOSE_OVERRIDE 관련 import/테스트 3건 제거 + manifestEntry.summary 동작 검증 대체 테스트 2건 추가 (summary 사용 케이스 + summary 없을 때 description fallback 케이스)"
+          },
+          {
+            "id": 2,
+            "title": "invocation-map.yml 버전 주석 v0.8.0 → 실제 ^0.9.0 불일치 범위 확인",
+            "status": "decided",
+            "decision": "A안 채택: invocation-map.yml 주석의 v0.8.0 버전 하드코딩을 버전 비종속 표현으로 교체. 빌드 시 expandMacros/expandPrimitive의 런타임 검증이 매핑 무결성을 보장하므로, 실제 매핑 변경은 불필요."
+          },
+          {
+            "id": 3,
+            "title": "transformSkill 테스트 커버리지 갱신 전략",
+            "status": "decided",
+            "decision": "A안 채택: transformSkill 테스트는 최소 범위로 — summary 사용 케이스 + description fallback 케이스 2건만 추가. harness_docs_refs는 e2e에서 이미 커버되므로 unit test 추가 불필요."
+          }
+        ],
+        "research_summary": "## 리서치 요약\n\n### 코드 분석\n- `package.json`: `@moreih29/nexus-core: \"^0.9.0\"`\n- `generate-from-nexus-core.lib.mjs`: `SKILL_PURPOSE_OVERRIDE` 상수 없음 (이미 제거됨)\n- `transformSkill()` 시그니처: `(meta, body, pluginName, manifestEntry, label, invocationMap, invocationsEnum)` — manifestEntry?.summary 사용, description fallback\n- `invocation-map.yml:2`: `v0.8.0 Spec γ` 참조 주석\n\n### 테스트 불일치 (test/unit/generate-from-nexus-core.test.ts)\n1. Line 17: `SKILL_PURPOSE_OVERRIDE` import — lib에 export 없어 import 시점 실패\n2. Line 76-80: `SKILL_PURPOSE_OVERRIDE has 5 skill entries` 테스트 — 참조 상수 부재\n3. Line 228-231: `throws on missing SKILL_PURPOSE_OVERRIDE` 테스트 — 현재 코드는 throw 안 함 (description fallback)\n\n### 기존 지식 (.nexus/memory/refactor-carryover.md)\n- CA-2 CLOSED: SKILL_PURPOSE_OVERRIDE → manifest summary 전환 완료\n- 코드 전환은 완료됐으나 테스트 미반영이 이번 발견의 핵심",
+        "created_at": "2026-04-16T03:35:54.175Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "테스트 파일 SKILL_PURPOSE_OVERRIDE 잔존 제거 + 대체 테스트 추가",
+          "context": "test/unit/generate-from-nexus-core.test.ts에서 SKILL_PURPOSE_OVERRIDE import(line 17), 테스트 2건(line 76-80, 228-231) 제거. manifestEntry.summary 사용 테스트 + description fallback 테스트 2건 추가.",
+          "approach": "1) import에서 SKILL_PURPOSE_OVERRIDE 제거. 2) line 76-80 테스트 삭제. 3) line 228-231 테스트 삭제. 4) transformSkill describe 블록에 대체 테스트 2건 추가: (a) manifestEntry.summary가 purpose로 출력되는지, (b) manifestEntry 없을 때 description이 fallback되는지.",
+          "acceptance": "1) import에 SKILL_PURPOSE_OVERRIDE 없음. 2) SKILL_PURPOSE_OVERRIDE 참조 테스트 0건. 3) 새 테스트 2건 pass. 4) 전체 테스트 스위트 실행 성공.",
+          "risk": "기존 테스트가 다른 테스트와 순서 의존성 있을 가능성 (낮음)",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-16T03:38:23.289Z"
+        },
+        {
+          "id": 2,
+          "title": "invocation-map.yml 주석 버전 참조 수정",
+          "context": "invocation-map.yml line 2의 \"v0.8.0 Spec γ\"를 버전 비종속 표현으로 교체.",
+          "approach": "line 2의 \"v0.8.0\"을 제거하고 버전에 묶이지 않는 표현으로 변경. 예: \"Maps @moreih29/nexus-core Spec γ macro primitives to Claude Code\"",
+          "acceptance": "1) invocation-map.yml에 특정 버전 번호 하드코딩 없음. 2) 빌드 성공.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 2,
+          "owner": "lead",
+          "created_at": "2026-04-16T03:38:27.983Z"
+        },
+        {
+          "id": 3,
+          "title": "테스트 변경 검증 — 전체 테스트 스위트 실행",
+          "context": "Task 1의 테스트 변경이 전체 스위트에 영향 없는지 검증",
+          "approach": "bun test 실행 후 전체 pass 확인",
+          "acceptance": "전체 테스트 스위트 green",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "plan_issue": 3,
+          "owner": "tester",
+          "created_at": "2026-04-16T03:38:29.728Z"
+        }
+      ]
     }
   ]
 }

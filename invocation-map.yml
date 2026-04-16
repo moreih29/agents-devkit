@@ -1,5 +1,5 @@
 # invocation-map.yml
-# Maps @moreih29/nexus-core v0.8.0 Spec γ macro primitives to Claude Code
+# Maps @moreih29/nexus-core Spec γ macro primitives to Claude Code
 # (claude-nexus harness) concrete tool invocations.
 #
 # Consumed by generate-from-nexus-core.lib.mjs during build to expand
