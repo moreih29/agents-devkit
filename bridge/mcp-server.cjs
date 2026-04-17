@@ -21395,8 +21395,8 @@ function registerLspTools(server2) {
     "Get type information for a symbol at a specific position",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
-      line: external_exports.number().describe("Line number (1-based)"),
-      character: external_exports.number().describe("Column number (1-based)")
+      line: external_exports.coerce.number().describe("Line number (1-based)"),
+      character: external_exports.coerce.number().describe("Column number (1-based)")
     },
     async ({ file, line, character }) => {
       try {
@@ -21420,8 +21420,8 @@ function registerLspTools(server2) {
     "Jump to the definition of a symbol",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
-      line: external_exports.number().describe("Line number (1-based)"),
-      character: external_exports.number().describe("Column number (1-based)")
+      line: external_exports.coerce.number().describe("Line number (1-based)"),
+      character: external_exports.coerce.number().describe("Column number (1-based)")
     },
     async ({ file, line, character }) => {
       try {
@@ -21444,8 +21444,8 @@ function registerLspTools(server2) {
     "Find all references to a symbol",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
-      line: external_exports.number().describe("Line number (1-based)"),
-      character: external_exports.number().describe("Column number (1-based)"),
+      line: external_exports.coerce.number().describe("Line number (1-based)"),
+      character: external_exports.coerce.number().describe("Column number (1-based)"),
       includeDeclaration: external_exports.boolean().optional().describe("Include the declaration itself")
     },
     async ({ file, line, character, includeDeclaration }) => {
@@ -21509,8 +21509,8 @@ function registerLspTools(server2) {
     "Rename a symbol across the project (returns a list of edits to apply)",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
-      line: external_exports.number().describe("Line number (1-based)"),
-      character: external_exports.number().describe("Column number (1-based)"),
+      line: external_exports.coerce.number().describe("Line number (1-based)"),
+      character: external_exports.coerce.number().describe("Column number (1-based)"),
       newName: external_exports.string().describe("New name for the symbol")
     },
     async ({ file, line, character, newName }) => {
@@ -21564,8 +21564,8 @@ function registerLspTools(server2) {
     "Get suggested fixes and refactoring actions for a code range",
     {
       file: external_exports.string().describe("File path (relative to project root)"),
-      startLine: external_exports.number().describe("Start line number (1-based)"),
-      endLine: external_exports.number().describe("End line number (1-based)")
+      startLine: external_exports.coerce.number().describe("Start line number (1-based)"),
+      endLine: external_exports.coerce.number().describe("End line number (1-based)")
     },
     async ({ file, startLine, endLine }) => {
       try {
@@ -21971,7 +21971,7 @@ function registerPlanTools(server2) {
     "\uC548\uAC74 \uAD00\uB9AC: \uCD94\uAC00, \uC0AD\uC81C, \uC218\uC815, \uC7AC\uAC1C",
     {
       action: external_exports.enum(["add", "remove", "edit", "reopen"]).describe("\uC218\uD589\uD560 \uC561\uC158"),
-      issue_id: external_exports.number().optional().describe("\uB300\uC0C1 \uC548\uAC74 ID (remove, edit, reopen\uC5D0 \uD544\uC218)"),
+      issue_id: external_exports.coerce.number().optional().describe("\uB300\uC0C1 \uC548\uAC74 ID (remove, edit, reopen\uC5D0 \uD544\uC218)"),
       title: external_exports.string().optional().describe("\uC548\uAC74 \uC81C\uBAA9 (add, edit\uC5D0 \uD544\uC218)")
     },
     async ({ action, issue_id, title }) => {
@@ -22033,7 +22033,7 @@ function registerPlanTools(server2) {
     "nx_plan_decide",
     "\uC548\uAC74 \uACB0\uC815 \uAE30\uB85D \u2014 [d] \uD0DC\uADF8\uB85C \uD2B8\uB9AC\uAC70",
     {
-      issue_id: external_exports.number().describe("\uACB0\uC815\uD560 \uC548\uAC74 ID"),
+      issue_id: external_exports.coerce.number().describe("\uACB0\uC815\uD560 \uC548\uAC74 ID"),
       decision: external_exports.string().describe("\uACB0\uC815 \uB0B4\uC6A9"),
       how_agents: external_exports.array(external_exports.string()).optional().describe('\uC774\uC288 \uBD84\uC11D\uC5D0 \uCC38\uC5EC\uD55C HOW \uC5D0\uC774\uC804\uD2B8 \uC774\uB984 \uBAA9\uB85D (\uC608: ["architect", "designer"])'),
       how_summary: external_exports.record(external_exports.string(), external_exports.string()).optional().describe('\uC5D0\uC774\uC804\uD2B8\uBCC4 \uD575\uC2EC \uC758\uACAC \uC694\uC57D (\uC608: { "architect": "...", "designer": "..." })'),
@@ -22119,11 +22119,11 @@ function registerTaskTools(server2) {
     {
       title: external_exports.string().describe("Task title"),
       context: external_exports.string().describe("Task context or description"),
-      deps: external_exports.array(external_exports.number()).optional().describe("IDs of tasks this task depends on"),
+      deps: external_exports.array(external_exports.coerce.number()).optional().describe("IDs of tasks this task depends on"),
       approach: external_exports.string().optional().describe("Implementation approach for this task"),
       acceptance: external_exports.string().optional().describe("Acceptance criteria \u2014 what defines done"),
       risk: external_exports.string().optional().describe("Known risks or caveats"),
-      plan_issue: external_exports.number().optional().describe("plan issue ID this task originates from \u2014 used for tracing back to the plan session"),
+      plan_issue: external_exports.coerce.number().optional().describe("plan issue ID this task originates from \u2014 used for tracing back to the plan session"),
       goal: external_exports.string().optional().describe("Set or update the goal for this task list"),
       decisions: external_exports.array(external_exports.string()).optional().describe("Top-level decisions from [plan] session to append"),
       owner: external_exports.string().optional().describe("Assignee agent name for this task"),
@@ -22166,7 +22166,7 @@ function registerTaskTools(server2) {
     "nx_task_update",
     "Update the status of a task in .nexus/tasks.json",
     {
-      id: external_exports.number().describe("Task ID to update"),
+      id: external_exports.coerce.number().describe("Task ID to update"),
       status: external_exports.enum(["pending", "in_progress", "completed"]).describe("New status for the task")
     },
     async ({ id, status }) => {
@@ -22239,7 +22239,7 @@ function registerTaskTools(server2) {
     "Search past plan/task cycles in history.json",
     {
       query: external_exports.string().optional().describe("Search term to match against topic, decisions, research_summary"),
-      last_n: external_exports.number().optional().describe("Return only the last N cycles (default: 10)")
+      last_n: external_exports.coerce.number().optional().describe("Return only the last N cycles (default: 10)")
     },
     async ({ query, last_n }) => {
       const historyPath = (0, import_path8.join)(NEXUS_ROOT, "history.json");

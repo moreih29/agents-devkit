@@ -99,8 +99,8 @@ export function registerLspTools(server: McpServer): void {
     'Get type information for a symbol at a specific position',
     {
       file: z.string().describe('File path (relative to project root)'),
-      line: z.number().describe('Line number (1-based)'),
-      character: z.number().describe('Column number (1-based)'),
+      line: z.coerce.number().describe('Line number (1-based)'),
+      character: z.coerce.number().describe('Column number (1-based)'),
     },
     async ({ file, line, character }) => {
       try {
@@ -127,8 +127,8 @@ export function registerLspTools(server: McpServer): void {
     'Jump to the definition of a symbol',
     {
       file: z.string().describe('File path (relative to project root)'),
-      line: z.number().describe('Line number (1-based)'),
-      character: z.number().describe('Column number (1-based)'),
+      line: z.coerce.number().describe('Line number (1-based)'),
+      character: z.coerce.number().describe('Column number (1-based)'),
     },
     async ({ file, line, character }) => {
       try {
@@ -154,8 +154,8 @@ export function registerLspTools(server: McpServer): void {
     'Find all references to a symbol',
     {
       file: z.string().describe('File path (relative to project root)'),
-      line: z.number().describe('Line number (1-based)'),
-      character: z.number().describe('Column number (1-based)'),
+      line: z.coerce.number().describe('Line number (1-based)'),
+      character: z.coerce.number().describe('Column number (1-based)'),
       includeDeclaration: z.boolean().optional().describe('Include the declaration itself'),
     },
     async ({ file, line, character, includeDeclaration }) => {
@@ -234,8 +234,8 @@ export function registerLspTools(server: McpServer): void {
     'Rename a symbol across the project (returns a list of edits to apply)',
     {
       file: z.string().describe('File path (relative to project root)'),
-      line: z.number().describe('Line number (1-based)'),
-      character: z.number().describe('Column number (1-based)'),
+      line: z.coerce.number().describe('Line number (1-based)'),
+      character: z.coerce.number().describe('Column number (1-based)'),
       newName: z.string().describe('New name for the symbol'),
     },
     async ({ file, line, character, newName }) => {
@@ -295,8 +295,8 @@ export function registerLspTools(server: McpServer): void {
     'Get suggested fixes and refactoring actions for a code range',
     {
       file: z.string().describe('File path (relative to project root)'),
-      startLine: z.number().describe('Start line number (1-based)'),
-      endLine: z.number().describe('End line number (1-based)'),
+      startLine: z.coerce.number().describe('Start line number (1-based)'),
+      endLine: z.coerce.number().describe('End line number (1-based)'),
     },
     async ({ file, startLine, endLine }) => {
       try {

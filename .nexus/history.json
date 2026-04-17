@@ -6995,6 +6995,25 @@
           "created_at": "2026-04-17T00:37:21.799Z"
         }
       ]
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-17T04:12:15.855Z",
+      "branch": "main",
+      "plan": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "MCP number 스키마를 coerce.number로 교체",
+          "context": "claude-nexus 이슈 #2: nx_task_update가 numeric id를 string으로 받으면 zod validation 실패. 영향 범위: src/mcp/tools/{task,lsp,plan}.ts 16곳의 z.number() 모두.",
+          "approach": "3개 파일에서 z.number() → z.coerce.number() replace_all. 빌드(bun run dev)로 dist/scripts 갱신. 단순 한 토큰 교체이므로 lead 직접.",
+          "acceptance": "- 16곳 모두 z.coerce.number()로 변경됨\n- bun run dev 성공\n- bridge/mcp-server.cjs에 변경 반영됨\n- grep z.number\\(\\) 결과 0건",
+          "status": "completed",
+          "deps": [],
+          "owner": "lead",
+          "created_at": "2026-04-17T04:10:07.516Z"
+        }
+      ]
     }
   ]
 }

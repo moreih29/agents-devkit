@@ -138,7 +138,7 @@ export function registerPlanTools(server: McpServer): void {
     '안건 관리: 추가, 삭제, 수정, 재개',
     {
       action: z.enum(['add', 'remove', 'edit', 'reopen']).describe('수행할 액션'),
-      issue_id: z.number().optional().describe('대상 안건 ID (remove, edit, reopen에 필수)'),
+      issue_id: z.coerce.number().optional().describe('대상 안건 ID (remove, edit, reopen에 필수)'),
       title: z.string().optional().describe('안건 제목 (add, edit에 필수)'),
     },
     async ({ action, issue_id, title }) => {
@@ -207,7 +207,7 @@ export function registerPlanTools(server: McpServer): void {
     'nx_plan_decide',
     '안건 결정 기록 — [d] 태그로 트리거',
     {
-      issue_id: z.number().describe('결정할 안건 ID'),
+      issue_id: z.coerce.number().describe('결정할 안건 ID'),
       decision: z.string().describe('결정 내용'),
       how_agents: z.array(z.string()).optional().describe('이슈 분석에 참여한 HOW 에이전트 이름 목록 (예: ["architect", "designer"])'),
       how_summary: z.record(z.string(), z.string()).optional().describe('에이전트별 핵심 의견 요약 (예: { "architect": "...", "designer": "..." })'),

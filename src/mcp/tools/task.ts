@@ -80,11 +80,11 @@ export function registerTaskTools(server: McpServer): void {
     {
       title: z.string().describe('Task title'),
       context: z.string().describe('Task context or description'),
-      deps: z.array(z.number()).optional().describe('IDs of tasks this task depends on'),
+      deps: z.array(z.coerce.number()).optional().describe('IDs of tasks this task depends on'),
       approach: z.string().optional().describe('Implementation approach for this task'),
       acceptance: z.string().optional().describe('Acceptance criteria — what defines done'),
       risk: z.string().optional().describe('Known risks or caveats'),
-      plan_issue: z.number().optional().describe('plan issue ID this task originates from — used for tracing back to the plan session'),
+      plan_issue: z.coerce.number().optional().describe('plan issue ID this task originates from — used for tracing back to the plan session'),
       goal: z.string().optional().describe('Set or update the goal for this task list'),
       decisions: z.array(z.string()).optional().describe('Top-level decisions from [plan] session to append'),
       owner: z.string().optional().describe('Assignee agent name for this task'),
@@ -132,7 +132,7 @@ export function registerTaskTools(server: McpServer): void {
     'nx_task_update',
     'Update the status of a task in .nexus/tasks.json',
     {
-      id: z.number().describe('Task ID to update'),
+      id: z.coerce.number().describe('Task ID to update'),
       status: z
         .enum(['pending', 'in_progress', 'completed'])
         .describe('New status for the task'),
@@ -236,7 +236,7 @@ export function registerTaskTools(server: McpServer): void {
     'Search past plan/task cycles in history.json',
     {
       query: z.string().optional().describe('Search term to match against topic, decisions, research_summary'),
-      last_n: z.number().optional().describe('Return only the last N cycles (default: 10)'),
+      last_n: z.coerce.number().optional().describe('Return only the last N cycles (default: 10)'),
     },
     async ({ query, last_n }) => {
       const historyPath = join(NEXUS_ROOT, 'history.json');
