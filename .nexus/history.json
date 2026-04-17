@@ -7071,6 +7071,65 @@
           "created_at": "2026-04-17T05:04:45.908Z"
         }
       ]
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-17T07:17:39.851Z",
+      "branch": "chore/nexus-core-0.12-upgrade",
+      "plan": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nexus-core 0.11 → 0.12 devDependency 업데이트",
+          "context": "package.json의 @moreih29/nexus-core를 ^0.12.0으로 올리고 bun install로 락파일 갱신. v0.12는 nexus_hook_mapping 런타임 주입 메커니즘 회수(minor).",
+          "approach": "package.json devDependency 값 수정 → `bun install` 실행 → node_modules의 설치 버전 확인.",
+          "acceptance": "- package.json에 ^0.12.0 반영\n- bun install 성공\n- 설치된 버전이 0.12.x",
+          "status": "completed",
+          "deps": [],
+          "owner": "lead",
+          "created_at": "2026-04-17T07:14:26.562Z"
+        },
+        {
+          "id": 2,
+          "title": "harness-content/nexus_hook_mapping.md 삭제",
+          "context": "v0.12에서 harness-content/nexus-hook-mapping.md 작성 의무 철회 + nexus_hook_mapping 토큰 회수. 우리 쪽에 존재하는 harness-content/nexus_hook_mapping.md는 더 이상 주입 대상이 아니므로 dead file.",
+          "approach": "파일 삭제. lib.mjs의 expander는 meta.yml의 harness_docs_refs를 순회하며 자동으로 처리하므로 상류 skills/nx-run/meta.yml에서 토큰이 빠지면 자연스레 참조가 끊김 — 파일 자체만 삭제하면 됨.",
+          "acceptance": "- harness-content/nexus_hook_mapping.md 없음\n- 다른 3개(instruction_file, resume_invocation, slash_command_display)는 유지",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "owner": "lead",
+          "created_at": "2026-04-17T07:14:31.527Z"
+        },
+        {
+          "id": 3,
+          "title": "bun run dev로 재빌드 및 SKILL.md 갱신 확인",
+          "context": "nexus-core 0.12가 설치되면 skills/nx-run/SKILL.md 상단에 남아있던 \"Nexus Hook Mapping\" 섹션이 재빌드 시 제거되어야 함(상류 meta.yml에서 토큰 제거됨).",
+          "approach": "`bun run dev` 실행 → skills/nx-run/SKILL.md에서 \"Nexus Hook Mapping\" 섹션 및 `nexus_hook_mapping` 문자열이 모두 사라졌는지 확인. agents/·skills/·tags.json 등 상류 생성물 전반 재동기화.",
+          "acceptance": "- bun run dev 성공\n- skills/nx-run/SKILL.md에 nexus_hook_mapping 문자열 없음\n- 빌드 산출물(bridge/mcp-server.cjs, scripts/*.cjs) 갱신됨",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "owner": "lead",
+          "created_at": "2026-04-17T07:14:36.274Z"
+        },
+        {
+          "id": 4,
+          "title": "E2E 테스트로 회귀 검증",
+          "context": "훅/expander 관련 변경이라 런타임 회귀 가능성 존재. test/e2e.sh로 플러그인 동작을 끝까지 검증.",
+          "approach": "bash test/e2e.sh 실행. 실패 시 로그로 원인 파악하여 엔지니어 재위임 판단.",
+          "acceptance": "- test/e2e.sh exit 0\n- 훅/expander 관련 경고 없음",
+          "status": "completed",
+          "deps": [
+            3
+          ],
+          "owner": "tester",
+          "created_at": "2026-04-17T07:14:39.784Z"
+        }
+      ]
     }
   ]
 }
