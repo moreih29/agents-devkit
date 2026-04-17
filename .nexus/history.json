@@ -7014,6 +7014,63 @@
           "created_at": "2026-04-17T04:10:07.516Z"
         }
       ]
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-17T05:09:26.608Z",
+      "branch": "chore/nexus-core-v0.11.0-upgrade",
+      "plan": null,
+      "tasks": [
+        {
+          "id": 1,
+          "title": "package.json devDep 0.11.0 + bun install",
+          "context": "v0.11.0은 §9 governance 재정립 (RFC 2119 등급 + consumer-owned hook mapping). npm 0.11.0 publish 확인됨. CONSUMING.md 6단계 + MIGRATIONS v0_10_to_v0_11.md 확인 완료.",
+          "approach": "package.json devDependencies @moreih29/nexus-core를 ^0.10.0 → ^0.11.0로 변경 후 bun install. lead 직접.",
+          "acceptance": "- package.json에 ^0.11.0 반영\n- bun install 후 node_modules에 0.11.0 설치 확인 (bun pm ls)",
+          "status": "completed",
+          "deps": [],
+          "owner": "lead",
+          "created_at": "2026-04-17T05:04:31.226Z"
+        },
+        {
+          "id": 2,
+          "title": "harness-content/nexus-hook-mapping.md 신설",
+          "context": "v0.11.0 신규 의무: Claude Code hook API 8종을 §9 8 conceptual events에 매핑하는 문서. nexus-core가 정의한 매핑은 이미 명확함 (SessionStart→session_start, ..., PreCompact/PostCompact→context_compact 중 우리 선택). claude-nexus는 PostCompact 사용 중.",
+          "approach": "writer 위임. 컬럼: hook name / fires when / §9 event / notes. PreCompact pass + PostCompact 보상 패턴, Stop의 SessionStart 이전 처리 등 collapse/특이사항을 notes에 기록.",
+          "acceptance": "- 8행 매핑 표\n- collapse 패턴/우리 선택(PostCompact) 명기\n- markdown, harness-content/ 경로 신설",
+          "status": "completed",
+          "deps": [],
+          "owner": "writer",
+          "created_at": "2026-04-17T05:04:37.095Z"
+        },
+        {
+          "id": 3,
+          "title": "nexus_hook_mapping token expander 구현",
+          "context": "skills/nx-run/meta.yml의 harness_docs_refs에 nexus_hook_mapping 토큰 추가됨. 우리 빌드 파이프라인(generate-from-nexus-core.lib.mjs)이 이 토큰을 인식해서 harness-content/nexus-hook-mapping.md 내용을 skill context에 주입하도록 구현.",
+          "approach": "v0.8.0의 harness_docs_refs 패턴을 그대로 확장. nexus-core 0.11.0 설치 후 nx-run meta.yml 확인하고, lib.mjs의 expander 매핑에 nexus_hook_mapping → harness-content/nexus-hook-mapping.md 추가. 기존 expander 위치 파악 후 lead 직접 또는 engineer 위임.",
+          "acceptance": "- expander가 nexus_hook_mapping 토큰 인식\n- bun run dev 시 nx-run SKILL.md에 mapping 내용 주입됨\n- bash test/e2e.sh 통과",
+          "status": "completed",
+          "deps": [
+            1,
+            2
+          ],
+          "owner": "lead",
+          "created_at": "2026-04-17T05:04:42.049Z"
+        },
+        {
+          "id": 4,
+          "title": "빌드 + 테스트 + 커밋",
+          "context": "전체 변경 적용 후 bun run dev 빌드, e2e 테스트, git commit. 코드 + skills/agents 변경분 + .nexus/history.json 함께 커밋.",
+          "approach": "lead 직접. 빌드 출력에 nexus-core@0.11.0 표시 확인. e2e 통과. 커밋 메시지에 v0.10→v0.11 명시.",
+          "acceptance": "- bun run dev 성공, \"Generated from @moreih29/nexus-core@0.11.0\" 출력\n- bash test/e2e.sh 통과\n- git commit 생성",
+          "status": "in_progress",
+          "deps": [
+            3
+          ],
+          "owner": "lead",
+          "created_at": "2026-04-17T05:04:45.908Z"
+        }
+      ]
     }
   ]
 }
