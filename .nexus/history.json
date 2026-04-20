@@ -7569,6 +7569,45 @@
           "created_at": "2026-04-20T13:15:34.577Z"
         }
       ]
+    },
+    {
+      "schema_version": "1.0",
+      "completed_at": "2026-04-20T13:24:17.737Z",
+      "branch": "main",
+      "plan": {
+        "id": 11,
+        "topic": "Issue #2 재현 시도 — nx_task_update / nx_plan_decide number coercion smoke",
+        "issues": [
+          {
+            "id": 1,
+            "title": "nx_task_update id:number 수용 여부",
+            "status": "decided",
+            "decision": "nx_task_update({id: 1, status: \"completed\"}) smoke 통과 — number 파라미터 정상 수용, 재현 불가."
+          },
+          {
+            "id": 2,
+            "title": "nx_plan_decide issue_id:number 수용 여부",
+            "status": "decided",
+            "decision": "Issue #2 재현 불가 확인됨. nx_task_update/nx_plan_decide 모두 id/issue_id number 파라미터 정상 수용."
+          }
+        ],
+        "research_summary": "Issue #2 (claude-nexus repo)는 nexus-core v0.11.0 시점에 보고됨. 현재 v0.17.0에서 nx_task_update를 id 1~7로 방금 호출해 성공했으므로 재현 불가능 가능성 높음. 별도 스모크로 nx_plan_decide(issue_id: number)까지 확인 필요. 재현 불가 시 #2 close. 이 스모크 자체는 state를 더럽히므로 직후 nx_task_close로 바로 archive.",
+        "created_at": "2026-04-20T13:23:54.667Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "smoke task for id:number update",
+          "status": "completed",
+          "context": "Issue #2 재현 smoke 용 dummy task. 곧바로 id:number로 update 시도.",
+          "acceptance": "status pending → in_progress → completed 전이 성공.",
+          "plan_issue": 1,
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-04-20T13:24:01.048Z"
+        }
+      ]
     }
   ]
 }
