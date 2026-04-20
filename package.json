@@ -1,6 +1,6 @@
 {
   "name": "claude-nexus",
-  "version": "0.27.0",
+  "version": "0.28.0",
   "type": "module",
   "description": "Agent orchestration plugin for Claude Code — optimized context injection per role",
   "author": "kih",
@@ -17,34 +17,26 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "node esbuild.config.mjs",
-    "build:types": "tsc --noEmit",
-    "check": "tsc --noEmit && npm run build",
-    "clean": "rm -rf dist bridge/mcp-server.cjs scripts/*.cjs",
-    "dev": "node esbuild.config.mjs && node dev-sync.mjs",
-    "test": "bun test"
+    "build": "bun run sync",
+    "sync": "bunx @moreih29/nexus-core sync --harness=claude --target=./",
+    "sync:dry": "bunx @moreih29/nexus-core sync --harness=claude --target=./ --dry-run",
+    "validate": "bunx @moreih29/nexus-core validate",
+    "list": "bunx @moreih29/nexus-core list",
+    "test": "bash test/e2e.sh"
   },
   "files": [
     "agents",
     "skills",
     "hooks",
+    "dist/hooks",
     "scripts",
-    "bridge",
-    "templates",
     ".claude-plugin",
     ".mcp.json",
+    "settings.json",
     "VERSION"
   ],
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "esbuild": "^0.25.0",
-    "typescript": "^5.8.0",
-    "@moreih29/nexus-core": "^0.12.0",
-    "yaml": "^2"
+    "@moreih29/nexus-core": "^0.15.1"
   },
-  "dependencies": {
-    "@ast-grep/napi": "^0.42.0",
-    "@modelcontextprotocol/sdk": "^1.12.1",
-    "zod": "^3.24.0"
-  }
+  "dependencies": {}
 }

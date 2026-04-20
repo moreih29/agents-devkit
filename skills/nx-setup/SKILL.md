@@ -67,7 +67,7 @@ prompt_user({
 mkdir -p ~/.claude/hooks
 cat > ~/.claude/hooks/nexus-statusline.sh << 'EOF'
 #!/bin/bash
-SCRIPT=$(ls -1d "$HOME/.claude/plugins/cache/nexus/claude-nexus"/*/scripts/statusline.cjs 2>/dev/null | sort -V | tail -1)
+SCRIPT=$(ls -1d "$HOME/.claude/plugins/cache/nexus/claude-nexus"/*/scripts/statusline.mjs 2>/dev/null | sort -V | tail -1)
 [ -n "$SCRIPT" ] && exec node "$SCRIPT"
 EOF
 chmod +x ~/.claude/hooks/nexus-statusline.sh

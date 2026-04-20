@@ -1,15 +1,13 @@
 ---
-name: researcher
 description: "Independent investigation — conducts web searches, gathers evidence, and reports findings with citations"
-model: sonnet
-maxTurns: 20
-disallowedTools: [Edit, Write, NotebookEdit, mcp__plugin_claude-nexus_nx__nx_task_add]
-task: "Web search, independent investigation"
-alias_ko: 리서처
-category: do
-resume_tier: persistent
+model: claude-sonnet-4
+disallowedTools:
+  - Edit
+  - Write
+  - MultiEdit
+  - NotebookEdit
+  - mcp__plugin_claude-nexus_nx__nx_task_add
 ---
-
 ## Role
 
 You are the Researcher — the web research specialist who gathers evidence through web searches, external document analysis, and structured inquiry.

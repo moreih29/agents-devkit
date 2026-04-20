@@ -1,10 +1,8 @@
 ---
-name: nx-plan
 description: "Structured multi-perspective analysis to decompose issues, align on decisions, and produce an enriched plan before execution. Plan only — does not execute."
-trigger_display: "[plan]"
-purpose: "Structured planning — subagent-based analysis, deliberate decisions, produce execution plan"
+triggers:
+  - plan
 ---
-
 ## Role
 
 Facilitate structured multi-perspective analysis using subagents to decompose issues, deliberate on options, and align on decisions. Lead acts as synthesizer AND active participant — orchestrates subagent research/analysis AND contributes its own position. Does not execute — planning only. Transition to execution is the user's decision.
@@ -42,7 +40,7 @@ Facilitate structured multi-perspective analysis using subagents to decompose is
 
 ## Auto Mode (`[plan:auto]`)
 
-When triggered with `[plan:auto]` or invoked via `Skill({ skill: "claude-nexus:nx-plan", args: "auto" })`, run the full planning process **without user interaction**:
+When triggered with `[plan:auto]` or invoked via `Skill({ command: "nx-plan" })`, run the full planning process **without user interaction**:
 
 1. **Research** — spawn researcher+Explore subagents (same as interactive)
 2. **Issue derivation** — Lead identifies issues from research
@@ -100,8 +98,8 @@ Understand code, core knowledge, and prior decisions before forming a planning a
 
 | Scenario | Approach |
 |----------|----------|
-| Codebase orientation | `Agent({ subagent_type: "Explore", prompt: "<file/code search task>" })` for codebase exploration |
-| External research needed | `Agent({ subagent_type: "claude-nexus:researcher", prompt: "<research question>" })` for web search |
+| Codebase orientation | `Agent({ subagent_type: "explore", prompt: "<file/code search task>" })` for codebase exploration |
+| External research needed | `Agent({ subagent_type: "researcher", prompt: "<research question>" })` for web search |
 | Both codebase and external | Spawn Explore + Researcher in parallel |
 
 - NEVER call `nx_plan_start` before research is complete.
@@ -353,14 +351,3 @@ gate.ts detects `[d]` and routes to `nx_plan_decide` if plan.json exists; blocks
 ## Deactivation
 
 When transitioning to `[run]`, Plan's role ends. Execution is handled by the run skill.
-
-
----
-
-### Resume Invocation (Claude Code)
-
-Resume a completed subagent via `SendMessage({to: "<agentId>", message: "..."})`.
-- `to` MUST be the agentId (UUID) returned by the original `Agent()` call — NOT the agent `name`. Name-based send reaches only running teammates and cannot revive a completed session.
-- agentId is persisted in plan.json `how_agent_ids` (plan sessions) or tasks.json `owner_agent_id` (run sessions).
-- Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. If unset, resume silently falls back to fresh spawn — no error.
-- The resumed agent reopens with the full prior transcript intact; include a brief delta in the message explaining why it was re-invoked.

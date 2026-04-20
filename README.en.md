@@ -88,11 +88,10 @@ Typical flow: `[plan]` to discuss and align → `[d]` to decide (within plan) �
 
 Claude-callable tools exposed by the Nexus MCP server.
 
-### Core (11 tools)
+### Core (10 tools)
 
 | Tool | Purpose |
 |------|---------|
-| `nx_context` | Current session state lookup (branch, tasks, plan) |
 | `nx_task_list/add/update/close` | Task management + history.json archiving |
 | `nx_history_search` | Search past plan/task cycles (topic/decision query, last N) |
 | `nx_artifact_write` | Save artifacts (branch-isolated) |
@@ -101,7 +100,7 @@ Claude-callable tools exposed by the Nexus MCP server.
 | `nx_plan_update` | Modify plan issues (add/remove/edit/reopen) |
 | `nx_plan_decide` | Record issue decision (plan.json) |
 
-### Code Intelligence (10 tools)
+### Code Intelligence (8 tools)
 
 | Tool | Purpose |
 |------|---------|
@@ -113,11 +112,8 @@ Claude-callable tools exposed by the Nexus MCP server.
 | `nx_lsp_code_actions` | Auto-fix and refactoring suggestions |
 | `nx_lsp_document_symbols` | Symbols in a file |
 | `nx_lsp_workspace_symbols` | Project-wide symbol search |
-| `nx_ast_search` | AST pattern search (tree-sitter) |
-| `nx_ast_replace` | AST pattern replacement (dryRun supported) |
 
 LSP auto-detects the project language (e.g., `tsconfig.json` → TypeScript).
-AST tools require `@ast-grep/napi`: `bun install @ast-grep/napi`
 
 </details>
 

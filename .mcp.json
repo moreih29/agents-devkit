@@ -2,7 +2,7 @@
   "mcpServers": {
     "nx": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bridge/mcp-server.cjs"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/node_modules/@moreih29/nexus-core/dist/src/mcp/server.js"]
     }
   }
 }

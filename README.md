@@ -75,11 +75,10 @@ claude plugin install claude-nexus@nexus
 
 Claude가 직접 호출하는 도구입니다.
 
-### Core (11개)
+### Core (10개)
 
 | 도구 | 용도 |
 |------|------|
-| `nx_context` | 현재 세션 상태 조회 (브랜치, 태스크, 플랜) |
 | `nx_task_list/add/update/close` | `.nexus/state/tasks.json` 기반 태스크 관리 + `.nexus/history.json` 아카이브 |
 | `nx_history_search` | 과거 plan/task 사이클 검색 (topic/decision 검색, 최근 N개) |
 | `nx_artifact_write` | 팀 산출물 저장 (`.nexus/state/artifacts/`) |
@@ -88,7 +87,7 @@ Claude가 직접 호출하는 도구입니다.
 | `nx_plan_update` | 플랜 논점 수정 (add/remove/edit/reopen) |
 | `nx_plan_decide` | 논점 결정 처리 (plan.json) |
 
-### Code Intelligence (10개)
+### Code Intelligence (8개)
 
 | 도구 | 용도 |
 |------|------|
@@ -100,11 +99,8 @@ Claude가 직접 호출하는 도구입니다.
 | `nx_lsp_code_actions` | 자동 수정/리팩토링 제안 |
 | `nx_lsp_document_symbols` | 파일 내 심볼 목록 |
 | `nx_lsp_workspace_symbols` | 프로젝트 전체 심볼 검색 |
-| `nx_ast_search` | AST 패턴 검색 (tree-sitter) |
-| `nx_ast_replace` | AST 패턴 치환 (dryRun 지원) |
 
 LSP는 프로젝트 언어를 자동 감지합니다 (tsconfig.json → TypeScript 등).
-AST는 `@ast-grep/napi` 필요: `bun install @ast-grep/napi`
 
 </details>
 

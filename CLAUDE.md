@@ -5,18 +5,22 @@ Claude Code용 에이전트 오케스트레이션 플러그인. Nexus 자체를 
 
 ### Essentials
 - 런타임: **bun** 사용 (npm/node 대신) — `bun run`, `bun install`, `bun test`
-- 빌드: `bun run dev` (빌드 + 로컬 플러그인 캐시 동기화)
+- 빌드: `bun run sync` (nexus-core CLI 호출 — agents·skills·hooks·settings.json·dist/hooks/ 리포 루트 flat 출력)
 - 테스트: `bash test/e2e.sh`
-- 플러그인 구조: src/ → esbuild → bridge/mcp-server.cjs + scripts/{gate,statusline}.cjs
-- 소스 원천: `agents/`, `skills/`, `src/data/tags.json`은 `@moreih29/nexus-core` build-time 생성물 — 직접 편집 금지, 수정은 upstream에서
+- 플러그인 구조: nexus-core sync Managed 산출물(agents·skills·hooks·settings.json·dist/hooks/) + claude-only 고유(scripts/statusline.mjs)
+- Managed 산출물(agents/·skills/·hooks/·settings.json·dist/hooks/)은 nexus-core sync가 관리 — 직접 편집 금지, 수정은 upstream(@moreih29/nexus-core)에서
 
 ### @moreih29/nexus-core upgrade protocol
 
 When `@moreih29/nexus-core` version in `package.json` changes:
 
-1. Read `node_modules/@moreih29/nexus-core/manifest.json`
-2. WebFetch `https://github.com/moreih29/nexus-core/blob/v{new_version}/CONSUMING.md`
-3. Follow the Upgrade Protocol documented there
+1. `bun install` 실행
+2. `bun run sync` 실행 (Managed 산출물 갱신)
+3. `bun run validate` 통과 확인
+4. `bunx @moreih29/nexus-core list` 로 제공 에이전트·스킬·훅 개수 재확인
+5. CHANGELOG 확인 후 consumer action 필요 항목 식별
+
+기준 문서: `https://github.com/moreih29/nexus-core/blob/main/docs/plugin-guide.md`
 <!-- PROJECT:END -->
 
 <!-- NEXUS:START -->

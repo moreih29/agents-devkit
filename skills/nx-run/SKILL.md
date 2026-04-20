@@ -1,10 +1,8 @@
 ---
-name: nx-run
-description: Execution — user-directed agent composition.
-trigger_display: "[run]"
-purpose: "Execution — user-directed agent composition"
+description: "Execution — user-directed agent composition."
+triggers:
+  - run
 ---
-
 ## Role
 
 Execution norm that Lead follows when the user invokes the [run] tag. Composes subagents dynamically based on user direction and drives the full execution pipeline from intake to completion.
@@ -31,16 +29,16 @@ Execution norm that Lead follows when the user invokes the [run] tag. Composes s
 - **Branch Guard**: if on main/master, create a branch appropriate to the task type before proceeding (prefix: `feat/`, `fix/`, `chore/`, `research/`, etc. — Lead's judgment). Auto-create without user confirmation.
 - Check for `tasks.json`:
   - **Exists** → read it and proceed to Step 2.
-  - **Absent** → auto-invoke `Skill({ skill: "claude-nexus:nx-plan", args: "auto" })` to generate tasks.json. Do NOT ask — `[run]` implies execution intent. After plan generation, proceed to Step 2.
+  - **Absent** → auto-invoke `Skill({ command: "nx-plan" })` to generate tasks.json. Do NOT ask — `[run]` implies execution intent. After plan generation, proceed to Step 2.
 - If tasks.json exists, check prior decisions with `nx_plan_status`.
 
 ### Step 1.5: TUI Progress
 
 Register tasks for visual progress tracking (Ctrl+T):
 
-- **≤ 10 tasks**: `TaskCreate({ subject: "<per-task label>" })` per task
-- **> 10 tasks**: group by `plan_issue`, `TaskCreate({ subject: "<group label>" })` per group
-- Update the registered entry via `TaskUpdate({ taskId: <id>, status: "in_progress" })` / `TaskUpdate({ taskId: <id>, status: "completed" })` as execution proceeds
+- **≤ 10 tasks**: `TaskCreate({ subject: "<per-task label>" }) then nx_task_update({ taskId, status: "pending" })` per task
+- **> 10 tasks**: group by `plan_issue`, `TaskCreate({ subject: "<group label>" }) then nx_task_update({ taskId, status: "pending" })` per group
+- Update the registered entry via `TaskCreate({ subject: "<label>" }) then nx_task_update({ taskId, status: "in_progress" })` / `TaskCreate({ subject: "<label>" }) then nx_task_update({ taskId, status: "completed" })` as execution proceeds
 - **Skip only if**: non-TTY environment (VSCode, headless)
 - **Known issue**: TUI may freeze during auto-compact (#27919) — task data on disk remains correct
 
@@ -97,7 +95,7 @@ For each task, Lead chooses between fresh spawn and resume based on the `owner`'
 
 Execute in order:
 
-1. **nx-sync**: invoke `Skill({ skill: "claude-nexus:nx-sync" })` if code changes were made in this cycle. Best effort — failure does not block cycle completion.
+1. **nx-sync**: invoke `Skill({ command: "nx-sync" })` if code changes were made in this cycle. Best effort — failure does not block cycle completion.
 2. **nx_task_close**: call to archive plan+tasks to history.json. This updates `.nexus/history.json`.
 3. **git commit**: stage and commit source changes, build artifacts (`bridge/`, `scripts/`), `.nexus/history.json`, and any modified `.nexus/memory/` or `.nexus/context/`. Use explicit `git add` with paths (not `git add -A`) and a HEREDOC commit message with `Co-Authored-By`. This ensures the cycle's history archive lands in the same commit as the code changes, giving a 1:1 cycle-commit mapping.
 4. **Report**: summarize to user — changed files, key decisions applied, and suggested next steps. Merge/push is the user's decision and outside this skill's scope.
@@ -154,14 +152,3 @@ ACCEPTANCE:
 
 `.nexus/state/tasks.json` — produced by nx-plan, managed via `nx_task_add`/`nx_task_update`. Gate Stop enforcement.
 On cycle end, archive plan+tasks to `.nexus/history.json` via `nx_task_close`.
-
-
----
-
-### Resume Invocation (Claude Code)
-
-Resume a completed subagent via `SendMessage({to: "<agentId>", message: "..."})`.
-- `to` MUST be the agentId (UUID) returned by the original `Agent()` call — NOT the agent `name`. Name-based send reaches only running teammates and cannot revive a completed session.
-- agentId is persisted in plan.json `how_agent_ids` (plan sessions) or tasks.json `owner_agent_id` (run sessions).
-- Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. If unset, resume silently falls back to fresh spawn — no error.
-- The resumed agent reopens with the full prior transcript intact; include a brief delta in the message explaining why it was re-invoked.

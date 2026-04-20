@@ -1,47 +1,65 @@
 <!-- tags: plugin, integration, context-delivery -->
 # Plugin Architecture
 
-Claude Code와 3개 진입점으로 통합:
-- **Gate Hook** — 이벤트 기반 인터셉터. 태그 감지 → 모드 라우팅 → 컨텍스트 주입
-- **MCP Server** — 도구 등록 게이트웨이. 태스크, 플랜, 코드 인텔리전스 등 구조화된 오퍼레이션 노출
-- **Statusline** — 실시간 상태 표시. 브랜치, 태스크 수, 플랜 상태
+Claude Code와 2개 경로로 통합:
+- **nexus-core upstream** — `bun run sync`가 agents/·skills/·hooks/·settings.json·dist/hooks/*.js 를 nexus-core에서 pull. 이 산출물들은 Managed — 직접 편집 금지, 수정은 upstream에서.
+- **claude-only 고유** — `scripts/statusline.mjs` 단일 Node ESM 파일. 빌드 0 (번들러 없음, 런타임 직접 실행). claude-nexus가 자체 소유하며 자유롭게 편집 가능.
+
+MCP 서버는 nexus-core가 제공하는 `nexus-mcp` stdio 바이너리를 그대로 사용. `.mcp.json`이 해당 바이너리 경로를 참조하며, claude-nexus는 서버 코드를 자체 구현하지 않는다.
 
 ## 핵심 설계 원칙
 
-**단계별 컨텍스트 전달 (Staged Context Delivery)**: 컨텍스트는 정적이 아님. 런타임 상태(tasks.json, plan.json, .nexus/ 파일)에서 계산되어 결정 시점에 주입됨.
+**단계별 컨텍스트 전달 (Staged Context Delivery)**: 컨텍스트는 정적이 아님. nexus-core가 정의한 5개 캐노니컬 훅을 통해 런타임 상태(tasks.json, plan.json, .nexus/ 파일)에서 계산되어 결정 시점에 주입됨.
 
-- SessionStart: 구조 초기화
-- SubagentStart: .nexus/ 지식 인덱스 lazy-load
-- UserPromptSubmit: 태그 감지 → 모드별 가이던스 주입
-- PostCompact: 세션 상태 스냅샷 복원
+- `session-init`: 세션 시작 시 구조 초기화 및 .nexus/ 지식 인덱스 로드
+- `agent-bootstrap`: 서브에이전트 스폰 시 역할별 컨텍스트 주입
+- `agent-finalize`: 서브에이전트 종료 시 상태 기록
+- `post-tool-telemetry`: 도구 호출 결과를 런타임 상태에 반영
+- `prompt-router`: 사용자 입력에서 태그를 감지하고 모드별 additional_context 주입
 
-**비차단 가이던스 (Non-blocking Guidance)**: gate.ts는 additionalContext로 "넛지"를 전달. 하드 에러가 아닌 스마트 기본값 제공. 사용자는 무시할 수 있음.
+훅 dispatch 주체는 nexus-core upstream이며, claude-nexus는 `hooks.json`(Managed 산출물)을 통해 등록 참조만 제공한다. consumer가 훅 로직을 직접 구현하지 않는다.
 
-**빌드 파이프라인**: src/ → esbuild 단일 번들 → bridge/mcp-server.cjs + scripts/{gate,statusline}.cjs. 템플릿(nexus-section.md)은 generate-template.mjs가 agents/, skills/, tags.json 메타데이터에서 자동 생성.
+**비차단 가이던스 (Non-blocking Guidance)**: `prompt-router` 훅이 태그를 감지하면 additional_context로 "넛지"를 전달한다. 하드 에러가 아닌 스마트 기본값 제공. 사용자는 무시할 수 있음.
 
-esbuild 번들 직후 `generate-from-nexus-core.mjs`가 실행됨 (esbuild.config.mjs ~41번째 줄):
+**sync 파이프라인**: nexus-core upstream → sync → Managed 산출물 + Template 산출물 + claude-only 고유 파일.
 
-- **Input**: `node_modules/@moreih29/nexus-core/` (devDependency, build-time only)
-- **Output**: `agents/*.md` (9개) + `skills/*/SKILL.md` (nexus-core 4개, nx-setup은 consumer-owned) + `src/data/tags.json`
-- **harness-local 변환**:
-  - `CAPABILITY_TOOL_MAP` — nexus-core semantic capabilities → Claude Code tool names (harness_mapping 제거 대응)
-  - `harness_docs_refs` 주입 — manifest skill entry의 harness_docs_refs 키 → `harness-content/{ref}.md` 파일 body 끝에 append
-  - **Spec γ 매크로 확장 (v0.8.0)** — `invocation-map.yml` 규칙 기반으로 body.md의 `{{primitive_id ...}}` 토큰을 Claude Code tool 호출 문법으로 확장. 4 primitive × concrete syntax 매핑: `skill_activation` → `Skill(...)`, `subagent_spawn` → `Agent(...)` (built-in role은 `claude-nexus:` prefix 없음), `task_register` → `TaskCreate`/`TaskUpdate`, `user_question` → `AskUserQuestion`. heredoc (`prompt=>>IDENT` ~ `<<IDENT`) multi-line value 지원. primitive enum은 nexus-core `vocabulary/invocations.yml`에서 로드 — unknown primitive는 build 실패.
-- **검증 단계**:
-  - `manifest.nexus_core_version` vs package.json 의존성 버전 cross-check
-  - 각 body.md sha256 vs `manifest.agents[].body_hash` (불일치 시 fail-fast)
-  - gate.ts `HANDLED_TAG_IDS` export 상수 ↔ nexus-core `vocabulary/tags.yml` tag id set drift detection (`verifyTagDrift()`)
-- **Conformance**: `test/conformance.mjs`가 nexus-core `conformance/` fixtures (state-schemas, tool, scenario)를 동적 로딩하여 검증. TOOL_MAP은 neutral fixture 도구명(`artifact_write`, `history_search` 등) → MCP prefix(`nx_artifact_write`, `nx_history_search`) 매핑. PATH_REMAPS는 fixture의 common-schema 경로(`.nexus/state/artifacts/`)를 consumer의 harness-local 경로(`state/claude-nexus/artifacts/`)로 리매핑.
-- `generate-template.mjs`는 generate-from-nexus-core.mjs의 **다운스트림** — agents + skills + tags.json 메타에서 CLAUDE.md의 Nexus 섹션을 렌더링
+```
+nexus-core sync
+  ├── Managed (직접 편집 금지, sync로 덮어씀)
+  │     ├── agents/*.md
+  │     ├── skills/*/
+  │     ├── hooks/
+  │     ├── settings.json fragment
+  │     └── dist/hooks/*.js
+  ├── Template (최초 1회 생성 후 consumer 소유)
+  │     └── .claude-plugin/*.json
+  └── claude-only (nexus-core 무관, 자체 편집 가능)
+        └── scripts/statusline.mjs
+```
+
+**Managed vs Template 2-class 정책**:
+- **Managed**: sync 실행마다 nexus-core upstream 내용으로 덮어씀. consumer 수정 불가. 변경 의도가 있으면 upstream PR.
+- **Template**: 최초 1회 scaffold 후 consumer가 자유롭게 커스터마이즈. 이후 sync는 해당 파일을 건드리지 않음.
+
+**flat 출력**: sync 산출물은 harness prefix 없이 flat 경로로 출력됨. `agents/engineer.md`, `skills/nx-plan/body.md` 등 중간 네임스페이스 없음.
 
 ## Release Pipeline
 
-- **로컬 `release.mjs`**: pre-flight → semver 결정 (conventional commit 기반) → version bump (package.json + plugin.json + marketplace.json + VERSION) → CHANGELOG 자동 생성 → build → e2e → git commit (소스 + 빌드 산출물 bridge/, scripts/) → git tag + push main + push tag
-- 로컬에서 npm publish를 직접 호출하지 않음
-- Tag push가 `.github/workflows/publish-npm.yml` GitHub Actions 워크플로우를 자동 트리거
-- **CI 단계**: Bun 1.3 + Node 24 (registry-url 없음, npm 11+ 필수) → bun install --frozen-lockfile → bun run build:types → version match check (git tag vs package.json) → bash test/e2e.sh → npm pack --dry-run → `npm publish --provenance --access public`
+`release.mjs`는 다음 순서로 실행된다:
+
+1. **semver 결정** — conventional commit 기반으로 major/minor/patch 결정
+2. **버전 파일 bump** — `package.json`, `plugin.json`, `marketplace.json`, `VERSION` 4개 파일에 0.X.Y 버전 기록
+3. **CHANGELOG 자동 생성** — conventional commit 로그에서 CHANGELOG 갱신
+4. **`bun run sync` 호출** — nexus-core upstream에서 Managed 산출물(agents/·skills/·hooks/·dist/hooks·settings.json) 갱신
+5. **git commit** — sync 산출물 + CHANGELOG 포함, `src/` 소스 파일 없음 (빌드 산출물이 아닌 sync 산출물 커밋)
+6. **git tag + push** — tag push가 CI 트리거
+
+CI는 tag push를 트리거로:
+- Bun 설치 → `bun install --frozen-lockfile` → version match check (git tag vs package.json) → 통합 테스트 → `npm publish --provenance --access public`
 - **인증**: OIDC Trusted Publishing only — npm tokens 없음, NODE_AUTH_TOKEN 없음, 2FA OTP 없음
 - **결과**: SLSA v1 provenance attestation이 npm 패키지에 첨부됨
+
+기준 문서: [plugin-guide.md](https://github.com/moreih29/nexus-core/blob/main/docs/plugin-guide.md), 기준 계약: [harness-io.md §4-1](https://github.com/moreih29/nexus-core/blob/main/docs/contract/harness-io.md).
 
 ## Nexus Ecosystem Position
 
@@ -49,10 +67,10 @@ esbuild 번들 직후 `generate-from-nexus-core.mjs`가 실행됨 (esbuild.confi
 
 3층위 모델:
 
-- **Authoring layer**: `@moreih29/nexus-core` — prompt body, neutral metadata, vocabulary. claude-nexus는 build-time read-only consumer.
+- **Authoring layer**: `@moreih29/nexus-core` — prompt body, neutral metadata, vocabulary. 에이전트·스킬·훅의 실질적 정의를 소유.
 - **Execution layer**:
-  - **claude-nexus** (this project) — Claude Code 하네스 대상
-  - **opencode-nexus** — OpenCode 하네스 대상 (sibling, 동등한 consumer, 수직 관계 아님)
+  - **claude-nexus** (this project) — nexus-core의 Claude Code 래퍼. nexus-core가 제공하는 자산(agents·skills·hooks·MCP)을 sync로 수용하고, Claude Code 하네스 고유 기능(statusline·marketplace 등록·version bump·release)만 자체 소유. nexus-core upstream에 종속되며, 래퍼 역할 이상의 로직을 자체 구현하지 않는다.
+  - **opencode-nexus** — OpenCode 하네스 래퍼 (sibling, 동등한 consumer, 수직 관계 아님)
 - **Supervision layer**: `nexus-code` — 외부 host-of-hosts (Pro/Max 구독제 호환 ProcessSupervisor 패턴). 이 프로젝트에서는 interact 없음.
 
 관련 제약:

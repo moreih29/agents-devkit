@@ -1,5 +1,110 @@
 # Changelog
 
+## [0.28.0] - 2026-04-20
+
+<!-- nx-car:v0.28.0:start -->
+
+### Consumer Action Required
+
+**1. .mcp.json MCP 서버 경로 변경**
+
+claude-nexus 자체 MCP 서버(`bridge/mcp-server.cjs`)가 폐기되었습니다. `.mcp.json`의 `command` 경로를 nexus-core 배포 바이너리로 교체해야 합니다.
+
+```json
+// 변경 전
+{ "command": "node", "args": ["bridge/mcp-server.cjs"] }
+
+// 변경 후
+{ "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/node_modules/@moreih29/nexus-core/dist/src/mcp/server.js"] }
+```
+
+이번 릴리즈에서 claude-nexus 리포 내 `.mcp.json`은 이미 갱신되었습니다. `bun run sync` 실행 시 템플릿 기반으로 자동 적용됩니다.
+
+**2. 상태 파일 경로 per-session 격리**
+
+`.nexus/state/tasks.json` / `.nexus/state/plan.json`(단일 루트)이 `.nexus/state/<session_id>/tasks.json` / `.nexus/state/<session_id>/plan.json`으로 변경되었습니다. 기존 파일은 자동 마이그레이션되지 않습니다.
+
+업그레이드 후 stale 상태 파일이 남아 있으면 수동 삭제하십시오:
+
+```bash
+rm -f .nexus/state/tasks.json .nexus/state/plan.json
+```
+
+이후 새 세션에서 상태 파일은 `<session_id>` 하위 디렉터리에 자동 생성됩니다.
+
+**3. nx_ast_* / nx_context MCP 도구 제거**
+
+`nx_ast_search`, `nx_ast_replace`, `nx_context` 도구가 claude-nexus MCP 서버 폐기와 함께 사라졌습니다. 대체 방법:
+
+- AST/구조 검색: `Grep` + LSP `nx_lsp_find_references` 조합
+- 컨텍스트 요약: `nx_task_list` 호출 또는 `.nexus/state/<session_id>/tasks.json` 직접 `Read`
+
+이 도구들을 참조하는 기존 `.nexus/context/` 문서나 워크플로가 있다면 위 대체 경로로 수동 수정하십시오.
+
+**4. CLAUDE.md auto-sync 상실 — 최초 1회 수동 머지 필요**
+
+기존 플러그인이 global/project CLAUDE.md의 `NEXUS:START` / `NEXUS:END` 블록을 훅을 통해 자동으로 재기입하던 기능이 제거되었습니다.
+
+v0.28.0 설치 직후 다음 단계를 수행하십시오:
+
+1. `bun run sync` 실행 — 최신 템플릿 기반 블록 내용 출력
+2. 출력 내용을 global CLAUDE.md(`~/.claude/CLAUDE.md`) 및 project CLAUDE.md의 `NEXUS:START` / `NEXUS:END` 블록 사이에 수동으로 붙여넣기
+3. 이후 업그레이드 시에는 `[sync]` 태그 또는 `nx-sync` 스킬이 동일 역할을 담당
+
+**5. PreToolUse Edit/Write task gate 소멸**
+
+`tasks.json`이 존재할 때 `Edit` / `Write` 도구 호출을 차단하던 PreToolUse 훅 게이트가 제거되었습니다. `tasks.json`은 이제 advisory 역할만 합니다(강제 차단 없음). `[run]` 스킬 내부의 task pipeline 가이드는 유지됩니다.
+
+기존에 이 게이트에 의존하는 워크플로가 있다면, `[run]` 스킬 호출을 통한 명시적 task 관리로 전환하십시오.
+
+**6. PostCompact 세션 스냅샷 상실**
+
+컴팩션 이후 Mode / Plan / Knowledge / Agents 상태를 자동 복원하던 PostCompact 훅이 제거되었습니다. 컴팩션 후 상태 확인은 다음 도구로 수동 수행하십시오:
+
+```
+nx_plan_status   — 현재 플랜 단계 및 결정 목록 조회
+nx_task_list     — 활성 태스크 목록 조회
+```
+
+장기 세션에서 컴팩션이 발생하면 상태를 직접 재확인한 후 작업을 재개하십시오.
+
+**7. @ast-grep/napi 네이티브 의존성 제거**
+
+`@ast-grep/napi`가 `package.json`에서 제거되었습니다. 기존 설치에서 업그레이드 시 `bun install`로 자동 정리됩니다:
+
+```bash
+bun install
+```
+
+<!-- nx-car:v0.28.0:end -->
+
+### Added
+- `scripts/statusline.mjs` — 단일 Node ESM statusline (외부 의존성 0, 빌드 불필요)
+- nexus-core v0.15.1 sync 기반 빌드 파이프라인 — `agents/`, `skills/`, `hooks/`, `dist/hooks/`, `settings.json` Managed 산출물 자동 생성
+- `hooks/hooks.json` v0.15 새 포맷 — 5 캐노니컬 훅(session-init / agent-bootstrap / agent-finalize / post-tool-telemetry / prompt-router) dispatch
+- `dist/hooks/*.js` 사전 컴파일된 훅 핸들러 (git-tracked)
+
+### Changed
+- **정체성 재정의**: claude-nexus가 nexus-core의 순수 Claude Code 래퍼로 전환. 자체 MCP·hook·build 파이프라인 모두 폐기
+- `package.json` scripts 재작성 — `bun run sync`가 build/generate 역할을 모두 대체
+- `.claude-plugin/plugin.json` / `marketplace.json` — Template 산출물로 분류. sync가 최초 1회만 생성하며 이후 consumer 소유
+- `agents/` 10개(lead primary 포함), `skills/` 4개 — nexus-core upstream 관리 Managed 산출물
+- `CLAUDE.md`, `.nexus/context/architecture.md`, `.nexus/rules/development.md` — 래퍼 정체성 반영하여 갱신
+
+### Removed
+- `src/` 전체 (17 TS 파일) — 자체 MCP (`src/mcp/`), hook (`src/hooks/`), shared, statusline, code-intel 구현
+- `bridge/mcp-server.cjs` — esbuild 번들 산출물
+- `scripts/gate.cjs`, `scripts/statusline.cjs` — esbuild 번들 산출물 (`statusline.mjs`로 재작성)
+- `esbuild.config.mjs`, `tsconfig.json`, `dev-sync.mjs` — 빌드 파이프라인
+- `generate-from-nexus-core.lib.mjs`, `generate-from-nexus-core.mjs`, `generate-template.mjs` — 자체 codegen
+- `invocation-map.yml`, `harness-content/`, `templates/` — sync로 대체된 자산
+- `test/conformance.mjs`, `test/unit/` — nexus-core upstream 테스트로 대체
+- `nx_ast_search`, `nx_ast_replace`, `nx_context` MCP 도구 — 실사용 흔적 0건으로 드랍
+- 의존성 제거: `@ast-grep/napi`, `@modelcontextprotocol/sdk`, `zod`, `esbuild`, `typescript`, `@types/node`, `yaml`
+
+### Fixed
+- (없음 — 이번 릴리즈는 정체성 재정의, 버그 fix 없음)
+
 ## 0.27.0 (2026-04-16)
 
 ### Features
