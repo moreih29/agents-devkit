@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.28.1] - 2026-04-20
+
+### Fixed
+
+- `test/e2e.sh`가 v0.27 레거시 (`bridge/mcp-server.cjs`, `scripts/gate.cjs`, `src/hooks/gate.ts`, `nx_context`, `nx_ast_*`, `test/conformance.mjs` 등 모두 삭제됨)를 참조해 publish workflow E2E 단계에서 실패하던 문제 복구. 래퍼 정체성에 맞게 smoke 수준으로 재작성 — Managed 산출물 존재·`.mcp.json` 경로 유효성·`statusline.mjs` 실행·plugin manifest 유효성·`nexus-core validate` 통과만 검증 (27 check).
+
 ## [0.28.0] - 2026-04-20
 
 <!-- nx-car:v0.28.0:start -->
