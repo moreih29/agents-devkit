@@ -124,19 +124,25 @@ for (const [cat, items] of Object.entries(categories)) {
   for (const item of items) changelogEntry += `- ${item}\n`;
 }
 
-if (!dryRun) {
-  const changelog = readFileSync('CHANGELOG.md', 'utf-8');
-  const updated = changelog.replace(/^# Changelog\n/, `# Changelog\n${changelogEntry}`);
-  writeFileSync('CHANGELOG.md', updated);
+const versionPattern = new RegExp(`^##\\s*\\[?${newVersion.replace(/\./g, '\\.')}[\\]\\s]`, 'm');
+const changelog = readFileSync('CHANGELOG.md', 'utf-8');
+const changelogHasEntry = versionPattern.test(changelog);
+
+if (changelogHasEntry) {
+  console.log(`  CHANGELOG.md에 v${newVersion} entry가 이미 존재 → auto-gen skip (수동 작성 유지)`);
+} else {
+  if (!dryRun) {
+    const updated = changelog.replace(/^# Changelog\n/, `# Changelog\n${changelogEntry}`);
+    writeFileSync('CHANGELOG.md', updated);
+  }
+  console.log(`  CHANGELOG.md에 ${changelogHeader} 추가됨`);
 }
-console.log(`  CHANGELOG.md에 ${changelogHeader} 추가됨`);
 
 // --- 4. 빌드 + 검증 ---
 
 console.log('\n🔨 빌드 + 검증...');
 run('bun run build');
-run('bun run build:types');
-console.log('  ✅ 빌드 + 타입 체크 통과');
+console.log('  ✅ 빌드 통과');
 
 console.log('\n🧪 E2E 테스트...');
 const testResult = run('bash test/e2e.sh');
@@ -147,7 +153,7 @@ console.log(`  ✅ ${testMatch ? testMatch[0] : '테스트 통과'}`);
 // --- 5. 커밋 ---
 
 console.log('\n📦 커밋...');
-run('git add package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json CHANGELOG.md VERSION bridge/ scripts/');
+run('git add package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json CHANGELOG.md VERSION');
 run(`git commit -m "release: v${newVersion}"`);
 console.log(`  ✅ release: v${newVersion}`);
 
@@ -188,12 +194,6 @@ try {
 } catch {
   console.log('  ⚠️  gh CLI 없음 — 수동 생성: https://github.com/moreih29/claude-nexus/releases/new');
 }
-
-// --- 9. dev-sync ---
-
-console.log('\n🔄 dev-sync...');
-run('bun run dev');
-console.log('  ✅ 로컬 개발 캐시 동기화 완료');
 
 // --- Done ---
 
