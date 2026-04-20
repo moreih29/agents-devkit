@@ -1,5 +1,4 @@
 {
-  "description": "Nexus orchestration hooks",
   "hooks": {
     "SessionStart": [
       {
@@ -7,118 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__plugin_claude-nexus_nx__nx_task_update",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__plugin_claude-nexus_nx__nx_task_close",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/session-init.js",
+            "timeout": 10
           }
         ]
       }
@@ -129,32 +18,32 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/prompt-router.js",
+            "timeout": 10
           }
         ]
       }
     ],
-    "PreCompact": [
+    "SubagentStop": [
       {
         "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/agent-finalize.js",
+            "timeout": 10
           }
         ]
       }
     ],
-    "PostCompact": [
+    "SubagentStart": [
       {
         "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/scripts/gate.cjs",
-            "timeout": 5
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/agent-bootstrap.js",
+            "timeout": 10
           }
         ]
       }

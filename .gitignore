@@ -5,7 +5,9 @@
 node_modules/
 package-lock.json
 bun.lockb
-dist/
+dist/*
+!dist/hooks/
+!dist/hooks/**
 *.tgz
 test/fixtures/rust/target/
 test/fixtures/rust/Cargo.lock
