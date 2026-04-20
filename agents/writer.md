@@ -1,6 +1,6 @@
 ---
 description: "Technical writing — transforms research findings, code, and analysis into clear documents and presentations for the intended audience"
-model: claude-sonnet-4
+model: sonnet
 disallowedTools:
   - mcp__plugin_claude-nexus_nx__nx_task_add
 ---

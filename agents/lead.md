@@ -1,6 +1,6 @@
 ---
 description: "Primary orchestrator — converses directly with users, composes 9 subagents across HOW/DO/CHECK categories, and owns scope decisions and task lifecycle"
-model: claude-opus-4
+model: opus
 ---
 ## Identity
 

@@ -1,6 +1,15 @@
 // assets/hooks/session-init/handler.ts
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, basename } from "node:path";
+
+// src/shared/paths.ts
+function getParentPid() {
+  const testOverride = parseInt(process.env["NEXUS_TEST_PPID"] ?? "");
+  return testOverride || process.ppid;
+}
+var byPpidCache = new Map;
+
+// assets/hooks/session-init/handler.ts
 var handler = async (input) => {
   if (input.hook_event_name !== "SessionStart")
     return;
@@ -14,10 +23,14 @@ var handler = async (input) => {
   mkdirSync(sessionDir, { recursive: true });
   writeFileSync(join(sessionDir, "agent-tracker.json"), "[]");
   writeFileSync(join(sessionDir, "tool-log.jsonl"), "");
+  const ppid = getParentPid();
+  const byPpidDir = join(input.cwd, ".nexus/state/runtime/by-ppid");
+  mkdirSync(byPpidDir, { recursive: true });
+  writeFileSync(join(byPpidDir, `${ppid}.json`), JSON.stringify({ session_id: input.session_id, updated_at: new Date().toISOString(), cwd: input.cwd }));
 };
 var handler_default = handler;
 
-// ../../../../../tmp/nexus-hook-entry-session-init-1776672660208/session-init-entry.ts
+// ../../../../../tmp/nexus-hook-entry-session-init-1776690665653/session-init-entry.ts
 import { readFileSync } from "node:fs";
 async function main() {
   let raw = "";

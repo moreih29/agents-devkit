@@ -1,6 +1,6 @@
 ---
 description: "Research methodology and synthesis — designs investigation approach, evaluates evidence quality, writes synthesis documents"
-model: claude-opus-4
+model: opus
 disallowedTools:
   - Edit
   - Write

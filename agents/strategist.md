@@ -1,6 +1,6 @@
 ---
 description: "Business strategy — evaluates market positioning, competitive landscape, and business viability of decisions"
-model: claude-opus-4
+model: opus
 disallowedTools:
   - Edit
   - Write

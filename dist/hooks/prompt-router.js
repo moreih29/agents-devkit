@@ -7304,7 +7304,7 @@ var handler = async (input) => {
 };
 var handler_default = handler;
 
-// ../../../../../tmp/nexus-hook-entry-prompt-router-1776672660215/prompt-router-entry.ts
+// ../../../../../tmp/nexus-hook-entry-prompt-router-1776690665662/prompt-router-entry.ts
 import { readFileSync as readFileSync2 } from "node:fs";
 globalThis.__NEXUS_INLINE_INVOCATIONS__ = { subagent_spawn: { args: ["target_role", "prompt", "name"], templates: { claude: 'Agent({ subagent_type: "{target_role}", prompt: "{prompt}", description: "{name}" })', opencode: 'task({ subagent_type: "{target_role}", prompt: "{prompt}", description: "{name}" })', codex: 'spawn_agent("{target_role}", "{prompt}")' }, notes: { claude: `description field is optional; omit when name arg is absent. model field may be added to override the spawned agent's model.
 `, opencode: `description is required by OpenCode's Zod schema — use target_role as fallback when name is absent. task_id param enables session resume (§15).
