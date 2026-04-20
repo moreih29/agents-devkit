@@ -7141,6 +7141,11 @@ var _invocationsCache = null;
 function loadInvocations() {
   if (_invocationsCache)
     return _invocationsCache;
+  const inlined = globalThis.__NEXUS_INLINE_INVOCATIONS__;
+  if (inlined) {
+    _invocationsCache = inlined;
+    return inlined;
+  }
   const selfDir = new URL(".", import.meta.url).pathname;
   let dir = selfDir;
   while (dir !== "/") {
@@ -7175,6 +7180,9 @@ function expand(template, harness) {
   return expandInvocations(template, harness, loadInvocations());
 }
 function loadValidRuleTargets(cwd) {
+  const inlined = globalThis.__NEXUS_INLINE_RULE_TARGETS__;
+  if (inlined && inlined.length > 0)
+    return inlined;
   const targets = [];
   for (const dir of ["assets/agents", "assets/skills"]) {
     const absDir = join(cwd, dir);
@@ -7295,6 +7303,34 @@ var handler = async (input) => {
 `) };
 };
 var handler_default = handler;
-export {
-  handler_default as default
-};
+
+// ../../../../../tmp/nexus-hook-entry-prompt-router-1776672660215/prompt-router-entry.ts
+import { readFileSync as readFileSync2 } from "node:fs";
+globalThis.__NEXUS_INLINE_INVOCATIONS__ = { subagent_spawn: { args: ["target_role", "prompt", "name"], templates: { claude: 'Agent({ subagent_type: "{target_role}", prompt: "{prompt}", description: "{name}" })', opencode: 'task({ subagent_type: "{target_role}", prompt: "{prompt}", description: "{name}" })', codex: 'spawn_agent("{target_role}", "{prompt}")' }, notes: { claude: `description field is optional; omit when name arg is absent. model field may be added to override the spawned agent's model.
+`, opencode: `description is required by OpenCode's Zod schema — use target_role as fallback when name is absent. task_id param enables session resume (§15).
+`, codex: `Agent role must be pre-registered in config.toml [agents.<target_role>]. No description equivalent in spawn_agent call signature.
+` } }, skill_activation: { args: ["skill", "mode"], templates: { claude: 'Skill({ command: "{skill}" })', opencode: 'skill({ name: "{skill}" })', codex: "${skill}" }, notes: { claude: "The Skill tool accepts only the `command` string; mode/args cannot be passed as a separate parameter. Mode must be embedded in the SKILL.md body via $ARGUMENTS placeholder substitution.\n", opencode: "The skill tool accepts only `name`; args passing is unconfirmed per source review. Design skills to be args-free or embed defaults in SKILL.md body.\n", codex: `Positional args: "$skill-name {mode}". Named args: "$skill-name MODE={mode}". Confirmed only for Custom Prompts; treat as best-effort for Skills. $ prefix is literal in composer input, not a tool call.
+` } }, task_register: { args: ["label", "state"], templates: { claude: 'TaskCreate({ subject: "{label}" }) then nx_task_update({ taskId, status: "{state}" })', opencode: 'nx_task_add({ subject: "{label}" }) then nx_task_update({ taskId, status: "{state}" })', codex: 'update_plan([{ name: "{label}", state: "{state}" }])' }, notes: { claude: `TaskCreate is a Claude Code native tool (not MCP). nx_task_update is the nexus-core MCP tool — full name mcp__plugin_claude-nexus_nx__nx_task_update. taskId is returned by TaskCreate and must be threaded to the update call.
+`, opencode: `Both nx_task_add and nx_task_update are nexus-core MCP tools exposed via the nexus MCP server. task_id returned by nx_task_add must be threaded to update.
+`, codex: `update_plan subsumes creation and update in a single call via plan/step/status fields. No separate create/update step is needed.
+` } }, user_question: { args: ["question", "options"], templates: { claude: 'AskUserQuestion({ questions: [{ question: "{question}", options: {options} }] })', opencode: 'question({ question: "{question}", choices: {options} })', codex: 'request_user_input({ prompt: "{question}", options: {options} })' }, notes: { claude: `options is a JSON array of strings. Omit the options field (not an empty array) for free-text responses. Multiple questions can be batched in the questions[] array.
+`, opencode: `choices field name (not options). Omit choices for free-text input.
+`, codex: `Exact request_user_input schema (options field name, types) is not fully documented — treat as best-effort. Verified as a native Codex tool in external-codex-hooks-tools.md §7-4.
+` } } };
+globalThis.__NEXUS_INLINE_RULE_TARGETS__ = ["architect", "designer", "engineer", "reviewer", "strategist", "researcher", "postdoc", "lead", "tester", "writer", "nx-run", "nx-init", "nx-sync", "nx-plan"];
+async function main() {
+  let raw = "";
+  try {
+    raw = readFileSync2(0, "utf-8");
+  } catch {}
+  const input = raw ? JSON.parse(raw) : {};
+  const result = await handler_default(input);
+  if (result != null && result !== undefined) {
+    process.stdout.write(JSON.stringify(result));
+  }
+}
+main().then(() => process.exit(0), (err) => {
+  process.stderr.write(String(err?.stack ?? err) + `
+`);
+  process.exit(1);
+});

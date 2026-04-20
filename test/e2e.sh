@@ -51,6 +51,55 @@ fi
 [ -f scripts/statusline.mjs ] && green "scripts/statusline.mjs" || red "scripts/statusline.mjs 부재"
 
 echo ""
+echo "=== Hook invocation side-effect ==="
+# nexus-core #39/#46 regression class 차단 — 번들이 존재만 하는 게 아니라 handler가 실제 호출되는지 검증
+
+HOOK_TMP=$(mktemp -d -t nexus-hook-e2e.XXXXXX)
+trap 'rm -rf "$HOOK_TMP"' EXIT
+
+# session-init: .nexus/state/<sid>/agent-tracker.json 생성 side-effect
+SI_DIR="$HOOK_TMP/si"
+mkdir -p "$SI_DIR"
+SI_OUT=$(echo '{"hook_event_name":"SessionStart","session_id":"e2e-si","cwd":"'$SI_DIR'"}' \
+  | node dist/hooks/session-init.js 2>&1; echo "exit=$?")
+if echo "$SI_OUT" | grep -q '^exit=0$' && [ -f "$SI_DIR/.nexus/state/e2e-si/agent-tracker.json" ]; then
+  green "session-init.js → .nexus/state/<sid>/ 생성"
+else
+  red "session-init.js handler no-op (output: $SI_OUT)"
+fi
+
+# prompt-router: [run] 태그 → stdout에 <system-notice> 포함
+PR_DIR="$HOOK_TMP/pr"
+mkdir -p "$PR_DIR"
+PR_OUT=$(echo '{"hook_event_name":"UserPromptSubmit","session_id":"e2e-pr","cwd":"'$PR_DIR'","prompt":"[run] smoke"}' \
+  | node dist/hooks/prompt-router.js 2>/dev/null || true)
+if echo "$PR_OUT" | grep -q '<system-notice>'; then
+  green "prompt-router.js → [run] tag dispatch (<system-notice> emit)"
+else
+  red "prompt-router.js tag dispatch 실패 (output: $PR_OUT)"
+fi
+
+# agent-bootstrap + agent-finalize: handler invocation만 검증 (exit 0)
+AB_DIR="$HOOK_TMP/ab"
+mkdir -p "$AB_DIR/.nexus/state/e2e-ab"
+if echo '{"hook_event_name":"SubagentStart","session_id":"e2e-ab","cwd":"'$AB_DIR'","subagent_type":"engineer","transcript_path":"/dev/null"}' \
+    | node dist/hooks/agent-bootstrap.js >/dev/null 2>&1; then
+  green "agent-bootstrap.js handler invoke exit 0"
+else
+  red "agent-bootstrap.js handler invoke 실패"
+fi
+
+AF_DIR="$HOOK_TMP/af"
+mkdir -p "$AF_DIR/.nexus/state/e2e-af"
+echo '[]' > "$AF_DIR/.nexus/state/e2e-af/agent-tracker.json"
+if echo '{"hook_event_name":"SubagentStop","session_id":"e2e-af","cwd":"'$AF_DIR'","subagent_type":"engineer","transcript_path":"/dev/null","stop_hook_active":false}' \
+    | node dist/hooks/agent-finalize.js >/dev/null 2>&1; then
+  green "agent-finalize.js handler invoke exit 0"
+else
+  red "agent-finalize.js handler invoke 실패"
+fi
+
+echo ""
 echo "=== .mcp.json 경로 유효성 ==="
 
 MCP_PATH=$(node -e "const c=require('./.mcp.json'); const p=c.mcpServers.nx.args[0]; console.log(p.replace('\${CLAUDE_PLUGIN_ROOT}', '.'))")

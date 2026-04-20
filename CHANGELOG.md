@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.28.2] - 2026-04-20
+
+### Consumer Action Required
+
+**v0.28.0 / v0.28.1 사용자는 즉시 업데이트하십시오.** 이 두 릴리즈 기간 동안 플러그인의 모든 Claude Code 훅(`session-init`, `prompt-router`, `agent-bootstrap`, `agent-finalize`)이 no-op 상태였습니다 — upstream `@moreih29/nexus-core` v0.15.1~v0.16.0의 번들 entrypoint bootstrap 누락(Issue [moreih29/nexus-core#39](https://github.com/moreih29/nexus-core/issues/39)) 및 prompt-router runtime asset lookup 실패(Issue [moreih29/nexus-core#46](https://github.com/moreih29/nexus-core/issues/46)).
+
+**영향 범위**:
+
+- `.nexus/state/<session_id>/` 디렉토리, `agent-tracker.json`, `tool-log.jsonl`이 생성되지 않음
+- `[run]` / `[plan]` / `[sync]` / `[d]` / `[m]` / `[rule]` 태그 dispatch 전부 dead
+- SubagentStart/Stop 기반 finalization(files_touched 집계, role-specific rule injection 등) 전부 dead
+- Claude Code는 모든 훅에 대해 `hook success: OK`만 로그 — 실제 handler는 한 번도 호출되지 않음
+- MCP 도구(`nx_task_*`, `nx_plan_*`)는 별도 프로세스라 정상 작동. 훅과 교차 상호작용하는 흐름(task close 리마인더 등)만 영향
+
+**마이그레이션**: 불필요. 이전에 생성되지 않은 상태는 그대로 없음. 이번 업데이트 후 새 세션에서 훅이 정상 작동하여 상태가 자동 생성됩니다.
+
+**업데이트 방법**: Claude Code 플러그인 auto-update 대기 또는 수동 재설치:
+
+```
+claude plugin reinstall claude-nexus
+```
+
+### Fixed
+
+- upstream `@moreih29/nexus-core` v0.15.1~v0.16.0 훅 번들 regression 2종 복구 (nexus-core #39 / #46). v0.16.1 채택으로 4개 훅 전부 handler 실제 호출 확인.
+
+### Changed
+
+- `@moreih29/nexus-core` `^0.15.1` → `^0.16.1`
+- `dist/hooks/session-init.js`, `agent-bootstrap.js`, `agent-finalize.js`, `prompt-router.js` — Managed 산출물 재생성 (bootstrap 주입 + prompt-router는 invocations inline 포함)
+
+### Added
+
+- `test/e2e.sh` — hook-invocation side-effect smoke 섹션. `session-init`은 `.nexus/state/<sid>/agent-tracker.json` 생성 assert, `prompt-router`는 `[run]` 태그에 대한 `<system-notice>` emit assert, `agent-bootstrap`/`agent-finalize`는 exit 0 assert. 27 check → 31 check. upstream smoke-consumer gate와 별개로 consumer 로컬에서도 동일 class regression 차단.
+
 ## [0.28.1] - 2026-04-20
 
 ### Fixed

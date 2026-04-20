@@ -100,6 +100,22 @@ ${ruleContent}
 `) };
 };
 var handler_default = handler;
-export {
-  handler_default as default
-};
+
+// ../../../../../tmp/nexus-hook-entry-agent-bootstrap-1776672660252/agent-bootstrap-entry.ts
+import { readFileSync as readFileSync2 } from "node:fs";
+async function main() {
+  let raw = "";
+  try {
+    raw = readFileSync2(0, "utf-8");
+  } catch {}
+  const input = raw ? JSON.parse(raw) : {};
+  const result = await handler_default(input);
+  if (result != null && result !== undefined) {
+    process.stdout.write(JSON.stringify(result));
+  }
+}
+main().then(() => process.exit(0), (err) => {
+  process.stderr.write(String(err?.stack ?? err) + `
+`);
+  process.exit(1);
+});
