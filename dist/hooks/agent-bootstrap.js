@@ -1,21 +1,124 @@
+// src/shared/json-store.js
+import fs from "node:fs/promises";
+import { constants as fsConstants, appendFileSync, mkdirSync } from "node:fs";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+var inProcessQueues = new Map;
+async function runWithInProcessLock(filePath, action) {
+  const previous = inProcessQueues.get(filePath) ?? Promise.resolve();
+  let release = () => {};
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const entry = previous.then(() => gate);
+  inProcessQueues.set(filePath, entry);
+  await previous;
+  try {
+    return await action();
+  } finally {
+    release();
+    entry.finally(() => {
+      if (inProcessQueues.get(filePath) === entry) {
+        inProcessQueues.delete(filePath);
+      }
+    });
+  }
+}
+var LOCK_RETRY_INTERVAL_MS = 100;
+var LOCK_MAX_RETRIES = 50;
+var LOCK_STALE_MS = 30000;
+function lockPath(filePath) {
+  return `${filePath}.lock`;
+}
+async function acquireFsLock(filePath) {
+  const lp = lockPath(filePath);
+  for (let attempt = 0;attempt <= LOCK_MAX_RETRIES; attempt++) {
+    try {
+      const fd = await fs.open(lp, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL);
+      await fd.close();
+      return;
+    } catch (err) {
+      const e = err;
+      if (e.code !== "EEXIST")
+        throw err;
+      try {
+        const stat = await fs.stat(lp);
+        const ageMs = Date.now() - stat.mtimeMs;
+        if (ageMs > LOCK_STALE_MS) {
+          await fs.unlink(lp).catch(() => {
+            return;
+          });
+          continue;
+        }
+      } catch {
+        continue;
+      }
+      if (attempt === LOCK_MAX_RETRIES) {
+        throw new Error(`Failed to acquire lock for "${filePath}" after ${LOCK_MAX_RETRIES} retries`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_INTERVAL_MS));
+    }
+  }
+}
+async function releaseFsLock(filePath) {
+  await fs.unlink(lockPath(filePath)).catch(() => {
+    return;
+  });
+}
+async function readJsonFile(filePath, defaultValue) {
+  let raw;
+  try {
+    raw = await fs.readFile(filePath, "utf8");
+  } catch (err) {
+    const e = err;
+    if (e.code === "ENOENT")
+      return defaultValue;
+    throw err;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return defaultValue;
+  }
+}
+async function writeJsonFile(filePath, data) {
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  const tmpPath = `${filePath}.tmp.${process.pid}.${Date.now()}.${randomUUID()}`;
+  await fs.writeFile(tmpPath, JSON.stringify(data, null, 2) + `
+`, "utf8");
+  await fs.rename(tmpPath, filePath);
+}
+async function updateJsonFileLocked(filePath, defaultValue, updater) {
+  return runWithInProcessLock(filePath, async () => {
+    await acquireFsLock(filePath);
+    try {
+      const current = await readJsonFile(filePath, defaultValue);
+      const next = await updater(current);
+      await writeJsonFile(filePath, next);
+      return next;
+    } finally {
+      await releaseFsLock(filePath);
+    }
+  });
+}
+var APPEND_SIZE_WARN_THRESHOLD = 4 * 1024;
+
 // assets/hooks/agent-bootstrap/handler.ts
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 var CORE_INDEX_SIZE_LIMIT = 2 * 1024;
 function loadValidRoles(cwd) {
+  const inlined = globalThis.__NEXUS_INLINE_AGENT_ROLES__;
+  if (Array.isArray(inlined))
+    return inlined;
   const agentsDir = join(cwd, "assets/agents");
-  const roles = [];
-  if (existsSync(agentsDir)) {
-    for (const entry of readdirSync(agentsDir, { withFileTypes: true })) {
-      if (entry.isDirectory())
-        roles.push(entry.name);
-    }
-  }
-  return roles;
+  if (!existsSync(agentsDir))
+    return [];
+  return readdirSync(agentsDir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
 }
-function readFirstLine(path) {
+function readFirstLine(path2) {
   try {
-    const content = readFileSync(path, "utf-8");
+    const content = readFileSync(path2, "utf-8");
     const firstNonEmpty = content.split(`
 `).find((l) => l.trim().length > 0) ?? "";
     return firstNonEmpty.replace(/^#+\s*/, "").slice(0, 80);
@@ -76,6 +179,19 @@ var handler = async (input) => {
   const validRoles = loadValidRoles(cwd);
   if (!validRoles.includes(agent_type))
     return;
+  const trackerPath = join(cwd, ".nexus/state", session_id, "agent-tracker.json");
+  await updateJsonFileLocked(trackerPath, [], (tracker) => {
+    const list = Array.isArray(tracker) ? tracker : [];
+    if (list.find((e) => e["agent_id"] === agent_id))
+      return list;
+    list.push({
+      agent_id,
+      agent_type,
+      started_at: new Date().toISOString(),
+      status: "running"
+    });
+    return list;
+  });
   const parts = [];
   const coreIndex = buildCoreIndex(cwd);
   if (coreIndex) {
@@ -101,8 +217,9 @@ ${ruleContent}
 };
 var handler_default = handler;
 
-// ../../../../../tmp/nexus-hook-entry-agent-bootstrap-1776672660252/agent-bootstrap-entry.ts
+// ../../../../../tmp/nexus-hook-entry-agent-bootstrap-1776690665703/agent-bootstrap-entry.ts
 import { readFileSync as readFileSync2 } from "node:fs";
+globalThis.__NEXUS_INLINE_AGENT_ROLES__ = ["architect", "designer", "engineer", "reviewer", "strategist", "researcher", "postdoc", "lead", "tester", "writer"];
 async function main() {
   let raw = "";
   try {

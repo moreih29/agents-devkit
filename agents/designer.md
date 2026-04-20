@@ -1,6 +1,6 @@
 ---
 description: "UX/UI design — evaluates user experience, interaction patterns, and how users will experience the product"
-model: claude-opus-4
+model: opus
 disallowedTools:
   - Edit
   - Write

@@ -160,7 +160,7 @@ Subagent "${agent_type}" finished. Tasks still pending with this role: ${ids}. R
 };
 var handler_default = handler;
 
-// ../../../../../tmp/nexus-hook-entry-agent-finalize-1776672660245/agent-finalize-entry.ts
+// ../../../../../tmp/nexus-hook-entry-agent-finalize-1776690665695/agent-finalize-entry.ts
 import { readFileSync as readFileSync2 } from "node:fs";
 async function main() {
   let raw = "";

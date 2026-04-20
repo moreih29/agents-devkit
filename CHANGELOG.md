@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.29.0] - 2026-04-20
+
+### Consumer Action Required
+
+없음. `@moreih29/nexus-core` v0.17.0은 consumer 측 추가 작업 없이 `bun run sync` 재실행으로 Managed 산출물이 자동 갱신됩니다.
+
+### Fixed
+
+v0.28.2 릴리스 직후 빈 프로젝트 e2e 검증([#5](https://github.com/moreih29/claude-nexus/issues/5))에서 발견된 4건 regression을 upstream이 [moreih29/nexus-core#50](https://github.com/moreih29/nexus-core/issues/50)에서 일괄 해결 — v0.17.0 채택으로 전부 복구.
+
+- **MCP server session_id wiring (P0)** — MCP 서버가 Claude Code로부터 session_id를 전달받을 채널이 없어 `unknown-<pid>`로 폴백하던 문제. `.nexus/state/` 경로가 hook 쓰는 디렉터리와 MCP 쓰는 디렉터리로 쪼개져 `prompt-router`의 `hasPlan`/`hasTasks`가 항상 false → `[d]` 태그 영구 block, `[run]` 태그 `plan:auto` 우회. upstream이 **parent-PID keyed side-channel**(`.nexus/state/runtime/by-ppid/<process.ppid>.json`)로 해결 — `session-init` hook이 SessionStart 시 기록하고 `paths.ts:getSessionId()`가 `process.ppid` 기반으로 읽음. 병렬 harness 세션도 ppid가 달라 race-free.
+- **agent-bootstrap assets lookup (P1)** — `loadValidRoles(cwd)`가 `join(cwd, "assets/agents")` FS lookup에 의존해 consumer 설치에서 항상 `validRoles=[]` early-return, 모든 subagent의 memory/context index 주입이 skip되던 문제. v0.16.1 prompt-router에 적용된 `globalThis.__NEXUS_INLINE_*__` inline 패턴을 `agent-bootstrap` entry에도 확장.
+- **agent-tracker populate 주체 부재 (P1)** — `agent-tracker.json`에 running entry를 append 하는 코드 경로가 존재하지 않아 `agent-finalize`의 update가 영구 no-op이던 문제. `agent-bootstrap` SubagentStart 시점에 `updateJsonFileLocked` 기반 idempotent append 추가. 추가로 `post-tool-telemetry` hook의 over-declared capability가 제거되어 `hooks/hooks.json`에 `post-tool-telemetry` 엔트리가 신규 등록되고 `tool-log.jsonl` append가 활성화됨.
+- **stale model IDs (P0)** — `agents/*.md` frontmatter의 `model: claude-opus-4` / `claude-sonnet-4` / `claude-haiku-4`가 유효하지 않은 ID여서 subagent spawn이 outright 실패하던 문제. upstream이 alias(`opus` / `sonnet` / `haiku`)로 교체 + `scripts/build-agents.ts:validateClaudeModel()` 빌드타임 gate 도입. 이번 `bun run sync` 결과 10개 `agents/*.md`의 `model` 필드가 모두 alias로 재생성됨.
+
+### Changed
+
+- `@moreih29/nexus-core` devDep `^0.16.1` → `^0.17.0`
+- `agents/*.md` — `model` 필드가 alias(`opus` / `sonnet` / `haiku`)로 재생성. 향후 신규 dated model ID 릴리스마다 agent 파일을 업데이트할 필요 없음 (Claude Code latest-in-series resolution에 위임).
+- `hooks/hooks.json` — `post-tool-telemetry` PostToolUse 엔트리 신규 등록.
+- `dist/hooks/session-init.js` / `agent-bootstrap.js` / `agent-finalize.js` / `prompt-router.js` — Managed 산출물 재생성 (by-ppid side-channel + inline AGENT_ROLES + SubagentStart tracker append 반영).
+
+### Added
+
+- `dist/hooks/post-tool-telemetry.js` — Managed 산출물 신규 추가. `tool-log.jsonl`에 PostToolUse 이벤트를 append해 memory access + file-edit 관측 신호를 제공.
+
+### Notes
+
+- upstream smoke gate에 Case C (session_id side-channel round-trip) + Case D (tracker lifecycle init → bootstrap → finalize) 통합 케이스 2건이 추가되어 이번 class regression은 publish 전 차단됨.
+- 이슈 [#5](https://github.com/moreih29/claude-nexus/issues/5) follow-up 중 C3(v0.28.3 patch 문서화)·C4(`.mcp.json` env 조사)는 upstream fix 채택으로 무효화되어 폐기. C2(`test/e2e.sh` regression gate 강화)는 upstream `validateClaudeModel()` + smoke Case C/D가 cover하므로 이번 사이클에서 보류.
+
 ## [0.28.2] - 2026-04-20
 
 ### Consumer Action Required

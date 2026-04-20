@@ -1,6 +1,6 @@
 ---
 description: "Content verification — validates accuracy, checks facts, confirms grammar and format of non-code deliverables"
-model: claude-sonnet-4
+model: sonnet
 disallowedTools:
   - Edit
   - Write

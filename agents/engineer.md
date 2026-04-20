@@ -1,6 +1,6 @@
 ---
 description: "Implementation — writes code, debugs issues, follows specifications from Lead and architect"
-model: claude-sonnet-4
+model: sonnet
 disallowedTools:
   - mcp__plugin_claude-nexus_nx__nx_task_add
 ---

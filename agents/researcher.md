@@ -1,6 +1,6 @@
 ---
 description: "Independent investigation — conducts web searches, gathers evidence, and reports findings with citations"
-model: claude-sonnet-4
+model: sonnet
 disallowedTools:
   - Edit
   - Write

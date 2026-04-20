@@ -1,6 +1,6 @@
 ---
 description: "Technical design — evaluates How, reviews architecture, advises on implementation approach"
-model: claude-opus-4
+model: opus
 disallowedTools:
   - Edit
   - Write

@@ -1,6 +1,6 @@
 ---
 description: "Testing and verification — tests, verifies, validates stability and security of implementations"
-model: claude-sonnet-4
+model: sonnet
 disallowedTools:
   - Edit
   - Write
