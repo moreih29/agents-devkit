@@ -7430,6 +7430,145 @@
           "created_at": "2026-04-20T01:23:46.991Z"
         }
       ]
+    },
+    {
+      "schema_version": "1.0",
+      "completed_at": "2026-04-20T13:19:12.069Z",
+      "branch": "feat/v0.29.0-nexus-core-v0.17.0-adoption",
+      "plan": {
+        "id": 10,
+        "topic": "claude-nexus v0.29.0 릴리스 — nexus-core v0.17.0 채택",
+        "issues": [
+          {
+            "id": 1,
+            "title": "nexus-core v0.17.0 채택 (upstream #50 4 bugs 해결)",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "claude-nexus v0.28.2 → v0.29.0 수동 bump + CHANGELOG",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Release protocol 실행 (sync/validate/e2e → commit → PR)",
+            "status": "pending"
+          }
+        ],
+        "research_summary": "이슈 #5에서 v0.28.2 post-release 검증 시 4건 regression(Bug 1 session_id wiring, Bug 2 agent-bootstrap assets lookup, Bug 3 tracker populate 부재, Bug 4 stale model IDs) 발견. upstream nexus-core #50에 제보. v0.17.0 (2026-04-20)에서 4건 전부 fix: parent-PID keyed side-channel(by-ppid), __NEXUS_INLINE_AGENT_ROLES__ inline 확장, SubagentStart idempotent append + post-tool-telemetry capability 보정, opus/sonnet/haiku alias + validateClaudeModel() build-time gate. Consumer action 없음, smoke Case C/D 추가됨. 현재 claude-nexus는 devDep \"^0.16.1\", 자체 버전 v0.28.2. v0.29.0 마일스톤(이슈 #5 명시)에 해당 — upstream fix 채택 + C3/C4 후속작업 삭제, C2 e2e.sh gate는 upstream validateClaudeModel/smoke Case C,D가 cover하므로 본 사이클에서는 보류.",
+        "created_at": "2026-04-20T13:14:28.521Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "nexus-core devDep ^0.16.1 → ^0.17.0 bump + bun install",
+          "status": "completed",
+          "context": "package.json devDependencies의 @moreih29/nexus-core를 ^0.16.1 → ^0.17.0으로 올리고 bun install로 lock 갱신. 4 버그 fix 포함된 upstream 채택 첫 스텝.",
+          "acceptance": "package.json devDep 값이 ^0.17.0; bun.lock에 0.17.0 resolved; bun install exit 0.",
+          "approach": "Edit로 package.json 수정 → bun install → bun.lock 갱신 확인.",
+          "plan_issue": 1,
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-04-20T13:15:13.977Z"
+        },
+        {
+          "id": 2,
+          "title": "bun run sync — Managed 산출물 갱신",
+          "status": "completed",
+          "context": "v0.17.0의 agents/*.md alias model ID, agent-bootstrap inline AGENT_ROLES, post-tool-telemetry capability 보정, session-init by-ppid wiring 모두 번들에 반영되어야 함.",
+          "acceptance": "bun run sync exit 0; agents/*.md model 필드가 opus|sonnet|haiku; git status에 Managed 산출물만 변경.",
+          "approach": "bun run sync 실행 → agents/·skills/·hooks/·settings.json·dist/hooks/ 변경 diff 관찰. model 필드가 alias(opus/sonnet/haiku)로 변경됐는지 grep 검증.",
+          "plan_issue": 1,
+          "deps": [
+            1
+          ],
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-04-20T13:15:19.707Z"
+        },
+        {
+          "id": 3,
+          "title": "bun run validate + bunx nexus-core list 재확인",
+          "status": "completed",
+          "context": "Managed 산출물 정합성 검증. list 출력으로 agents/skills/hooks 개수 smoke.",
+          "acceptance": "validate exit 0; list 출력에 agents·skills·hooks 각 N>0.",
+          "approach": "bun run validate → bunx @moreih29/nexus-core list → 출력 기록.",
+          "plan_issue": 1,
+          "deps": [
+            2
+          ],
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-04-20T13:15:22.758Z"
+        },
+        {
+          "id": 4,
+          "title": "bash test/e2e.sh 통과",
+          "status": "completed",
+          "context": "플러그인 레벨 e2e gate.",
+          "acceptance": "bash test/e2e.sh exit 0.",
+          "approach": "bash test/e2e.sh 실행. 실패 시 로그 분석 후 rework.",
+          "plan_issue": 1,
+          "deps": [
+            3
+          ],
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-04-20T13:15:25.227Z"
+        },
+        {
+          "id": 5,
+          "title": "4곳 version bump 0.28.2 → 0.29.0",
+          "status": "completed",
+          "context": "Release protocol §2. package.json \"version\" · .claude-plugin/plugin.json \"version\" · .claude-plugin/marketplace.json plugins[0] \"version\" · VERSION 4곳 동일 bump.",
+          "acceptance": "4개 파일 모두 \"0.29.0\"; \"0.28.2\" 잔류 없음.",
+          "approach": "각 파일 Read → Edit로 0.28.2 → 0.29.0 치환. grep로 잔류 확인.",
+          "plan_issue": 2,
+          "deps": [
+            4
+          ],
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-04-20T13:15:28.730Z"
+        },
+        {
+          "id": 6,
+          "title": "CHANGELOG.md v0.29.0 entry 작성",
+          "status": "completed",
+          "context": "Release protocol §3. ## [0.29.0] - 2026-04-20 section. upstream #50 4 bugs 채택 + nexus-core v0.17.0 bump. Consumer Action 없음.",
+          "acceptance": "CHANGELOG.md에 `## [0.29.0] - 2026-04-20` 섹션; 4 bugs 요약 + upstream #50 링크; Consumer Action 없음 명시.",
+          "approach": "CHANGELOG.md 상단에 신규 섹션 추가. Changed(devDep bump)/Fixed(4 bugs 요약+upstream #50 링크)/Migration(consumer action 없음).",
+          "plan_issue": 2,
+          "deps": [
+            5
+          ],
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-04-20T13:15:32.205Z"
+        },
+        {
+          "id": 7,
+          "title": "commit + PR 생성",
+          "status": "completed",
+          "context": "Release protocol §5. feat/v0.29.0-nexus-core-v0.17.0-adoption 브랜치에서 명시 add → commit → push → gh pr create.",
+          "acceptance": "PR URL 반환; PR body에 Summary + Test plan + 이슈 #5 링크.",
+          "approach": "git status → git add 명시 → HEREDOC commit + Co-Authored-By → push -u → gh pr create (Summary/Test plan/이슈 #5 링크 포함).",
+          "plan_issue": 3,
+          "deps": [
+            6
+          ],
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-04-20T13:15:34.577Z"
+        }
+      ]
     }
   ]
 }
