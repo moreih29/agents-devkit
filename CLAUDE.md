@@ -21,6 +21,35 @@ When `@moreih29/nexus-core` version in `package.json` changes:
 5. CHANGELOG 확인 후 consumer action 필요 항목 식별
 
 기준 문서: `https://github.com/moreih29/nexus-core/blob/main/docs/plugin-guide.md`
+
+### Release protocol
+
+claude-nexus는 **수동 버전 bump + 서술형 CHANGELOG**를 쓴다. auto-bump / auto-CHANGELOG 스크립트는 패턴(Consumer Action Required 상세 기술)과 맞지 않아 폐기함. publish는 tag push로 `.github/workflows/publish-npm.yml`이 OIDC Trusted Publishing으로 처리한다.
+
+1. fix/* 또는 feat/* 브랜치에서 작업 + commit
+2. 4곳 버전 수동 bump (모두 같은 X.Y.Z):
+   - `package.json` "version"
+   - `.claude-plugin/plugin.json` "version"
+   - `.claude-plugin/marketplace.json` plugins[0] "version"
+   - `VERSION` (단일 행)
+3. `CHANGELOG.md`에 `## [X.Y.Z] - YYYY-MM-DD` entry 수동 작성. consumer action 있으면 `### Consumer Action Required` 섹션 명시
+4. `bun run sync && bun run validate && bash test/e2e.sh` 통과 확인
+5. commit → PR → review/merge to main
+6. main 동기화 후 태깅:
+   ```bash
+   git checkout main && git pull
+   git tag v<X.Y.Z> && git push origin v<X.Y.Z>
+   ```
+7. GitHub Release (notes는 CHANGELOG 해당 섹션 추출):
+   ```bash
+   gh release create v<X.Y.Z> --title "v<X.Y.Z>" \
+     --notes "$(awk '/^## \[<X.Y.Z>\]/{f=1;next} /^## \[/{f=0} f' CHANGELOG.md)"
+   ```
+8. publish 워크플로우 감시 + npm 확인:
+   ```bash
+   gh run watch $(gh run list --workflow=publish-npm.yml --limit 1 --json databaseId --jq ".[0].databaseId") --exit-status
+   npm view claude-nexus version   # → X.Y.Z
+   ```
 <!-- PROJECT:END -->
 
 <!-- NEXUS:START -->

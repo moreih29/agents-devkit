@@ -16,6 +16,22 @@ var handler = async (input) => {
   writeFileSync(join(sessionDir, "tool-log.jsonl"), "");
 };
 var handler_default = handler;
-export {
-  handler_default as default
-};
+
+// ../../../../../tmp/nexus-hook-entry-session-init-1776672660208/session-init-entry.ts
+import { readFileSync } from "node:fs";
+async function main() {
+  let raw = "";
+  try {
+    raw = readFileSync(0, "utf-8");
+  } catch {}
+  const input = raw ? JSON.parse(raw) : {};
+  const result = await handler_default(input);
+  if (result != null && result !== undefined) {
+    process.stdout.write(JSON.stringify(result));
+  }
+}
+main().then(() => process.exit(0), (err) => {
+  process.stderr.write(String(err?.stack ?? err) + `
+`);
+  process.exit(1);
+});
