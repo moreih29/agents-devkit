@@ -7130,6 +7130,306 @@
           "created_at": "2026-04-17T07:14:39.784Z"
         }
       ]
+    },
+    {
+      "schema_version": "0.5",
+      "completed_at": "2026-04-20T06:03:28.911Z",
+      "branch": "main",
+      "plan": {
+        "id": 9,
+        "topic": "nexus-core v0.13.0 풀 채택 마이그레이션 (v0.27 → v1.0)",
+        "issues": [
+          {
+            "id": 1,
+            "title": "src/mcp/ 자체 서버 폐기 범위 — 중복 5도구 + 고유 context·ast 처리",
+            "status": "decided",
+            "decision": "옵션 C (모두 드랍) 채택 — src/mcp/ 전체 삭제. 중복 5도구(plan/task/artifact/lsp)는 nexus-core v0.13 nexus-mcp로 완전 위임하고, 고유 context/ast 2도구는 agents/skills/memory 호출 흔적 0건이라 드랍. 파급: (1) src/mcp/tools/ 7파일 + src/mcp/server.ts 삭제, (2) @ast-grep/napi dependency 제거 및 네이티브 바이너리 7플랫폼 소거, (3) esbuild bridge/mcp-server.cjs 타겟 제거, (4) .mcp.json nx 엔트리를 nexus-mcp 바이너리(npx @moreih29/nexus-core mcp 또는 nexus-mcp bin)로 교체, (5) README·test/e2e.sh·test/conformance.mjs에서 nx_ast_*/nx_context 참조 정리. 대체 경로: tree-sitter structural pattern → Grep+LSP find_references, tasks 요약 → Read 또는 nx_task_list. 거부된 대안: A(별도 MCP 서버 분리, 사용자 설정 2배·실사용 0 도구 영구화로 부적절), B(wrapper 유지, upgrade 시 merge 부담 지속하고 \"완전 위임\" 선언과 충돌).</decision>\n<parameter name=\"how_agents\">[\"architect\"]",
+            "how_summary": {
+              "architect": "src/mcp/tools/context.ts(47줄, tasks.json 얇은 래퍼)와 ast.ts(200줄, ast-grep structural search)의 실사용 흔적 agents/skills/memory 어디서도 0건. README·CHANGELOG·e2e·conformance에만 언급. context는 nx_task_list+nx_plan_status 조합으로 동일 정보 획득 가능, ast의 structural pattern search는 고유하지만 실사용이 Grep+LSP로 이미 99% 커버됨. @ast-grep/napi 네이티브 바이너리 7플랫폼 유지 비용이 실사용 0건 도구에 부담. 옵션 C 모두 드랍 권장, 옵션 A(서버 분리)는 복잡성 영구화, B(wrapper 유지)는 부분 위임 모순."
+            }
+          },
+          {
+            "id": 2,
+            "title": "src/hooks/gate.ts 대체 전략 — nexus-core 5 캐노니컬 훅 수용 + 고유 기능(CLAUDE.md auto-sync, memory-access tracking, PostCompact snapshot) 처분",
+            "status": "decided",
+            "decision": "옵션 α (v0.13 5훅만 수용, 고유 기능 모두 드랍) 채택 — claude-nexus를 nexus-core의 순수 Claude Code 래퍼로 재정의. src/hooks/gate.ts 전체 삭제, src/shared/(hook-io, paths, tasks, matrix, version) 전체 삭제. upstream 5훅(session-init, agent-bootstrap, agent-finalize, post-tool-telemetry, prompt-router)을 node_modules/@moreih29/nexus-core/assets/hooks/*에서 직접 소비. 버려지는 UX: (1) PreToolUse Edit/Write 차단(task pipeline 강제력 → advisory로 격하 수용), (2) CLAUDE.md MARKER auto-sync(업그레이드 시 사용자 수동 머지 수용), (3) PostCompact 세션 스냅샷, (4) SubagentStart tracker upsert 및 resume_count 집계, (5) Stop pending/all-completed/sync nudge, (6) memory-access.jsonl upsert-by-path 스키마(v0.13 append-only로 이주), (7) tasks/plan reminder 중 stale cycle 감지. 거부된 대안: β(하이브리드 3 extension 훅)는 래퍼 정체성과 충돌하고 유지 비용 지속, γ(sync가 hooks 복사)는 drift 관리 비대·SRP 위반·merge 고통. 본 결정은 \"완전히 의존하며 클로드코드용 래핑 프로젝트로\" 정체성 재정의를 의미 — 독자 운영 로직을 의도적으로 포기.</decision>\n<parameter name=\"how_agents\">[\"architect\"]",
+            "how_summary": {
+              "architect": "gate.ts 14 세부 책임 중 v0.13 5훅이 9개 커버, 5개는 미커버(PreToolUse 차단·Stop nudges·PostCompact·CLAUDE.md auto-sync·SubagentStart tracker upsert), 1개는 스키마 breaking(memory-access append-only vs upsert-by-path). v0.13은 state를 .nexus/state/{session_id}/ per-session 격리, 우리는 HARNESS_STATE_ROOT 단일 루트 — 경로 변경 불가피. architect는 β(하이브리드 3 extension 훅)을 권장했으나 사용자는 α를 선택해 래퍼 정체성 우선. prompt-router는 [d]/[m]/[m:gc]/[rule]/[rule:name]/[sync] 상위호환 + [init]/[init:reset] 추가 커버하며 MCP 도구 호출 가이드 방식으로 화르플 직접 주입 대체."
+            }
+          },
+          {
+            "id": 3,
+            "title": "빌드 파이프라인 전환 — esbuild + generate-from-nexus-core + generate-template 제거 후 nexus-core sync 단독화, invocation-map·harness_docs_refs·conformance 등 커스텀 로직 처분",
+            "status": "decided",
+            "decision": "옵션 B (풀 정리 — 래퍼 수준으로 빌드 파이프라인 축소) 채택. α 결정의 논리적 귀결로 src/·빌드·자체 매크로 확장 로직을 모두 제거하고 package.json은 sync 호출 중심으로 재구성.\n\n삭제 대상: src/ (17 TS 파일 전체) · bridge/ (번들 산출) · scripts/gate.cjs·statusline.cjs (번들 산출, statusline 파일 자체는 Issue #4에서 최종 처리) · esbuild.config.mjs · generate-from-nexus-core.{lib.mjs,mjs} · generate-template.mjs · invocation-map.yml (prompt-router가 tool-name-map.yml SSOT로 대체) · harness-content/ · templates/nexus-section.md (CLAUDE.md auto-sync 드랍으로 불필요) · dev-sync.mjs · tsconfig.json · test/conformance.mjs · package.json dependencies에서 @ast-grep/napi, @modelcontextprotocol/sdk, zod 제거.\n\n유지·조정 대상: release.mjs는 sync → git add (agents/·skills/·hooks/·.claude-plugin/·dist/) → CHANGELOG → tag push → OIDC Trusted Publishing 흐름으로 단순화. test/e2e.sh는 sync 산출물 존재성 + plugin.json 유효성 smoke 수준으로 축소. .github/workflows/는 sync 기반 조정. .claude-plugin/plugin.json은 Template이므로 기존 편집 보존. agents/·skills/·hooks/는 sync가 Managed로 관리. .mcp.json은 nexus-mcp 바이너리 참조로 교체(삭제 아님).\n\n거부된 대안: A(script만 교체)는 죽은 코드 대량 잔존으로 래퍼 정체성 선언과 모순, C(중간 정리)는 'dev-sync·tsconfig만 제거하는 수준'이 애매한 중간 단계로 정체성 완성 실패.</decision>\n</invoke>"
+          },
+          {
+            "id": 4,
+            "title": "statusline 운명 — nexus-core 미제공, 유지 vs 드랍",
+            "status": "decided",
+            "decision": "옵션 A 채택 (statusline 유지) — 단 구조는 src/statusline/ + esbuild 파이프라인이 아닌 scripts/statusline.mjs 단일 Node ESM 파일로 재작성. Issue #3에서 esbuild·src/·tsconfig 전체 제거를 결정했는데 statusline 하나를 위해 파이프라인을 되살리는 것은 모순이므로 빌드 0 구조로 전환.\n\n구현 방침: (1) src/statusline/statusline.ts와 scripts/statusline.cjs·.map 삭제, (2) scripts/statusline.mjs 신규 작성 — 순수 Node ESM, fs/path만 사용, 외부 패키지 0, (3) 기존에 의존하던 src/shared/paths·tasks 로직 중 statusline이 필요로 하는 부분만 인라인화, (4) settings.json statusLine.command를 node ${CLAUDE_PLUGIN_ROOT}/scripts/statusline.mjs로 교체, (5) 소스=배포본이므로 별도 빌드 단계 없이 git에 commit.\n\n이유: statusline은 Claude Code 하네스 고유 기능이라 nexus-core에 업스트림 기여가 부적절하고 우리만의 영역. 단일 파일 ESM으로 유지하면 Issue #3 \"빌드 파이프라인 0\" 정체성과 충돌하지 않음. Node는 Claude Code 런타임 전제라 bun 의존성도 회피. 향후 nexus-core가 statusline 자산을 추가하면 그때 sync로 이전 가능.\n\n거부된 대안: 드랍(B)은 태스크·플랜 진행률 시각 피드백 상실, 기본 statusline(C)은 Nexus 상태 미표시로 B와 실질 동일. 기존 src/+esbuild 유지(A의 naive 버전)는 Issue #3 결정과 명시적 모순.</decision>\n</invoke>"
+          },
+          {
+            "id": 5,
+            "title": "Lead primary agent 수용 — dist/claude/settings.json 자동 주입 그대로 vs 기존 agent 구조와 조화 방식",
+            "status": "decided",
+            "decision": "옵션 C (수용 + CLAUDE.md 정리) 채택. nexus-core v0.13 sync가 생성하는 dist/claude/settings.json ({\"agent\": \"lead\"})을 Managed 산출물로 그대로 수용하여 Claude Code 플러그인 활성 시 main thread 시스템 프롬프트를 lead 에이전트로 주입. 동시에 기존 CLAUDE.md의 Nexus Agent Orchestration 섹션에서 \"Lead는 사용자와 직접 대화하는 메인 에이전트\" 정의 문장을 \"Lead는 upstream nexus-core가 제공하는 primary orchestrator\" 수준으로 축약하여 중복 기술 제거. Agent Routing 표는 유지하되 lead agent 행 1개만 추가하거나 설명 방식을 간소화. .claude/settings.json 프로젝트 로컬 파일은 그대로 두어 사용자 scope override 경로 보존.\n\n거부된 대안: A(그대로 수용)는 CLAUDE.md 기존 Lead 문구와 upstream 주입이 중복 기술되어 사용자 혼란 소지, B(override로 비활성화)는 풀 채택·풀 정리 결정과 정면 모순이라 래퍼 정체성 훼손.</decision>\n</invoke>"
+          },
+          {
+            "id": 6,
+            "title": "버전·릴리즈 정책 — v0.27 → v1.0 major bump 여부, CHANGELOG Consumer Action Required, 마이그레이션 순서(big-bang vs phased)",
+            "status": "decided",
+            "decision": "세부 세트: 6-a=B(v0.28.0, pre-v1 유지) + 6-b=CHANGELOG Consumer Action Required 섹션 필수 포함 + 6-c=A(big-bang, 5 커밋 분할).\n\n6-a 버전: v0.27.x → v0.28.0 minor bump. pre-v1 구간이라 breaking change를 minor로 수용하는 관행 채택. ecosystem.md §5.1의 \"major bump\" 문자 그대로는 지키지 않지만 pre-v1에서는 semver major를 의도적으로 보류하는 것이 합리적. v1.0.0은 향후 API·plugin 계약이 진짜 안정화될 때 예약.\n\n6-b CHANGELOG: CHANGELOG.md에 <!-- nx-car:v0.28.0:start --> 마커 사용하여 Consumer Action Required 섹션 작성. 필수 항목: (1) .mcp.json nx 서버 경로 변경 — bridge/mcp-server.cjs → nexus-mcp 바이너리(bun add -g @moreih29/nexus-core 또는 npx @moreih29/nexus-core mcp 필요), (2) 상태 파일 경로 변경 HARNESS_STATE_ROOT → .nexus/state/{session_id}/, (3) nx_ast_* 및 nx_context 도구 제거 + 대체 경로 안내(Grep/LSP/nx_task_list), (4) CLAUDE.md auto-sync 상실 + 업그레이드 시 수동 머지 안내(일회성), (5) PreToolUse Edit/Write 차단 소멸 — tasks.json은 advisory로 격하, (6) PostCompact 스냅샷 상실, (7) @ast-grep/napi 네이티브 의존성 제거.\n\n6-c 순서: Big-bang 단일 릴리즈. 1인 dogfooding + 풀 채택 정체성 선언이라 phased 중간 단계(반래퍼·반자체)가 무의미. 단 git log 가독성 위해 논리적 커밋 5개로 분할: (1) chore: drop src/mcp/ + @ast-grep/napi (Issue #1), (2) chore: drop src/hooks/ + generate-* + esbuild (Issue #2, #3), (3) feat: nexus-core sync 기반 빌드 + dist/claude/settings.json 수용 + CLAUDE.md Lead 문구 정리 (Issue #3, #5), (4) chore: statusline ESM 재작성 scripts/statusline.mjs (Issue #4), (5) release: v0.28.0 + CHANGELOG Consumer Action Required (Issue #6).\n\n거부된 대안: 6-a의 A(v1.0.0)는 pre-v1을 건너뛰고 조기 stabilization 선언하는 것이라 향후 진짜 안정 시점에 쓸 시그널을 소진, 6-a의 C(v0.99)는 의도 시그널 부재, 6-c의 B(phased 3 릴리즈)는 중간 버전이 반래퍼·반자체 혼재 상태로 오래 잔존해 오히려 혼란 가중.</decision>\n</invoke>"
+          }
+        ],
+        "research_summary": "v0.13.0은 v0.12까지의 '자산 배포' 수준에서 '실행 인프라 제공'으로 완전 재설계. 제공 항목: (1) nexus-mcp stdio 서버 14도구 — plan×6(start/status/update/decide/resume/analysis_add), task×5(add/list/update/close/resume), history×1(search), artifact×1(write), lsp×5(hover/diagnostics/find_references/rename/code_actions). TDD 기반 246 테스트, path traversal guard, file lock. (2) CLI bin: nexus-core(sync/init/validate/list/mcp) + nexus-mcp(호환 wrapper). (3) 5개 캐노니컬 훅(assets/hooks/): session-init, agent-bootstrap, agent-finalize, post-tool-telemetry, prompt-router — prompt-router는 tool-name-map.yml invocations SSOT 참조하여 harness별 문법 확장, NEXUS_HARNESS env 기반 라우팅. (4) Lead primary agent(10번째, mode: primary) — Claude용 산출물로 dist/claude/settings.json {\"agent\":\"lead\"} 자동 생성. (5) 덮어쓰기 정책 2-class: Managed(agents/, skills/, dist/claude/settings.json 항상 덮어씀) vs Template(.claude-plugin/plugin.json, marketplace.json 최초 1회만). (6) capability-matrix.yml SSOT로 하네스별 portability tier 계산.\n\n우리 자산 현황(claude-nexus v0.27.0, nexus-core v0.12 의존): src/는 17 TS 파일. MCP 서버 src/mcp/tools/ 7도구 중 plan/task/artifact/lsp는 v0.13 14도구와 완전 중복(우리는 구버전), context·ast는 claude-nexus 고유. src/hooks/gate.ts는 9 이벤트 처리 — SessionStart/SubagentStart/SubagentStop/UserPromptSubmit/PreToolUse/PostToolUse/Stop/PostCompact, 태그 핸들러([d][m][rule][sync][plan][run]), 고유 기능: CLAUDE.md auto-sync(global+project MARKER 블록 재기입), memory-access.jsonl tracking, agent-tracker.json(files_touched 포함), PostCompact 세션 스냅샷, getSyncNudge(3 cycles without sync). 빌드: esbuild → bridge/mcp-server.cjs + scripts/{gate,statusline}.cjs + generate-from-nexus-core.mjs(invocation-map.yml 매크로 확장 + harness_docs_refs append + conformance fixtures + HANDLED_TAG_IDS drift check) + generate-template.mjs(CLAUDE.md NEXUS:START 블록 자동 재생성). statusline 별도 파일(scripts/statusline.cjs). release.mjs는 semver 자동결정 + CHANGELOG + OIDC Trusted Publishing 파이프라인.\n\n기존 결정 컨텍스트(.nexus/context/ecosystem.md §5.1): breaking change 허용 — semver major bump + CHANGELOG Consumer Action Required 섹션이 canonical 대응 프로토콜. architecture.md는 현재 파이프라인을 상세 기술해서 결정 직후 [sync] 대상. history에 v0.3→v0.4 업그레이드 경험 1회(task_count=7).\n\n사용자 방향: 풀 채택(옵션 A) 확정. context·ast는 포기 또는 최소 보존, CLAUDE.md auto-sync/statusline 처분은 세션에서 결정. v0.27→v1.0 major bump 여부 포함.",
+        "created_at": "2026-04-20T01:00:51.214Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "src/mcp/ 전체 삭제 + @ast-grep/napi 의존성 제거 + .mcp.json 교체 + README 참조 정리",
+          "context": "Issue #1 결정 집행 — 옵션 C(모두 드랍)",
+          "approach": "1) src/mcp/ 디렉터리 전체 제거 (context.ts, ast.ts, lsp.ts, task.ts, artifact.ts, plan.ts, server.ts). 2) package.json dependencies에서 @ast-grep/napi 제거 + bun install로 bun.lock 갱신. 3) .mcp.json의 nx 서버 엔트리를 기존 bridge/mcp-server.cjs 참조에서 \"npx @moreih29/nexus-core mcp\" 또는 nexus-mcp 바이너리 호출로 교체. 4) README.md와 README.en.md에서 nx_ast_*/nx_context 언급 전부 제거 (Grep로 참조처 전수 탐색 후 정리).",
+          "acceptance": "src/mcp/ 디렉터리 부재. package.json에 @ast-grep/napi 없음. bun install 성공. .mcp.json nx 서버가 Claude Code에서 로드되어 nexus-core 14 도구 사용 가능. README 양 파일에 nx_ast_*/nx_context 참조 0건.",
+          "risk": ".mcp.json 경로 문법이 Claude Code 최신 스펙과 맞지 않을 수 있음. nexus-core가 npm 배포되어 npx로 실행 가능한 상태인지 먼저 확인 필요.",
+          "status": "completed",
+          "deps": [],
+          "plan_issue": 1,
+          "owner": "engineer",
+          "created_at": "2026-04-20T01:20:34.041Z"
+        },
+        {
+          "id": 2,
+          "title": "Commit 1 범위 smoke verification",
+          "context": "Task #1 검증 — .mcp.json 교체와 @ast-grep/napi 제거가 플러그인 로드 깨뜨리지 않는지 실제 확인",
+          "approach": "1) bun install 재실행해서 lock 정합 확인. 2) .mcp.json을 실제로 Claude Code 세션에서 로드, nx_plan_status 같은 도구 호출해서 nexus-mcp 서버 응답 확인. 3) repo에서 nx_ast_*/nx_context 참조 Grep으로 전수 검색 — 0건 확인.",
+          "acceptance": "bun install 경고 없이 성공. Claude Code 세션에서 nx 서버 도구(예: nx_plan_status) 정상 호출. Grep -r \"nx_ast\\\\|nx_context\" 결과 0건.",
+          "risk": "Claude Code가 npx @moreih29/nexus-core mcp 명령 기동 시간이 느려 타임아웃 가능성. MCP 서버 로그 확인.",
+          "status": "completed",
+          "deps": [
+            1
+          ],
+          "plan_issue": 1,
+          "owner": "tester",
+          "created_at": "2026-04-20T01:20:44.045Z"
+        },
+        {
+          "id": 3,
+          "title": "src/ 전체 + 빌드 파이프라인 + dev deps 대량 제거",
+          "context": "Issue #2·#3 집행 — α(훅 5개만 수용) + B(빌드 풀 정리) 귀결로 src 전체 + 빌드 도구 전부 삭제",
+          "approach": "삭제 대상 (절대경로 일괄 rm): src/ 디렉터리 전체(17 TS 파일), bridge/, scripts/gate.cjs·gate.cjs.map·statusline.cjs·statusline.cjs.map, esbuild.config.mjs, generate-from-nexus-core.lib.mjs, generate-from-nexus-core.mjs, generate-template.mjs, invocation-map.yml, harness-content/, templates/, dev-sync.mjs, tsconfig.json, test/conformance.mjs. package.json devDependencies에서 esbuild·typescript·@types/node 제거, dependencies에서 @modelcontextprotocol/sdk·zod 제거(yaml은 release.mjs/statusline에서 쓰는지 확인 후 결정). bun install로 bun.lock 갱신.",
+          "acceptance": "위 목록 모두 부재. package.json devDependencies는 @moreih29/nexus-core만 남거나 최소(yaml 포함 여부는 실사용 확인). bun install 성공. 저장소 루트에 esbuild·tsconfig·bridge·templates·harness-content·generate-* 흔적 없음.",
+          "risk": "release.mjs나 test/e2e.sh가 삭제 대상 파일을 참조할 가능성. 삭제 전 grep로 상호 의존성 전수 확인 필수. yaml 의존성은 build-hooks 관련이라 제거해도 무방할 가능성 높으나 실사용 확인.",
+          "status": "completed",
+          "deps": [
+            2
+          ],
+          "plan_issue": 3,
+          "owner": "engineer",
+          "created_at": "2026-04-20T01:20:58.330Z"
+        },
+        {
+          "id": 4,
+          "title": "Commit 2 범위 smoke verification",
+          "context": "Task #3 대량 삭제 후 저장소 상태와 test/e2e.sh 동작 smoke",
+          "approach": "1) bun install 재실행 정상. 2) test/e2e.sh가 삭제 대상을 참조하지 않는지 검증 — 실패하면 smoke 수준으로 축소 필요 (이후 Task 5/9에서 조정). 3) repo 크기·파일 수 감소 확인.",
+          "acceptance": "bun install 경고·에러 0건. test/e2e.sh가 삭제된 경로 참조하지 않음 (참조한다면 그 사실을 Task #3 engineer로 리포트해서 fix). 불필요 파일 0건.",
+          "risk": "e2e.sh가 기대하는 산출물이 아직 없는 과도기 상태일 수 있음. 이 경우 후속 Task에서 sync 산출물로 만족시킬 수 있으므로 smoke 실패는 blocker 아님으로 기록.",
+          "status": "completed",
+          "deps": [
+            3
+          ],
+          "plan_issue": 3,
+          "owner": "tester",
+          "created_at": "2026-04-20T01:21:07.118Z"
+        },
+        {
+          "id": 5,
+          "title": "package.json scripts 재작성 + nexus-core devDep v0.13 bump + sync 실행 + Managed 산출물 스테이지",
+          "context": "Issue #3·#5 집행 — 빌드 파이프라인을 sync 단독으로 전환하고 Lead primary agent 포함 Managed 산출물 수용",
+          "approach": "1) package.json scripts: {\"build\": \"bun run sync\", \"sync\": \"bunx @moreih29/nexus-core sync --harness=claude --target=./\", \"sync:dry\": \"... --dry-run\", \"validate\": \"bunx @moreih29/nexus-core validate\", \"list\": \"bunx @moreih29/nexus-core list\", \"test\": \"bash test/e2e.sh\"}. dev/check/clean 스크립트 제거. 2) devDependencies의 @moreih29/nexus-core를 ^0.13.0으로 bump. 3) bun install로 lock 갱신. 4) `bun run sync` 실행하여 agents/*.md(10개, lead 포함), skills/*/SKILL.md, hooks/ 아래 handler 참조, dist/claude/settings.json {\"agent\":\"lead\"} 생성. 5) 기존 agents/·skills/ 내용이 sync 결과물로 덮어씀을 확인(Managed). 6) .claude-plugin/plugin.json은 Template이라 보존되나 agents·skills 배열 경로 정합 확인 — 필요 시 sync 결과와 일치하도록 갱신.",
+          "acceptance": "package.json scripts와 devDeps가 상기 구조대로. bun install 성공. `bun run sync` 실행 시 agents/ 10개·skills/·hooks/·dist/claude/settings.json Managed 경로 모두 생성. `cat dist/claude/settings.json | jq .agent`가 \"lead\" 반환. .claude-plugin/plugin.json은 유효한 Claude Code 매니페스트.",
+          "risk": "sync가 기존 agents/를 덮어쓰면서 커스텀 수정분 잃을 수 있음 — 현재 우리 agents/는 generate-from-nexus-core 생성물이라 소실 OK이지만 인수 대상을 확인. .claude-plugin/plugin.json의 agents·skills 배열이 새 sync 산출 경로와 안 맞으면 Claude Code 로드 실패 — 엔지니어가 배열 재정비 필요.",
+          "status": "completed",
+          "deps": [
+            4
+          ],
+          "plan_issue": 3,
+          "owner": "engineer",
+          "created_at": "2026-04-20T01:21:23.715Z"
+        },
+        {
+          "id": 6,
+          "title": "CLAUDE.md 편집 — Lead 중복 정리 + 빌드/업그레이드 명령 갱신",
+          "context": "Issue #5 집행 — Lead primary agent 수용 후 CLAUDE.md의 기존 \"Lead는 사용자와 직접 대화하는 메인 에이전트\" 문구가 upstream 주입과 중복되므로 간소화",
+          "approach": "1) \"Lead는 사용자와 직접 대화하는 메인 에이전트. tasks.json에서 owner: lead는 Lead가 직접 처리\" 문장을 \"Lead는 nexus-core가 제공하는 primary orchestrator (main thread 시스템 프롬프트로 자동 주입)\" 수준으로 축약. 2) Essentials 섹션의 빌드 명령을 `bun run dev`(esbuild) → `bun run sync`(nexus-core sync)로 교체. 3) \"소스 원천: agents/, skills/, src/data/tags.json은 @moreih29/nexus-core build-time 생성물\" 문장을 \"agents/, skills/, hooks/, dist/claude/settings.json은 nexus-core sync Managed 산출물 — 직접 편집 금지\"로 갱신. 4) \"@moreih29/nexus-core upgrade protocol\" 섹션을 v0.13 흐름에 맞게 재작성(CONSUMING.md 참조 대신 bunx ... sync 흐름). 5) Nexus Agent Orchestration 표에 lead 행 추가.",
+          "acceptance": "CLAUDE.md에서 \"Lead는 메인 에이전트\" 문장 삭제 혹은 축약됨. 빌드 명령은 bun run sync로 갱신. agents/ 소스 원천 설명이 v0.13 용어로 갱신. Upgrade protocol은 bunx 흐름 반영. orchestration 표에 lead 행 존재.",
+          "risk": "CLAUDE.md는 user global과 project local 양쪽에 있을 수 있음 — 편집 대상은 project local(/Users/kih/workspaces/areas/claude-nexus/CLAUDE.md)만. global은 user 영역이라 건드리지 않음.",
+          "status": "completed",
+          "deps": [
+            5
+          ],
+          "plan_issue": 5,
+          "owner": "writer",
+          "created_at": "2026-04-20T01:21:39.500Z"
+        },
+        {
+          "id": 7,
+          "title": ".nexus/context/architecture.md 리라이트 — sync-only 파이프라인으로 전면 개정",
+          "context": "Issue #3 집행 — 문서가 기존 3 진입점(Gate/MCP/Statusline) + esbuild/generate-* 파이프라인을 상세히 기술. sync 단독 래퍼 구조로 완전 재작성 필요",
+          "approach": "1) \"Plugin Architecture\" 섹션 재작성: \"Claude Code와 2개 진입점 — nexus-core upstream(agents·skills·hooks·MCP·settings) + claude-nexus 고유(statusline)\"로 변경. 2) \"단계별 컨텍스트 전달\" 설명을 v0.13 5훅 기반(session-init·agent-bootstrap·agent-finalize·post-tool-telemetry·prompt-router)으로 재구성. 3) \"비차단 가이던스\" 원칙은 prompt-router 동작으로 이전. 4) \"빌드 파이프라인\" 섹션을 완전히 재작성: sync 호출 → Managed(agents·skills·hooks·dist/claude/settings.json) + Template(.claude-plugin/plugin.json) 2-class 정책, + claude-nexus 고유 scripts/statusline.mjs(빌드 0). 5) \"Release Pipeline\" 섹션의 로컬 release.mjs 설명은 sync 기반으로 갱신. 6) \"Nexus Ecosystem Position\"의 Execution layer 설명은 \"claude-nexus = nexus-core의 Claude Code 래퍼\"로 명시.",
+          "acceptance": "architecture.md에 esbuild/generate-from-nexus-core/invocation-map/harness-content/conformance/bridge 언급 0건. sync·Managed·Template·dist/claude/settings.json 용어 도입. Execution layer 정의가 \"래퍼\" 관점 반영. 문서 일관성 유지.",
+          "risk": "문서 길이와 깊이가 큰 대대적 편집. 기존 §Nexus Ecosystem Position은 ecosystem.md와의 경계가 있으니 중복/모순 주의.",
+          "status": "completed",
+          "deps": [
+            5
+          ],
+          "plan_issue": 3,
+          "owner": "writer",
+          "created_at": "2026-04-20T01:21:53.279Z"
+        },
+        {
+          "id": 8,
+          "title": ".nexus/rules/development.md 갱신 — esbuild/src 참조 제거 + sync 기반 규칙 재정의",
+          "context": "Issue #3 집행 — 개발 규칙 문서가 `bun run dev`·`bun run build:types` 등 esbuild 세계관 기반. sync 단독화로 재작성",
+          "approach": "1) Code 섹션: \"src/ 수정 후 bun run dev\" 규칙은 src/ 자체가 사라져 무의미 → 삭제. \"타입 에러 남기지 않기\"도 삭제(tsc 없음). 대신 \"sync 실행 후 Managed 산출물(agents·skills·hooks·dist/claude/settings.json) 직접 편집 금지\" 추가. 2) Test 섹션: \"bash test/e2e.sh 통과\" 유지하되 smoke 수준 명시. 3) Documentation 섹션: agents·skills·src/data/tags.json은 → agents·skills·hooks·dist/claude/settings.json으로 목록 갱신. templates/nexus-section.md 참조 삭제. 4) Upstream 섹션: 기준 문서를 CONSUMING.md가 아닌 docs/plugin-guide.md로 교체(v0.13 정식 경로). 업그레이드 흐름을 \"package.json의 @moreih29/nexus-core 버전 bump → bun install → bun run sync → commit\"로 단순화.",
+          "acceptance": "development.md에서 dev·build:types·generate-from-nexus-core·conformance·CONSUMING.md 언급 0건. 새 Upstream 흐름이 bunx sync 기반. test는 smoke 수준 명시.",
+          "risk": "CLAUDE.md Essentials 섹션과 중복될 수 있음 — 역할 분리(CLAUDE.md=개요, rules=개발 실무) 유지.",
+          "status": "completed",
+          "deps": [
+            5
+          ],
+          "plan_issue": 3,
+          "owner": "writer",
+          "created_at": "2026-04-20T01:22:03.445Z"
+        },
+        {
+          "id": 9,
+          "title": "scripts/statusline.mjs 신규 작성 + settings.json statusLine.command 교체",
+          "context": "Issue #4 집행 — statusline을 빌드 없는 단일 Node ESM 파일로 재작성",
+          "approach": "1) scripts/statusline.mjs 신규 작성. 순수 Node ESM, import는 node:fs/node:path/node:os만. 기능: (a) git 브랜치 읽기(execSync \"git rev-parse --abbrev-ref HEAD\"), (b) .nexus/state/{session_id}/tasks.json 읽어 pending/completed 집계(없으면 생략), (c) .nexus/state/{session_id}/plan.json 읽어 active 이슈 개수(없으면 생략), (d) 1행 포맷 문자열 stdout 출력. 2) 기존 src/statusline/statusline.ts 로직 참조해 필요한 부분만 인라인. 3) Claude Code statusLine.command 설정 위치 확인 — .claude-plugin/plugin.json 또는 Managed dist/claude/settings.json 중 어느 쪽인지 sync 산출물에서 결정. Managed라면 plugin.json Template 쪽에 `statusLine.command = \"node ${CLAUDE_PLUGIN_ROOT}/scripts/statusline.mjs\"` 설정. 4) session_id 환경변수 확인 — Claude Code가 NEXUS_SESSION_ID 또는 CLAUDE_SESSION_ID를 주입하는지 v0.13 prompt-router 코드 참조.",
+          "acceptance": "scripts/statusline.mjs 존재. Pure Node ESM (외부 패키지 0). `node scripts/statusline.mjs`를 직접 실행하면 1행 status 문자열 출력. Claude Code 설정의 statusLine.command가 새 경로 참조. 기존 scripts/statusline.cjs* 흔적 없음(Task #3에서 이미 삭제됨).",
+          "risk": "session_id 결정 방식이 v0.13에서 변경됐을 수 있어 tasks.json/plan.json 경로 매핑이 틀어질 가능성. nexus-core prompt-router handler 참조해 정확한 경로 규약 확인 필수.",
+          "status": "completed",
+          "deps": [
+            5
+          ],
+          "plan_issue": 4,
+          "owner": "engineer",
+          "created_at": "2026-04-20T01:22:16.058Z"
+        },
+        {
+          "id": 10,
+          "title": ".github/workflows/ 조정 — esbuild 단계 제거 + sync 기반 validate/publish",
+          "context": "Issue #6 집행 — CI가 sync 중심으로 동작하도록 조정. release.mjs와 정합",
+          "approach": "1) .github/workflows/ 파일 전수 확인 (validate·publish·build 관련). 2) `bun run build`(esbuild 호출) 단계 → `bun run sync`로 교체. 3) `bun run build:types` 같은 tsc 단계 제거. 4) test 단계는 `bash test/e2e.sh` 유지(smoke). 5) publish 워크플로는 OIDC Trusted Publishing 유지하되 사전에 sync 실행으로 Managed 산출물 최신화. 6) validate 워크플로에 `bunx @moreih29/nexus-core validate` 추가해 assets frontmatter 검증 자동화.",
+          "acceptance": "워크플로 yml에 esbuild·tsc·generate-from-nexus-core 언급 0건. bun run sync가 build 단계 대체. publish 워크플로가 tag push 시 npm publish --provenance --access public 실행. validate 워크플로에 nexus-core validate 포함.",
+          "risk": "OIDC 설정은 GitHub org/repo 권한과 npm Trusted Publisher 설정 의존 — 기존 동작 유지되는지 확인.",
+          "status": "completed",
+          "deps": [
+            5
+          ],
+          "plan_issue": 6,
+          "owner": "engineer",
+          "created_at": "2026-04-20T01:22:23.712Z"
+        },
+        {
+          "id": 11,
+          "title": "문서 3종 정합성 검증 — CLAUDE.md + architecture.md + development.md",
+          "context": "Task #6·#7·#8 writer 산출물 verification. 3 문서가 새 래퍼 정체성을 일관되게 반영하고 삭제된 용어가 남지 않았는지 확인",
+          "approach": "1) 3 문서에서 금칙어 Grep 전수: esbuild, bun run dev, build:types, generate-from-nexus-core, invocation-map, harness-content, templates/nexus-section, bridge/, conformance, CONSUMING.md, src/mcp, @ast-grep/napi — 0건 확인. 2) 신규 용어 일관성: sync·Managed·Template·dist/claude/settings.json·래퍼(wrapper)·prompt-router·5 캐노니컬 훅 등이 3 문서에 일관 정의. 3) Lead primary 설명이 CLAUDE.md에서만 간소 기술되고 architecture.md와 중복 없는지. 4) Upgrade protocol 기술이 rules/development.md에만 구체, CLAUDE.md는 개요 수준인지.",
+          "acceptance": "3 문서 금칙어 0건. 신규 용어 일관. Lead primary·Upgrade protocol 중복 기술 없이 역할 분리. 사용자가 어느 문서부터 읽든 래퍼 정체성 파악 가능.",
+          "risk": "어느 한 문서가 다른 문서를 참조하며 상호 순환할 수 있음 — 참조 방향 확인.",
+          "status": "completed",
+          "deps": [
+            6,
+            7,
+            8
+          ],
+          "plan_issue": 3,
+          "owner": "reviewer",
+          "created_at": "2026-04-20T01:22:41.663Z"
+        },
+        {
+          "id": 12,
+          "title": "statusline 실제 렌더링 확인",
+          "context": "Task #9 검증 — scripts/statusline.mjs가 Claude Code statusline에 실제로 표시되는지 runtime verification",
+          "approach": "1) `node scripts/statusline.mjs` 수동 실행으로 1행 문자열 출력 확인 (브랜치명 포함, tasks/plan 있으면 집계 표시). 2) Claude Code에서 플러그인 로드 후 실제 statusline 영역에 문자열이 렌더링되는지 육안 확인. 3) tasks.json이 없는 경우(자유 모드), 있는 경우(pending/completed 집계) 각각 동작 확인. 4) 에러 상황(잘못된 JSON 등) 처리 확인 — 예외 시 최소 브랜치명만이라도 출력.",
+          "acceptance": "수동 실행 시 1행 출력 정상. Claude Code statusline 영역에 표시 확인. tasks.json 유무·상태에 따라 출력 변화 확인. 에러 상황에서 silent fail 또는 fallback 출력.",
+          "risk": "Claude Code 플러그인 캐시(~/.claude/plugins/cache)에 복사된 후 실행되므로 `${CLAUDE_PLUGIN_ROOT}` 환경변수나 상대경로 처리 주의 필요.",
+          "status": "completed",
+          "deps": [
+            9
+          ],
+          "plan_issue": 4,
+          "owner": "tester",
+          "created_at": "2026-04-20T01:22:49.245Z"
+        },
+        {
+          "id": 13,
+          "title": "CHANGELOG.md v0.28.0 섹션 작성 — nx-car 마커 + Consumer Action Required 7 항목",
+          "context": "Issue #6 집행 — breaking change 7종을 ecosystem §5.1 프로토콜에 따라 CHANGELOG에 nx-car 마커로 명시",
+          "approach": "CHANGELOG.md 최상단에 v0.28.0 섹션 신규 작성. 구조: (a) 날짜·버전 헤더, (b) `<!-- nx-car:v0.28.0:start -->` 마커, (c) \"Consumer Action Required\" 섹션 7 항목 나열: 1. .mcp.json nx 서버 경로 변경 — bridge/mcp-server.cjs → nexus-mcp 바이너리. 업그레이드 시 기존 .mcp.json의 nx 엔트리가 bridge 파일을 참조하면 수동 교체 필요(또는 bun add -g @moreih29/nexus-core 전역 설치). 2. 상태 파일 경로 변경 — HARNESS_STATE_ROOT 단일 루트 → .nexus/state/{session_id}/ per-session 격리. 과거 stale 데이터는 삭제 권장. 3. nx_ast_*/nx_context 도구 제거 — 대체: tree-sitter structural search는 Grep + LSP find_references 조합, tasks 요약은 nx_task_list 또는 .nexus/state/*/tasks.json 직접 Read. 4. CLAUDE.md auto-sync 상실 — 이번 업그레이드에서 CLAUDE.md의 NEXUS:START 블록을 수동으로 최신 템플릿과 머지해야 함(1회성). 5. PreToolUse Edit/Write task pipeline 차단 소멸 — tasks.json은 advisory로 격하, [run] 스킬 본문에서 강제 경로 유지. 6. PostCompact 세션 스냅샷 상실 — 컴팩션 후 상태 복원은 사용자가 nx_plan_status/nx_task_list 수동 호출. 7. @ast-grep/napi 네이티브 의존성 제거 — 기존 설치 시 node_modules 정리(bun install --frozen-lockfile=false). (d) `<!-- nx-car:v0.28.0:end -->` 마커. 이어서 Changed·Removed·Added 섹션 표준 Keep-a-Changelog 스타일로 간결 기술.",
+          "acceptance": "CHANGELOG.md에 v0.28.0 섹션 존재. nx-car 마커 start/end 쌍 완비. Consumer Action Required 7 항목 모두 구체적 대체 경로와 함께 기술. Changed/Removed/Added 표준 섹션도 존재.",
+          "risk": "마커 문법은 프로젝트 관례(.nexus/rules/development.md 명시). 이름이 nx-car(nexus-consumer-action-required)로 정확한지 확인 — 과거 CHANGELOG의 다른 nx-car 마커 참조해서 문법 맞춤.",
+          "status": "completed",
+          "deps": [
+            10,
+            11,
+            12
+          ],
+          "plan_issue": 6,
+          "owner": "writer",
+          "created_at": "2026-04-20T01:23:10.931Z"
+        },
+        {
+          "id": 14,
+          "title": "CHANGELOG v0.28.0 정확성 검증",
+          "context": "Task #13 산출물 verification — 7 항목 사실 정확성 + 마커 문법 + 이전 CHANGELOG 항목과 일관성",
+          "approach": "1) 7 Consumer Action Required 항목이 실제 결정과 1:1 매칭되는지 이 plan의 6 이슈 결정과 대조. 2) nx-car 마커 문법이 과거 CHANGELOG 항목 형식과 일치하는지 기존 섹션 grep. 3) 대체 경로 안내가 구체적이고 사용자가 실행 가능한 명령 형태인지 확인. 4) Changed/Removed/Added 섹션이 Keep-a-Changelog 표준 준수.",
+          "acceptance": "7 항목 사실 오류 0건. nx-car 마커 문법 기존 관례 일치. 명령 복붙 가능. Keep-a-Changelog 구조 준수.",
+          "risk": "7 항목은 플래닝 결정의 요약본이라 이 plan 문서와 교차 검증 필요.",
+          "status": "completed",
+          "deps": [
+            13
+          ],
+          "plan_issue": 6,
+          "owner": "reviewer",
+          "created_at": "2026-04-20T01:23:19.923Z"
+        },
+        {
+          "id": 15,
+          "title": "v0.28.0 버전 bump + 5 커밋 분할 + 태그 + push",
+          "context": "Issue #6 집행 — 최종 릴리즈 단계. 5 논리적 커밋으로 git log 가독성 확보한 뒤 tag push로 OIDC publish 트리거",
+          "approach": "1) 버전 bump: package.json version을 0.28.0으로, .claude-plugin/plugin.json version도 0.28.0, .claude-plugin/marketplace.json의 해당 plugin 항목 version 0.28.0, VERSION 파일 내용을 \"0.28.0\"으로. 2) git 스테이지를 5 논리 커밋으로 분할(기존 작업분은 아직 commit 안 된 상태일 가능성 — 디렉터리/파일 단위 스테이지 필요): C1 \"chore: drop src/mcp/ + @ast-grep/napi\" (Task #1 범위), C2 \"chore: drop src/ + build pipeline + dev deps\" (Task #3 범위), C3 \"feat: nexus-core sync 기반 빌드 + dist/claude/settings.json 수용 + CLAUDE.md Lead 정리\" (Task #5·#6·#7·#8), C4 \"chore: statusline ESM 재작성\" (Task #9), C5 \"release: v0.28.0 + CHANGELOG Consumer Action Required\" (Task #10·#13·버전 bump). 3) git tag v0.28.0. 4) git push origin main && git push origin v0.28.0. 5) release.mjs가 이 흐름을 자동화하는지 먼저 확인 후 가능하면 수동 git 조작 대신 release.mjs 사용.",
+          "acceptance": "4개 파일(package.json·plugin.json·marketplace.json·VERSION) 모두 0.28.0. git log에 5 커밋이 위 순서로 존재. v0.28.0 태그 push됨. GitHub Actions publish 워크플로 트리거됨.",
+          "risk": "스테이지 분할을 잘못하면 중간 커밋이 broken 상태가 될 수 있음. 최소한 C3 직후까지는 정상 동작해야 함(C4 statusline 재작성은 기능 추가라 이전 상태에서 statusline만 잠시 미동작 허용 가능). release.mjs가 기존 esbuild 흐름 전제라면 수정 불가피 — 대폭 수정 필요 시 별도 작업으로 분리.",
+          "status": "completed",
+          "deps": [
+            13,
+            14
+          ],
+          "plan_issue": 6,
+          "owner": "engineer",
+          "created_at": "2026-04-20T01:23:37.648Z"
+        },
+        {
+          "id": 16,
+          "title": "publish workflow 통과 확인 — npm v0.28.0 배포 verification",
+          "context": "Task #15 tag push 후 GitHub Actions publish 워크플로가 OIDC Trusted Publishing으로 npm에 배포하는 전 과정 runtime verification",
+          "approach": "1) tag push 직후 GitHub Actions에서 publish 워크플로 트리거 확인. 2) 워크플로 단계별 통과 확인 — bun install, bun run sync, npm pack --dry-run, npm publish --provenance --access public. 3) npmjs.com에서 claude-nexus@0.28.0 존재 확인 + provenance attestation 뱃지 확인. 4) 배포 직후 `bunx claude-nexus@0.28.0 --help` 또는 Claude Code에서 새 버전 로드 테스트 — 기본 동작 smoke.",
+          "acceptance": "GitHub Actions publish 워크플로 green. npm에 0.28.0 게시됨. provenance attestation 첨부. 새 버전 설치 smoke 통과.",
+          "risk": "OIDC trusted publisher 설정이 npm 측에서 깨져 있으면 실패 — 수동 점검. 실패 시 Task #15·#10 재실행 필요.",
+          "status": "completed",
+          "deps": [
+            15
+          ],
+          "plan_issue": 6,
+          "owner": "tester",
+          "created_at": "2026-04-20T01:23:46.991Z"
+        }
+      ]
     }
   ]
 }
