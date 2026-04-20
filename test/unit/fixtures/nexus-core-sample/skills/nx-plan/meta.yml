@@ -1,5 +1,0 @@
-id: nx-plan
-name: nx-plan
-description: Sample plan skill for unit testing.
-triggers:
-  - plan
