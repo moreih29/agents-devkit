@@ -1,8 +1,0 @@
-{
-  "disabledMcpjsonServers": [
-    "nx"
-  ],
-  "enabledPlugins": {
-    "claude-nexus@nexus": true
-  }
-}
