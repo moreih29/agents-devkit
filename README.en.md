@@ -5,188 +5,91 @@
 
 > 🌏 [한국어](README.md)
 
-Agent orchestration plugin for Claude Code.
+Nexus agent orchestration plugin for Claude Code. Registers the canonical agents, skills, and MCP server from [nexus-core](https://github.com/moreih29/nexus-core) into the Claude harness.
 
-## Why
+## What's inside
 
-Specialized subagents handle development and research systematically — architect, engineer, tester, researcher, and more. One tag triggers automatic orchestration of complex tasks across the right agents without manual coordination.
+- **10 agents**: architect · designer · engineer · **lead** · postdoc · researcher · reviewer · strategist · tester · writer
+- **3 skills**: `nx-auto-plan` · `nx-plan` · `nx-run` — activated by `[plan]` · `[auto-plan]` · `[run]` tags
+- **`nexus-core` MCP server**: 13 state management tools for planning, tasks, history, and artifacts (`nx_plan_*` · `nx_task_*` · `nx_history_search` · `nx_artifact_write`)
+- **2 hooks**:
+  - `SessionStart` — ensures the `.nexus/` folder layout and whitelist `.gitignore`
+  - `UserPromptSubmit` — routes six tags (`[plan]` · `[auto-plan]` · `[run]` · `[m]` · `[m:gc]` · `[d]`)
+- Ships with `settings.json` that makes `lead` the main-thread agent when the plugin is active
 
-## Quick Start
+### Required setting
 
-**1. Install**
+Claude Code does not honor `env` from a plugin's `settings.json`, so subagent resume (via `SendMessage`) only works when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set in your own `~/.claude/settings.json` or project `.claude/settings.json`:
 
-```bash
-claude plugin marketplace add https://github.com/moreih29/claude-nexus.git
-claude plugin install claude-nexus@nexus
+```json
+{
+  "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" }
+}
 ```
 
-**2. Onboard your project**
+## Install
 
-Run `/claude-nexus:nx-init` — scans your project and auto-generates structured knowledge under `.nexus/`.
+From inside Claude Code, use the plugin marketplace.
 
-**3. Start using**
-
-- **Plan**: `[plan] How should we design the auth system?` — clarify intent and align before executing
-- **Run**: `[run] Implement login API` — subagents handle analysis through implementation
+```
+/plugin marketplace add moreih29/claude-nexus
+/plugin install claude-nexus@nexus
+```
 
 ## Usage
 
-Tag your message to route it to the right workflow:
+With the plugin enabled, each new Claude Code session runs the `lead` agent as the main thread. Prefix a request with a tag to activate a skill.
 
-| Tag | Action | Example |
-|-----|--------|---------|
-| `[plan]` | Pre-execution planning | `[plan] Discuss DB migration strategy` |
-| `[run]` | Execution (subagent composition) | `[run] Refactor payment module` |
-| `[d]` | Record a decision (within plan session) | `[d] Use PostgreSQL for primary storage` |
-| `[rule]` | Save a rule | `[rule] Always use bun instead of npm` |
-| `[m]` | Add a memo | `[m] Revisit this pattern later` |
-| `[m:gc]` | Garbage-collect memos | `[m:gc]` |
-| `[sync]` | Sync context/ | `[sync]` |
+| Tag | Effect |
+|---|---|
+| `[plan]` | `nx-plan` — multi-perspective structured planning |
+| `[auto-plan]` | `nx-auto-plan` — auto-decompose the request into a plan |
+| `[run]` | `nx-run` — execute the current plan's tasks |
+| `[m] <body>` | Store a lesson or reference under `.nexus/memory/` |
+| `[m:gc]` | Garbage-collect `.nexus/memory/` |
+| `[d] <decision>` | Record a decision on the active plan issue |
 
-Typical flow: `[plan]` to discuss and align → `[d]` to decide (within plan) → `[run]` to execute.
+## Optional: statusline
 
-## Agents
+The plugin ships a two-line statusline script. Line one shows `◆Nexus vX.Y.Z`, the model, the project, and the git branch with staged/unstaged counts. Line two shows context-window usage plus 5-hour and 7-day Claude usage gauges with the time until each resets. The usage gauges require a Claude Pro or Max OAuth session; `~/.claude/.usage_cache` is shared across local sessions so concurrent Claude Code windows never re-fetch.
 
-### How (4 agents)
+Claude Code does not let a plugin auto-configure the user's `statusLine`, so register the `claude-nexus-statusline` CLI (shipped with the same npm package) from your own `~/.claude/settings.json`.
 
-| Agent | Invocation | Role | Model |
-|-------|-----------|------|-------|
-| **Architect** | `claude-nexus:architect` | Technical design and architecture review | opus |
-| **Designer** | `claude-nexus:designer` | UI/UX design and interaction patterns | opus |
-| **Postdoc** | `claude-nexus:postdoc` | Research methodology and evidence synthesis | opus |
-| **Strategist** | `claude-nexus:strategist` | Business strategy and competitive positioning | opus |
+### bunx or npx (no install)
 
-### Do (3 agents)
-
-| Agent | Invocation | Role | Model |
-|-------|-----------|------|-------|
-| **Engineer** | `claude-nexus:engineer` | Code implementation and debugging | sonnet |
-| **Researcher** | `claude-nexus:researcher` | Web search, independent investigation | sonnet |
-| **Writer** | `claude-nexus:writer` | Technical writing and documentation | sonnet |
-
-### Check (2 agents)
-
-| Agent | Invocation | Role | Model |
-|-------|-----------|------|-------|
-| **Tester** | `claude-nexus:tester` | Verification, testing, and security review | sonnet |
-| **Reviewer** | `claude-nexus:reviewer` | Content verification and fact-checking | sonnet |
-
-## Skills
-
-| Skill | Trigger | Description |
-|-------|---------|-------------|
-| **nx-plan** | `[plan]` | Structured planning. Clarify requirements → record decisions (`[d]`) → recommend execution tag |
-| **nx-run** | `[run]` | Execution. User-directed agent composition for development, research, and more |
-| **nx-init** | `/claude-nexus:nx-init` | Full project onboarding: scan codebase, establish identity, generate core knowledge |
-| **nx-setup** | `/claude-nexus:nx-setup` | Interactive setup. Injects agent/skill/tag configuration into CLAUDE.md |
-| **nx-sync** | `/claude-nexus:nx-sync` | Context sync. Reflects source changes into .nexus/context/ docs |
-
-## Advanced
-
-<details>
-<summary>MCP Tools</summary>
-
-Claude-callable tools exposed by the Nexus MCP server.
-
-### Core (10 tools)
-
-| Tool | Purpose |
-|------|---------|
-| `nx_task_list/add/update/close` | Task management + history.json archiving |
-| `nx_history_search` | Search past plan/task cycles (topic/decision query, last N) |
-| `nx_artifact_write` | Save artifacts (branch-isolated) |
-| `nx_plan_start` | Start plan session (topic + issues + research summary) |
-| `nx_plan_status` | Query plan state |
-| `nx_plan_update` | Modify plan issues (add/remove/edit/reopen) |
-| `nx_plan_decide` | Record issue decision (plan.json) |
-
-### Code Intelligence (8 tools)
-
-| Tool | Purpose |
-|------|---------|
-| `nx_lsp_hover` | Symbol type information |
-| `nx_lsp_goto_definition` | Jump to definition |
-| `nx_lsp_find_references` | List all references |
-| `nx_lsp_diagnostics` | Compiler and linter errors |
-| `nx_lsp_rename` | Project-wide symbol rename |
-| `nx_lsp_code_actions` | Auto-fix and refactoring suggestions |
-| `nx_lsp_document_symbols` | Symbols in a file |
-| `nx_lsp_workspace_symbols` | Project-wide symbol search |
-
-LSP auto-detects the project language (e.g., `tsconfig.json` → TypeScript).
-
-</details>
-
-<details>
-<summary>Hook</summary>
-
-Nexus registers a single Gate module as a Claude Code hook.
-
-| Event | Role |
-|-------|------|
-| `SessionStart` | Initialize `.nexus/` structure, reset agent-tracker, init `tool-log.jsonl` |
-| `UserPromptSubmit` | Tag detection → mode activation + TASK_PIPELINE injection + additionalContext guidance |
-| `PreToolUse` | Edit/Write: blocks when incomplete tasks exist |
-| `PostToolUse` | On Edit/Write/NotebookEdit, append subagent file edits to `tool-log.jsonl` (only when agent_id present) |
-| `SubagentStart` | Auto-inject role-filtered core knowledge index (lazy-read). Upsert `resume_count`/`last_resumed_at` when agent_id recurs |
-| `SubagentStop` | Record agent completion + aggregate `tool-log.jsonl` → inject `files_touched` into agent-tracker entry |
-| `Stop` | Blocks exit with pending tasks. Forces nx_task_close when all completed |
-| `PostCompact` | Snapshot session state (mode, plan, agent status) |
-
-</details>
-
-<details>
-<summary>Project Knowledge</summary>
-
-Project knowledge and rules are stored under `.nexus/` and tracked by git.
-
-```
-.nexus/
-  memory/    — lessons learned, references
-  context/   — design principles, architecture philosophy
-  state/     — plan.json, tasks.json
-  rules/     — project custom rules
-  history.json
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bunx claude-nexus-statusline"
+  }
+}
 ```
 
-- `memory/`, `context/`, `rules/` — git-tracked.
-- `state/` — runtime state. git-ignored.
-- `history.json` — cycle archive. git-tracked.
+`npx -y claude-nexus-statusline` works the same way. The first call downloads the package to the local cache; subsequent calls run from that cache.
 
-</details>
+### Global install (fastest startup)
 
-<details>
-<summary>Runtime State</summary>
-
-Runtime state is stored under `.nexus/state/` and is excluded from git.
-
-```
-.nexus/state/
-├── tasks.json          ← Task list ([run] cycle)
-├── plan.json           ← Planning session ([plan] cycle)
-└── claude-nexus/       ← harness-local namespace
-    ├── agent-tracker.json  ← Subagent lifecycle tracking (resume_count, files_touched)
-    ├── tool-log.jsonl      ← Subagent Edit/Write/NotebookEdit call log (append-only)
-    └── artifacts/          ← Artifacts
+```bash
+bun add -g claude-nexus    # or npm i -g claude-nexus
 ```
 
-</details>
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "claude-nexus-statusline"
+  }
+}
+```
 
-<details>
-<summary>Subagent Resume (resume_tier)</summary>
+Update with a single `bun update -g claude-nexus` (or `npm update -g claude-nexus`).
 
-Completed subagents can be resumed within the same parent session via `SendMessage`. Each agent's `resume_tier` frontmatter classifies its policy.
+## Requirements
 
-| Tier | Policy | Agents |
-|------|--------|--------|
-| **persistent** | Default-resume within same issue, Lead opt-in across issues, forced fresh on counter-evidence/review | architect, designer, postdoc, strategist, researcher |
-| **bounded** | Conditional resume only when working on the same artifact (file); forced fresh on loop/feedback cycles | engineer, writer |
-| **ephemeral** | Always fresh spawn (preserves verification independence) | tester, reviewer |
+- Claude Code (latest)
+- Node.js 20 or later at runtime
 
-**Activation requirement**: environment variable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. When absent, automatically falls back to fresh spawn (no errors).
+## License
 
-**Rationale**: Agents are classified by their dominant work surface. Reasoning surface (exists only in agent context) → `persistent` (HOW + Researcher). Mixed with artifact surface (persisted to filesystem) → `bounded` (Engineer, Writer). Verification independence as quality metric → `ephemeral` (Tester, Reviewer). See `.nexus/memory/pattern-persistence-surface-theory.md` for details.
-
-**Tracking**: `PostToolUse` hook appends subagent file edits to `tool-log.jsonl` → `SubagentStop` aggregates them into `files_touched` on `agent-tracker.json` → Lead uses this for bounded-tier conditional resume decisions.
-
-</details>
+MIT
