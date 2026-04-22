@@ -35,7 +35,7 @@ done
 
 head -1 scripts/statusline.mjs | grep -q '^#!' && pass "statusline.mjs has shebang" || fail "statusline.mjs missing shebang"
 [ -x "scripts/statusline.mjs" ] && pass "statusline.mjs executable" || fail "statusline.mjs not executable"
-node -p "require('./package.json').bin['claude-nexus-statusline']" | grep -q "statusline.mjs" && pass "package.json exposes claude-nexus-statusline bin" || fail "bin missing in package.json"
+node -p "require('./package.json').bin['claude-nexus']" | grep -q "statusline.mjs" && pass "package.json exposes claude-nexus bin" || fail "bin missing in package.json"
 
 echo
 echo "[2/5] MCP server initialize"

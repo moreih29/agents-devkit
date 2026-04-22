@@ -61,12 +61,12 @@ Claude Code does not let a plugin auto-configure the user's `statusLine`, so reg
 {
   "statusLine": {
     "type": "command",
-    "command": "bunx claude-nexus-statusline"
+    "command": "bunx claude-nexus"
   }
 }
 ```
 
-`npx -y claude-nexus-statusline` works the same way. The first call downloads the package to the local cache; subsequent calls run from that cache.
+`npx -y claude-nexus` works the same way. The first call downloads the package to the local cache; subsequent calls run from that cache.
 
 ### Global install (fastest startup)
 
@@ -78,7 +78,7 @@ bun add -g claude-nexus    # or npm i -g claude-nexus
 {
   "statusLine": {
     "type": "command",
-    "command": "claude-nexus-statusline"
+    "command": "claude-nexus"
   }
 }
 ```

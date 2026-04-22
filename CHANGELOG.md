@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.30.1] - 2026-04-22
+
+### Fixed
+
+- `bin` 이름을 `claude-nexus-statusline` → **`claude-nexus`**로 변경. v0.30.0 README의 `bunx claude-nexus-statusline`은 bunx/npx가 해당 이름의 npm 패키지를 찾으려 시도해 404로 깨지는 문제. package 이름과 bin 이름을 일치시켜 `bunx claude-nexus` · `bun add -g claude-nexus && claude-nexus` 양쪽 모두 동일 명령으로 동작.
+
+### Consumer Action Required
+
+v0.30.0에서 이미 `statusLine`을 설정한 사용자는 `~/.claude/settings.json`의 `statusLine.command`를 `claude-nexus-statusline` → `claude-nexus`(또는 `bunx claude-nexus`)로 수정.
+
 ## [0.30.0] - 2026-04-22
 
 ### Reset

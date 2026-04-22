@@ -53,7 +53,7 @@ Claude Code 안에서 플러그인 마켓플레이스로 설치한다.
 
 플러그인은 2줄 statusline 스크립트를 함께 배포한다. 첫 줄은 `◆Nexus vX.Y.Z`·모델·프로젝트·git 브랜치(staged/unstaged), 둘째 줄은 컨텍스트 사용률과 5h/7d 사용 한도 게이지(리셋까지 남은 시간). Claude Pro·Max OAuth 세션에서만 5h/7d가 표시되며, 로컬의 여러 Claude 세션이 `~/.claude/.usage_cache`를 공유하므로 API 중복 호출 없이 경합이 방지된다.
 
-Claude Code는 플러그인이 사용자 `statusLine`을 자동 등록하는 걸 허용하지 않으므로, 별도 CLI로 배포된 `claude-nexus-statusline`을 본인의 `~/.claude/settings.json`에 등록한다.
+Claude Code는 플러그인이 사용자 `statusLine`을 자동 등록하는 걸 허용하지 않으므로, 별도 CLI로 배포된 `claude-nexus`를 본인의 `~/.claude/settings.json`에 등록한다.
 
 ### bunx 또는 npx (설치 불필요)
 
@@ -61,12 +61,12 @@ Claude Code는 플러그인이 사용자 `statusLine`을 자동 등록하는 걸
 {
   "statusLine": {
     "type": "command",
-    "command": "bunx claude-nexus-statusline"
+    "command": "bunx claude-nexus"
   }
 }
 ```
 
-`npx -y claude-nexus-statusline`도 동일하게 동작한다. 최초 호출 1회만 패키지를 로컬 캐시에 받고, 이후 호출은 캐시에서 즉시 실행된다.
+`npx -y claude-nexus`도 동일하게 동작한다. 최초 호출 1회만 패키지를 로컬 캐시에 받고, 이후 호출은 캐시에서 즉시 실행된다.
 
 ### 전역 설치 (가장 빠른 시작 시간)
 
@@ -78,7 +78,7 @@ bun add -g claude-nexus    # 또는 npm i -g claude-nexus
 {
   "statusLine": {
     "type": "command",
-    "command": "claude-nexus-statusline"
+    "command": "claude-nexus"
   }
 }
 ```
