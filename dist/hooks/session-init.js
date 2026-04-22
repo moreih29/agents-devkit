@@ -1,50 +1,46 @@
-// assets/hooks/session-init/handler.ts
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join, basename } from "node:path";
+// src/hooks/session-init.ts
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
-// src/shared/paths.ts
-function getParentPid() {
-  const testOverride = parseInt(process.env["NEXUS_TEST_PPID"] ?? "");
-  return testOverride || process.ppid;
-}
-var byPpidCache = new Map;
-
-// assets/hooks/session-init/handler.ts
-var handler = async (input) => {
-  if (input.hook_event_name !== "SessionStart")
-    return;
-  const safeSid = basename(input.session_id);
-  if (!safeSid || safeSid.startsWith(".") || safeSid.includes("/")) {
-    process.stderr.write(`[session-init] invalid session_id: ${input.session_id}
-`);
-    return;
+// src/hooks/_stdin.ts
+async function readStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk);
   }
-  const sessionDir = join(input.cwd, ".nexus/state", safeSid);
-  mkdirSync(sessionDir, { recursive: true });
-  writeFileSync(join(sessionDir, "agent-tracker.json"), "[]");
-  writeFileSync(join(sessionDir, "tool-log.jsonl"), "");
-  const ppid = getParentPid();
-  const byPpidDir = join(input.cwd, ".nexus/state/runtime/by-ppid");
-  mkdirSync(byPpidDir, { recursive: true });
-  writeFileSync(join(byPpidDir, `${ppid}.json`), JSON.stringify({ session_id: input.session_id, updated_at: new Date().toISOString(), cwd: input.cwd }));
-};
-var handler_default = handler;
-
-// ../../../../../tmp/nexus-hook-entry-session-init-1776690665653/session-init-entry.ts
-import { readFileSync } from "node:fs";
-async function main() {
-  let raw = "";
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  if (!raw)
+    return {};
   try {
-    raw = readFileSync(0, "utf-8");
-  } catch {}
-  const input = raw ? JSON.parse(raw) : {};
-  const result = await handler_default(input);
-  if (result != null && result !== undefined) {
-    process.stdout.write(JSON.stringify(result));
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {};
   }
 }
-main().then(() => process.exit(0), (err) => {
-  process.stderr.write(String(err?.stack ?? err) + `
-`);
-  process.exit(1);
+
+// src/hooks/session-init.ts
+var GITIGNORE = `# Nexus: whitelist tracked files, ignore everything else
+*
+!.gitignore
+!context/
+!context/**
+!memory/
+!memory/**
+!history.json
+`;
+async function main() {
+  const payload = await readStdin();
+  const cwd = typeof payload.cwd === "string" ? payload.cwd : process.cwd();
+  const root = join(cwd, ".nexus");
+  mkdirSync(join(root, "context"), { recursive: true });
+  mkdirSync(join(root, "memory"), { recursive: true });
+  const ignorePath = join(root, ".gitignore");
+  if (!existsSync(ignorePath)) {
+    writeFileSync(ignorePath, GITIGNORE, "utf8");
+  }
+}
+main().catch((err) => {
+  console.error(`[session-init] ${err instanceof Error ? err.message : String(err)}`);
+  process.exit(0);
 });
