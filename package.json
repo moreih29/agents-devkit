@@ -1,8 +1,8 @@
 {
   "name": "claude-nexus",
-  "version": "0.29.0",
+  "version": "0.30.0",
   "type": "module",
-  "description": "Agent orchestration plugin for Claude Code — optimized context injection per role",
+  "description": "Claude Code plugin for nexus-core agent orchestration",
   "author": "kih",
   "license": "MIT",
   "repository": {
@@ -16,27 +16,34 @@
   "engines": {
     "node": ">=20"
   },
+  "bin": {
+    "claude-nexus-statusline": "./scripts/statusline.mjs"
+  },
   "scripts": {
-    "build": "bun run sync",
-    "sync": "bunx @moreih29/nexus-core sync --harness=claude --target=./",
-    "sync:dry": "bunx @moreih29/nexus-core sync --harness=claude --target=./ --dry-run",
-    "validate": "bunx @moreih29/nexus-core validate",
-    "list": "bunx @moreih29/nexus-core list",
-    "test": "bash test/e2e.sh"
+    "build": "bun run sync && bun run build:bundle",
+    "sync": "bunx nexus-sync --harness=claude --target=./",
+    "build:bundle": "bun run build:mcp && bun run build:hooks && bun run build:statusline",
+    "build:mcp": "bun build src/mcp/server.ts --target=node --format=esm --outdir=dist/mcp",
+    "build:hooks": "bun build src/hooks/session-init.ts src/hooks/prompt-router.ts --target=node --format=esm --outdir=dist/hooks",
+    "build:statusline": "bun build src/statusline/statusline.ts --target=node --format=esm --outfile=scripts/statusline.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "bash test/e2e.sh",
+    "clean": "rm -rf dist agents skills scripts/statusline.mjs"
   },
   "files": [
     "agents",
     "skills",
     "hooks",
-    "dist/hooks",
+    "dist",
     "scripts",
     ".claude-plugin",
     ".mcp.json",
-    "settings.json",
-    "VERSION"
+    "settings.json"
   ],
   "devDependencies": {
-    "@moreih29/nexus-core": "^0.17.0"
-  },
-  "dependencies": {}
+    "@moreih29/nexus-core": "^0.18.2",
+    "@types/bun": "^1.3.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
 }
