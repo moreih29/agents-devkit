@@ -3,25 +3,43 @@ var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+function __accessProp(key) {
+  return this[key];
+}
+var __toESMCache_node;
+var __toESMCache_esm;
 var __toESM = (mod, isNodeMode, target) => {
+  var canCache = mod != null && typeof mod === "object";
+  if (canCache) {
+    var cache = isNodeMode ? __toESMCache_node ??= new WeakMap : __toESMCache_esm ??= new WeakMap;
+    var cached = cache.get(mod);
+    if (cached)
+      return cached;
+  }
   target = mod != null ? __create(__getProtoOf(mod)) : {};
   const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
   for (let key of __getOwnPropNames(mod))
     if (!__hasOwnProp.call(to, key))
       __defProp(to, key, {
-        get: () => mod[key],
+        get: __accessProp.bind(mod, key),
         enumerable: true
       });
+  if (canCache)
+    cache.set(mod, to);
   return to;
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
+var __returnValue = (v) => v;
+function __exportSetter(name, newValue) {
+  this[name] = __returnValue.bind(null, newValue);
+}
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, {
       get: all[name],
       enumerable: true,
       configurable: true,
-      set: (newValue) => all[name] = () => newValue
+      set: __exportSetter.bind(all, name)
     });
 };
 
@@ -20175,13 +20193,10 @@ var planUpdateTool = {
 var planDecideTool = {
   group: "plan",
   name: "nx_plan_decide",
-  description: "Record a decision for a plan issue",
+  description: "Record the final decision for a plan issue",
   inputSchema: {
     issue_id: numberType().describe("Issue ID to decide"),
-    decision: stringType().describe("Decision text"),
-    how_agents: arrayType(stringType()).optional().describe("Names of HOW agents that contributed analysis"),
-    how_summary: recordType(stringType(), stringType()).optional().describe("Summary of each agent's key input"),
-    how_agent_ids: recordType(stringType(), stringType()).optional().describe("Mapping from agent name to agent ID")
+    decision: stringType().describe("Decision text")
   }
 };
 var planResumeTool = {
@@ -20382,7 +20397,7 @@ var planToolBindings = [
   },
   {
     definition: planDecideTool,
-    handler: async ({ issue_id, decision, how_agents, how_summary, how_agent_ids }) => {
+    handler: async ({ issue_id, decision }) => {
       const pPath = planPath();
       let responsePayload = {};
       await updateJsonFileLocked(pPath, null, (raw) => {
@@ -20398,23 +20413,6 @@ var planToolBindings = [
         }
         issue2.status = "decided";
         issue2.decision = decision;
-        if (how_agents && how_agents.length > 0) {
-          const now = new Date().toISOString();
-          if (!issue2.analysis) {
-            issue2.analysis = [];
-          }
-          for (const agentName of how_agents) {
-            const entry = {
-              role: agentName,
-              summary: how_summary?.[agentName] ?? "",
-              recorded_at: now
-            };
-            if (how_agent_ids?.[agentName]) {
-              entry.agent_id = how_agent_ids[agentName];
-            }
-            issue2.analysis.push(entry);
-          }
-        }
         const allComplete = raw.issues.every((candidate) => candidate.status === "decided");
         const remaining = raw.issues.filter((candidate) => candidate.status !== "decided");
         responsePayload = {

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.31.0] - 2026-04-22
+
+### Changed
+
+- `@moreih29/nexus-core` **v0.18.2 → v0.19.0** 채택 (upstream PR #56, "fix(plan): make nx_plan_decide decision-only"). MCP 번들(`dist/mcp/server.js`)과 sync 산출물(`skills/nx-plan/SKILL.md`, `skills/nx-auto-plan/SKILL.md`) Step 5 가이드가 새 계약에 맞춰 갱신됨.
+
+### Breaking (upstream MCP contract passthrough)
+
+- `nx_plan_decide` input 스키마에서 `how_agents` / `how_summary` / `how_agent_ids` 3개 필드 제거. 최종 결정 텍스트·상태만 저장하며 `issue.analysis`는 변형하지 않음.
+- `issue.analysis`는 이제 **append-only** — HOW 기여 기록은 오직 `nx_plan_analysis_add(issue_id, role, agent_id?, summary)`를 통해 Step 4에서 쌓아야 함. Step 7 task 분해는 그 누적 기록을 참조.
+
+### Consumer Action Required
+
+- MCP 도구를 **직접** 호출해 `nx_plan_decide`에 `how_*` 필드를 넣고 있던 외부 소비자는 해당 필드를 제거해야 함. Lead 최종 synthesis는 `decision` 필드로만 전달.
+- HOW 분석은 계속 `nx_plan_analysis_add`로 기록 유지. 사후에 HOW를 추가 실행해야 하면 재spawn/resume 후 analysis 엔트리를 새로 append.
+- Nexus 스킬(`[plan]` / `[auto-plan]`)을 정상 경로로 사용하는 경우에는 사용자측 조치 없음 — 갱신된 SKILL 가이드가 자동으로 새 계약을 준수.
+
 ## [0.30.1] - 2026-04-22
 
 ### Fixed
