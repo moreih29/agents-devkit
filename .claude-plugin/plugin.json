@@ -1,17 +1,17 @@
 {
   "name": "claude-nexus",
-  "version": "0.29.0",
-  "description": "Agent orchestration plugin for Claude Code — optimized context injection per role",
+  "version": "0.30.0",
+  "description": "Claude Code plugin for nexus-core agent orchestration",
   "author": {
     "name": "kih"
   },
   "license": "MIT",
+  "homepage": "https://github.com/moreih29/claude-nexus",
+  "repository": "https://github.com/moreih29/claude-nexus",
   "keywords": [
     "claude-code",
     "plugin",
-    "agent-orchestration",
-    "context-injection"
-  ],
-  "skills": "./skills/",
-  "mcpServers": "./.mcp.json"
+    "nexus",
+    "agent-orchestration"
+  ]
 }
