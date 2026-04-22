@@ -1,15 +1,9 @@
-.omc/
-
-.claude/settings.local.json
-.claude/projects/
 node_modules/
-package-lock.json
-bun.lockb
-dist/*
-!dist/hooks/
-!dist/hooks/**
-*.tgz
-test/fixtures/rust/target/
-test/fixtures/rust/Cargo.lock
 .DS_Store
-.npmrc
+*.log
+
+# runtime state (nx MCP가 생성)
+.nexus/state/
+.nexus/runtime/
+
+# dist/는 commit — marketplace install 시 node_modules 없음

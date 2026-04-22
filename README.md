@@ -5,175 +5,91 @@
 
 > 🌏 [English](README.en.md)
 
-Claude Code를 위한 에이전트 오케스트레이션 플러그인.
+Claude Code용 Nexus 에이전트 오케스트레이션 플러그인. [nexus-core](https://github.com/moreih29/nexus-core)의 canonical 에이전트·스킬·MCP 서버를 Claude 하네스에 등록한다.
 
-## Why
+## 무엇이 들어 있나
 
-복잡한 개발/리서치 작업을 혼자 처리하는 대신, 전문화된 에이전트 팀이 역할을 나눠 체계적으로 수행합니다. 태그 하나로 상담, 개발, 리서치 워크플로우가 자동 오케스트레이션됩니다.
+- **에이전트 10종**: architect · designer · engineer · **lead** · postdoc · researcher · reviewer · strategist · tester · writer
+- **스킬 3종**: `nx-auto-plan` · `nx-plan` · `nx-run` — `[plan]`·`[auto-plan]`·`[run]` 태그로 활성화
+- **MCP 서버 `nexus-core`**: 플래닝·태스크·이력·아티팩트 상태 관리 도구 13종 (`nx_plan_*`·`nx_task_*`·`nx_history_search`·`nx_artifact_write`)
+- **훅 2종**:
+  - `SessionStart` — `.nexus/` 폴더 구조와 화이트리스트 `.gitignore` 보장
+  - `UserPromptSubmit` — 태그 6종 (`[plan]`·`[auto-plan]`·`[run]`·`[m]`·`[m:gc]`·`[d]`) 라우팅
+- 활성화 시 `lead` 에이전트가 메인 스레드가 되도록 `settings.json` 기본 포함
 
-## Quick Start
+### 필요 설정
 
-**설치**
+서브에이전트 resume(SendMessage) 기능을 쓰려면 Claude Code 세션에 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 환경 변수가 필요하다 (Claude Code가 플러그인 `settings.json`의 `env`는 적용하지 않으므로 사용자가 설정). `~/.claude/settings.json` 또는 프로젝트 `.claude/settings.json`에 추가:
+
+```json
+{
+  "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" }
+}
+```
+
+## 설치
+
+Claude Code 안에서 플러그인 마켓플레이스로 설치한다.
+
+```
+/plugin marketplace add moreih29/claude-nexus
+/plugin install claude-nexus@nexus
+```
+
+## 사용
+
+설치 후 새 Claude Code 세션을 열면 `lead` 에이전트가 메인 스레드로 실행된다. 요청 앞에 태그를 붙여 스킬을 활성화한다.
+
+| 태그 | 동작 |
+|---|---|
+| `[plan]` | `nx-plan` 스킬 — 다관점 분석과 결정 정렬 기반 실행 계획 |
+| `[auto-plan]` | `nx-auto-plan` 스킬 — 요청을 자동 분해해 계획 |
+| `[run]` | `nx-run` 스킬 — 현재 계획의 태스크 실행 |
+| `[m] <본문>` | `.nexus/memory/`에 교훈·참조 저장 |
+| `[m:gc]` | `.nexus/memory/` 정리 |
+| `[d] <결정>` | 활성 plan 세션 현재 안건에 대한 결정 기록 |
+
+## 선택: statusline
+
+플러그인은 2줄 statusline 스크립트를 함께 배포한다. 첫 줄은 `◆Nexus vX.Y.Z`·모델·프로젝트·git 브랜치(staged/unstaged), 둘째 줄은 컨텍스트 사용률과 5h/7d 사용 한도 게이지(리셋까지 남은 시간). Claude Pro·Max OAuth 세션에서만 5h/7d가 표시되며, 로컬의 여러 Claude 세션이 `~/.claude/.usage_cache`를 공유하므로 API 중복 호출 없이 경합이 방지된다.
+
+Claude Code는 플러그인이 사용자 `statusLine`을 자동 등록하는 걸 허용하지 않으므로, 별도 CLI로 배포된 `claude-nexus-statusline`을 본인의 `~/.claude/settings.json`에 등록한다.
+
+### bunx 또는 npx (설치 불필요)
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bunx claude-nexus-statusline"
+  }
+}
+```
+
+`npx -y claude-nexus-statusline`도 동일하게 동작한다. 최초 호출 1회만 패키지를 로컬 캐시에 받고, 이후 호출은 캐시에서 즉시 실행된다.
+
+### 전역 설치 (가장 빠른 시작 시간)
 
 ```bash
-claude plugin marketplace add https://github.com/moreih29/claude-nexus.git
-claude plugin install claude-nexus@nexus
+bun add -g claude-nexus    # 또는 npm i -g claude-nexus
 ```
 
-**온보딩**
-
-`/claude-nexus:nx-init`을 처음 실행하면 프로젝트를 스캔해 `.nexus/`에 지식을 자동 생성합니다.
-
-> **Important**: 하나의 워크스페이스에서 동시에 여러 Claude Code 세션을 실행하는 것은 지원되지 않습니다. 상태 파일 충돌이 발생할 수 있습니다.
-
-**첫 사용**
-
-- **플랜**: `[plan] 인증 시스템 어떻게 설계하면 좋을까?`
-- **결정 기록**: (plan 중) `응 그 방향으로 [d]`
-- **실행**: `[run] 로그인 API 구현`
-
-## 사용법
-
-| 태그 | 동작 | 예시 |
-|------|------|------|
-| `[plan]` | 플랜 모드 활성화 | `[plan] DB 마이그레이션 전략 논의` |
-| `[d]` | 결정 기록 (plan 세션 내) | `응 그 방향으로 [d]` |
-| `[run]` | 실행 (서브에이전트 구성) | `[run] 결제 모듈 리팩토링` |
-| `[rule]` | 규칙 저장 | `[rule] npm 대신 bun 사용` |
-| `[m]` | 메모 추가 | `[m] 이 패턴은 나중에 참고` |
-| `[m:gc]` | 메모 정리 | `[m:gc]` |
-| `[sync]` | context/ 동기화 | `[sync]` |
-
-## 에이전트
-
-| 카테고리 | 에이전트 | 역할 | 모델 |
-|----------|----------|------|------|
-| **How** | Architect | 기술 설계, 아키텍처 리뷰 | opus |
-| **How** | Designer | UI/UX 설계, 인터랙션 패턴 | opus |
-| **How** | Postdoc | 방법론 설계, 증거 평가 | opus |
-| **How** | Strategist | 콘텐츠 전략, 방향 설정 | opus |
-| **Do** | Engineer | 코드 구현, 디버깅 | sonnet |
-| **Do** | Researcher | 웹 검색, 독립 조사 | sonnet |
-| **Do** | Writer | 기술 문서, 프레젠테이션 | sonnet |
-| **Check** | Tester | 코드 검증, 테스트, 보안 | sonnet |
-| **Check** | Reviewer | 콘텐츠 검증, 출처 확인 | sonnet |
-
-## 스킬
-
-| 스킬 | 트리거 | 설명 |
-|------|--------|------|
-| **nx-plan** | `[plan]` | 구조화된 플랜. 요구사항 정리 → 결정 기록 |
-| **nx-run** | `[run]` | 동적 에이전트 구성 실행 |
-| **nx-init** | `/claude-nexus:nx-init` | 프로젝트 온보딩. 코드 스캔 → 지식 생성 |
-| **nx-setup** | `/claude-nexus:nx-setup` | 대화형 설정 |
-| **nx-sync** | `/claude-nexus:nx-sync` | context/ 동기화. 소스 변경사항을 .nexus/context/ 문서에 반영 |
-
-## 고급 기능
-
-<details>
-<summary>MCP 도구</summary>
-
-Claude가 직접 호출하는 도구입니다.
-
-### Core (10개)
-
-| 도구 | 용도 |
-|------|------|
-| `nx_task_list/add/update/close` | `.nexus/state/tasks.json` 기반 태스크 관리 + `.nexus/history.json` 아카이브 |
-| `nx_history_search` | 과거 plan/task 사이클 검색 (topic/decision 검색, 최근 N개) |
-| `nx_artifact_write` | 팀 산출물 저장 (`.nexus/state/artifacts/`) |
-| `nx_plan_start` | 플랜 세션 시작 (토픽 + 논점 + 리서치 요약 등록) |
-| `nx_plan_status` | 플랜 상태 조회 |
-| `nx_plan_update` | 플랜 논점 수정 (add/remove/edit/reopen) |
-| `nx_plan_decide` | 논점 결정 처리 (plan.json) |
-
-### Code Intelligence (8개)
-
-| 도구 | 용도 |
-|------|------|
-| `nx_lsp_hover` | 심볼 타입 정보 |
-| `nx_lsp_goto_definition` | 정의 위치 이동 |
-| `nx_lsp_find_references` | 참조 목록 |
-| `nx_lsp_diagnostics` | 컴파일러/린터 에러 |
-| `nx_lsp_rename` | 프로젝트 전체 심볼 리네임 |
-| `nx_lsp_code_actions` | 자동 수정/리팩토링 제안 |
-| `nx_lsp_document_symbols` | 파일 내 심볼 목록 |
-| `nx_lsp_workspace_symbols` | 프로젝트 전체 심볼 검색 |
-
-LSP는 프로젝트 언어를 자동 감지합니다 (tsconfig.json → TypeScript 등).
-
-</details>
-
-<details>
-<summary>Hook</summary>
-
-Gate 단일 모듈로 동작합니다.
-
-| 이벤트 | 역할 |
-|--------|------|
-| `SessionStart` | `.nexus/` 구조 초기화, agent-tracker 리셋, `tool-log.jsonl` 초기화 |
-| `UserPromptSubmit` | 태그 감지 → 모드 활성화 + TASK_PIPELINE 주입 + additionalContext 안내 |
-| `PreToolUse` | Edit/Write: tasks.json 미완료 시 차단 |
-| `PostToolUse` | Edit/Write/NotebookEdit 호출 시 서브에이전트의 파일 수정을 `tool-log.jsonl`에 append (agent_id 있을 때만) |
-| `SubagentStart` | 에이전트 역할별 코어 지식 인덱스 자동 주입 (lazy-read). 기존 agent_id 재발 시 `resume_count`/`last_resumed_at` upsert |
-| `SubagentStop` | 에이전트 완료 기록 + `tool-log.jsonl` 집계 → `files_touched` 주입 |
-| `Stop` | pending 태스크 있으면 종료 차단. all completed면 nx_task_close 강제 |
-| `PostCompact` | 세션 상태 스냅샷 (모드, 플랜, 에이전트 현황) |
-
-</details>
-
-<details>
-<summary>프로젝트 지식</summary>
-
-`.nexus/`에 프로젝트 지식과 런타임 상태를 저장합니다.
-
-```
-.nexus/
-  memory/    — 학습한 교훈, 참고 자료
-  context/   — 설계 원칙, 아키텍처 철학
-  state/     — plan.json, tasks.json
-  rules/     — 프로젝트 커스텀 규칙
-  history.json
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "claude-nexus-statusline"
+  }
+}
 ```
 
-- `memory/`, `context/`, `rules/` — git 추적.
-- `state/` — 런타임 상태. git 무시.
-- `history.json` — 사이클 아카이브. git 추적.
+업데이트는 `bun update -g claude-nexus`(또는 `npm update -g claude-nexus`) 한 번으로 끝난다.
 
-</details>
+## 요구 사항
 
-<details>
-<summary>런타임 상태</summary>
+- Claude Code (최신)
+- Node.js 20 이상 (훅·MCP 서버 실행)
 
-`.nexus/state/` 디렉토리에 런타임 상태가 저장됩니다. `.nexus/.gitignore`의 화이트리스트에 의해 자동 무시됩니다.
+## 라이선스
 
-```
-.nexus/state/
-├── tasks.json          ← 태스크 목록 ([run] 사이클)
-├── plan.json           ← 플랜 세션 ([plan] 사이클)
-└── claude-nexus/       ← harness-local 네임스페이스
-    ├── agent-tracker.json  ← 서브에이전트 라이프사이클 (resume_count, files_touched 포함)
-    ├── tool-log.jsonl      ← 서브에이전트 Edit/Write/NotebookEdit 호출 로그 (append-only)
-    └── artifacts/          ← 산출물
-```
-
-</details>
-
-<details>
-<summary>에이전트 Resume (resume_tier)</summary>
-
-같은 부모 세션 내에서 종료된 서브에이전트를 `SendMessage`로 재개할 수 있습니다. 에이전트별 `resume_tier` frontmatter로 정책을 분류합니다.
-
-| Tier | 정책 | 에이전트 |
-|------|------|---------|
-| **persistent** | 같은 이슈 내 default-resume, 이슈 간 Lead 명시적 opt-in, 반증/재검토는 강제 fresh | architect, designer, postdoc, strategist, researcher |
-| **bounded** | 같은 artifact(파일) 연속 작업 시 conditional-resume, loop/feedback 사이클은 강제 fresh | engineer, writer |
-| **ephemeral** | 항상 fresh spawn (검증 독립성 보장) | tester, reviewer |
-
-**활성화 요구사항**: 환경 변수 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. 미감지 시 자동 fresh spawn fallback (에러 없음).
-
-**이론 근거**: 에이전트의 본질적 작업 층위를 두 surface로 구분합니다. Reasoning surface(에이전트 컨텍스트에만 존재)가 지배적인 HOW/Researcher는 `persistent`, Artifact surface(파일 시스템에 persist)에 걸친 Engineer/Writer는 `bounded`, 검증 독립성이 품질 지표인 Tester/Reviewer는 `ephemeral`. 자세한 내용은 `.nexus/memory/pattern-persistence-surface-theory.md`.
-
-**연계 추적**: `PostToolUse` 훅이 서브에이전트의 파일 수정을 `tool-log.jsonl`에 append → `SubagentStop`이 집계하여 `agent-tracker.json`의 `files_touched`에 주입 → Lead가 bounded tier 조건부 resume 판단에 활용.
-
-</details>
+MIT

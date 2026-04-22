@@ -1,150 +1,85 @@
-#!/bin/bash
-# claude-nexus smoke test — nexus-core 래퍼 정체성 기반 (v0.28.0+)
-# 검증 범위: sync 산출물 존재, .mcp.json 경로 유효, statusline.mjs 실행 가능, plugin manifest 유효
+#!/usr/bin/env bash
+# E2E smoke test for the claude-nexus plugin.
+# Asserts the built plugin exposes the expected shape and components work in isolation.
+set -euo pipefail
 
-set -e
-cd "$(dirname "$0")/.."
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
 
-PASS=0
-FAIL=0
+fail=0
+pass() { echo "  ok — $1"; }
+fail() { echo "  FAIL — $1" >&2; fail=1; }
 
-green() { echo -e "\033[32m✔ $1\033[0m"; PASS=$((PASS + 1)); }
-red() { echo -e "\033[31m✘ $1\033[0m"; FAIL=$((FAIL + 1)); }
-
-echo "=== Managed 산출물 존재 ==="
-
-# agents: 10개 (lead 포함)
-for agent in architect designer engineer lead postdoc researcher reviewer strategist tester writer; do
-  f="agents/$agent.md"
-  if [ -f "$f" ] && head -1 "$f" | grep -q '^---$'; then
-    green "agents/$agent.md"
-  else
-    red "agents/$agent.md 부재 또는 frontmatter 누락"
-  fi
+echo "[1/5] plugin shape"
+for f in \
+  .claude-plugin/plugin.json \
+  .claude-plugin/marketplace.json \
+  .mcp.json \
+  hooks/hooks.json \
+  settings.json \
+  dist/mcp/server.js \
+  dist/hooks/session-init.js \
+  dist/hooks/prompt-router.js ; do
+  [ -f "$f" ] && pass "$f" || fail "$f missing"
 done
 
-# skills: 4개 upstream + 1 consumer-owned(nx-setup)
-for skill in nx-init nx-plan nx-run nx-setup nx-sync; do
-  f="skills/$skill/SKILL.md"
-  if [ -f "$f" ] && head -1 "$f" | grep -q '^---$'; then
-    green "skills/$skill/SKILL.md"
-  else
-    red "skills/$skill/SKILL.md 부재 또는 frontmatter 누락"
-  fi
+for dir_name in architect designer engineer lead postdoc researcher reviewer strategist tester writer ; do
+  [ -f "agents/${dir_name}.md" ] && pass "agents/${dir_name}.md" || fail "agents/${dir_name}.md missing"
 done
 
-# hooks.json + dist/hooks 컴파일 결과
-[ -f hooks/hooks.json ] && green "hooks/hooks.json" || red "hooks/hooks.json 부재"
-for handler in session-init agent-bootstrap agent-finalize prompt-router; do
-  f="dist/hooks/$handler.js"
-  [ -f "$f" ] && green "dist/hooks/$handler.js" || red "dist/hooks/$handler.js 부재"
+for skill in nx-auto-plan nx-plan nx-run ; do
+  [ -f "skills/${skill}/SKILL.md" ] && pass "skills/${skill}/SKILL.md" || fail "skills/${skill}/SKILL.md missing"
 done
 
-# settings.json (primary agent fragment)
-if [ -f settings.json ] && grep -q '"agent"' settings.json; then
-  green "settings.json primary agent 필드 존재"
+[ -f "scripts/statusline.mjs" ] && pass "scripts/statusline.mjs" || fail "scripts/statusline.mjs missing"
+
+head -1 scripts/statusline.mjs | grep -q '^#!' && pass "statusline.mjs has shebang" || fail "statusline.mjs missing shebang"
+[ -x "scripts/statusline.mjs" ] && pass "statusline.mjs executable" || fail "statusline.mjs not executable"
+node -p "require('./package.json').bin['claude-nexus-statusline']" | grep -q "statusline.mjs" && pass "package.json exposes claude-nexus-statusline bin" || fail "bin missing in package.json"
+
+echo
+echo "[2/5] MCP server initialize"
+mcp_stdin=$(printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"e2e","version":"0"}}}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}')
+
+mcp_out=$(
+  { echo "$mcp_stdin"; sleep 1; } | node dist/mcp/server.js 2>/dev/null || true
+)
+
+echo "$mcp_out" | grep -q '"nx_plan_start"' && pass "MCP exposes nx_plan_start" || fail "MCP did not expose nx_plan_start"
+echo "$mcp_out" | grep -q '"nx_task_add"' && pass "MCP exposes nx_task_add" || fail "MCP did not expose nx_task_add"
+
+echo
+echo "[3/5] session-init hook"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+echo "{\"hook_event_name\":\"SessionStart\",\"cwd\":\"$tmp\"}" | node dist/hooks/session-init.js
+[ -d "$tmp/.nexus/context" ] && pass ".nexus/context created" || fail ".nexus/context not created"
+[ -d "$tmp/.nexus/memory" ] && pass ".nexus/memory created" || fail ".nexus/memory not created"
+[ -f "$tmp/.nexus/.gitignore" ] && pass ".nexus/.gitignore created" || fail ".nexus/.gitignore not created"
+
+echo
+echo "[4/5] prompt-router hook"
+out=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] decompose the auth refactor"}' | node dist/hooks/prompt-router.js)
+echo "$out" | grep -q 'nx-plan skill' && pass "[plan] → nx-plan directive" || fail "[plan] routing broken: $out"
+
+out=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[auto-plan] quick task"}' | node dist/hooks/prompt-router.js)
+echo "$out" | grep -q 'nx-auto-plan' && pass "[auto-plan] → nx-auto-plan directive" || fail "[auto-plan] routing broken: $out"
+
+out=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"no tag at all"}' | node dist/hooks/prompt-router.js)
+[ -z "$out" ] && pass "no tag → silent" || fail "non-tag prompt emitted output: $out"
+
+echo
+echo "[5/5] statusline"
+out=$(echo '{"cwd":"'"$ROOT"'","display_name":"Opus 4.7","context_window":{"used_percentage":37}}' | CLAUDE_PLUGIN_ROOT="$ROOT" node scripts/statusline.mjs)
+echo "$out" | grep -q '◆Nexus' && pass "statusline emits ◆Nexus tag" || fail "statusline missing ◆Nexus: $out"
+echo "$out" | grep -q 'ctx' && pass "statusline includes ctx" || fail "statusline missing ctx: $out"
+
+echo
+if [ "$fail" -eq 0 ]; then
+  echo "e2e: all checks passed"
 else
-  red "settings.json 부재 또는 agent 필드 누락"
+  echo "e2e: FAILED" >&2
+  exit 1
 fi
-
-# claude-only statusline
-[ -f scripts/statusline.mjs ] && green "scripts/statusline.mjs" || red "scripts/statusline.mjs 부재"
-
-echo ""
-echo "=== Hook invocation side-effect ==="
-# nexus-core #39/#46 regression class 차단 — 번들이 존재만 하는 게 아니라 handler가 실제 호출되는지 검증
-
-HOOK_TMP=$(mktemp -d -t nexus-hook-e2e.XXXXXX)
-trap 'rm -rf "$HOOK_TMP"' EXIT
-
-# session-init: .nexus/state/<sid>/agent-tracker.json 생성 side-effect
-SI_DIR="$HOOK_TMP/si"
-mkdir -p "$SI_DIR"
-SI_OUT=$(echo '{"hook_event_name":"SessionStart","session_id":"e2e-si","cwd":"'$SI_DIR'"}' \
-  | node dist/hooks/session-init.js 2>&1; echo "exit=$?")
-if echo "$SI_OUT" | grep -q '^exit=0$' && [ -f "$SI_DIR/.nexus/state/e2e-si/agent-tracker.json" ]; then
-  green "session-init.js → .nexus/state/<sid>/ 생성"
-else
-  red "session-init.js handler no-op (output: $SI_OUT)"
-fi
-
-# prompt-router: [run] 태그 → stdout에 <system-notice> 포함
-PR_DIR="$HOOK_TMP/pr"
-mkdir -p "$PR_DIR"
-PR_OUT=$(echo '{"hook_event_name":"UserPromptSubmit","session_id":"e2e-pr","cwd":"'$PR_DIR'","prompt":"[run] smoke"}' \
-  | node dist/hooks/prompt-router.js 2>/dev/null || true)
-if echo "$PR_OUT" | grep -q '<system-notice>'; then
-  green "prompt-router.js → [run] tag dispatch (<system-notice> emit)"
-else
-  red "prompt-router.js tag dispatch 실패 (output: $PR_OUT)"
-fi
-
-# agent-bootstrap + agent-finalize: handler invocation만 검증 (exit 0)
-AB_DIR="$HOOK_TMP/ab"
-mkdir -p "$AB_DIR/.nexus/state/e2e-ab"
-if echo '{"hook_event_name":"SubagentStart","session_id":"e2e-ab","cwd":"'$AB_DIR'","subagent_type":"engineer","transcript_path":"/dev/null"}' \
-    | node dist/hooks/agent-bootstrap.js >/dev/null 2>&1; then
-  green "agent-bootstrap.js handler invoke exit 0"
-else
-  red "agent-bootstrap.js handler invoke 실패"
-fi
-
-AF_DIR="$HOOK_TMP/af"
-mkdir -p "$AF_DIR/.nexus/state/e2e-af"
-echo '[]' > "$AF_DIR/.nexus/state/e2e-af/agent-tracker.json"
-if echo '{"hook_event_name":"SubagentStop","session_id":"e2e-af","cwd":"'$AF_DIR'","subagent_type":"engineer","transcript_path":"/dev/null","stop_hook_active":false}' \
-    | node dist/hooks/agent-finalize.js >/dev/null 2>&1; then
-  green "agent-finalize.js handler invoke exit 0"
-else
-  red "agent-finalize.js handler invoke 실패"
-fi
-
-echo ""
-echo "=== .mcp.json 경로 유효성 ==="
-
-MCP_PATH=$(node -e "const c=require('./.mcp.json'); const p=c.mcpServers.nx.args[0]; console.log(p.replace('\${CLAUDE_PLUGIN_ROOT}', '.'))")
-if [ -f "$MCP_PATH" ]; then
-  green ".mcp.json args 경로 실존: $MCP_PATH"
-else
-  red ".mcp.json args 경로 부재: $MCP_PATH"
-fi
-
-echo ""
-echo "=== statusline.mjs 실행 ==="
-
-statusline_out=$(echo '{"session_id":"test","cwd":"'$(pwd)'"}' | node scripts/statusline.mjs 2>&1 || true)
-if [ -n "$statusline_out" ]; then
-  green "statusline.mjs 1행 출력: $statusline_out"
-else
-  red "statusline.mjs 출력 없음"
-fi
-
-echo ""
-echo "=== Plugin manifest 유효성 ==="
-
-# plugin.json JSON 유효 + version 필드 존재
-if node -e "const p=require('./.claude-plugin/plugin.json'); if(!p.name||!p.version)process.exit(1)"; then
-  green ".claude-plugin/plugin.json 유효 (name+version)"
-else
-  red ".claude-plugin/plugin.json 무효"
-fi
-
-# marketplace.json JSON 유효 + plugins 배열
-if node -e "const m=require('./.claude-plugin/marketplace.json'); if(!Array.isArray(m.plugins))process.exit(1)"; then
-  green ".claude-plugin/marketplace.json 유효 (plugins 배열)"
-else
-  red ".claude-plugin/marketplace.json 무효"
-fi
-
-echo ""
-echo "=== nexus-core validate ==="
-
-if bun run validate 2>&1 | grep -q "no errors"; then
-  green "nexus-core validate 통과"
-else
-  red "nexus-core validate 실패"
-fi
-
-echo ""
-echo "=== 결과: $PASS passed, $FAIL failed ==="
-[ $FAIL -eq 0 ] && echo "All smoke tests passed!" || exit 1
