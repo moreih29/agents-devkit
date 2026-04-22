@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.31.2] - 2026-04-22
+
+### Changed
+
+- `@moreih29/nexus-core` **v0.19.0 → v0.19.1** 채택 (upstream PR #61, "fix(plan): require spawn agent id for resume records"). claude-nexus 이슈 #58 upstream 반영분. Lead가 종료된 서브에이전트를 resume할 때 `SendMessage({ to: <name> })`는 동작하지 않고 spawn 도구가 반환한 agent id(UUID) 필수라는 실측을 canonical 가이드가 명확히 반영. 영향받은 sync 산출물: `agents/lead.md`, `skills/nx-plan/SKILL.md`, `skills/nx-auto-plan/SKILL.md`. upstream PR #60(opencode skill frontmatter)·PR #62(codex nx launcher)는 다른 하네스 대상이라 본 플러그인에 영향 없음.
+
 ## [0.31.1] - 2026-04-22
 
 ### Fixed
