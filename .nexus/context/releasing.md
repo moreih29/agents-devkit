@@ -105,6 +105,7 @@ PR이 main으로 병합된 뒤:
 - [ ] `git tag vX.Y.Z && git push origin vX.Y.Z`
 - [ ] `Publish` 워크플로 초록불 대기
 - [ ] `gh release create vX.Y.Z --notes "$(awk '/^## \[X.Y.Z\]/{f=1;next} /^## \[/{f=0} f' CHANGELOG.md)"`
+- [ ] 병합된 브랜치 삭제 — 로컬 `git branch -d <branch>`와 원격 `git push origin --delete <branch>` (또는 `gh pr merge --delete-branch`로 병합 시 한 번에 처리)
 
 ---
 
