@@ -1,6 +1,6 @@
 {
   "name": "claude-nexus",
-  "version": "0.31.0",
+  "version": "0.31.1",
   "type": "module",
   "description": "Claude Code plugin for nexus-core agent orchestration",
   "author": "kih",
@@ -37,7 +37,6 @@
     "dist",
     "scripts",
     ".claude-plugin",
-    ".mcp.json",
     "settings.json"
   ],
   "devDependencies": {

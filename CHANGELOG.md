@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.31.1] - 2026-04-22
+
+### Fixed
+
+- 플러그인 MCP 서버가 같은 이름(`nexus-core`)으로 **이중 등록**되어 `/mcp`에서 "Failed to reconnect to nexus-core"가 반복되던 문제. 원인은 플러그인 루트의 `.mcp.json`이 (1) 플러그인 manifest로 로드되는 경로와 (2) cwd가 플러그인 레포일 때 project-scoped MCP로도 로드되는 경로에서 동시에 읽혔기 때문. project-scoped 경로는 `${CLAUDE_PLUGIN_ROOT}` 변수를 치환하지 않아 `MODULE_NOT_FOUND`로 실패하며 재시도를 누적시킴. MCP 선언을 `.claude-plugin/plugin.json`의 인라인 `mcpServers` 필드로 이전하고 루트 `.mcp.json`을 제거해 이중 로드 경로 자체를 제거.
+
 ## [0.31.0] - 2026-04-22
 
 ### Changed

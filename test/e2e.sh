@@ -14,7 +14,6 @@ echo "[1/5] plugin shape"
 for f in \
   .claude-plugin/plugin.json \
   .claude-plugin/marketplace.json \
-  .mcp.json \
   hooks/hooks.json \
   settings.json \
   dist/mcp/server.js \
@@ -22,6 +21,10 @@ for f in \
   dist/hooks/prompt-router.js ; do
   [ -f "$f" ] && pass "$f" || fail "$f missing"
 done
+
+node -e "const p=require('./.claude-plugin/plugin.json');if(!p.mcpServers||!p.mcpServers['nexus-core'])process.exit(1)" \
+  && pass ".claude-plugin/plugin.json declares mcpServers.nexus-core" \
+  || fail ".claude-plugin/plugin.json missing mcpServers.nexus-core"
 
 for dir_name in architect designer engineer lead postdoc researcher reviewer strategist tester writer ; do
   [ -f "agents/${dir_name}.md" ] && pass "agents/${dir_name}.md" || fail "agents/${dir_name}.md missing"
