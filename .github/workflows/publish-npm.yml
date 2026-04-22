@@ -23,10 +23,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Upgrade npm (trusted publishing requires >=11.5.1)
-        run: npm install -g npm@latest
 
       - name: Install
         run: bun install --frozen-lockfile
@@ -43,5 +39,5 @@ jobs:
           echo "package=$pkg plugin=$plugin marketplace=$market tag=$tag"
           [ "$pkg" = "$plugin" ] && [ "$plugin" = "$market" ] && [ "$market" = "$tag" ] || { echo "version mismatch"; exit 1; }
 
-      - name: Publish
-        run: npm publish --access public
+      - name: Publish (OIDC Trusted Publishing via npm >= 11.5.1)
+        run: npx -y npm@latest publish --access public
