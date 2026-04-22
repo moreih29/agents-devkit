@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.31.3] - 2026-04-22
+
+### Changed
+
+- `@moreih29/nexus-core` **v0.19.1 → v0.19.2** 채택 (upstream PR #65, "fix(plan): make resume macro explicit in planning skills"). `nx-plan` / `nx-auto-plan` Step 4.2에서 resume 분기가 자연어 "continue with the existing session"에서 하네스 구체 매크로 `SendMessage({ to: "<id>", message: "<resume prompt>" })`로 교체. Lead가 resume 경로를 고를 때 실제 호출 형태를 문서가 직접 보여주므로 `name` 혼동의 두 번째 경로도 차단됨. 영향받은 sync 산출물: `skills/nx-plan/SKILL.md`, `skills/nx-auto-plan/SKILL.md`.
+
 ## [0.31.2] - 2026-04-22
 
 ### Changed
