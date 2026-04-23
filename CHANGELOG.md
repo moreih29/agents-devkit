@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.32.0] - 2026-04-23
+
+### Changed
+
+- `@moreih29/nexus-core` **v0.19.2 → v0.20.0** 채택. Lead spec과 nx-plan / nx-auto-plan / nx-run 스킬의 대규모 리팩터링 흡수. 핵심: (1) **Lead** — `[Pre-check]` opening scaffold 신규(의사결정·설계·반박 요청 시 응답이 점검 블록으로 시작, 복잡 요청은 축별 아이템 분해), Evidence requirement 신규(Lead 단독 추론 금지 — `researcher`/`explore`/`tester`/`.nexus` 출처 중 하나 필수), context·memory 능동 제안 정책 강화, 실행 흐름·사이클 보고·skill/MCP 카탈로그 섹션 제거(하네스·skill 본문과 중복). (2) **nx-plan** — Absolute Rules 3개(Lead 단독 결정 금지, 비교표 출력 후 강제 stop, 사용자 응답 보수적 해석). (3) **nx-auto-plan** — Absolute Rules 3개(자율 결정, 결정 유도 출력 금지, 안건 사이 멈춤 금지). (4) **nx-run** — 보고 형식 5항목 확장(변경사항·주요결정·다음단계·미해결질문·리스크). 영향받은 sync 산출물: `agents/lead.md`, `skills/nx-plan/SKILL.md`, `skills/nx-auto-plan/SKILL.md`, `skills/nx-run/SKILL.md`.
+
+### Notes
+
+- 사용자가 인지할 동작 변경: Lead의 substantive 응답이 `[Pre-check]` 블록으로 시작하는 것이 기본. 이전 버전과 응답 형식이 다르게 느껴질 수 있으나 정상 동작.
+- nx-plan은 결정 시점에 반드시 멈춤(사용자 응답 없이 진행 안 함). nx-auto-plan은 안건 결정 사이에서 절대 멈추지 않음.
+- Trigger 태그(`[plan]`, `[auto-plan]`, `[run]`)와 MCP 도구 인터페이스는 동일. 사용자 조치 불필요.
+
 ## [0.31.3] - 2026-04-22
 
 ### Changed
