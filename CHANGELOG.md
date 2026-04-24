@@ -11,6 +11,7 @@
 - 사용자 조치 불필요. 플러그인 업데이트만 받으면 다음 신규 세션부터 자동 적용.
 - 기존 0.32.0 사용자는 업데이트 전까지 메인 스레드에 Lead 명세가 주입되지 않는 상태.
 - `bun run sync` 재실행 시 `settings.json`이 덮어써지지 않음을 실측 확인(`wrote 0/13 files`, settings.json 무변동). nexus-sync의 스코프는 `agents/{id}.md`와 `skills/{id}/SKILL.md`에 한정.
+- `test/e2e.sh`에 회귀 방지 가드 2개 추가. (1) `settings.json`의 `agent` 값이 `<plugin-name>:<id>` 네임스페이스 형식을 따르는지, (2) 참조하는 agent 파일이 실재하는지 검증. 플러그인 이름 변경·agent 파일 부재 같은 silent fail을 CI에서 조기 차단.
 
 ## [0.32.0] - 2026-04-23
 
