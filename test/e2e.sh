@@ -26,6 +26,28 @@ node -e "const p=require('./.claude-plugin/plugin.json');if(!p.mcpServers||!p.mc
   && pass ".claude-plugin/plugin.json declares mcpServers.nexus-core" \
   || fail ".claude-plugin/plugin.json missing mcpServers.nexus-core"
 
+# settings.json agent must use <plugin-name>:<agent-id> namespace form
+# and point at an agent file that actually exists. Bare names are silently
+# ignored by Claude Code's plugin subagent resolver.
+agent_ref=$(node -p "require('./settings.json').agent || ''")
+plugin_name=$(node -p "require('./.claude-plugin/plugin.json').name")
+expected_prefix="${plugin_name}:"
+case "$agent_ref" in
+  "${expected_prefix}"*)
+    pass "settings.json agent uses ${expected_prefix}<id> namespace"
+    agent_id="${agent_ref#${expected_prefix}}"
+    [ -f "agents/${agent_id}.md" ] \
+      && pass "settings.json agent → agents/${agent_id}.md exists" \
+      || fail "settings.json agent → agents/${agent_id}.md missing"
+    ;;
+  "")
+    fail "settings.json has no agent field"
+    ;;
+  *)
+    fail "settings.json agent '$agent_ref' not namespaced with '${expected_prefix}' (bare names silently ignored)"
+    ;;
+esac
+
 for dir_name in architect designer engineer lead postdoc researcher reviewer strategist tester writer ; do
   [ -f "agents/${dir_name}.md" ] && pass "agents/${dir_name}.md" || fail "agents/${dir_name}.md missing"
 done

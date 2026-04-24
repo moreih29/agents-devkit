@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.32.1] - 2026-04-24
+
+### Fixed
+
+- 플러그인 루트 `settings.json`의 `agent` 값을 `"lead"` → `"claude-nexus:lead"`로 교정. Claude Code의 플러그인 서브에이전트 참조 규칙이 `<plugin-name>:<agent-name>` 네임스페이스 형식을 요구하므로, bare name은 조용히 무시되어 메인 스레드가 Lead 시스템 프롬프트·도구 제약·모델 설정을 적용받지 못하고 있었음. 네임스페이스 형식으로 교정되면서 플러그인 활성화 시 사용자 대면 메인 스레드가 **Lead 서브에이전트로 시작**되어 `agents/lead.md`의 전체 명세(Role, Default Stance, `[Pre-check]` opening scaffold, Evidence Requirement 등)가 주입됨. nexus-core 쪽 변경 없음 — canonical spec은 harness-agnostic이고, 네임스페이스 prefix는 이 플러그인(claude-nexus)의 `.claude-plugin/plugin.json` name 필드에 귀속되므로 소비자 플러그인 레벨에서 해결하는 것이 구조적으로 맞음.
+
+### Notes
+
+- 사용자 조치 불필요. 플러그인 업데이트만 받으면 다음 신규 세션부터 자동 적용.
+- 기존 0.32.0 사용자는 업데이트 전까지 메인 스레드에 Lead 명세가 주입되지 않는 상태.
+- `bun run sync` 재실행 시 `settings.json`이 덮어써지지 않음을 실측 확인(`wrote 0/13 files`, settings.json 무변동). nexus-sync의 스코프는 `agents/{id}.md`와 `skills/{id}/SKILL.md`에 한정.
+- `test/e2e.sh`에 회귀 방지 가드 2개 추가. (1) `settings.json`의 `agent` 값이 `<plugin-name>:<id>` 네임스페이스 형식을 따르는지, (2) 참조하는 agent 파일이 실재하는지 검증. 플러그인 이름 변경·agent 파일 부재 같은 silent fail을 CI에서 조기 차단.
+
 ## [0.32.0] - 2026-04-23
 
 ### Changed
