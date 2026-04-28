@@ -7,3 +7,8 @@ node_modules/
 .nexus/runtime/
 
 # dist/는 commit — marketplace install 시 node_modules 없음
+
+# codex-nexus 플러그인 산출물 — 추적 안 함
+.codex/
+.agents/
+plugins/
