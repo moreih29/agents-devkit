@@ -51,7 +51,12 @@ With the plugin enabled, each new Claude Code session runs the `lead` agent as t
 
 ## Optional: statusline
 
-The plugin ships a two-line statusline script. Line one shows `◆Nexus vX.Y.Z`, the model, the project, and the git branch with staged/unstaged counts. Line two shows context-window usage plus 5-hour and 7-day Claude usage gauges with the time until each resets. The usage gauges require a Claude Pro or Max OAuth session; `~/.claude/.usage_cache` is shared across local sessions so concurrent Claude Code windows never re-fetch.
+The plugin ships a two-line statusline script. Line one shows `◆Nexus vX.Y.Z`, the model, the project, and the git branch with staged/unstaged counts. Line two shows context-window usage plus mode-specific information:
+
+- **OAuth session (Claude Pro / Max)** — 5-hour and 7-day Claude usage gauges with the time until each resets. `$CLAUDE_CONFIG_DIR/.usage_cache` (defaults to `~/.claude/.usage_cache`) is shared across local sessions so concurrent Claude Code windows never re-fetch.
+- **API mode (`ANTHROPIC_API_KEY` set)** — `API $X.XX today` showing the cost incurred today (UTC midnight boundary). Claude Code's local jsonl session logs are scanned directly to sum tokens per model and convert to USD using Anthropic's published pricing — no admin key setup required.
+
+When you use `CLAUDE_CONFIG_DIR` to separate multiple OAuth accounts, the statusline's cache path, keychain query, and cost scan all branch automatically using the same algorithm as Claude Code itself.
 
 Claude Code does not let a plugin auto-configure the user's `statusLine`, so register the `claude-nexus-statusline` CLI (shipped with the same npm package) from your own `~/.claude/settings.json`.
 

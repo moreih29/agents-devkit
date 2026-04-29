@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 // src/statusline/statusline.ts
-import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { execSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
+import { createHash } from "node:crypto";
 var stdinRaw = "";
 try {
   stdinRaw = readFileSync(0, "utf-8");
@@ -29,7 +30,16 @@ function findProjectRoot(start) {
 }
 var PROJECT_ROOT = findProjectRoot(getVal("cwd") || process.cwd());
 var HOME = homedir();
+var CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || join(HOME, ".claude");
 var PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || "";
+var KEYCHAIN_SERVICE = (() => {
+  const envDir = process.env.CLAUDE_CONFIG_DIR;
+  if (!envDir)
+    return "Claude Code-credentials";
+  const normalized = envDir.normalize("NFC");
+  const suffix = createHash("sha256").update(normalized).digest("hex").slice(0, 8);
+  return `Claude Code-credentials-${suffix}`;
+})();
 function getPluginVersion() {
   if (PLUGIN_ROOT) {
     try {
@@ -72,7 +82,7 @@ function makeBar(pct, width) {
 function meter(label, pct, width) {
   return `${DIM}${label}${RESET} ${pctColor(pct)}${makeBar(pct, width)} ${Math.round(pct)}%${RESET}`;
 }
-var VERSION_CACHE_PATH = join(HOME, ".claude", ".nexus_version_cache");
+var VERSION_CACHE_PATH = join(CLAUDE_CONFIG_DIR, ".nexus_version_cache");
 var VERSION_CACHE_TTL = 86400;
 function updateAvailable(current) {
   if (!current)
@@ -142,7 +152,7 @@ function buildLine1() {
   const nexusTag = `\x1B[38;5;141m◆Nexus${versionStr}${RESET}${updateTag}`;
   return `${nexusTag} ${SEP} ${modelColor}${BOLD}${model}${RESET} ${SEP} \x1B[36m${project}${RESET} ${SEP} ${gitPart}`;
 }
-var USAGE_CACHE_PATH = join(HOME, ".claude", ".usage_cache");
+var USAGE_CACHE_PATH = join(CLAUDE_CONFIG_DIR, ".usage_cache");
 var CACHE_TTL_DEFAULT = 60;
 var FETCH_BACKOFF = 300;
 var STALE_THRESHOLD = 300;
@@ -166,9 +176,9 @@ ${cachedData}`);
   try {
     let tokenCmd = "";
     if (process.platform === "darwin") {
-      tokenCmd = `TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null | grep -o '"accessToken":"[^"]*"' | sed 's/"accessToken":"//;s/"//')`;
+      tokenCmd = `TOKEN=$(security find-generic-password -s "${KEYCHAIN_SERVICE}" -w 2>/dev/null | grep -o '"accessToken":"[^"]*"' | sed 's/"accessToken":"//;s/"//')`;
     } else {
-      const credFile = join(HOME, ".claude", ".credentials.json");
+      const credFile = join(CLAUDE_CONFIG_DIR, ".credentials.json");
       tokenCmd = `TOKEN=$(grep -o '"accessToken":"[^"]*"' "${credFile}" 2>/dev/null | sed 's/"accessToken":"//;s/"//')`;
     }
     const script = `
@@ -218,12 +228,12 @@ function readUsage() {
   try {
     let credJson = "";
     if (process.platform === "darwin") {
-      credJson = execSync('security find-generic-password -s "Claude Code-credentials" -w', {
+      credJson = execSync(`security find-generic-password -s "${KEYCHAIN_SERVICE}" -w`, {
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"]
       }).trim();
     } else {
-      const credFile = join(HOME, ".claude", ".credentials.json");
+      const credFile = join(CLAUDE_CONFIG_DIR, ".credentials.json");
       if (existsSync(credFile))
         credJson = readFileSync(credFile, "utf-8");
     }
@@ -274,27 +284,177 @@ function resetRemain(parsed, section) {
 function isApiMode() {
   return !!process.env.ANTHROPIC_API_KEY;
 }
-function fetchApiCost(adminKey) {
+var COST_CACHE_PATH = join(CLAUDE_CONFIG_DIR, ".api_cost_cache");
+var COST_CACHE_TTL = 60;
+var COST_STALE_THRESHOLD = 300;
+function priceFor(model) {
+  const m = model.toLowerCase();
+  const TABLE = [
+    [/opus-4-[5-9]/, 5, 25],
+    [/opus-(?:4-[01]|4)(?:[-_]|$)/, 15, 75],
+    [/opus-3/, 15, 75],
+    [/sonnet-4(?:-\d+)?(?:[-_]|$)|4-sonnet/, 3, 15],
+    [/sonnet-3-7|3-7-sonnet/, 3, 15],
+    [/sonnet-3-5|3-5-sonnet/, 3, 15],
+    [/haiku-4-5/, 1, 5],
+    [/haiku-3-5|3-5-haiku/, 0.8, 4],
+    [/haiku-3/, 0.25, 1.25]
+  ];
+  for (const [re, inp, out] of TABLE) {
+    if (re.test(m)) {
+      const inputPerToken = inp / 1e6;
+      return {
+        input: inputPerToken,
+        output: out / 1e6,
+        cache5m: inputPerToken * 1.25,
+        cache1h: inputPerToken * 2,
+        cacheRead: inputPerToken * 0.1
+      };
+    }
+  }
+  return null;
+}
+function turnCostUsd(model, usage) {
+  const rates = priceFor(model);
+  if (!rates)
+    return 0;
+  const inp = usage.input_tokens ?? 0;
+  const out = usage.output_tokens ?? 0;
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const c5m = usage.cache_creation?.ephemeral_5m_input_tokens;
+  const c1h = usage.cache_creation?.ephemeral_1h_input_tokens;
+  let cacheWriteCost = 0;
+  if (c5m !== undefined || c1h !== undefined) {
+    cacheWriteCost = (c5m ?? 0) * rates.cache5m + (c1h ?? 0) * rates.cache1h;
+  } else {
+    cacheWriteCost = (usage.cache_creation_input_tokens ?? 0) * rates.cache5m;
+  }
+  return inp * rates.input + out * rates.output + cacheRead * rates.cacheRead + cacheWriteCost;
+}
+function scanLocalCostUsd() {
+  const projectsRoot = join(CLAUDE_CONFIG_DIR, "projects");
+  if (!existsSync(projectsRoot))
+    return null;
+  const todayStart = new Date;
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayStartMs = todayStart.getTime();
+  let total = 0;
+  let projectDirs;
   try {
-    const today = new Date().toISOString().slice(0, 10);
-    const resp = execSync(`curl -s --max-time 3 "https://api.anthropic.com/v1/organizations/cost_report?start_date=${today}&end_date=${today}" -H "x-api-key: ${adminKey}" -H "anthropic-version: 2023-06-01"`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-    const m = resp.match(/"total_cost"\s*:\s*([0-9.]+)/);
-    return m ? parseFloat(m[1]) : null;
+    projectDirs = readdirSync(projectsRoot);
   } catch {
     return null;
   }
+  for (const proj of projectDirs) {
+    const projPath = join(projectsRoot, proj);
+    let entries;
+    try {
+      entries = readdirSync(projPath);
+    } catch {
+      continue;
+    }
+    for (const file of entries) {
+      if (!file.endsWith(".jsonl"))
+        continue;
+      const fp = join(projPath, file);
+      try {
+        const st = statSync(fp);
+        if (st.mtimeMs < todayStartMs)
+          continue;
+      } catch {
+        continue;
+      }
+      let raw;
+      try {
+        raw = readFileSync(fp, "utf-8");
+      } catch {
+        continue;
+      }
+      const lines = raw.split(`
+`);
+      for (const line of lines) {
+        if (!line || !line.includes('"assistant"'))
+          continue;
+        let entry;
+        try {
+          entry = JSON.parse(line);
+        } catch {
+          continue;
+        }
+        if (entry.type !== "assistant")
+          continue;
+        const ts = entry.timestamp ? Date.parse(entry.timestamp) : NaN;
+        if (!Number.isFinite(ts) || ts < todayStartMs)
+          continue;
+        const model = entry.message?.model;
+        const usage = entry.message?.usage;
+        if (!model || !usage)
+          continue;
+        total += turnCostUsd(model, usage);
+      }
+    }
+  }
+  return total;
+}
+function writeCostCacheAtomic(content) {
+  try {
+    writeFileSync(COST_CACHE_PATH + ".tmp", content);
+    renameSync(COST_CACHE_PATH + ".tmp", COST_CACHE_PATH);
+  } catch {
+    try {
+      unlinkSync(COST_CACHE_PATH + ".tmp");
+    } catch {}
+  }
+}
+function readApiCost() {
+  const now = Math.floor(Date.now() / 1000);
+  let dataTimestamp = 0;
+  let nextRescanAfter = 0;
+  let cachedValue = "";
+  if (existsSync(COST_CACHE_PATH)) {
+    try {
+      const lines = readFileSync(COST_CACHE_PATH, "utf-8").split(`
+`);
+      dataTimestamp = parseInt(lines[0]) || 0;
+      nextRescanAfter = parseInt(lines[1]) || 0;
+      cachedValue = (lines[2] || "").trim();
+    } catch {}
+  }
+  const age = dataTimestamp > 0 ? now - dataTimestamp : 0;
+  const parseCached = () => {
+    if (!cachedValue)
+      return null;
+    const n = parseFloat(cachedValue);
+    return Number.isFinite(n) ? n : null;
+  };
+  if (cachedValue && now < nextRescanAfter) {
+    return { cost: parseCached(), stale: age >= COST_STALE_THRESHOLD, ageSeconds: age };
+  }
+  const cost = scanLocalCostUsd();
+  if (cost === null) {
+    return { cost: null, stale: false, ageSeconds: 0 };
+  }
+  writeCostCacheAtomic(`${now}
+${now + COST_CACHE_TTL}
+${cost}`);
+  return { cost, stale: false, ageSeconds: 0 };
 }
 function buildLine2() {
   const BAR_WIDTH = 6;
   const ctxPct = Math.round(getNum("used_percentage"));
   const ctx = meter("ctx", ctxPct, BAR_WIDTH);
   if (isApiMode()) {
-    const adminKey = process.env.ANTHROPIC_ADMIN_KEY;
-    if (adminKey) {
-      const cost = fetchApiCost(adminKey);
-      if (cost !== null) {
-        return `${ctx} ${SEP} ${DIM}API${RESET} ${pctColor(0)}$${cost.toFixed(2)} today${RESET}`;
+    const { cost, stale, ageSeconds } = readApiCost();
+    if (cost !== null) {
+      let stalePart2 = "";
+      if (stale) {
+        const ageMin = Math.floor(ageSeconds / 60);
+        const hh = Math.floor(ageMin / 60);
+        const mm = ageMin % 60;
+        const ageStr = hh > 0 ? `${hh}h${mm}m` : `${mm}m`;
+        stalePart2 = ` ${SEP} \x1B[33m${ageStr} ago\x1B[0m`;
       }
+      return `${ctx} ${SEP} ${DIM}API${RESET} ${pctColor(0)}$${cost.toFixed(2)} today${RESET}${stalePart2}`;
     }
     return `${ctx} ${SEP} ${DIM}API mode${RESET}`;
   }

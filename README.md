@@ -51,7 +51,12 @@ Claude Code 안에서 플러그인 마켓플레이스로 설치한다.
 
 ## 선택: statusline
 
-플러그인은 2줄 statusline 스크립트를 함께 배포한다. 첫 줄은 `◆Nexus vX.Y.Z`·모델·프로젝트·git 브랜치(staged/unstaged), 둘째 줄은 컨텍스트 사용률과 5h/7d 사용 한도 게이지(리셋까지 남은 시간). Claude Pro·Max OAuth 세션에서만 5h/7d가 표시되며, 로컬의 여러 Claude 세션이 `~/.claude/.usage_cache`를 공유하므로 API 중복 호출 없이 경합이 방지된다.
+플러그인은 2줄 statusline 스크립트를 함께 배포한다. 첫 줄은 `◆Nexus vX.Y.Z`·모델·프로젝트·git 브랜치(staged/unstaged), 둘째 줄은 컨텍스트 사용률과 모드별 사용량 정보:
+
+- **OAuth 세션 (Claude Pro·Max)** — 5h/7d 사용 한도 게이지(리셋까지 남은 시간). 로컬의 여러 Claude 세션이 `$CLAUDE_CONFIG_DIR/.usage_cache`(미설정 시 `~/.claude/.usage_cache`)를 공유하므로 API 중복 호출 없이 경합이 방지된다.
+- **API 모드 (`ANTHROPIC_API_KEY` 설정)** — `API $X.XX today` 형식으로 오늘(UTC 자정 기준) 발생한 비용을 표시. Claude Code가 기록하는 로컬 jsonl 세션 로그를 직접 스캔해 모델별 토큰을 합산하고 Anthropic 공식 가격표 기반으로 USD 환산하므로, 별도 admin key 셋업이 불필요하다.
+
+`CLAUDE_CONFIG_DIR` 환경변수로 다중 OAuth 계정을 분리해 쓰는 경우, statusline의 캐시·키체인 조회·비용 스캔이 모두 본체와 동일한 알고리즘으로 자동 분기된다.
 
 Claude Code는 플러그인이 사용자 `statusLine`을 자동 등록하는 걸 허용하지 않으므로, 별도 CLI로 배포된 `claude-nexus`를 본인의 `~/.claude/settings.json`에 등록한다.
 

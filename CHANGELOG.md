@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.33.0] - 2026-04-29
+
+### Added
+
+- **Statusline에서 `CLAUDE_CONFIG_DIR` 환경변수 분리 동작 지원.** Claude Code 본체가 `CLAUDE_CONFIG_DIR`을 통해 다중 OAuth 계정을 분리 저장하는 알고리즘과 동일하게 statusline도 동작. 미설정 시 기본 `~/.claude`, 설정 시 ① 캐시 경로(`.usage_cache`, `.nexus_version_cache`, `.api_cost_cache`)를 해당 디렉토리로 이동, ② macOS keychain service 이름을 `Claude Code-credentials-<sha256(NFC(envValue))[:8]>` 형태로 본체와 일치시켜 본체가 저장한 토큰을 정확히 조회, ③ Linux/Windows의 `${CLAUDE_CONFIG_DIR}/.credentials.json` 평문 파일 경로도 자동 분기. 두 OAuth 계정을 번갈아 띄워도 5h/7d 사용량과 캐시가 섞이지 않는다.
+
+- **API 모드(`ANTHROPIC_API_KEY` 설정) 사용자에게 오늘 비용 자동 표시.** 이전엔 `ANTHROPIC_ADMIN_KEY`를 별도 셋업한 소수만 활용 가능했고 그마저도 cost_report API의 query/response 변경으로 작동하지 않던 상태였음. 새 구현은 admin key 의존을 제거하고 로컬 jsonl 세션 로그(`${CLAUDE_CONFIG_DIR}/projects/<encoded-cwd>/<session>.jsonl`)를 직접 스캔해 오늘(UTC 자정 기준) 발생한 모든 assistant turn의 토큰을 모델별로 합산, Anthropic 공식 가격표 기반으로 USD 환산. statusline 라인 2에 `API $X.XX today` 형식으로 표시. 60s TTL 캐시 + mtime 필터로 매 렌더 비용은 < 100ms.
+
+### Changed
+
+- API 비용 표시 경로가 `cost_report` admin endpoint → 로컬 jsonl 스캔으로 전면 전환. `ANTHROPIC_ADMIN_KEY` 환경변수는 더 이상 사용되지 않는다(설정돼 있어도 무시됨, 에러 아님). 가격표는 `priceFor()` 함수 내부에 하드코딩되며 Opus 4 / 4.5+ / Sonnet 4.x / Haiku 4.5 / 구버전 deprecated 모델까지 패턴 매칭으로 18개 표준 모델 이름을 지원. cache_creation의 ephemeral 5m / 1h 분리 데이터를 우선 활용하고 없으면 안전한 5m 단가로 폴백.
+
+### Fixed
+
+- macOS keychain에서 Claude Code 본체가 저장한 토큰을 statusline이 못 찾던 문제. 이전엔 service 이름을 `"Claude Code-credentials"`로 하드코딩해서, `CLAUDE_CONFIG_DIR`로 띄운 세션의 OAuth 토큰 분리 저장(`-<hash>` suffix 형식)을 인식하지 못하고 항상 기본 계정 토큰만 읽었음. 본체와 동일 알고리즘으로 service 이름을 동적 생성해 정상화.
+
+### Notes
+
+- 사용자 조치 불필요. 플러그인 업데이트 후 다음 statusline 렌더부터 자동 적용.
+- 가격표는 maintenance burden — Anthropic이 새 모델을 출시하면 패치 릴리즈가 필요하다. 알 수 없는 모델은 합산에서 silent skip되어 비용이 약간 under-report되지만 over-report되진 않는 설계. 출처: <https://platform.claude.com/docs/en/about-claude/pricing> (2026-04 검증).
+- jsonl 포맷 의존: `~/.claude/projects/<encoded>/<session>.jsonl`은 Claude Code 내부 포맷이고 공식 stable API가 아니다. 본체가 포맷을 변경하면 statusline 비용 표시가 0이 되거나 누락될 수 있음. 다만 이 경로/포맷은 1년 이상 안정적이고 `ccusage` 등 광범위한 OSS 생태계가 의존하는 사실상 표준이라 위험은 낮다.
+- 미반영 가격 변형: web search ($10/1k searches), code execution session-runtime, fast mode 6×, data residency 1.1×, batch 50% 할인 — Claude Code 일반 사용 패턴에선 발생하지 않는 케이스라 의도적으로 단순화.
+- Windows에서 statusline 자체는 여전히 셸(`sh`/`curl`/`grep`/`sed`) 의존성이 남아 있어 WSL/Git Bash 없이는 동작하지 않는다(이번 릴리스 범위 밖).
+
 ## [0.32.1] - 2026-04-24
 
 ### Fixed
