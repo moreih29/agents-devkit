@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.33.1] - 2026-04-30
+
+### Changed
+
+- `@moreih29/nexus-core` **v0.20.0 → v0.20.1** 채택 (upstream PR #69, "chore(spec): tighten HOW collaboration in plan/auto-plan skills"). nx-plan / nx-auto-plan에서 Lead 단독 추론으로 권고안·결정을 만드는 경로를 spec 차원에서 차단. (1) **nx-auto-plan** — Core Rule이 3개 → 4개로 확장되며 **HOW/researcher/explore 협업이 Rule #1로 승격**(안건 도메인에 맞는 HOW 스폰이 default, 생략하려면 분석 텍스트에 사유 명시). 기존 "never stop"은 사용자 확인 대기 vs HOW 결과 대기로 분리되어 "HOW 결과를 기다리는 것은 멈춤이 아니다"가 명문화됨. (2) **nx-plan** — Supplementary Rule 1개 추가: `MUST gather multi-angle evidence before presenting a recommendation`. Identity·Core Rule은 불변. 영향받은 sync 산출물: `skills/nx-plan/SKILL.md`, `skills/nx-auto-plan/SKILL.md`. agents/* 및 nx-run skill, MCP 인터페이스 변경 없음.
+
+### Notes
+
+- 사용자 조치 불필요. Trigger 태그(`[plan]`, `[auto-plan]`)·MCP 도구·hook·statusline 모두 동일하며 플러그인 업데이트 시 새 spec이 자동 적용된다.
+- 사용자가 인지 가능한 동작 변화: `[auto-plan]` 호출 시 안건마다 HOW 서브에이전트 스폰이 default가 되어 분석 깊이가 일관되게 강화된다 — 이전엔 Lead 단독 숙의로 빠르게 결정되던 안건도 도메인이 명확하면 HOW를 거친다. 사소한 안건이거나 `.nexus/memory`/`context`/`history`에 동일 분석이 있으면 Lead 단독 결정도 허용되며, 이때 사유가 분석 텍스트에 명시된다.
+
 ## [0.33.0] - 2026-04-29
 
 ### Added
