@@ -48,7 +48,7 @@ case "$agent_ref" in
     ;;
 esac
 
-for dir_name in architect designer engineer lead postdoc researcher reviewer strategist tester writer ; do
+for dir_name in architect designer engineer lead postdoc researcher reviewer tester writer ; do
   [ -f "agents/${dir_name}.md" ] && pass "agents/${dir_name}.md" || fail "agents/${dir_name}.md missing"
 done
 

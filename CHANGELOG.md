@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.34.0] - 2026-05-08
+
+### Changed
+
+- `@moreih29/nexus-core` **v0.20.1 → v0.21.0** 채택. 에이전트 명세 슬림화·Lead 재구조화·nx-run End-of-Cycle Review 신설·MCP 인터페이스 정비의 4개 축 변경을 흡수. 상세:
+  - **(1) HOW/DO/CHECK 에이전트 8종 본문 4-axis evaluation thinking 슬림화.** architect / designer / engineer / postdoc / researcher / reviewer / tester / writer 각 HOW 섹션의 thinking 가이드를 4-axis evaluation 구조로 단일화. 각 에이전트의 분석 깊이는 유지되며 어휘·평가 축만 표준화됨. 영향받은 sync 산출물: `agents/{architect,designer,engineer,postdoc,researcher,reviewer,tester,writer}.md`.
+  - **(2) Lead 본문 재구조화 — Behavior Principles 5개 신설.** ① Do not assert without evidence, ② Do not unconditionally accept, ③ Do not relay as-is, ④ Work scope direct, ⑤ Estimate in turns. Knowledge Layer는 `mission.md` + `conventions.md` 2-file 구조로 축소되어 Lead가 참조하는 컨텍스트 경계가 명확해짐. 영향받은 sync 산출물: `agents/lead.md`.
+  - **(3) nx-run Step 4 End-of-Cycle Review 신설.** `[run]` cycle 종료 시 Lead가 원 요청 정합성·교차 task 일관성·암시된 후속 영역을 review하고 추가 task 등록 또는 close를 결정. iteration cap은 2회. 영향받은 sync 산출물: `skills/nx-run/SKILL.md`.
+  - **(4) MCP 도구 인터페이스 정비.** `nx_history_search` 응답이 cell-level hits로 변경되었고 `scope` / `mode` / `group_by_cycle` 입력 필드가 추가됨. `nx_artifact_list` 도구가 신규 추가되어 저장된 아티팩트 목록 조회가 가능해짐. `nx_task_update`의 편집 가능 필드가 `status` / `acceptance` / `approach` / `risk` / `owner` / `result`로 제한됨(`title` / `context` / `deps`는 immutable). `TaskItem`에 `result { outcome, summary, artifacts, recorded_at }` 필드가 추가됨. `nx_task_close`에 incomplete guard와 `force` 옵션이 추가됨. id 계열 입력에 `z.coerce.number()`가 적용되어 문자열 id 전달 시에도 타입 오류 없이 처리됨.
+
+### Removed
+
+- **strategist 에이전트 제거.** upstream 명세 변경에 따라 `agents/strategist.md`가 삭제됨. upstream 결정 근거: "전략 결정은 사용자 영역이며 에이전트가 대리하지 않는다."
+
+  ⚠️ **Consumer action required** — 기존 `[run]` cycle에서 strategist를 명시적으로 스폰하거나 Lead에게 strategist 위임을 요청했던 워크플로는 아래 3-방향으로 마이그레이션이 필요하다:
+
+  1. **비즈니스/시장/포지셔닝 결정** → Lead에게 escalate하되, Lead는 Behavior Principle ②("Do not unconditionally accept — 사용자 의도·배경·제약을 먼저 확인")에 따라 결정을 사용자 영역으로 되돌린다. 전략 판단은 사용자가 직접 내리고 Lead는 그 결정을 실행 task로 분해한다.
+  2. **기술 트레이드오프 분석** → **architect**에게 위임. architect는 설계 대안 비교·트레이드오프 평가·제약 도출을 담당한다.
+  3. **연구·근거 평가** → **postdoc**에게 위임. postdoc는 문헌·선행 사례·근거의 비판적 검토를 담당한다.
+
+### Notes
+
+- 그 외 사용자 조치 불필요. Trigger 태그(`[plan]`, `[auto-plan]`, `[run]`)·MCP 서버 엔드포인트·hook·statusline은 모두 동일하며 플러그인 업데이트 시 새 spec이 자동 적용된다.
+- 사용자가 인지할 동작 변화:
+  - **(a) `[run]` cycle 종료 직전 Lead End-of-Cycle Review 추가.** cycle이 끝날 때 Lead가 원 요청 정합성과 교차 task 일관성을 점검하고, 암시된 후속 영역이 있으면 task를 추가 등록하거나 cycle을 close한다. iteration은 최대 2회로 제한됨.
+  - **(b) Lead 응답 톤·평가 어휘 일관성 강화.** Lead 본문이 Behavior Principles 5개 구조로 재구조화되면서 근거 없는 단언·무조건적 수용·릴레이 응답이 명시적으로 억제되고, 평가 어휘가 4-axis 기준으로 표준화된다.
+  - **(c) `nx_artifact_list`로 저장된 아티팩트 목록 조회 가능.** 이전에는 아티팩트 존재 여부를 `nx_history_search`로 간접 확인해야 했으나, 신규 `nx_artifact_list` 도구로 직접 조회할 수 있다.
+
 ## [0.33.1] - 2026-04-30
 
 ### Changed

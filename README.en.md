@@ -9,9 +9,9 @@ Nexus agent orchestration plugin for Claude Code. Registers the canonical agents
 
 ## What's inside
 
-- **10 agents**: architect · designer · engineer · **lead** · postdoc · researcher · reviewer · strategist · tester · writer
+- **9 agents**: architect · designer · engineer · **lead** · postdoc · researcher · reviewer · tester · writer
 - **3 skills**: `nx-auto-plan` · `nx-plan` · `nx-run` — activated by `[plan]` · `[auto-plan]` · `[run]` tags
-- **`nexus-core` MCP server**: 13 state management tools for planning, tasks, history, and artifacts (`nx_plan_*` · `nx_task_*` · `nx_history_search` · `nx_artifact_write`)
+- **`nexus-core` MCP server**: 14 state management tools for planning, tasks, history, and artifacts (`nx_plan_*` · `nx_task_*` · `nx_history_search` · `nx_artifact_*`)
 - **2 hooks**:
   - `SessionStart` — ensures the `.nexus/` folder layout and whitelist `.gitignore`
   - `UserPromptSubmit` — routes six tags (`[plan]` · `[auto-plan]` · `[run]` · `[m]` · `[m:gc]` · `[d]`)

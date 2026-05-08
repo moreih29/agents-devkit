@@ -9,9 +9,9 @@ Claude Code용 Nexus 에이전트 오케스트레이션 플러그인. [nexus-cor
 
 ## 무엇이 들어 있나
 
-- **에이전트 10종**: architect · designer · engineer · **lead** · postdoc · researcher · reviewer · strategist · tester · writer
+- **에이전트 9종**: architect · designer · engineer · **lead** · postdoc · researcher · reviewer · tester · writer
 - **스킬 3종**: `nx-auto-plan` · `nx-plan` · `nx-run` — `[plan]`·`[auto-plan]`·`[run]` 태그로 활성화
-- **MCP 서버 `nexus-core`**: 플래닝·태스크·이력·아티팩트 상태 관리 도구 13종 (`nx_plan_*`·`nx_task_*`·`nx_history_search`·`nx_artifact_write`)
+- **MCP 서버 `nexus-core`**: 플래닝·태스크·이력·아티팩트 상태 관리 도구 14종 (`nx_plan_*`·`nx_task_*`·`nx_history_search`·`nx_artifact_*`)
 - **훅 2종**:
   - `SessionStart` — `.nexus/` 폴더 구조와 화이트리스트 `.gitignore` 보장
   - `UserPromptSubmit` — 태그 6종 (`[plan]`·`[auto-plan]`·`[run]`·`[m]`·`[m:gc]`·`[d]`) 라우팅

@@ -108,6 +108,214 @@
           "created_at": "2026-04-23T06:03:20.239Z"
         }
       ]
+    },
+    {
+      "schema_version": "1.0",
+      "completed_at": "2026-05-08T05:06:20.011Z",
+      "branch": "feat/adopt-nexus-core-v0.21.0",
+      "plan": {
+        "id": 2,
+        "topic": "Adopt nexus-core v0.21.0 → claude-nexus v0.34.0 release",
+        "issues": [
+          {
+            "id": 1,
+            "title": "lead.md 갱신 방침: upstream v0.21.0 새 body 전면 도입 vs 최소 수정 (strategist 참조 제거만)",
+            "status": "decided",
+            "analysis": [
+              {
+                "role": "architect",
+                "summary": "Option B (전면 도입) 조건부 승인. Trade-off: Option A는 다른 sync 에이전트(4-axis 신구조)와 lead.md 톤 불일치 + 매 upstream 릴리스마다 cherry-pick 누락 리스크 누적; Option C(하이브리드)는 두 구조 단점만 합산되며 Behavior Principles 5개를 옛 Default Stance 3-항목 구조에 끼워 넣으면 자체 변종 명세가 생겨 다음 sync 대조 비용이 가장 크다. Option B는 변환 지점 2개가 명시적이고 반복 가능. 도입 조건 3개: (1) frontmatter를 `description` + `model: opus`로 변환 (upstream의 id/name/category/resume_tier/model_tier/capabilities는 nexus-core MCP 메타데이터로 Claude Code 플러그인 런타임에서는 무의미), (2) Subagent IDs 섹션 resume 표기를 upstream macro `{{subagent_resume agent_id=\"...\" prompt=\"...\"}}` → Claude Code 직접 호출 `SendMessage({ to: \"...\", message: \"...\" })`로 치환 (sync 파이프라인이 수행하던 변환을 수동 적용; 누락 시 resume 조용한 실패 — 트리아지 메모리 선례 #58과 동일 부류), (3) upstream line 9 잔존 오류 \"9 subagents\" → \"8 subagents\" 정정 (upstream에 별도 이슈 제안 권고). 부수 발견: Knowledge Layer 표는 mission.md+conventions.md 2-file 명세 그대로 채택하되 본 리포 .nexus/context/에는 사용자 결정대로 mission.md 두지 않음 — spec과 디스크 갭은 의도된 것. Open risks: upstream의 plugin-shape frontmatter 동시 ship 제안을 nexus-core 후속 이슈로 검토 가치 있음.",
+                "recorded_at": "2026-05-08T04:48:08.516Z",
+                "agent_id": "ac4e4c8ea0e85ba53"
+              }
+            ],
+            "decision": "**Option B 채택 — upstream v0.21.0 lead body 전면 도입 + claude-nexus 환경 변환 3건.**\n\n채택 사유: (1) sync로 이미 이동한 다른 8개 에이전트 본문(architect/designer/engineer/postdoc/researcher/reviewer/tester/writer)이 4-axis 신구조로 옮겨가는 v0.34.0 시점에서 호출자(Lead)만 옛 sectioning을 유지하면 본문 톤·평가 어휘·verdict 신호가 어긋나 사용자 혼란을 유발한다. (2) Behavior Principle 4(Work scope direct)·5(Estimate in turns)는 신규 행동 규범으로 옛 sectioning에는 매핑 위치가 없다 — Option A·C로는 누락된다. (3) v0.22 이후 매 upstream 릴리스마다 cherry-pick 누락 리스크가 누적되며, 트리아지 메모리의 \"canonical 동기화 + 명시적 shim 주석\" 원칙과 Option B가 가장 정합적이다.\n\n기각 사유 — Option A(최소 수정): diff는 작지만 다른 sync 에이전트군과 톤 불일치를 v0.34.0부터 영구화하고, Behavior Principle 4·5를 누락하며, 매 upstream 변경마다 부분 패치 누락 리스크를 누적한다. Option C(하이브리드): 두 구조의 단점만 합산. Behavior Principles 5개를 옛 \"Default Stance\" 3-항목 구조에 끼워 넣는 순간 자체 변종 명세가 생기고, 다음 sync 대조 비용이 셋 중 가장 크다.\n\n**적용 시 변환 3건 (변환 누락 = silent failure이므로 PR 체크리스트화)**:\n1. **Frontmatter**: upstream의 `id/name/description/category/resume_tier/model_tier/capabilities`를 claude-nexus 디스크 형식 `description` + `model: opus`로 변환. nexus-core MCP 서버용 메타데이터는 Claude Code 플러그인 런타임에서 무의미.\n2. **Subagent IDs 섹션 resume 표기**: upstream macro `{{subagent_resume agent_id=\"<id>\" prompt=\"<...>\"}}` → Claude Code 직접 호출 `SendMessage({ to: \"<id>\", message: \"<...>\" })`로 치환. 이는 sync 파이프라인이 수행하던 변환을 수동 적용하는 것이며, 누락 시 resume 조용한 실패(트리아지 메모리 선례 #58과 동일 부류).\n3. **본문 line 정정**: upstream line 9 잔존 오류 \"9 subagents\" → \"8 subagents\". 정정 위치에 출처 주석은 두지 않고(본문 어수선해짐) 대신 nexus-core에 별도 이슈를 올리는 것을 cycle 종료 후 후속으로 검토.\n\n**부수 결정**:\n- Knowledge Layer 표는 upstream 명세대로 `mission.md` + `conventions.md` 2-file로 채택. 본 리포 `.nexus/context/`에는 사용자 결정대로 mission.md를 두지 않으며, 이는 spec과 디스크의 의도된 갭(이 프로젝트는 mission이 README/CLAUDE.md로 대체된다)이다. 이 갭의 명시적 기록은 cycle 종료 시 사용자에게 `[m]` 메모(`empirical-context-mission-omitted.md`) 작성을 능동 제안하는 형태로 처리하고 본 plan task에는 포함하지 않는다.\n- Conflict Mediation은 upstream대로 Architect vs Designer + Postdoc vs other HOW 2개 항목만 유지 (Strategist vs Architect 항목 제거).</decision>\n</invoke>"
+          },
+          {
+            "id": 2,
+            "title": "Sync 흡수 + 빌드 검증 절차: install → sync → build → typecheck → e2e 순서와 sync diff 점검 방법",
+            "status": "decided",
+            "decision": "**HOW spawn 생략 (사유: `.nexus/context/releasing.md` Section 2에 동일 절차가 이미 명문화 — Auto-plan Rule 1의 \"기존 knowledge 우선\" 예외).**\n\n**Sync 흡수·빌드 검증 절차 (8단계, 단일 task로 진행)**:\n\n1. **브랜치 분기**: `feat/adopt-nexus-core-v0.21.0`로 이동. main 직접 작업 금지(Lead Hard Prohibition).\n2. **`bun run clean`**: dist/agents/skills/scripts/statusline.mjs 제거. 깨끗한 상태에서 시작해야 sync 산출물의 실제 차이를 확인 가능.\n3. **`package.json` devDependencies 갱신**: `@moreih29/nexus-core: ^0.20.1` → `^0.21.0`.\n4. **`bun install --frozen-lockfile`은 lock 갱신 후 사용** — 우선 `bun install`로 `bun.lock`을 v0.21.0에 맞춰 갱신.\n5. **`bun run sync`**: nexus-sync가 agents/{id}.md, skills/{id}/SKILL.md를 v0.21.0 spec으로 덮어쓴다. 예상 변화:\n   - `agents/strategist.md` 삭제 (upstream에서 spec 제거됨)\n   - `agents/architect.md`·designer.md·engineer.md·postdoc.md·researcher.md·reviewer.md·tester.md·writer.md 본문 슬림화 (4-axis 신구조)\n   - `skills/nx-plan/SKILL.md`·nx-auto-plan/SKILL.md·nx-run/SKILL.md 본문 갱신 (nx-run에 Step 4 End-of-Cycle Review 신설 등)\n   - `agents/lead.md`는 sync 대상 아님 — Issue 1 결정대로 별도 task에서 수동 갱신\n6. **Sync diff 점검**: `git status` + `git diff --stat`으로 (a) strategist.md `D` 표시 확인, (b) 변경된 파일이 9개 agents + 3개 skills 범위 안에 있는지 확인, (c) lead.md가 sync 대상에 잘못 포함되지 않았는지 확인. 예상 외 파일이 잡히면 sync 스코프 회귀 여부 조사.\n7. **`bun run build`**: `build:mcp` + `build:hooks` + `build:statusline` 3개 번들. 특히 `dist/mcp/server.js`는 v0.21.0의 MCP 도구 변경(nx_history_search cell-level hits / nx_artifact_list 신규 / nx_task_update scope narrowing / TaskItem.result / nx_task_close incomplete guard / z.coerce.number())을 흡수해야 함. shebang + 실행권한 보존 확인.\n8. **`bun run typecheck` + `bun run test`**: typecheck 전체 통과 + e2e 모두 `ok`. v0.32.1에서 추가된 settings.json `<plugin-name>:<id>` 네임스페이스 가드와 agent 파일 실재성 가드도 통과해야 한다(strategist.md 삭제 후 settings.json이 strategist 참조하지 않는지 회귀 확인 — 현재 settings.json은 lead만 지정하므로 영향 없으나 e2e가 자동 검증).\n\n**검증 실패 시 처리**: typecheck/e2e 실패는 즉시 Lead로 escalate (재실행 무한 루프 금지 — Lead `No Automatic Restart` 원칙). MCP 도구 호환성 깨짐 가능성이 가장 큰 리스크 영역(특히 nx_task_update scope narrowing이 우리 e2e 시나리오에 영향).\n\n**기각된 대안**: (a) sync를 빌드 후로 미루는 순서 → 빌드 산출물이 옛 spec 기준이라 의미 없음. (b) typecheck 생략 → MCP 도구 변경이 타입 레벨에서 깨질 가능성 있어 필수."
+          },
+          {
+            "id": 3,
+            "title": "사용자 대면 문서 갱신: README.md/README.en.md (10→8 agents), CHANGELOG.md v0.34.0 섹션 (Consumer action required 메시징 톤)",
+            "status": "decided",
+            "decision": "**HOW spawn 생략 (사유: 실 작성은 [run] 단계 writer task에서 4-axis 자체 점검 후 수행되므로 plan 단계 추가 writer 분석은 중복; CHANGELOG는 v0.32.0(v0.20.0 대규모 spec 채택) 형식이 본 v0.34.0과 동일 부류이고 그 톤을 따라가면 충분; README는 단순 카운트·이름 교체).**\n\n**README.md / README.en.md 갱신 항목 (총 4개 위치)**:\n\n1. `에이전트 10종 → 9종` (lead 1명 + HOW/DO/CHECK 8명). 기존 알파벳 나열에서 strategist 제거: `architect · designer · engineer · **lead** · postdoc · researcher · reviewer · tester · writer`. 영문판도 `10 agents → 9 agents`로 동일 갱신.\n2. **MCP 도구 카운트**: `13종 → 14종` (v0.21.0의 `nx_artifact_list` 신규 추가 반영). 도구 prefix 나열에 `nx_artifact_*`로 묶어 표기 가능: `nx_plan_*` · `nx_task_*` · `nx_history_search` · `nx_artifact_*`.\n3. 그 외 README 본문(설치·사용·statusline·요구사항)은 **무변경** — 태그 6종, 훅 2종, 설치 흐름, statusline 명세 모두 v0.21.0에서 변동 없음. nx-run에 Step 4 End-of-Cycle Review가 신설됐지만 사용자 노출은 \"cycle 종료 시 Lead가 자동 review\" 정도라 README의 high-level 표(`[run]` 한 줄)에 영향 없음.\n4. 한·영 번역 일치 점검: 두 파일을 동일 turn에 함께 수정해 카운트·이름이 어긋나지 않게.\n\n**CHANGELOG.md v0.34.0 섹션 (Consumer action required 메시징 톤)**:\n\nv0.32.0 형식(`### Changed` 인라인 prose + `### Notes` 사용자 영향 명시)을 따른다. 섹션 구성:\n\n```\n## [0.34.0] - 2026-05-08\n\n### Changed\n\n- `@moreih29/nexus-core` **v0.20.1 → v0.21.0** 채택. (1) **strategist 에이전트 제거** — upstream에서 \"전략 결정은 사용자 영역\" 명세 변경에 따른 backward-incompatible 변경. ... (2) HOW/DO/CHECK 8개 본문 4-axis evaluation thinking 도입으로 슬림화. (3) **Lead 본문 재구조화** — Behavior Principles 5개 (Do not assert without evidence / Do not unconditionally accept / Do not relay as-is / Work scope direct / Estimate in turns), Knowledge Layer가 mission.md+conventions.md 2-file로 축소. (4) **nx-run Step 4 End-of-Cycle Review 신설** — cycle 종료 시 Lead가 원 요청과의 정합성·교차 task 일관성·암시된 후속 영역을 review하고 추가 task 등록 또는 close 결정. (5) **MCP 도구 변경**: nx_history_search 응답이 cell-level hits로 변경, **nx_artifact_list 신규**, nx_task_update의 가능 필드가 status/acceptance/approach/risk/owner/result로 축소(title/context/deps는 immutable), TaskItem에 result {outcome, summary, artifacts, recorded_at} 필드 추가, nx_task_close에 incomplete guard + force 옵션, id 계열 입력에 z.coerce.number() 적용.\n\n### Removed\n\n- **`strategist` 에이전트 — Consumer action required**. ⚠️ strategist를 직접 호출하던 사용자는 마이그레이션 필요. 권장 대체: 비즈니스/시장/포지셔닝 결정은 Lead가 사용자 결정 영역으로 escalate (Lead의 Behavior Principle 2 \"Do not unconditionally accept user direction\"). 기술적 트레이드오프는 architect로 이관. 연구/근거 평가는 postdoc로 이관.\n\n### Notes\n\n- 그 외 사용자 조치 불필요. 트리거 태그(`[plan]`·`[auto-plan]`·`[run]`·`[m]`·`[m:gc]`·`[d]`)·hook·statusline·MCP 호출 진입점 모두 동일.\n- 사용자가 인지할 동작 변화: (a) `[run]` cycle 종료 직전에 Lead의 End-of-Cycle Review 단계가 추가되어 누락 영역이 있으면 자동 task 등록 후 재실행됨(최대 2회 iteration). (b) Lead 본문이 Behavior Principles 5개 구조로 바뀌면서 응답 톤·평가 어휘가 더 일관됨. (c) `nx_artifact_list`로 저장된 아티팩트 목록 조회 가능.\n```\n\n**기각된 대안**:\n- \"strategist 제거를 단순 deprecation 안내로 톤 다운\" → strategist 사용 흐름이 다른 HOW로 1:1 매핑되지 않으며(전략 결정 자체가 사용자 영역으로 이전됨) 사용자에게 명시적 마이그레이션 가이드가 필요. ⚠️ 표시 + Removed 섹션 분리가 적절.\n- \"Removed 섹션 없이 Changed 인라인\" → 본 채택의 v0.32.0 v0.20.0 채택 케이스도 Changed 인라인이었으나, 그 케이스는 spec 재구조화만이고 consumer-facing 에이전트 제거는 없었음. v0.34.0은 Removed 분리가 정합.\n- README에 strategist 마이그레이션 안내 추가 → README는 현재 시점 high-level 카탈로그라 마이그레이션은 CHANGELOG 책임. 분리 유지."
+          },
+          {
+            "id": 4,
+            "title": "버전 정합성 + 릴리스 흐름: v0.34.0으로 4개 파일(package.json, plugin.json, marketplace.json, git tag) 동기화, PR/태그/배포 후 확인까지",
+            "status": "decided",
+            "decision": "**HOW spawn 생략 (사유: `.nexus/context/releasing.md` Section 1(버전 정합성)·8(태깅·배포)·9(배포 후 확인)에 절차 명문화).**\n\n**버전 정합성 — v0.34.0으로 동기화할 4개 위치**:\n\n1. `package.json` `\"version\": \"0.33.1\"` → `\"0.34.0\"`\n2. `.claude-plugin/plugin.json` `\"version\": \"0.33.1\"` → `\"0.34.0\"`\n3. `.claude-plugin/marketplace.json` `plugins[0].version: \"0.33.1\"` → `\"0.34.0\"`\n4. git tag `vX.Y.Z` — 본 plan 종료 후 별도 후속(태그 푸시는 cycle 외).\n\n**Semver 판단 — v0.34.0 minor 확정 (사용자 결정)**:\n정책상 strategist 에이전트 제거는 \"사용자가 직접 조치해야 하는 변경\"이라 major bump 후보였으나, 사용자가 0.x semver 컨벤션상 minor로 결정. CHANGELOG의 `### Removed` 섹션과 ⚠️ Consumer action required 표기로 호환성 영향을 명시함으로써 의사소통 책임을 충족.\n\n**본 cycle scope (PR 생성까지)**:\n\n1. `feat/adopt-nexus-core-v0.21.0` 브랜치에서 모든 변경 commit (Issue 1 lead.md + Issue 2 sync 산출물·dist + Issue 3 README/CHANGELOG + Issue 4 4개 위치 버전).\n2. 단일 commit 또는 논리 분리 commit 모두 허용. 기존 v0.33.x 커밋 패턴(채택 사항을 단일 fix/feat 메시지로 묶음)을 따라 단일 commit 권장.\n3. Commit 메시지 포맷: `feat: adopt nexus-core v0.21.0 — strategist removal + Lead body restructure (v0.34.0)`. 영문, conventional commit 스타일.\n4. `gh pr create`로 PR 생성. PR 본문은 CHANGELOG v0.34.0 섹션을 그대로 인용 + 본 plan_id=2의 핵심 결정 4개 요약 + Test plan 체크리스트(typecheck·e2e·strategist.md 부재 확인·MCP 도구 동작 확인).\n\n**본 cycle scope 외 (사용자 결정 영역, 후속 task로 분리하지 않음)**:\n\n- PR 머지 후 `git tag v0.34.0 && git push origin v0.34.0` — 태그 푸시는 사용자가 PR 검토·머지 완료 후 직접 트리거. 릴리스 타임라인은 user decision domain (Lead Behavior Principle 2).\n- `Publish` 워크플로 초록불 대기 + `gh release create` — 자동화 트리거 후 사용자가 확인.\n- `npm view claude-nexus version`·`/plugin update claude-nexus`·smoke test — 배포 후 사용자가 직접 검증.\n- 후속 nexus-core 이슈 제안 (upstream lead body line 9 \"9 subagents\" 잔존 오류 / plugin-shape frontmatter 동시 ship 제안) — 본 cycle scope 외, 별도 사용자 트리거 시 처리.\n\n**기각된 대안**:\n- \"버전 bump를 별도 PR로 분리\" → v0.32.0/v0.33.0/v0.33.1 모두 채택 + 버전 bump를 단일 PR로 처리한 선례. 분리는 검토 부담만 증가.\n- \"태그 푸시까지 본 cycle에 포함\" → 머지 시점이 사용자 PR 검토 후라 cycle을 강제로 stretch. 분리가 정합.\n- \"major bump (1.0.0)로 변경 제안\" → 사용자가 minor 확정. push back 근거(0.x 정책 + Removed 섹션의 Consumer action 명시) 모두 충족됨."
+          }
+        ],
+        "research_summary": "사전 조사 완료: (1) GitHub compare API로 nexus-core v0.20.1...v0.21.0 commit/diff 확인 — strategist 에이전트 제거, HOW/DO/CHECK 9개 본문 4-axis 슬림화, lead body 5 Behavior Principles 구조로 재편(`.nexus/context/`도 mission.md+conventions.md 2-file로 축소), nx-run Step 4 End-of-Cycle Review 신설, MCP 도구 변경(nx_history_search 응답 cell-level, nx_artifact_list 신규, nx_task_update scope narrowing, TaskItem.result 추가, nx_task_close incomplete guard, z.coerce.number()). (2) upstream v0.21.0 spec/agents/lead/body.md 본문 fetch — 우리 디스크 lead.md(옛 9 subagents/strategist/4-file starter/Default Stance 구조)와 비교 가능. (3) 현재 .claude-plugin/plugin.json·marketplace.json·package.json 모두 v0.33.1, devDependencies는 ^0.20.1. (4) README.ko/en 모두 '10 agents' + strategist 명시 + '13 MCP tools'. (5) CHANGELOG는 v0.33.1 (v0.20.1 채택) 및 v0.33.0 (statusline 변화) 형식 확인. (6) .nexus/context/releasing.md는 8단계 체크리스트, .nexus/memory/pattern-issue-triage-upstream-vs-local.md는 lead.md를 로컬로 명시. (7) 사용자 결정: mission.md는 작성하지 않음, 버전은 v0.34.0 minor 확정. (8) v0.21.0 nx-run body는 End-of-Cycle Review가 명시됐으나 본 cycle은 sync 흡수 후에야 적용되므로 본 plan은 옛 nx-run으로 진행됨.",
+        "created_at": "2026-05-08T04:45:58.023Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "브랜치 분기 + 의존성 v0.21.0 갱신 + sync 산출물 흡수",
+          "status": "completed",
+          "context": "현재 main / claude-nexus v0.33.1 / nexus-core ^0.20.1. v0.34.0 채택 cycle 시작. plan_id=2 Issue 2 결정대로 install→sync까지 수행 (build/test는 T6에서). lead.md는 sync 대상 아님 — 만약 sync가 lead.md를 건드리면 즉시 escalate.</context>\n<parameter name=\"approach\">(1) `git checkout -b feat/adopt-nexus-core-v0.21.0` (2) `bun run clean` (3) package.json devDependencies `@moreih29/nexus-core: ^0.20.1` → `^0.21.0` (4) `bun install` — bun.lock 갱신 (5) `bun run sync` (6) `git status` + `git diff --stat`으로 변경 범위 확인: agents/strategist.md `D` 표시 / 8개 agents 본문 변경 / 3개 skills 본문 변경 범위 안에 있는지, lead.md가 잘못 포함되지 않았는지 점검. 예상 외 파일이 잡히면 sync 스코프 회귀 의심하고 즉시 escalate.",
+          "acceptance": "- `feat/adopt-nexus-core-v0.21.0` 브랜치 위에 있음\n- package.json devDependencies가 ^0.21.0\n- bun.lock이 새 버전 반영\n- agents/strategist.md가 git status에서 `D` (삭제됨)\n- agents/{architect,designer,engineer,postdoc,researcher,reviewer,tester,writer}.md 본문 변경 확인\n- skills/{nx-plan,nx-auto-plan,nx-run}/SKILL.md 본문 변경 확인\n- agents/lead.md는 sync에 의해 변경되지 않음 (`git diff agents/lead.md`가 비어 있음)\n- 위 범위 외 sync 산출물이 잡히지 않음",
+          "risk": "sync 스코프가 회귀해 settings.json·.claude-plugin·lead.md를 건드릴 가능성. nexus-sync 자체 회귀라면 nexus-core 이슈로 분류해야 함.",
+          "plan_issue": 2,
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-05-08T04:51:47.829Z"
+        },
+        {
+          "id": 2,
+          "title": "agents/lead.md 수동 갱신 — upstream v0.21.0 body 전면 도입 + 환경 변환 3건",
+          "status": "completed",
+          "context": "plan_id=2 Issue 1 결정대로 Option B (전면 도입). lead.md는 sync 산출물이 아니므로 수동 작성 필요. T1 완료 후 sync된 다른 8개 agents 본문(4-axis 신구조)이 디스크에 들어와 톤 비교 가능한 상태에서 작성.",
+          "acceptance": "- agents/lead.md frontmatter가 정확히 `description: ...` + `model: opus` 2-필드만 포함\n- 본문이 upstream v0.21.0 body와 (frontmatter·resume표기·subagents 카운트 외) 동일\n- \"## Behavior Principles\" 섹션 5개 항목 존재 (Do not assert / Do not unconditionally accept / Do not relay / Work scope direct / Estimate in turns)\n- \"## Knowledge Layer\" 표가 mission.md + conventions.md 2-row\n- \"## Conflict Mediation\" 섹션에 Architect vs Designer + Postdoc vs other HOW만 (Strategist 항목 없음)\n- \"Subagent IDs\" 섹션에 `SendMessage({ to: \"...\", message: \"...\" })` 형식 사용 (`{{subagent_resume...}}` macro 흔적 없음)\n- \"9 subagents\" 문자열이 본문 어디에도 없음 (grep 검증)\n- \"strategist\" 문자열이 본문 어디에도 없음 (grep 검증)\n- description 필드와 본문 첫 줄에 \"8 subagents\" 명시",
+          "approach": "(1) `gh api 'repos/moreih29/nexus-core/contents/spec/agents/lead/body.md?ref=v0.21.0' --jq '.content' | base64 -d`로 upstream body 재fetch. (2) 본문 전체 복사 후 다음 3건 변환: (a) frontmatter를 upstream의 `id/name/description/category/resume_tier/model_tier/capabilities`에서 claude-nexus 형식 `description: ...` + `model: opus` 2-필드로 변환. description 내용은 upstream과 동일 (\"Primary orchestrator — composes 8 subagents...\"). (b) \"Subagent IDs\" 섹션의 resume 호출 표기를 `{{subagent_resume agent_id=\"<id>\" prompt=\"<...>\"}}` → `SendMessage({ to: \"<id>\", message: \"<...>\" })`로 치환. (c) 본문 line 9의 잔존 오류 \"9 subagents\" → \"8 subagents\" 정정 (사실 description 이미 8 subagents, 본문 첫 줄도 확인). (3) Write 도구로 `/Users/kih/workspaces/areas/claude-nexus/agents/lead.md`에 덮어쓰기.",
+          "risk": "3건 변환 중 어느 하나라도 누락되면 silent failure (특히 resume macro 누락 → 트리아지 메모리 선례 #58과 동일 부류로 SendMessage가 동작 안 함). reviewer가 별도 task로 검증.",
+          "plan_issue": 1,
+          "deps": [
+            1
+          ],
+          "owner": {
+            "role": "writer"
+          },
+          "created_at": "2026-05-08T04:52:31.855Z"
+        },
+        {
+          "id": 3,
+          "title": "README.md + README.en.md 갱신 — 9 agents + 14 MCP tools",
+          "status": "completed",
+          "context": "plan_id=2 Issue 3 결정대로 README 본문 4개 위치 갱신. 한·영 동기화 필수.",
+          "acceptance": "- README.md에 \"에이전트 9종\" 표기, strategist 미등장\n- README.md에 MCP 도구 카운트 \"14종\" + `nx_artifact_*` prefix 표기\n- README.en.md에 \"9 agents\" 표기, strategist 미등장\n- README.en.md에 \"14 state management tools\" + `nx_artifact_*` prefix 표기\n- 두 파일에서 한·영 카운트가 일치\n- 그 외 섹션은 변경 없음 (`git diff README.md README.en.md`가 위 4개 위치만 보여줌)",
+          "approach": "(1) README.md 라인 12: \"에이전트 10종\" → \"에이전트 9종\", strategist 알파벳 나열에서 제거. (2) README.md 라인 14: \"MCP 서버 nexus-core: ... 13종 (`nx_plan_*`·`nx_task_*`·`nx_history_search`·`nx_artifact_write`)\" → \"14종 (`nx_plan_*`·`nx_task_*`·`nx_history_search`·`nx_artifact_*`)\". (3) README.en.md 라인 12: \"10 agents\" → \"9 agents\", strategist 제거. (4) README.en.md 라인 14: \"13 state management tools ... `nx_artifact_write`\" → \"14 state management tools ... `nx_artifact_*`\". (5) 그 외 본문(설치/사용/statusline/요구사항)은 변경 없음. (6) 두 파일 모두 grep으로 strategist 문자열 잔존 없음 확인.",
+          "risk": "한·영 카운트 어긋날 가능성 (한쪽만 갱신). 두 파일을 동일 turn에 함께 수정해야 한다.",
+          "plan_issue": 3,
+          "deps": [
+            1
+          ],
+          "owner": {
+            "role": "writer",
+            "agent_id": "a432dc8e07cb0deb4",
+            "resume_tier": "ephemeral"
+          },
+          "created_at": "2026-05-08T04:52:41.844Z"
+        },
+        {
+          "id": 4,
+          "title": "CHANGELOG.md v0.34.0 섹션 추가 — Removed 섹션 + Consumer action 명시",
+          "status": "completed",
+          "context": "plan_id=2 Issue 3 결정대로 v0.32.0 형식(Changed 인라인 + Notes) + v0.34.0 신설 Removed 섹션. strategist 제거의 마이그레이션 가이드 명시 필수.",
+          "acceptance": "- `## [0.34.0] - 2026-05-08` 섹션이 CHANGELOG.md 최상단(`## [0.33.1]` 직전) 위치\n- ### Changed에 5가지 변경 항목 모두 포함 (strategist 제거 / 4-axis 슬림화 / Lead 재구조화 / nx-run Step 4 / MCP 도구 변경)\n- ### Removed 섹션 존재 + ⚠️ Consumer action required 표기 + strategist 사용자에 대한 3-방향 마이그레이션 안내(Lead escalate / architect / postdoc)\n- ### Notes에 동작 변화 3개 (End-of-Cycle Review / Behavior Principles 톤 / nx_artifact_list)\n- 한국어 본문, 기존 v0.32.0~v0.33.1 톤과 일관",
+          "approach": "CHANGELOG.md 최상단 (`# Changelog` 다음, `## [0.33.1]` 위에) `## [0.34.0] - 2026-05-08` 섹션 추가. 본문 구성: ### Changed (v0.20.1 → v0.21.0 채택, 5가지 변경 인라인 정리 — strategist 제거 / 8개 본문 4-axis 슬림화 / Lead 본문 재구조화 / nx-run Step 4 신설 / MCP 도구 변경 details). ### Removed (strategist 에이전트 — Consumer action required ⚠️ + 마이그레이션 가이드: Lead escalate / architect / postdoc 분배). ### Notes (그 외 사용자 조치 불필요, 인지할 동작 변화 3개). 본문은 plan_id=2 Issue 3 decision text의 CHANGELOG 코드블록을 거의 그대로 사용하되 자연스럽게 다듬기.",
+          "risk": "마이그레이션 가이드의 정확성 — strategist를 호출하던 흐름이 정말로 architect/postdoc/사용자 escalate로 1:1 매핑되는지. Lead가 직접 검증한 명세 분석 기반이지만 reviewer 페어로 재확인.",
+          "plan_issue": 3,
+          "deps": [
+            1
+          ],
+          "owner": {
+            "role": "writer",
+            "agent_id": "ad4ef73c087513310",
+            "resume_tier": "ephemeral"
+          },
+          "created_at": "2026-05-08T04:52:57.087Z"
+        },
+        {
+          "id": 5,
+          "title": "버전 0.34.0 동기화 — package.json + plugin.json + marketplace.json 3개 위치",
+          "status": "completed",
+          "context": "plan_id=2 Issue 4 결정대로 3개 파일 버전 필드 일괄 갱신. git tag v0.34.0은 cycle 외(사용자 영역).",
+          "acceptance": "- package.json version \"0.34.0\"\n- .claude-plugin/plugin.json version \"0.34.0\"\n- .claude-plugin/marketplace.json plugins[0].version \"0.34.0\"\n- 위 3개 파일에 \"0.33.1\" 잔존 없음 (grep)\n- 다른 파일에 0.33.1이 남아있어도 무방 (CHANGELOG의 [0.33.1] 섹션 헤더 등)",
+          "approach": "(1) package.json `\"version\": \"0.33.1\"` → `\"0.34.0\"` (라인 3). (2) .claude-plugin/plugin.json `\"version\": \"0.33.1\"` → `\"0.34.0\"`. (3) .claude-plugin/marketplace.json `plugins[0].version: \"0.33.1\"` → `\"0.34.0\"`. (4) `grep -n \"0.33.1\" package.json .claude-plugin/*.json`로 잔존 없음 확인. (5) `grep -n \"0.34.0\" package.json .claude-plugin/*.json`로 3곳 모두 갱신 확인.",
+          "risk": "버전 어긋남은 releasing.md Section 1의 핵심 가드. e2e 테스트가 버전 일치를 검증하는지 확인 필요 — 검증한다면 T6에서 회귀 catch.",
+          "plan_issue": 4,
+          "deps": [
+            1
+          ],
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-05-08T04:53:04.757Z"
+        },
+        {
+          "id": 6,
+          "title": "빌드 + typecheck + e2e 검증",
+          "status": "completed",
+          "context": "plan_id=2 Issue 2의 step 7-8 (releasing.md Section 2 기계적 검증). 모든 파일 변경(T2-T5) 완료 후 dist 재빌드와 회귀 테스트 통과 확인.",
+          "acceptance": "- `bun run build` 성공, dist/mcp/server.js + dist/hooks/* + scripts/statusline.mjs 갱신\n- scripts/statusline.mjs shebang + 실행권한 보존 (`ls -la scripts/statusline.mjs`로 확인 가능)\n- `bun run typecheck` 0 errors\n- `bun run test` (e2e) 전부 `ok`\n- 위 명령들 중 어느 하나라도 실패하면 task `completed`로 두지 않음 — 실패 원인 명시 후 escalate",
+          "approach": "(1) `bun run build` — build:mcp + build:hooks + build:statusline 3개 번들. dist/mcp/server.js가 v0.21.0 MCP 도구 변경(nx_history_search cell-level / nx_artifact_list 신규 / nx_task_update scope narrowing / TaskItem.result / nx_task_close incomplete guard / z.coerce.number()) 흡수 확인. scripts/statusline.mjs shebang + 실행권한 보존. (2) `bun run typecheck` — 전체 통과. MCP 타입 변경이 있어 가장 깨질 가능성 큰 단계. (3) `bun run test` (e2e) — 모두 `ok`. v0.32.1 추가된 settings.json `<plugin-name>:<id>` 가드 + agent 파일 실재성 가드도 통과 (strategist.md 부재 회귀 확인). 실패 시 즉시 escalate — Lead `No Automatic Restart` 원칙.",
+          "risk": "MCP 도구 변경(특히 nx_task_update scope narrowing)이 e2e 시나리오와 충돌. e2e가 옛 surface로 task_update를 호출하면 실패. 회귀 시 e2e 시나리오 갱신 필요(별도 task로 분기).",
+          "plan_issue": 2,
+          "deps": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-05-08T04:53:23.833Z"
+        },
+        {
+          "id": 7,
+          "title": "lead.md spec 검증 — upstream 대비 변환 3건 정확성 + acceptance 모든 항목 PASS",
+          "status": "completed",
+          "context": "plan_id=2 Issue 1의 acceptance가 lead.md의 silent-failure 지점(특히 resume macro 변환 누락 — 트리아지 메모리 선례 #58)을 막기 위해 8개 verifiable criteria로 명세됨. 독립 reviewer가 변환 3건 정확성 + 본문 일관성 검증.",
+          "acceptance": "- T2의 8개 acceptance 항목 모두 PASS 보고\n- \"Subagent IDs\" 섹션의 resume 표기가 SendMessage 형식임을 외부 grounding(upstream 본문)과 대조해 확인\n- 변환 외 본문이 upstream v0.21.0과 일치 (의도된 갭만 존재)\n- critical 이슈 0개; warning은 정당한 사유와 함께 보고",
+          "approach": "(1) `gh api 'repos/moreih29/nexus-core/contents/spec/agents/lead/body.md?ref=v0.21.0' --jq '.content' | base64 -d > /tmp/upstream-lead-body.md`로 upstream 본문 외부 grounding. (2) 디스크 agents/lead.md를 Read. (3) T2 acceptance 8항목 일대일 대조: frontmatter 형식, Behavior Principles 5개, Knowledge Layer 2-row, Conflict Mediation 2개 항목, SendMessage 형식, \"9 subagents\" 부재, \"strategist\" 부재, \"8 subagents\" 명시. (4) 변환 외 본문이 upstream과 일치하는지 diff. (5) 발견된 issue를 critical/warning/suggestion으로 분류 보고.",
+          "risk": "reviewer가 디스크본만 보고 self-grounding하면 변환 누락을 감지 못함 — 외부 source(upstream gh api)로 re-grounding 필수.",
+          "plan_issue": 1,
+          "deps": [
+            2
+          ],
+          "owner": {
+            "role": "reviewer"
+          },
+          "created_at": "2026-05-08T04:53:36.879Z"
+        },
+        {
+          "id": 8,
+          "title": "README + CHANGELOG 사용자 대면 검증",
+          "status": "completed",
+          "context": "plan_id=2 Issue 3 결정대로 README/CHANGELOG는 v0.34.0의 사용자 대면 의사소통 책임. strategist 마이그레이션 가이드의 정확성과 한·영 일관성이 핵심.",
+          "acceptance": "- T3·T4 모든 acceptance 항목 PASS 보고\n- strategist 마이그레이션 가이드가 audience-simulation 통과 (사용자가 다음 행동 결정 가능)\n- 한·영 README 카운트 일치\n- v0.34.0 섹션 톤이 v0.32.0/v0.33.1과 일관\n- critical 이슈 0개",
+          "approach": "(1) README.md/README.en.md 한·영 카운트 일치(9 agents, 14 MCP tools), strategist 미등장, 그 외 본문 무변경 확인. (2) CHANGELOG v0.34.0 섹션의 5가지 변경 항목 + Removed + Notes 구조 검증. (3) 마이그레이션 가이드 정확성 audience-simulation: \"strategist를 호출하던 사용자 페르소나\"가 README 카운트 변경 + CHANGELOG Removed 안내만으로 다음 행동(Lead에 escalate / architect/postdoc 호출)을 결정 가능한지. (4) v0.32.0/v0.33.x 톤 일관성. (5) 발견 이슈 critical/warning/suggestion 분류.",
+          "risk": "마이그레이션 가이드가 명세 정확성은 통과해도 사용자 관점에서 \"다음에 뭘 해야 하나\"가 불명확할 가능성 — audience-simulation으로 catch.",
+          "plan_issue": 3,
+          "deps": [
+            3,
+            4
+          ],
+          "owner": {
+            "role": "reviewer",
+            "agent_id": "a7bdab1c193cefdf7",
+            "resume_tier": "ephemeral"
+          },
+          "created_at": "2026-05-08T04:53:47.312Z"
+        },
+        {
+          "id": 9,
+          "title": "commit + PR 생성",
+          "status": "completed",
+          "context": "plan_id=2 Issue 4 결정대로 단일 commit + gh pr create. 본 cycle 종료 직전 마지막 단계. 태그·배포는 cycle 외(사용자 영역).",
+          "acceptance": "- 모든 변경이 단일 commit에 포함, 메시지 영문/conventional commit\n- `git status`가 clean (untracked/staged 없음)\n- PR 생성 성공, URL 확보\n- PR body에 CHANGELOG v0.34.0 섹션 인용 + Test plan 체크리스트 포함\n- PR title 70자 이하",
+          "approach": "(1) `git status`로 모든 변경 확인 (agents/lead.md, agents/{8개}.md 변경, agents/strategist.md 삭제, skills/{3개}/SKILL.md 변경, README*.md, CHANGELOG.md, package.json, .claude-plugin/*.json, dist/*, scripts/statusline.mjs, bun.lock). (2) 명시적 path로 `git add` (`-A` 금지). (3) `git commit -m \"feat: adopt nexus-core v0.21.0 — strategist removal + Lead body restructure (v0.34.0)\"` HEREDOC + Co-Authored-By trailer. (4) `git push -u origin feat/adopt-nexus-core-v0.21.0`. (5) `gh pr create --title \"feat: adopt nexus-core v0.21.0 (v0.34.0)\"` HEREDOC body — Summary(plan_id=2 Issue 1·3·4 핵심 결정 요약), Notable changes(strategist removal Consumer action / Lead body restructure / nx-run Step 4 / MCP tool surface), Test plan(typecheck·e2e·strategist.md 부재·MCP 도구 동작) 포함. (6) PR URL을 최종 보고에 인용.",
+          "risk": "git add -A 사용 시 임시 파일 포함 가능 — 명시적 path만 사용. 빌드 산출물(dist/, scripts/statusline.mjs) 누락 시 마켓플레이스 사용자가 동작 불가.",
+          "plan_issue": 4,
+          "deps": [
+            6,
+            7,
+            8
+          ],
+          "owner": {
+            "role": "lead"
+          },
+          "created_at": "2026-05-08T04:53:59.278Z"
+        }
+      ]
     }
   ]
 }
