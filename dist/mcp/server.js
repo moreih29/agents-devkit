@@ -10310,6 +10310,16 @@ var optionalType = ZodOptional.create;
 var nullableType = ZodNullable.create;
 var preprocessType = ZodEffects.createWithPreprocess;
 var pipelineType = ZodPipeline.create;
+var coerce = {
+  string: (arg) => ZodString.create({ ...arg, coerce: true }),
+  number: (arg) => ZodNumber.create({ ...arg, coerce: true }),
+  boolean: (arg) => ZodBoolean.create({
+    ...arg,
+    coerce: true
+  }),
+  bigint: (arg) => ZodBigInt.create({ ...arg, coerce: true }),
+  date: (arg) => ZodDate.create({ ...arg, coerce: true })
+};
 
 // node_modules/zod/v4/core/core.js
 var NEVER = Object.freeze({
@@ -19871,6 +19881,7 @@ class StdioServerTransport {
 }
 
 // node_modules/@moreih29/nexus-core/dist/mcp/handlers/artifact.js
+import { readdirSync, statSync } from "node:fs";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
 import { dirname, join as join2, relative } from "node:path";
 
@@ -19956,6 +19967,14 @@ var artifactWriteTool = {
     content: stringType().describe("File content")
   }
 };
+var artifactListTool = {
+  group: "artifact",
+  name: "nx_artifact_list",
+  description: "List artifacts in the state artifacts directory",
+  inputSchema: {
+    prefix: stringType().optional().describe("Filter results to filenames that start with this prefix. Omit to list all artifacts.")
+  }
+};
 
 // node_modules/@moreih29/nexus-core/dist/mcp/handlers/artifact.js
 function sanitizeName(input) {
@@ -19965,6 +19984,30 @@ function sanitizeName(input) {
     throw new Error("Invalid filename: empty after sanitize");
   }
   return segments.join("/");
+}
+function listArtifactsRecursive(dir, base) {
+  const entries = [];
+  let items;
+  try {
+    items = readdirSync(dir);
+  } catch {
+    return entries;
+  }
+  for (const item of items) {
+    const fullPath = join2(dir, item);
+    const stat = statSync(fullPath);
+    if (stat.isDirectory()) {
+      const sub = listArtifactsRecursive(fullPath, base);
+      entries.push(...sub);
+    } else {
+      entries.push({
+        filename: relative(base, fullPath),
+        size: stat.size,
+        modified_at: stat.mtime.toISOString()
+      });
+    }
+  }
+  return entries;
 }
 var artifactToolBindings = [
   {
@@ -19984,6 +20027,15 @@ var artifactToolBindings = [
       const projectRoot = findProjectRoot();
       const relPath = relative(projectRoot, outputPath);
       return textResult({ success: true, path: relPath });
+    }
+  },
+  {
+    definition: artifactListTool,
+    handler: async ({ prefix }) => {
+      const artifactsDir = join2(getStateRoot(), "artifacts");
+      const all = listArtifactsRecursive(artifactsDir, artifactsDir);
+      const artifacts = prefix !== undefined ? all.filter((entry) => entry.filename.startsWith(prefix)) : all;
+      return textResult({ artifacts });
     }
   }
 ];
@@ -20101,38 +20153,217 @@ async function updateJsonFileLocked(filePath, defaultValue, updater) {
 var APPEND_SIZE_WARN_THRESHOLD = 4 * 1024;
 
 // node_modules/@moreih29/nexus-core/dist/mcp/definitions/history.js
+var HISTORY_SCOPE_VALUES = [
+  "all",
+  "decision",
+  "analysis",
+  "task.acceptance",
+  "task.approach",
+  "task.risk",
+  "task.result.outcome",
+  "task.result.summary",
+  "task.result.artifacts"
+];
 var historySearchTool = {
   group: "history",
   name: "nx_history_search",
   description: "Search archived cycles in .nexus/history.json or return the most recent entries",
   inputSchema: {
-    query: stringType().optional().describe("Full-text query applied to each archived cycle"),
-    last_n: numberType().optional().describe("Maximum number of cycles to return. Defaults to 10")
+    query: stringType().optional().describe("Full-text query applied to the specified scope. Omit for metadata-only listing."),
+    last_n: coerce.number().int().positive().optional().describe("When group_by_cycle=true (default): max number of matching cycles to return. When group_by_cycle=false: max number of hits. Defaults to 10."),
+    scope: enumType(HISTORY_SCOPE_VALUES).optional().describe("Which fields to search. Defaults to 'all'. Options: 'decision', 'analysis', 'task.acceptance', 'task.approach', 'task.risk', 'task.result.outcome', 'task.result.summary', 'task.result.artifacts'."),
+    mode: enumType(["snippet", "full"]).optional().describe("Response shape when query is present. 'snippet' (default): hits[{cycle_id, path, excerpt}]. 'full': hits[{cycle_id, path, parent}] where parent is the containing issue or task object."),
+    group_by_cycle: booleanType().optional().describe("When true (default), hits are grouped by cycle and last_n counts cycles. When false, last_n counts individual hits.")
   }
 };
 
 // node_modules/@moreih29/nexus-core/dist/mcp/handlers/history.js
+function snippetWindow(text, query, radius = 120) {
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1)
+    return text.slice(0, radius * 2);
+  const start = Math.max(0, idx - radius);
+  const end = Math.min(text.length, idx + query.length + radius);
+  const prefix = start > 0 ? "…" : "";
+  const suffix = end < text.length ? "…" : "";
+  return `${prefix}${text.slice(start, end)}${suffix}`;
+}
+function extractCells(cycle, scope) {
+  const cells = [];
+  const issues = cycle.plan?.issues ?? [];
+  const tasks = cycle.tasks ?? [];
+  const includeDecision = scope === "all" || scope === "decision";
+  const includeAnalysis = scope === "all" || scope === "analysis";
+  const includeAcceptance = scope === "all" || scope === "task.acceptance";
+  const includeApproach = scope === "all" || scope === "task.approach";
+  const includeRisk = scope === "all" || scope === "task.risk";
+  const includeOutcome = scope === "all" || scope === "task.result.outcome";
+  const includeSummary = scope === "all" || scope === "task.result.summary";
+  const includeArtifacts = scope === "all" || scope === "task.result.artifacts";
+  for (const issue2 of issues) {
+    if (includeDecision && issue2.decision) {
+      cells.push({
+        path: `plan.issues[${issue2.id}].decision`,
+        text: issue2.decision,
+        parent: issue2
+      });
+    }
+    if (includeAnalysis && issue2.analysis) {
+      for (let i = 0;i < issue2.analysis.length; i++) {
+        const entry = issue2.analysis[i];
+        if (entry) {
+          cells.push({
+            path: `plan.issues[${issue2.id}].analysis[${i}].summary`,
+            text: entry.summary,
+            parent: issue2
+          });
+        }
+      }
+    }
+  }
+  for (const task of tasks) {
+    if (includeAcceptance && task.acceptance) {
+      cells.push({
+        path: `tasks[${task.id}].acceptance`,
+        text: task.acceptance,
+        parent: task
+      });
+    }
+    if (includeApproach && task.approach) {
+      cells.push({
+        path: `tasks[${task.id}].approach`,
+        text: task.approach,
+        parent: task
+      });
+    }
+    if (includeRisk && task.risk) {
+      cells.push({
+        path: `tasks[${task.id}].risk`,
+        text: task.risk,
+        parent: task
+      });
+    }
+    if (task.result) {
+      if (includeOutcome) {
+        cells.push({
+          path: `tasks[${task.id}].result.outcome`,
+          text: task.result.outcome,
+          parent: task
+        });
+      }
+      if (includeSummary) {
+        cells.push({
+          path: `tasks[${task.id}].result.summary`,
+          text: task.result.summary,
+          parent: task
+        });
+      }
+      if (includeArtifacts && task.result.artifacts) {
+        for (let i = 0;i < task.result.artifacts.length; i++) {
+          const artifact = task.result.artifacts[i];
+          if (artifact) {
+            cells.push({
+              path: `tasks[${task.id}].result.artifacts[${i}]`,
+              text: artifact,
+              parent: task
+            });
+          }
+        }
+      }
+    }
+  }
+  return cells;
+}
 var historyToolBindings = [
   {
     definition: historySearchTool,
-    handler: async ({ query, last_n }) => {
+    handler: async ({ query, last_n, scope = "all", mode = "snippet", group_by_cycle = true }) => {
       const historyPath = join3(getNexusRoot(), "history.json");
       const history = await readJsonFile(historyPath, {
         cycles: []
       });
-      let cycles = Array.isArray(history.cycles) ? history.cycles : [];
-      if (query && query.length > 0) {
-        const q = query.toLowerCase();
-        cycles = cycles.filter((c) => JSON.stringify(c).toLowerCase().includes(q));
-      }
-      const total = cycles.length;
-      const reversed = [...cycles].reverse();
+      const allCycles = Array.isArray(history.cycles) ? history.cycles : [];
       const limit = last_n ?? 10;
-      const showing = reversed.slice(0, limit);
+      if (!query || query.length === 0) {
+        const reversed2 = [...allCycles].reverse();
+        const showing = reversed2.slice(0, limit);
+        return textResult({
+          total: allCycles.length,
+          showing: showing.length,
+          cycles: showing.map((c) => ({
+            cycle_id: c.completed_at,
+            branch: c.branch,
+            completed_at: c.completed_at,
+            plan_topic: c.plan?.topic,
+            plan_issues_count: c.plan?.issues?.length ?? 0,
+            tasks_count: c.tasks?.length ?? 0
+          }))
+        });
+      }
+      const q = query.toLowerCase();
+      const reversed = [...allCycles].reverse();
+      if (group_by_cycle) {
+        const cycleHits = [];
+        for (const cycle of reversed) {
+          const cycleId = cycle.completed_at;
+          const cells = extractCells(cycle, scope);
+          const matchingCells = cells.filter((cell) => cell.text.toLowerCase().includes(q));
+          if (matchingCells.length > 0) {
+            const hits2 = matchingCells.map((cell) => {
+              if (mode === "full") {
+                return {
+                  cycle_id: cycleId,
+                  path: cell.path,
+                  parent: cell.parent
+                };
+              }
+              return {
+                cycle_id: cycleId,
+                path: cell.path,
+                excerpt: snippetWindow(cell.text, query)
+              };
+            });
+            cycleHits.push({ cycle_id: cycleId, hits: hits2 });
+          }
+          if (cycleHits.length >= limit)
+            break;
+        }
+        const allHits = cycleHits.flatMap((c) => c.hits);
+        return textResult({
+          total_cycles: cycleHits.length,
+          total_hits: allHits.length,
+          hits: allHits
+        });
+      }
+      const hits = [];
+      for (const cycle of reversed) {
+        if (hits.length >= limit)
+          break;
+        const cycleId = cycle.completed_at;
+        const cells = extractCells(cycle, scope);
+        for (const cell of cells) {
+          if (hits.length >= limit)
+            break;
+          if (cell.text.toLowerCase().includes(q)) {
+            if (mode === "full") {
+              hits.push({
+                cycle_id: cycleId,
+                path: cell.path,
+                parent: cell.parent
+              });
+            } else {
+              hits.push({
+                cycle_id: cycleId,
+                path: cell.path,
+                excerpt: snippetWindow(cell.text, query)
+              });
+            }
+          }
+        }
+      }
       return textResult({
-        total,
-        showing: showing.length,
-        cycles: showing
+        total_hits: hits.length,
+        hits
       });
     }
   }
@@ -20177,7 +20408,7 @@ var planDecideTool = {
   name: "nx_plan_decide",
   description: "Record the final decision for a plan issue",
   inputSchema: {
-    issue_id: numberType().describe("Issue ID to decide"),
+    issue_id: coerce.number().int().positive().describe("Issue ID to decide"),
     decision: stringType().describe("Decision text")
   }
 };
@@ -20194,7 +20425,7 @@ var planAnalysisAddTool = {
   name: "nx_plan_analysis_add",
   description: "Add an analysis entry to a plan issue",
   inputSchema: {
-    issue_id: numberType().describe("Target issue ID"),
+    issue_id: coerce.number().int().positive().describe("Target issue ID"),
     role: stringType().describe("Role of the analyzing agent"),
     agent_id: stringType().optional().describe("Agent ID, used for resume routing"),
     summary: stringType().describe("Analysis summary")
@@ -20429,7 +20660,6 @@ var planToolBindings = [
           role,
           resumable: false,
           agent_id: null,
-          resume_tier: null,
           issue_id: null
         });
       }
@@ -20452,7 +20682,6 @@ var planToolBindings = [
         role,
         resumable: latestEntry !== null,
         agent_id: latestEntry?.agent_id ?? null,
-        resume_tier: null,
         issue_id: latestIssueId
       });
     }
@@ -20529,6 +20758,12 @@ var TaskOwnerSchema = objectType({
   agent_id: stringType().optional(),
   resume_tier: ResumeTierSchema.optional()
 });
+var TaskResultSchema = objectType({
+  outcome: enumType(["success", "failure", "partial"]),
+  summary: stringType(),
+  artifacts: arrayType(stringType()).optional(),
+  recorded_at: stringType()
+});
 var TaskItemSchema = objectType({
   id: numberType(),
   title: stringType(),
@@ -20540,6 +20775,7 @@ var TaskItemSchema = objectType({
   plan_issue: numberType().optional(),
   deps: arrayType(numberType()).optional(),
   owner: TaskOwnerSchema,
+  result: TaskResultSchema.optional(),
   created_at: stringType()
 });
 var TasksFileSchema = objectType({
@@ -20564,6 +20800,11 @@ var TaskOwnerUpdateSchema = objectType({
   agent_id: stringType().nullable().optional(),
   resume_tier: ResumeTierSchema.nullable().optional()
 });
+var TaskResultInputSchema = objectType({
+  outcome: enumType(["success", "failure", "partial"]),
+  summary: stringType(),
+  artifacts: arrayType(stringType()).optional()
+});
 var taskAddTool = {
   group: "task",
   name: "nx_task_add",
@@ -20574,8 +20815,8 @@ var taskAddTool = {
     acceptance: stringType().describe("Definition of done. Required"),
     approach: stringType().optional().describe("Implementation approach"),
     risk: stringType().optional().describe("Known risk"),
-    plan_issue: numberType().optional().describe("Related plan issue ID"),
-    deps: arrayType(numberType()).optional().describe("List of dependency task IDs"),
+    plan_issue: coerce.number().int().positive().optional().describe("Related plan issue ID"),
+    deps: arrayType(coerce.number().int().positive()).optional().describe("List of dependency task IDs"),
     owner: TaskOwnerSchema.describe("Owner metadata. role is required"),
     goal: stringType().optional().describe("Replace the top-level goal in tasks.json"),
     decisions: arrayType(stringType()).optional().describe("Append entries to the top-level decisions list in tasks.json")
@@ -20592,25 +20833,31 @@ var taskListTool = {
 var taskUpdateTool = {
   group: "task",
   name: "nx_task_update",
-  description: "Partially update task status or owner metadata",
+  description: "Partially update a task. Updatable fields: status, acceptance, approach, risk, owner (agent_id/resume_tier only), result (outcome/summary/artifacts). result.recorded_at is always set by the server. id, title, context, deps, created_at, owner.role are immutable — to change identity-carrying fields, delete and re-add the task instead.",
   inputSchema: {
-    id: numberType().describe("Task ID to update"),
+    id: coerce.number().int().positive().describe("Task ID to update"),
     status: enumType(["pending", "in_progress", "completed"]).optional().describe("New status"),
-    owner: TaskOwnerUpdateSchema.optional().describe("Partial owner update. Only agent_id and resume_tier are allowed; role cannot be changed")
+    acceptance: stringType().optional().describe("New acceptance criteria"),
+    approach: stringType().optional().describe("New approach"),
+    risk: stringType().optional().describe("New risk description"),
+    owner: TaskOwnerUpdateSchema.optional().describe("Partial owner update. Only agent_id and resume_tier are allowed; role cannot be changed"),
+    result: TaskResultInputSchema.optional().describe("Task result. recorded_at is set by the server and must not be supplied")
   }
 };
 var taskCloseTool = {
   group: "task",
   name: "nx_task_close",
-  description: "Close the current cycle, archive it to history.json, and remove plan.json and tasks.json",
-  inputSchema: {}
+  description: "Close the current cycle, archive it to history.json, and remove plan.json and tasks.json. Throws if any tasks are incomplete unless force is true.",
+  inputSchema: {
+    force: booleanType().optional().describe("Skip the incomplete-task guard and close anyway. Defaults to false.")
+  }
 };
 var taskResumeTool = {
   group: "task",
   name: "nx_task_resume",
   description: "Get task resume routing information based on owner.resume_tier",
   inputSchema: {
-    id: numberType().describe("Task ID to look up")
+    id: coerce.number().int().positive().describe("Task ID to look up")
   }
 };
 
@@ -20716,7 +20963,7 @@ var taskToolBindings = [
   },
   {
     definition: taskUpdateTool,
-    handler: async ({ id, status, owner }) => {
+    handler: async ({ id, status, acceptance, approach, risk, owner, result }) => {
       const tPath = tasksPath();
       let updatedTask;
       await updateJsonFileLocked(tPath, defaultTasksFile(), (data) => {
@@ -20726,6 +20973,15 @@ var taskToolBindings = [
         }
         if (status !== undefined) {
           task.status = status;
+        }
+        if (acceptance !== undefined) {
+          task.acceptance = acceptance;
+        }
+        if (approach !== undefined) {
+          task.approach = approach;
+        }
+        if (risk !== undefined) {
+          task.risk = risk;
         }
         if (owner !== undefined) {
           if ("agent_id" in owner) {
@@ -20745,6 +21001,14 @@ var taskToolBindings = [
             }
           }
         }
+        if (result !== undefined) {
+          task.result = {
+            outcome: result.outcome,
+            summary: result.summary,
+            ...result.artifacts !== undefined ? { artifacts: result.artifacts } : {},
+            recorded_at: new Date().toISOString()
+          };
+        }
         updatedTask = task;
         return data;
       });
@@ -20753,7 +21017,7 @@ var taskToolBindings = [
   },
   {
     definition: taskCloseTool,
-    handler: async () => {
+    handler: async ({ force = false }) => {
       const tPath = tasksPath();
       const pPath = planPath2();
       const hPath = historyPath2();
@@ -20762,7 +21026,12 @@ var taskToolBindings = [
       const tasks = tasksData?.tasks ?? [];
       const plan_id = planData?.id ?? null;
       const task_count = tasks.length;
-      const incomplete_count = tasks.filter((task) => task.status !== "completed").length;
+      const incompleteTasks = tasks.filter((task) => task.status !== "completed");
+      const incomplete_count = incompleteTasks.length;
+      if (!force && incomplete_count > 0) {
+        const ids = incompleteTasks.map((t) => t.id).join(", ");
+        throw new Error(`Cannot close: tasks [${ids}] are incomplete. Pass force:true to override.`);
+      }
       await updateJsonFileLocked(hPath, { cycles: [] }, (history) => {
         history.cycles.push({
           schema_version: "1.0",
