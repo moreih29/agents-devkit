@@ -87,10 +87,13 @@ echo "{\"hook_event_name\":\"SessionStart\",\"cwd\":\"$tmp\"}" | node dist/hooks
 echo
 echo "[4/5] prompt-router hook"
 out=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[plan] decompose the auth refactor"}' | node dist/hooks/prompt-router.js)
-echo "$out" | grep -q 'nx-plan skill' && pass "[plan] → nx-plan directive" || fail "[plan] routing broken: $out"
+echo "$out" | grep -q 'claude-nexus:nx-plan' && pass "[plan] → claude-nexus:nx-plan directive" || fail "[plan] routing broken: $out"
 
 out=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[auto-plan] quick task"}' | node dist/hooks/prompt-router.js)
-echo "$out" | grep -q 'nx-auto-plan' && pass "[auto-plan] → nx-auto-plan directive" || fail "[auto-plan] routing broken: $out"
+echo "$out" | grep -q 'claude-nexus:nx-auto-plan' && pass "[auto-plan] → claude-nexus:nx-auto-plan directive" || fail "[auto-plan] routing broken: $out"
+
+out=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"[run] execute the next task"}' | node dist/hooks/prompt-router.js)
+echo "$out" | grep -q 'claude-nexus:nx-run' && pass "[run] → claude-nexus:nx-run directive" || fail "[run] routing broken: $out"
 
 out=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"no tag at all"}' | node dist/hooks/prompt-router.js)
 [ -z "$out" ] && pass "no tag → silent" || fail "non-tag prompt emitted output: $out"

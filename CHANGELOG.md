@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.34.1] - 2026-05-08
+
+### Fixed
+
+- **`UserPromptSubmit` 훅이 안내하는 스킬 이름에 플러그인 네임스페이스 누락 → `Skill(...)` 호출 실패.** 훅(`prompt-router.ts`)이 `[plan]`·`[auto-plan]`·`[run]` 태그를 받으면 모델에게 "Activate the nx-plan skill ..."처럼 단축명만 안내했고, Claude Code의 `Skill` 도구는 플러그인 스킬에 대해 풀 네임스페이스(`claude-nexus:nx-plan`)를 요구하므로 모델이 그대로 호출하면 `Unknown skill: nx-run`으로 실패했다. 안내 문구를 `claude-nexus:<skill>` 풀네임으로 교체하고 단축명 사용 시 실패한다는 가드 문구를 추가.
+
+### Notes
+
+- 사용자 조치 불필요. 플러그인 업데이트 후 다음 세션부터 자동 적용.
+- 영향 범위: `src/hooks/prompt-router.ts`(`dist/hooks/prompt-router.js` 재빌드). 스킬 본문·에이전트·MCP 인터페이스·statusline 변경 없음.
+
 ## [0.34.0] - 2026-05-08
 
 ### Changed

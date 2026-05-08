@@ -17,9 +17,9 @@ async function readStdin() {
 
 // src/hooks/prompt-router.ts
 var DIRECTIVES = {
-  plan: "Activate the nx-plan skill for structured multi-perspective planning.",
-  "auto-plan": "Activate the nx-auto-plan skill to auto-decompose the request into a plan.",
-  run: "Activate the nx-run skill to execute the current plan's tasks.",
+  plan: "Activate the `claude-nexus:nx-plan` skill for structured multi-perspective planning. Pass the fully qualified name to the Skill tool — `nx-plan` alone will fail.",
+  "auto-plan": "Activate the `claude-nexus:nx-auto-plan` skill to auto-decompose the request into a plan. Pass the fully qualified name to the Skill tool — `nx-auto-plan` alone will fail.",
+  run: "Activate the `claude-nexus:nx-run` skill to execute the current plan's tasks. Pass the fully qualified name to the Skill tool — `nx-run` alone will fail.",
   m: "Store the following body as a lesson in .nexus/memory/.",
   "m:gc": "Garbage-collect .nexus/memory/ by merging or removing stale entries.",
   d: "Record a decision for the active plan session's current issue via nx_plan_decide."
